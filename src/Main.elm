@@ -28,7 +28,7 @@ main =
 
 
 type alias Model =
-  { csv : Maybe String
+  { gpx : Maybe String
   }
 
 
@@ -42,26 +42,26 @@ init _ =
 
 
 type Msg
-  = CsvRequested
-  | CsvSelected File
-  | CsvLoaded String
+  = GpxRequested
+  | GpxSelected File
+  | GpxLoaded String
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    CsvRequested ->
+    GpxRequested ->
       ( model
-      , Select.file ["text/gpx"] CsvSelected
+      , Select.file ["text/gpx"] GpxSelected
       )
 
-    CsvSelected file ->
+    GpxSelected file ->
       ( model
-      , Task.perform CsvLoaded (File.toString file)
+      , Task.perform GpxLoaded (File.toString file)
       )
 
-    CsvLoaded content ->
-      ( { model | csv = Just content }
+    GpxLoaded content ->
+      ( { model | gpx = Just content }
       , Cmd.none
       )
 
@@ -72,9 +72,9 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-  case model.csv of
+  case model.gpx of
     Nothing ->
-      button [ onClick CsvRequested ] [ text "Load CSV" ]
+      button [ onClick GpxRequested ] [ text "Load GPX" ]
 
     Just content ->
       p [ style "white-space" "pre" ] [ text content ]
