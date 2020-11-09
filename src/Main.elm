@@ -6,6 +6,7 @@ import File.Select as Select
 import Html exposing (Html, button, div, p, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
+import Maybe.Extra
 import Regex
 import Task
 
@@ -29,9 +30,9 @@ main =
 
 
 type alias TrackPoint =
-    { lat : String
-    , lon : String
-    , ele : String
+    { lat : Float
+    , lon : Float
+    , ele : Float
     }
 
 
@@ -89,31 +90,43 @@ parseTrackPoints xml =
             Maybe.withDefault Regex.never <| Regex.fromString t
 
         latitudes =
-            Regex.find (reg "lat=\\\"[\\d\\.]*\\\"") xml |> matches
+            Regex.find (reg "lat=\\\"([\\d\\.]*)\\\"") xml |> matches
 
         longitudes =
-            Regex.find (reg "lon=\\\"[\\d\\.]*\\\"") xml |> matches
+            Regex.find (reg "lon=\\\"([\\d\\.]*)\\\"") xml |> matches
 
         elevations =
-            Regex.find (reg "<ele>[\\d\\.]*</ele>") xml |> matches
+            Regex.find (reg "<ele>([\\d\\.]*)</ele>") xml |> matches
 
-        makeTrackPoint a b c =
-            { lat = a
-            , lon = b
-            , ele = c
-            }
+        makeTrackPoint mayLat mayLon mayEle =
+            case ( mayLat, mayLon, mayEle ) of
+                ( Just a, Just b, Just c ) ->
+                    Just
+                        { lat = a
+                        , lon = b
+                        , ele = c
+                        }
+
+                _ ->
+                    Nothing
 
         matches xs =
             List.map value xs
 
         value x =
-            x.match
+            case x.submatches of
+                (Just val) :: _ ->
+                    String.toFloat val
+
+                _ ->
+                    Nothing
     in
     List.map3
         makeTrackPoint
         latitudes
         longitudes
         elevations
+        |> Maybe.Extra.values
 
 
 
@@ -133,7 +146,11 @@ view model =
 
 viewTrackPoint : TrackPoint -> Html Msg
 viewTrackPoint trkpnt =
-    p [ style "white-space" "pre" ] [ text trkpnt.lat ]
+    p [ style "white-space" "pre" ]
+        [ text <| " Lat:" ++ String.fromFloat trkpnt.lat
+        , text <| " Lon:" ++ String.fromFloat trkpnt.lon
+        , text <| " Ele:" ++ String.fromFloat trkpnt.ele
+        ]
 
 
 
