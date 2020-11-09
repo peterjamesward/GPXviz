@@ -90,13 +90,13 @@ parseTrackPoints xml =
             Maybe.withDefault Regex.never <| Regex.fromString t
 
         latitudes =
-            Regex.find (reg "lat=\\\"([\\d\\.]*)\\\"") xml |> matches
+            Regex.find (reg "lat=\\\"([\\d\\.-]*)\\\"") xml |> matches
 
         longitudes =
-            Regex.find (reg "lon=\\\"([\\d\\.]*)\\\"") xml |> matches
+            Regex.find (reg "lon=\\\"([\\d\\.-]*)\\\"") xml |> matches
 
         elevations =
-            Regex.find (reg "<ele>([\\d\\.]*)</ele>") xml |> matches
+            Regex.find (reg "<ele>([\\d\\.-]*)</ele>") xml |> matches
 
         makeTrackPoint mayLat mayLon mayEle =
             case ( mayLat, mayLon, mayEle ) of
