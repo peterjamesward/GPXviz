@@ -3,9 +3,10 @@ module Main exposing (main)
 import Browser
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, button, div, p, text)
+import Html exposing (Html, button, div, hr, p, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
+import List exposing (minimum)
 import Maybe.Extra
 import Regex
 import Task
@@ -39,13 +40,21 @@ type alias TrackPoint =
 type alias Model =
     { gpx : Maybe String
     , trackPoints : List TrackPoint
+    , minimums : TrackPoint
+    , maximums : TrackPoint
     }
+
+
+zerotp =
+    TrackPoint 0.0 0.0 0.0
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { gpx = Nothing
       , trackPoints = []
+      , minimums = zerotp
+      , maximums = zerotp
       }
     , Cmd.none
     )
@@ -63,6 +72,19 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        lowerBounds tps =
+            { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tps
+            , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tps
+            , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tps
+            }
+
+        upperBounds tps =
+            { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tps
+            , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tps
+            , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tps
+            }
+    in
     case msg of
         GpxRequested ->
             ( model
@@ -75,9 +97,15 @@ update msg model =
             )
 
         GpxLoaded content ->
-            ( { model
+            ( let
+                tps =
+                    parseTrackPoints content
+              in
+              { model
                 | gpx = Just content
-                , trackPoints = parseTrackPoints content
+                , trackPoints = tps
+                , minimums = lowerBounds tps
+                , maximums = upperBounds tps
               }
             , Cmd.none
             )
@@ -135,13 +163,18 @@ parseTrackPoints xml =
 
 view : Model -> Html Msg
 view model =
-    case model.gpx of
-        Nothing ->
-            button [ onClick GpxRequested ] [ text "Load GPX" ]
+    div []
+        [ button [ onClick GpxRequested ] [ text "Load GPX" ]
+        , case model.gpx of
+            Nothing ->
+                hr [] []
 
-        Just _ ->
-            div [] <|
-                List.map viewTrackPoint model.trackPoints
+            Just _ ->
+                div []
+                    [ viewTrackPoint model.minimums
+                    , viewTrackPoint model.maximums
+                    ]
+        ]
 
 
 viewTrackPoint : TrackPoint -> Html Msg
