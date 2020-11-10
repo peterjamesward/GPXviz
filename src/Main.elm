@@ -305,7 +305,7 @@ viewPointCloud nodes =
             points
                 |> List.map
                     (\point ->
-                        Scene3d.point { radius = Pixels.float 5 }
+                        Scene3d.point { radius = Pixels.float 3 }
                             (Material.color Color.blue)
                             point
                     )
@@ -315,7 +315,7 @@ viewPointCloud nodes =
                 { viewpoint =
                     Viewpoint3d.lookAt
                         { focalPoint = Point3d.origin
-                        , eyePoint = Point3d.meters 2 6 4
+                        , eyePoint = Point3d.meters 0 0 4
                         , upDirection = Direction3d.positiveZ
                         }
                 , verticalFieldOfView = Angle.degrees 30
