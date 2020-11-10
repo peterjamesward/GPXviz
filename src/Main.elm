@@ -6,13 +6,23 @@ import File.Select as Select
 import Html exposing (Html, button, div, hr, p, text)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
-import List exposing (minimum)
+import List
 import Maybe.Extra
 import Regex
 import Task
 
 
 
+--TODO: Use elm-ui
+--TODO: Optional tabular display of track points
+--TODO: Track points in elm-3d-scene
+--TODO: Create road segments
+--TODO: Road segments in elm-3d-scene
+--TODO: Colour by gradient
+--TODO: Camera rotation
+--TODO: Fly-through
+--TODO: Toggle display elements
+--TODO: Dark mode
 -- MAIN
 
 
@@ -31,9 +41,19 @@ main =
 
 
 type alias TrackPoint =
+    -- This is the basic info we extract from a GPX file.
     { lat : Float
     , lon : Float
     , ele : Float
+    }
+
+
+type alias DrawingNode =
+    -- We will draw in a rectangular space using metre units. Probably.
+    { trackPoint : TrackPoint
+    , northOffset : Float -- metres from bottom edge of bounding box
+    , eastOffset : Float -- metres from left edge of bounding box
+    , vertOffset : Float -- metres from base of bounding box
     }
 
 
@@ -42,6 +62,7 @@ type alias Model =
     , trackPoints : List TrackPoint
     , minimums : TrackPoint
     , maximums : TrackPoint
+    , nodes : List DrawingNode
     }
 
 
@@ -55,6 +76,7 @@ init _ =
       , trackPoints = []
       , minimums = zerotp
       , maximums = zerotp
+      , nodes = []
       }
     , Cmd.none
     )
@@ -70,6 +92,10 @@ type Msg
     | GpxLoaded String
 
 
+metresPerDegreeLongitude =
+    78846.81
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -83,6 +109,13 @@ update msg model =
             { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tps
             , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tps
             , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tps
+            }
+
+        prepareDrawingNode mins maxs tp =
+            { trackPoint = tp
+            , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
+            , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
+            , vertOffset = tp.ele - mins.ele
             }
     in
     case msg of
@@ -100,12 +133,19 @@ update msg model =
             ( let
                 tps =
                     parseTrackPoints content
+
+                mins =
+                    lowerBounds tps
+
+                maxs =
+                    upperBounds tps
               in
               { model
                 | gpx = Just content
                 , trackPoints = tps
-                , minimums = lowerBounds tps
-                , maximums = upperBounds tps
+                , minimums = mins
+                , maximums = maxs
+                , nodes = List.map (prepareDrawingNode mins maxs) tps
               }
             , Cmd.none
             )
