@@ -28,6 +28,7 @@ import Viewpoint3d
 
 
 
+--TODO: Watch out for zero length segments!
 --TODO: Optional tabular display of track points
 --TODO: Create road segments
 --TODO: Road segments in elm-3d-scene
@@ -271,25 +272,27 @@ parseGPXintoModel content model =
 
         seaLevel =
             Scene3d.quad (Material.color Color.green)
-                (Point3d.meters -1 -1 (elevationToClipSpace 0.0))
-                (Point3d.meters 1 -1 (elevationToClipSpace 0.0))
-                (Point3d.meters 1 1 (elevationToClipSpace 0.0))
-                (Point3d.meters -1 1 (elevationToClipSpace 0.0))
+                (Point3d.meters -1.2 -1.2 (elevationToClipSpace 0.0))
+                (Point3d.meters 1.2 -1.2 (elevationToClipSpace 0.0))
+                (Point3d.meters 1.2 1.2 (elevationToClipSpace 0.0))
+                (Point3d.meters -1.2 1.2 (elevationToClipSpace 0.0))
 
         roadEntities =
             List.map roadEntity roadSegments
 
         roadEntity segment =
             let
-                kerbX = 0.02 * abs (sin segment.bearing)
+                kerbX =
+                    0.02 * sin segment.bearing
 
-                kerbY = 0.02 * abs (cos segment.bearing)
+                kerbY =
+                    0.02 * cos segment.bearing
             in
-            Scene3d.quad (Material.color Color.darkPurple)
-                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+            Scene3d.quad (Material.color Color.darkYellow)
                 (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
                 (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
                 (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
 
         roadSegments =
             List.map2 roadSegment drawingNodes <|
@@ -313,7 +316,7 @@ parseGPXintoModel content model =
             { startsAt = node1
             , endsAt = node2
             , length = pythag
-            , bearing = atan2 xDifference yDifference
+            , bearing = atan2 yDifference xDifference
             , gradient = atan2 zDifference pythag
             }
     in
