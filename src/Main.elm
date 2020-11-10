@@ -1,7 +1,8 @@
 module Main exposing (main)
 
-import Angle
+import Angle exposing (Angle)
 import Browser
+import Browser.Events
 import Camera3d
 import Color
 import Direction3d
@@ -14,11 +15,13 @@ import Element.Input exposing (button)
 import File exposing (File)
 import File.Select as Select
 import Html.Attributes exposing (style)
+import Json.Decode as Decode exposing (Decoder)
 import Length
 import List
 import Maybe.Extra
-import Pixels
+import Pixels exposing (Pixels)
 import Point3d
+import Quantity exposing (Quantity)
 import Regex
 import Scene3d
 import Scene3d.Material as Material
@@ -82,7 +85,19 @@ type alias Model =
     , largestDimension : Float -- biggest bounding box edge determines scaling factor
     , nodes : List DrawingNode
     , trackName : Maybe String
+    , azimuth : Angle -- Orbiting angle of the camera around the focal point
+    , elevation : Angle -- Angle of the camera up from the XY plane
+    , orbiting : Bool -- Whether the mouse button is currently down
     }
+
+
+type Msg
+    = MouseDown
+    | MouseUp
+    | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
+    | GpxRequested
+    | GpxSelected File
+    | GpxLoaded String
 
 
 zerotp =
@@ -99,6 +114,9 @@ init _ =
       , largestDimension = 1.0
       , nodes = []
       , trackName = Nothing
+      , azimuth = Angle.degrees 45
+      , elevation = Angle.degrees 30
+      , orbiting = False
       }
     , Cmd.none
     )
@@ -106,12 +124,6 @@ init _ =
 
 
 -- UPDATE
-
-
-type Msg
-    = GpxRequested
-    | GpxSelected File
-    | GpxLoaded String
 
 
 metresPerDegreeLongitude =
@@ -186,6 +198,45 @@ update msg model =
               }
             , Cmd.none
             )
+
+        -- Start orbiting when a mouse button is pressed
+        MouseDown ->
+            ( { model | orbiting = True }, Cmd.none )
+
+        -- Stop orbiting when a mouse button is released
+        MouseUp ->
+            ( { model | orbiting = False }, Cmd.none )
+
+        -- Orbit camera on mouse move (if a mouse button is down)
+        MouseMove dx dy ->
+            if model.orbiting then
+                let
+                    -- How fast we want to orbit the camera (orbiting the
+                    -- camera by 1 degree per pixel of drag is a decent default
+                    -- to start with)
+                    rotationRate =
+                        Angle.degrees 1 |> Quantity.per Pixels.pixel
+
+                    -- Adjust azimuth based on horizontal mouse motion (one
+                    -- degree per pixel)
+                    newAzimuth =
+                        model.azimuth
+                            |> Quantity.minus (dx |> Quantity.at rotationRate)
+
+                    -- Adjust elevation based on vertical mouse motion (one
+                    -- degree per pixel), and clamp to make sure camera cannot
+                    -- go past vertical in either direction
+                    newElevation =
+                        model.elevation
+                            |> Quantity.plus (dy |> Quantity.at rotationRate)
+                            |> Quantity.clamp (Angle.degrees -90) (Angle.degrees 90)
+                in
+                ( { model | azimuth = newAzimuth, elevation = newElevation }
+                , Cmd.none
+                )
+
+            else
+                ( model, Cmd.none )
 
 
 reg t =
@@ -278,7 +329,7 @@ view model =
                     Just _ ->
                         column []
                             [ displayName model.trackName
-                            , viewPointCloud model.nodes
+                            , viewPointCloud model
                             , viewBoundingBox model
                             , viewTrackPointTable model
                             ]
@@ -287,7 +338,7 @@ view model =
     }
 
 
-viewPointCloud nodes =
+viewPointCloud model =
     let
         points =
             List.map
@@ -297,7 +348,7 @@ viewPointCloud nodes =
                         node.y
                         node.z
                 )
-                nodes
+                model.nodes
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
@@ -313,10 +364,11 @@ viewPointCloud nodes =
         camera =
             Camera3d.perspective
                 { viewpoint =
-                    Viewpoint3d.lookAt
-                        { focalPoint = Point3d.origin
-                        , eyePoint = Point3d.meters 0 0 4
-                        , upDirection = Direction3d.positiveZ
+                    Viewpoint3d.orbitZ
+                        { focalPoint = Point3d.meters 0.5 0.5 0
+                        , azimuth = model.azimuth
+                        , elevation = model.elevation
+                        , distance = Length.meters 3
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
@@ -403,10 +455,33 @@ viewTrackPoint trkpnt =
         ]
 
 
+{-| Use movementX and movementY for simplicity (don't need to store initial
+mouse position in the model) - not supported in Internet Explorer though
+-}
+decodeMouseMove : Decoder Msg
+decodeMouseMove =
+    Decode.map2 MouseMove
+        (Decode.field "movementX" (Decode.map Pixels.float Decode.float))
+        (Decode.field "movementY" (Decode.map Pixels.float Decode.float))
+
+
 
 -- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    if model.orbiting then
+        -- If we're currently orbiting, listen for mouse moves and mouse button
+        -- up events (to stop orbiting); in a real app we'd probably also want
+        -- to listen for page visibility changes to stop orbiting if the user
+        -- switches to a different tab or something
+        Sub.batch
+            [ Browser.Events.onMouseMove decodeMouseMove
+            , Browser.Events.onMouseUp (Decode.succeed MouseUp)
+            ]
+
+    else
+        -- If we're not currently orbiting, just listen for mouse down events
+        -- to start orbiting
+        Browser.Events.onMouseDown (Decode.succeed MouseDown)
