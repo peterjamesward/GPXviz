@@ -1,11 +1,15 @@
 module Main exposing (main)
 
 import Browser
+import Element exposing (Element, column, fill, focused, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, text, width)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Events exposing (onClick)
+import Element.Font as Font
+import Element.Input exposing (button)
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, button, div, hr, p, text)
 import Html.Attributes exposing (style)
-import Html.Events exposing (onClick)
 import List
 import Maybe.Extra
 import Regex
@@ -13,7 +17,6 @@ import Task
 
 
 
---TODO: Use elm-ui
 --TODO: Optional tabular display of track points
 --TODO: Track points in elm-3d-scene
 --TODO: Create road segments
@@ -28,7 +31,7 @@ import Task
 
 main : Program () Model Msg
 main =
-    Browser.element
+    Browser.document
         { init = init
         , view = view
         , update = update
@@ -201,28 +204,54 @@ parseTrackPoints xml =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    div []
-        [ button [ onClick GpxRequested ] [ text "Load GPX" ]
-        , case model.gpx of
-            Nothing ->
-                hr [] []
-
-            Just _ ->
-                div []
-                    [ viewTrackPoint model.minimums
-                    , viewTrackPoint model.maximums
+    { title = "GPX viewer"
+    , body =
+        [ layout
+            [ width fill
+            , padding 20
+            , spacing 10
+            , htmlAttribute <| style "touch-action" "manipulation"
+            ]
+          <|
+            column []
+                [ button
+                    [ padding 10
+                    , Border.width 2
+                    , Border.rounded 16
+                    , Border.color <| rgb255 0x50 0x50 0x50
+                    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 10, color = rgb255 0xD0 0xD0 0xD0 }
+                    , Background.color <| rgb255 114 159 207
+                    , Font.color <| rgb255 0xFF 0xFF 0xFF
+                    , mouseOver
+                        [ Background.color <| rgb255 0xFF 0xFF 0xFF, Font.color <| rgb255 0 0 0 ]
+                    , focused
+                        [ Border.shadow { offset = ( 4, 4 ), size = 3, blur = 10, color = rgb255 114 159 207 } ]
                     ]
+                    { onPress = Just GpxRequested
+                    , label = text "Load GPX"
+                    }
+                , case model.gpx of
+                    Nothing ->
+                        none
+
+                    Just _ ->
+                        row []
+                            [ viewTrackPoint model.minimums
+                            , viewTrackPoint model.maximums
+                            ]
+                ]
         ]
+    }
 
 
-viewTrackPoint : TrackPoint -> Html Msg
+viewTrackPoint : TrackPoint -> Element Msg
 viewTrackPoint trkpnt =
-    p [ style "white-space" "pre" ]
-        [ text <| " Lat:" ++ String.fromFloat trkpnt.lat
-        , text <| " Lon:" ++ String.fromFloat trkpnt.lon
-        , text <| " Ele:" ++ String.fromFloat trkpnt.ele
+    column [ padding 5, spacing 5 ]
+        [ text <| "Lat:" ++ String.fromFloat trkpnt.lat
+        , text <| "Lon:" ++ String.fromFloat trkpnt.lon
+        , text <| "Ele:" ++ String.fromFloat trkpnt.ele
         ]
 
 
