@@ -5,11 +5,9 @@ import Browser
 import Browser.Events
 import Camera3d
 import Color
-import Direction3d
 import Element exposing (Element, centerX, column, fill, focused, html, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Events exposing (onClick)
 import Element.Font as Font
 import Element.Input exposing (button)
 import File exposing (File)
@@ -31,15 +29,12 @@ import Viewpoint3d
 
 
 --TODO: Optional tabular display of track points
---TODO: Track points in elm-3d-scene
 --TODO: Create road segments
 --TODO: Road segments in elm-3d-scene
 --TODO: Colour by gradient
---TODO: Camera rotation
 --TODO: Fly-through
 --TODO: Toggle display elements
 --TODO: Dark mode
--- MAIN
 
 
 main : Program () Model Msg
