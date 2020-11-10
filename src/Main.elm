@@ -15,7 +15,7 @@ import File.Select as Select
 import Html.Attributes exposing (style)
 import Json.Decode as Decode exposing (Decoder)
 import Length
-import List
+import List exposing (tail)
 import Maybe.Extra
 import Pixels exposing (Pixels)
 import Point3d exposing (coordinates)
@@ -71,6 +71,15 @@ type alias DrawingNode =
     }
 
 
+type alias DrawingRoad =
+    { startsAt : DrawingNode
+    , endsAt : DrawingNode
+    , length : Float
+    , bearing : Float
+    , gradient : Float
+    }
+
+
 type MyCoord
     = SomeCoord
 
@@ -83,6 +92,7 @@ type alias Model =
     , centres : TrackPoint -- simplify converting to [-1, +1] coords
     , largestDimension : Float -- biggest bounding box edge determines scaling factor
     , nodes : List DrawingNode
+    , roads : List DrawingRoad
     , trackName : Maybe String
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
@@ -113,6 +123,7 @@ init _ =
       , centres = zerotp
       , largestDimension = 1.0
       , nodes = []
+      , roads = []
       , trackName = Nothing
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
@@ -264,6 +275,47 @@ parseGPXintoModel content model =
                 (Point3d.meters 1 -1 (elevationToClipSpace 0.0))
                 (Point3d.meters 1 1 (elevationToClipSpace 0.0))
                 (Point3d.meters -1 1 (elevationToClipSpace 0.0))
+
+        roadEntities =
+            List.map roadEntity roadSegments
+
+        roadEntity segment =
+            let
+                kerbX = 0.02 * abs (sin segment.bearing)
+
+                kerbY = 0.02 * abs (cos segment.bearing)
+            in
+            Scene3d.quad (Material.color Color.darkPurple)
+                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+                (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
+                (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
+                (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+
+        roadSegments =
+            List.map2 roadSegment drawingNodes <|
+                Maybe.withDefault [] <|
+                    tail drawingNodes
+
+        roadSegment node1 node2 =
+            let
+                xDifference =
+                    node2.eastOffset - node1.eastOffset
+
+                yDifference =
+                    node2.northOffset - node1.northOffset
+
+                zDifference =
+                    node2.vertOffset - node1.vertOffset
+
+                pythag =
+                    sqrt <| yDifference * yDifference + xDifference * xDifference
+            in
+            { startsAt = node1
+            , endsAt = node2
+            , length = pythag
+            , bearing = atan2 xDifference yDifference
+            , gradient = atan2 zDifference pythag
+            }
     in
     { model
         | gpx = Just content
@@ -273,8 +325,9 @@ parseGPXintoModel content model =
         , centres = findCentres
         , largestDimension = scalingFactor
         , nodes = drawingNodes
+        , roads = roadSegments
         , trackName = parseTrackName content
-        , entities = seaLevel :: pointEntities
+        , entities = seaLevel :: pointEntities ++ roadEntities
     }
 
 
