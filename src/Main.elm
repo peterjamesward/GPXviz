@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Element exposing (Element, column, fill, focused, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, text, width)
+import Element exposing (Element, column, fill, focused, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)
@@ -57,6 +57,9 @@ type alias DrawingNode =
     , northOffset : Float -- metres from bottom edge of bounding box
     , eastOffset : Float -- metres from left edge of bounding box
     , vertOffset : Float -- metres from base of bounding box
+    , x : Float -- east offset convrted to [-1, +1] system
+    , y : Float -- north, ditto
+    , z : Float -- vert, ditto
     }
 
 
@@ -65,6 +68,8 @@ type alias Model =
     , trackPoints : List TrackPoint
     , minimums : TrackPoint
     , maximums : TrackPoint
+    , centres : TrackPoint -- simplify converting to [-1, +1] coords
+    , largestDimension : Float -- biggest bounding box edge determines scaling factor
     , nodes : List DrawingNode
     , trackName : Maybe String
     }
@@ -80,6 +85,8 @@ init _ =
       , trackPoints = []
       , minimums = zerotp
       , maximums = zerotp
+      , centres = zerotp
+      , largestDimension = 1.0
       , nodes = []
       , trackName = Nothing
       }
@@ -115,13 +122,6 @@ update msg model =
             , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tps
             , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tps
             }
-
-        prepareDrawingNode mins tp =
-            { trackPoint = tp
-            , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
-            , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
-            , vertOffset = tp.ele - mins.ele
-            }
     in
     case msg of
         GpxRequested ->
@@ -144,13 +144,34 @@ update msg model =
 
                 maxs =
                     upperBounds tps
+
+                findCentres =
+                    { lat = (mins.lat + maxs.lat) / 2.0
+                    , lon = (mins.lon + maxs.lon) / 2.0
+                    , ele = (mins.ele + maxs.ele) / 2.0
+                    }
+
+                scalingFactor =
+                    max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
+
+                prepareDrawingNode tp =
+                    { trackPoint = tp
+                    , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
+                    , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
+                    , vertOffset = tp.ele - mins.ele
+                    , x = (tp.lon - findCentres.lon) / (0.5 * scalingFactor)
+                    , y = (tp.lat - findCentres.lat) / (0.5 * scalingFactor)
+                    , z = (tp.ele - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
+                    }
               in
               { model
                 | gpx = Just content
                 , trackPoints = tps
                 , minimums = mins
                 , maximums = maxs
-                , nodes = List.map (prepareDrawingNode mins) tps
+                , centres = findCentres
+                , largestDimension = scalingFactor
+                , nodes = List.map prepareDrawingNode tps
                 , trackName = parseTrackName content
               }
             , Cmd.none
@@ -251,6 +272,35 @@ view model =
                                 [ viewTrackPoint model.minimums
                                 , viewTrackPoint model.maximums
                                 ]
+                            , table []
+                                { data = model.nodes
+                                , columns =
+                                    [ { header = text "Latitude"
+                                      , width = fill
+                                      , view = \node -> text <| String.fromFloat node.trackPoint.lat
+                                      }
+                                    , { header = text "x"
+                                      , width = fill
+                                      , view = \node -> text <| String.fromFloat node.x
+                                      }
+                                    , { header = text "Longitude"
+                                      , width = fill
+                                      , view = \node -> text <| String.fromFloat node.trackPoint.lon
+                                      }
+                                    , { header = text "y"
+                                      , width = fill
+                                      , view = \node -> text <| String.fromFloat node.y
+                                      }
+                                    , { header = text "Elevation"
+                                      , width = fill
+                                      , view = \node -> text <| String.fromFloat node.trackPoint.ele
+                                      }
+                                    , { header = text "z"
+                                      , width = fill
+                                      , view = \node -> text <| String.fromFloat node.z
+                                      }
+                                    ]
+                                }
                             ]
                 ]
         ]
