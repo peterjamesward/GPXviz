@@ -20,10 +20,10 @@ import Length
 import List
 import Maybe.Extra
 import Pixels exposing (Pixels)
-import Point3d
+import Point3d exposing (coordinates)
 import Quantity exposing (Quantity)
 import Regex
-import Scene3d
+import Scene3d exposing (Entity)
 import Scene3d.Material as Material
 import Task
 import Viewpoint3d
@@ -76,6 +76,10 @@ type alias DrawingNode =
     }
 
 
+type MyCoord
+    = SomeCoord
+
+
 type alias Model =
     { gpx : Maybe String
     , trackPoints : List TrackPoint
@@ -88,6 +92,7 @@ type alias Model =
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Bool -- Whether the mouse button is currently down
+    , entities : List (Entity MyCoord)
     }
 
 
@@ -117,6 +122,7 @@ init _ =
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
       , orbiting = False
+      , entities = []
       }
     , Cmd.none
     )
@@ -185,6 +191,30 @@ update msg model =
                     , y = (tp.lat - findCentres.lat) / (0.5 * scalingFactor)
                     , z = (tp.ele - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
                     }
+
+                drawingNodes =
+                    List.map prepareDrawingNode tps
+
+                points =
+                    List.map
+                        (\node ->
+                            Point3d.meters
+                                node.x
+                                node.y
+                                node.z
+                        )
+                        drawingNodes
+
+                -- Convert the points to a list of entities by providing a radius and
+                -- color for each point
+                pointEntities =
+                    points
+                        |> List.map
+                            (\point ->
+                                Scene3d.point { radius = Pixels.float 3 }
+                                    (Material.color Color.blue)
+                                    point
+                            )
               in
               { model
                 | gpx = Just content
@@ -193,8 +223,9 @@ update msg model =
                 , maximums = maxs
                 , centres = findCentres
                 , largestDimension = scalingFactor
-                , nodes = List.map prepareDrawingNode tps
+                , nodes = drawingNodes
                 , trackName = parseTrackName content
+                , entities = pointEntities
               }
             , Cmd.none
             )
@@ -330,8 +361,8 @@ view model =
                         column []
                             [ displayName model.trackName
                             , viewPointCloud model
-                            , viewBoundingBox model
-                            , viewTrackPointTable model
+                            --, viewBoundingBox model
+                            --, viewTrackPointTable model
                             ]
                 ]
         ]
@@ -340,35 +371,14 @@ view model =
 
 viewPointCloud model =
     let
-        points =
-            List.map
-                (\node ->
-                    Point3d.meters
-                        node.x
-                        node.y
-                        node.z
-                )
-                model.nodes
-
-        -- Convert the points to a list of entities by providing a radius and
-        -- color for each point
-        pointEntities =
-            points
-                |> List.map
-                    (\point ->
-                        Scene3d.point { radius = Pixels.float 3 }
-                            (Material.color Color.blue)
-                            point
-                    )
-
         camera =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
-                        { focalPoint = Point3d.meters 0.5 0.5 0
+                        { focalPoint = Point3d.meters 0.0 0.0 0.0
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters 3
+                        , distance = Length.meters 4
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
@@ -379,7 +389,7 @@ viewPointCloud model =
             , dimensions = ( Pixels.int 500, Pixels.int 500 )
             , background = Scene3d.transparentBackground
             , clipDepth = Length.meters 1.0
-            , entities = pointEntities
+            , entities = model.entities
             }
 
 
