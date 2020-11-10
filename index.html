@@ -7358,6 +7358,7 @@ var $author$project$Main$init = function (_v0) {
 			minimums: $author$project$Main$zerotp,
 			nodes: _List_Nil,
 			orbiting: false,
+			roads: _List_Nil,
 			trackName: $elm$core$Maybe$Nothing,
 			trackPoints: _List_Nil
 		},
@@ -7844,6 +7845,7 @@ var $ianmackenzie$elm_units$Quantity$minus = F2(
 var $elm$core$Basics$negate = function (n) {
 	return -n;
 };
+var $elm$core$Basics$atan2 = _Basics_atan2;
 var $avh4$elm_color$Color$RgbaSpace = F4(
 	function (a, b, c, d) {
 		return {$: 'RgbaSpace', a: a, b: b, c: c, d: d};
@@ -7880,6 +7882,7 @@ var $ianmackenzie$elm_3d_scene$Scene3d$Material$color = function (givenColor) {
 			$ianmackenzie$elm_3d_scene$Scene3d$Material$toVec3(givenColor)));
 };
 var $elm$core$Basics$cos = _Basics_cos;
+var $avh4$elm_color$Color$darkYellow = A4($avh4$elm_color$Color$RgbaSpace, 196 / 255, 160 / 255, 0 / 255, 1.0);
 var $avh4$elm_color$Color$green = A4($avh4$elm_color$Color$RgbaSpace, 115 / 255, 210 / 255, 22 / 255, 1.0);
 var $elm$core$List$maximum = function (list) {
 	if (list.b) {
@@ -9096,6 +9099,17 @@ var $ianmackenzie$elm_3d_scene$Scene3d$quad = F5(
 	function (givenMaterial, p1, p2, p3, p4) {
 		return A7($ianmackenzie$elm_3d_scene$Scene3d$Entity$quad, true, false, givenMaterial, p1, p2, p3, p4);
 	});
+var $elm$core$Basics$sin = _Basics_sin;
+var $elm$core$Basics$sqrt = _Basics_sqrt;
+var $elm$core$List$tail = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(xs);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
 var $author$project$Main$parseGPXintoModel = F2(
 	function (content, model) {
 		var upperBounds = function (tp) {
@@ -9133,6 +9147,31 @@ var $author$project$Main$parseGPXintoModel = F2(
 			};
 		};
 		var tps = $author$project$Main$parseTrackPoints(content);
+		var roadSegment = F2(
+			function (node1, node2) {
+				var zDifference = node2.vertOffset - node1.vertOffset;
+				var yDifference = node2.northOffset - node1.northOffset;
+				var xDifference = node2.eastOffset - node1.eastOffset;
+				var pythag = $elm$core$Basics$sqrt((yDifference * yDifference) + (xDifference * xDifference));
+				return {
+					bearing: A2($elm$core$Basics$atan2, yDifference, xDifference),
+					endsAt: node2,
+					gradient: A2($elm$core$Basics$atan2, zDifference, pythag),
+					length: pythag,
+					startsAt: node1
+				};
+			});
+		var roadEntity = function (segment) {
+			var kerbY = 0.02 * $elm$core$Basics$cos(segment.bearing);
+			var kerbX = 0.02 * $elm$core$Basics$sin(segment.bearing);
+			return A5(
+				$ianmackenzie$elm_3d_scene$Scene3d$quad,
+				$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$darkYellow),
+				A3($ianmackenzie$elm_geometry$Point3d$meters, segment.startsAt.x + kerbX, segment.startsAt.y - kerbY, segment.startsAt.z),
+				A3($ianmackenzie$elm_geometry$Point3d$meters, segment.endsAt.x + kerbX, segment.endsAt.y - kerbY, segment.endsAt.z),
+				A3($ianmackenzie$elm_geometry$Point3d$meters, segment.endsAt.x - kerbX, segment.endsAt.y + kerbY, segment.endsAt.z),
+				A3($ianmackenzie$elm_geometry$Point3d$meters, segment.startsAt.x - kerbX, segment.startsAt.y + kerbY, segment.startsAt.z));
+		};
 		var maxs = upperBounds(tps);
 		var lowerBounds = function (tp) {
 			return {
@@ -9190,23 +9229,23 @@ var $author$project$Main$parseGPXintoModel = F2(
 			$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$green),
 			A3(
 				$ianmackenzie$elm_geometry$Point3d$meters,
-				-1,
-				-1,
+				-1.2,
+				-1.2,
 				elevationToClipSpace(0.0)),
 			A3(
 				$ianmackenzie$elm_geometry$Point3d$meters,
-				1,
-				-1,
+				1.2,
+				-1.2,
 				elevationToClipSpace(0.0)),
 			A3(
 				$ianmackenzie$elm_geometry$Point3d$meters,
-				1,
-				1,
+				1.2,
+				1.2,
 				elevationToClipSpace(0.0)),
 			A3(
 				$ianmackenzie$elm_geometry$Point3d$meters,
-				-1,
-				1,
+				-1.2,
+				1.2,
 				elevationToClipSpace(0.0)));
 		var drawingNodes = A2($elm$core$List$map, prepareDrawingNode, tps);
 		var points = A2(
@@ -9227,16 +9266,29 @@ var $author$project$Main$parseGPXintoModel = F2(
 					point);
 			},
 			points);
+		var roadSegments = A3(
+			$elm$core$List$map2,
+			roadSegment,
+			drawingNodes,
+			A2(
+				$elm$core$Maybe$withDefault,
+				_List_Nil,
+				$elm$core$List$tail(drawingNodes)));
+		var roadEntities = A2($elm$core$List$map, roadEntity, roadSegments);
 		return _Utils_update(
 			model,
 			{
 				centres: findCentres,
-				entities: A2($elm$core$List$cons, seaLevel, pointEntities),
+				entities: A2(
+					$elm$core$List$cons,
+					seaLevel,
+					_Utils_ap(pointEntities, roadEntities)),
 				gpx: $elm$core$Maybe$Just(content),
 				largestDimension: scalingFactor,
 				maximums: maxs,
 				minimums: mins,
 				nodes: drawingNodes,
+				roads: roadSegments,
 				trackName: $author$project$Main$parseTrackName(content),
 				trackPoints: tps
 			});
@@ -15627,7 +15679,6 @@ var $ianmackenzie$elm_geometry$Frame3d$originPoint = function (_v0) {
 	var properties = _v0.a;
 	return properties.originPoint;
 };
-var $elm$core$Basics$sin = _Basics_sin;
 var $ianmackenzie$elm_geometry$Direction3d$rotateAround = F3(
 	function (_v0, _v1, _v2) {
 		var axis = _v0.a;
@@ -16571,7 +16622,6 @@ var $ianmackenzie$elm_units$Length$inMeters = function (_v0) {
 };
 var $ianmackenzie$elm_3d_scene$Scene3d$initStencil = $ianmackenzie$elm_3d_scene$Scene3d$updateStencil(
 	{fail: $elm_explorations$webgl$WebGL$Settings$StencilTest$replace, mask: 0, ref: $ianmackenzie$elm_3d_scene$Scene3d$initialStencilCount, test: $elm_explorations$webgl$WebGL$Settings$StencilTest$always, writeMask: 255, zfail: $elm_explorations$webgl$WebGL$Settings$StencilTest$replace, zpass: $elm_explorations$webgl$WebGL$Settings$StencilTest$replace});
-var $elm$core$Basics$sqrt = _Basics_sqrt;
 var $ianmackenzie$elm_units$Quantity$zero = $ianmackenzie$elm_units$Quantity$Quantity(0);
 var $ianmackenzie$elm_geometry$Vector3d$length = function (_v0) {
 	var v = _v0.a;

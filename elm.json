@@ -18,7 +18,8 @@
             "ianmackenzie/elm-3d-scene": "1.0.1",
             "ianmackenzie/elm-geometry": "3.8.0",
             "ianmackenzie/elm-units": "2.7.0",
-            "mdgriffith/elm-ui": "1.1.8"
+            "mdgriffith/elm-ui": "1.1.8",
+            "mpizenberg/elm-pointer-events": "4.0.2"
         },
         "indirect": {
             "elm/bytes": "1.0.8",

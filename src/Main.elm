@@ -5,7 +5,7 @@ import Browser
 import Browser.Events
 import Camera3d
 import Color
-import Element exposing (Element, centerX, column, fill, focused, html, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
+import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
@@ -13,6 +13,7 @@ import Element.Input exposing (button)
 import File exposing (File)
 import File.Select as Select
 import Html.Attributes exposing (style)
+import Html.Events.Extra.Pointer as Pointer
 import Json.Decode as Decode exposing (Decoder)
 import Length
 import List exposing (tail)
@@ -28,14 +29,10 @@ import Viewpoint3d
 
 
 
---TODO: Watch out for zero length segments!
+--TODO: Zoom into point cloud.
+--TODO: Allow touch to manipulate point cloud.
 --TODO: Optional tabular display of track points
---TODO: Create road segments
---TODO: Road segments in elm-3d-scene
---TODO: Colour by gradient
 --TODO: Fly-through
---TODO: Toggle display elements
---TODO: Dark mode
 
 
 main : Program () Model Msg
@@ -77,7 +74,10 @@ type alias DrawingRoad =
     , endsAt : DrawingNode
     , length : Float
     , bearing : Float
-    , gradient : Float
+    , gradient : Float -- radians
+    , startDistance : Float
+    , endDistance : Float
+    , index : Int
     }
 
 
@@ -295,11 +295,12 @@ parseGPXintoModel content model =
                 (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
 
         roadSegments =
-            List.map2 roadSegment drawingNodes <|
-                Maybe.withDefault [] <|
-                    tail drawingNodes
+            List.map3 roadSegment
+                drawingNodes
+                (Maybe.withDefault [] <| tail drawingNodes)
+                (List.range 1 (List.length drawingNodes))
 
-        roadSegment node1 node2 =
+        roadSegment node1 node2 index =
             let
                 xDifference =
                     node2.eastOffset - node1.eastOffset
@@ -310,14 +311,17 @@ parseGPXintoModel content model =
                 zDifference =
                     node2.vertOffset - node1.vertOffset
 
-                pythag =
+                hypotenuse =
                     sqrt <| yDifference * yDifference + xDifference * xDifference
             in
             { startsAt = node1
             , endsAt = node2
-            , length = pythag
+            , length = hypotenuse
             , bearing = atan2 yDifference xDifference
-            , gradient = atan2 zDifference pythag
+            , gradient = atan2 zDifference hypotenuse
+            , startDistance = 0.0
+            , endDistance = 0.0
+            , index = index
             }
     in
     { model
@@ -436,6 +440,43 @@ view model =
 
 viewPointCloud model =
     let
+        camera =
+            Camera3d.perspective
+                { viewpoint =
+                    Viewpoint3d.orbitZ
+                        { focalPoint = Point3d.meters 0.0 0.0 0.0
+                        , azimuth = model.azimuth
+                        , elevation = model.elevation
+                        , distance = Length.meters 4
+                        }
+                , verticalFieldOfView = Angle.degrees 30
+                }
+    in
+    el
+        [ --htmlAttribute <| Pointer.onDown (\event -> RangeGrab event.pointer.offsetPos)
+          -- , htmlAttribute <| Pointer.onMove (\event -> RangeMove event.pointer.offsetPos)
+          -- , htmlAttribute <| Pointer.onUp (\event -> RangeRelease event.pointer.offsetPos)
+          -- , htmlAttribute <| style "touch-action" "none"
+          -- , width (px 200)
+          pointer
+        ]
+    <|
+        html <|
+            Scene3d.unlit
+                { camera = camera
+                , dimensions = ( Pixels.int 500, Pixels.int 500 )
+                , background = Scene3d.transparentBackground
+                , clipDepth = Length.meters 1.0
+                , entities = model.entities
+                }
+
+
+viewRoadSegment model index =
+    let
+        road =
+            List.filter (\r -> r.index == index) model.roads
+                |> List.head
+
         camera =
             Camera3d.perspective
                 { viewpoint =
