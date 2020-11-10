@@ -1,7 +1,11 @@
 module Main exposing (main)
 
+import Angle
 import Browser
-import Element exposing (Element, column, fill, focused, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
+import Camera3d
+import Color
+import Direction3d
+import Element exposing (Element, column, fill, focused, html, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)
@@ -10,10 +14,16 @@ import Element.Input exposing (button)
 import File exposing (File)
 import File.Select as Select
 import Html.Attributes exposing (style)
+import Length
 import List
 import Maybe.Extra
+import Pixels
+import Point3d
 import Regex
+import Scene3d
+import Scene3d.Material as Material
 import Task
+import Viewpoint3d
 
 
 
@@ -268,15 +278,64 @@ view model =
                     Just _ ->
                         column []
                             [ displayName model.trackName
-                            , row []
-                                [ viewTrackPoint model.minimums
-                                , viewTrackPoint model.maximums
-                                ]
+                            , viewPointCloud model.nodes
+                            , viewBoundingBox model
                             , viewTrackPointTable model
                             ]
                 ]
         ]
     }
+
+
+viewPointCloud nodes =
+    let
+        points =
+            List.map
+                (\node ->
+                    Point3d.meters
+                        node.x
+                        node.y
+                        node.z
+                )
+                nodes
+
+        -- Convert the points to a list of entities by providing a radius and
+        -- color for each point
+        pointEntities =
+            points
+                |> List.map
+                    (\point ->
+                        Scene3d.point { radius = Pixels.float 5 }
+                            (Material.color Color.blue)
+                            point
+                    )
+
+        camera =
+            Camera3d.perspective
+                { viewpoint =
+                    Viewpoint3d.lookAt
+                        { focalPoint = Point3d.origin
+                        , eyePoint = Point3d.meters 2 6 4
+                        , upDirection = Direction3d.positiveZ
+                        }
+                , verticalFieldOfView = Angle.degrees 30
+                }
+    in
+    html <|
+        Scene3d.unlit
+            { camera = camera
+            , dimensions = ( Pixels.int 500, Pixels.int 500 )
+            , background = Scene3d.transparentBackground
+            , clipDepth = Length.meters 1.0
+            , entities = pointEntities
+            }
+
+
+viewBoundingBox model =
+    row []
+        [ viewTrackPoint model.minimums
+        , viewTrackPoint model.maximums
+        ]
 
 
 viewTrackPointTable model =
