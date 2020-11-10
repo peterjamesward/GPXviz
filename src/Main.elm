@@ -6,7 +6,7 @@ import Browser.Events
 import Camera3d
 import Color
 import Direction3d
-import Element exposing (Element, column, fill, focused, html, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
+import Element exposing (Element, centerX, column, fill, focused, html, htmlAttribute, layout, mouseOver, none, padding, paragraph, rgb255, row, spacing, table, text, width)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events exposing (onClick)
@@ -138,19 +138,6 @@ metresPerDegreeLongitude =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        lowerBounds tps =
-            { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tps
-            , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tps
-            , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tps
-            }
-
-        upperBounds tps =
-            { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tps
-            , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tps
-            , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tps
-            }
-    in
     case msg of
         GpxRequested ->
             ( model
@@ -163,70 +150,7 @@ update msg model =
             )
 
         GpxLoaded content ->
-            ( let
-                tps =
-                    parseTrackPoints content
-
-                mins =
-                    lowerBounds tps
-
-                maxs =
-                    upperBounds tps
-
-                findCentres =
-                    { lat = (mins.lat + maxs.lat) / 2.0
-                    , lon = (mins.lon + maxs.lon) / 2.0
-                    , ele = (mins.ele + maxs.ele) / 2.0
-                    }
-
-                scalingFactor =
-                    max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
-
-                prepareDrawingNode tp =
-                    { trackPoint = tp
-                    , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
-                    , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
-                    , vertOffset = tp.ele - mins.ele
-                    , x = (tp.lon - findCentres.lon) / (0.5 * scalingFactor)
-                    , y = (tp.lat - findCentres.lat) / (0.5 * scalingFactor)
-                    , z = (tp.ele - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
-                    }
-
-                drawingNodes =
-                    List.map prepareDrawingNode tps
-
-                points =
-                    List.map
-                        (\node ->
-                            Point3d.meters
-                                node.x
-                                node.y
-                                node.z
-                        )
-                        drawingNodes
-
-                -- Convert the points to a list of entities by providing a radius and
-                -- color for each point
-                pointEntities =
-                    points
-                        |> List.map
-                            (\point ->
-                                Scene3d.point { radius = Pixels.float 3 }
-                                    (Material.color Color.blue)
-                                    point
-                            )
-              in
-              { model
-                | gpx = Just content
-                , trackPoints = tps
-                , minimums = mins
-                , maximums = maxs
-                , centres = findCentres
-                , largestDimension = scalingFactor
-                , nodes = drawingNodes
-                , trackName = parseTrackName content
-                , entities = pointEntities
-              }
+            ( parseGPXintoModel content model
             , Cmd.none
             )
 
@@ -268,6 +192,85 @@ update msg model =
 
             else
                 ( model, Cmd.none )
+
+
+parseGPXintoModel content model =
+    let
+        lowerBounds tp =
+            { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
+            , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tp
+            , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tp
+            }
+
+        upperBounds tp =
+            { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tp
+            , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tp
+            , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tp
+            }
+
+        tps =
+            parseTrackPoints content
+
+        mins =
+            lowerBounds tps
+
+        maxs =
+            upperBounds tps
+
+        findCentres =
+            { lat = (mins.lat + maxs.lat) / 2.0
+            , lon = (mins.lon + maxs.lon) / 2.0
+            , ele = (mins.ele + maxs.ele) / 2.0
+            }
+
+        scalingFactor =
+            max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
+
+        prepareDrawingNode tp =
+            { trackPoint = tp
+            , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
+            , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
+            , vertOffset = tp.ele - mins.ele
+            , x = (tp.lon - findCentres.lon) / (0.5 * scalingFactor)
+            , y = (tp.lat - findCentres.lat) / (0.5 * scalingFactor)
+            , z = (tp.ele - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
+            }
+
+        drawingNodes =
+            List.map prepareDrawingNode tps
+
+        points =
+            List.map
+                (\node ->
+                    Point3d.meters
+                        node.x
+                        node.y
+                        node.z
+                )
+                drawingNodes
+
+        -- Convert the points to a list of entities by providing a radius and
+        -- color for each point
+        pointEntities =
+            points
+                |> List.map
+                    (\point ->
+                        Scene3d.point { radius = Pixels.float 3 }
+                            (Material.color Color.blue)
+                            point
+                    )
+    in
+    { model
+        | gpx = Just content
+        , trackPoints = tps
+        , minimums = mins
+        , maximums = maxs
+        , centres = findCentres
+        , largestDimension = scalingFactor
+        , nodes = drawingNodes
+        , trackName = parseTrackName content
+        , entities = pointEntities
+    }
 
 
 reg t =
@@ -347,7 +350,7 @@ view model =
             , htmlAttribute <| style "touch-action" "manipulation"
             ]
           <|
-            column []
+            column [ centerX ]
                 [ button
                     prettyButtonStyles
                     { onPress = Just GpxRequested
@@ -361,6 +364,7 @@ view model =
                         column []
                             [ displayName model.trackName
                             , viewPointCloud model
+
                             --, viewBoundingBox model
                             --, viewTrackPointTable model
                             ]
