@@ -272,39 +272,43 @@ view model =
                                 [ viewTrackPoint model.minimums
                                 , viewTrackPoint model.maximums
                                 ]
-                            , table []
-                                { data = model.nodes
-                                , columns =
-                                    [ { header = text "Latitude"
-                                      , width = fill
-                                      , view = \node -> text <| String.fromFloat node.trackPoint.lat
-                                      }
-                                    , { header = text "x"
-                                      , width = fill
-                                      , view = \node -> text <| String.fromFloat node.x
-                                      }
-                                    , { header = text "Longitude"
-                                      , width = fill
-                                      , view = \node -> text <| String.fromFloat node.trackPoint.lon
-                                      }
-                                    , { header = text "y"
-                                      , width = fill
-                                      , view = \node -> text <| String.fromFloat node.y
-                                      }
-                                    , { header = text "Elevation"
-                                      , width = fill
-                                      , view = \node -> text <| String.fromFloat node.trackPoint.ele
-                                      }
-                                    , { header = text "z"
-                                      , width = fill
-                                      , view = \node -> text <| String.fromFloat node.z
-                                      }
-                                    ]
-                                }
+                            , viewTrackPointTable model
                             ]
                 ]
         ]
     }
+
+
+viewTrackPointTable model =
+    table []
+        { data = model.nodes
+        , columns =
+            [ { header = text "Latitude"
+              , width = fill
+              , view = \node -> text <| String.fromFloat node.trackPoint.lat
+              }
+            , { header = text "x"
+              , width = fill
+              , view = \node -> text <| String.fromFloat node.x
+              }
+            , { header = text "Longitude"
+              , width = fill
+              , view = \node -> text <| String.fromFloat node.trackPoint.lon
+              }
+            , { header = text "y"
+              , width = fill
+              , view = \node -> text <| String.fromFloat node.y
+              }
+            , { header = text "Elevation"
+              , width = fill
+              , view = \node -> text <| String.fromFloat node.trackPoint.ele
+              }
+            , { header = text "z"
+              , width = fill
+              , view = \node -> text <| String.fromFloat node.z
+              }
+            ]
+        }
 
 
 displayName n =
