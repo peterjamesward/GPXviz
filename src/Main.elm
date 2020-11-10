@@ -66,6 +66,7 @@ type alias Model =
     , minimums : TrackPoint
     , maximums : TrackPoint
     , nodes : List DrawingNode
+    , trackName : Maybe String
     }
 
 
@@ -80,6 +81,7 @@ init _ =
       , minimums = zerotp
       , maximums = zerotp
       , nodes = []
+      , trackName = Nothing
       }
     , Cmd.none
     )
@@ -114,7 +116,7 @@ update msg model =
             , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tps
             }
 
-        prepareDrawingNode mins maxs tp =
+        prepareDrawingNode mins tp =
             { trackPoint = tp
             , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
             , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
@@ -148,18 +150,21 @@ update msg model =
                 , trackPoints = tps
                 , minimums = mins
                 , maximums = maxs
-                , nodes = List.map (prepareDrawingNode mins maxs) tps
+                , nodes = List.map (prepareDrawingNode mins) tps
+                , trackName = parseTrackName content
               }
             , Cmd.none
             )
 
 
+reg t =
+    -- Helper to make a regex pattern.
+    Maybe.withDefault Regex.never <| Regex.fromString t
+
+
 parseTrackPoints : String -> List TrackPoint
 parseTrackPoints xml =
     let
-        reg t =
-            Maybe.withDefault Regex.never <| Regex.fromString t
-
         latitudes =
             Regex.find (reg "lat=\\\"([\\d\\.-]*)\\\"") xml |> matches
 
@@ -167,7 +172,7 @@ parseTrackPoints xml =
             Regex.find (reg "lon=\\\"([\\d\\.-]*)\\\"") xml |> matches
 
         elevations =
-            Regex.find (reg "<ele>([\\d\\.-]*)</ele>") xml |> matches
+            Regex.find (reg "<ele>([\\d\\.-]*)<\\/ele>") xml |> matches
 
         makeTrackPoint mayLat mayLon mayEle =
             case ( mayLat, mayLon, mayEle ) of
@@ -200,6 +205,20 @@ parseTrackPoints xml =
         |> Maybe.Extra.values
 
 
+parseTrackName xml =
+    case Regex.find (reg "<name>(.*)<\\/name>") xml of
+        [] ->
+            Nothing
+
+        x :: _ ->
+            case x.submatches of
+                [] ->
+                    Nothing
+
+                n :: _ ->
+                    n
+
+
 
 -- VIEW
 
@@ -217,18 +236,7 @@ view model =
           <|
             column []
                 [ button
-                    [ padding 10
-                    , Border.width 2
-                    , Border.rounded 16
-                    , Border.color <| rgb255 0x50 0x50 0x50
-                    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 10, color = rgb255 0xD0 0xD0 0xD0 }
-                    , Background.color <| rgb255 114 159 207
-                    , Font.color <| rgb255 0xFF 0xFF 0xFF
-                    , mouseOver
-                        [ Background.color <| rgb255 0xFF 0xFF 0xFF, Font.color <| rgb255 0 0 0 ]
-                    , focused
-                        [ Border.shadow { offset = ( 4, 4 ), size = 3, blur = 10, color = rgb255 114 159 207 } ]
-                    ]
+                    prettyButtonStyles
                     { onPress = Just GpxRequested
                     , label = text "Load GPX"
                     }
@@ -237,13 +245,40 @@ view model =
                         none
 
                     Just _ ->
-                        row []
-                            [ viewTrackPoint model.minimums
-                            , viewTrackPoint model.maximums
+                        column []
+                            [ displayName model.trackName
+                            , row []
+                                [ viewTrackPoint model.minimums
+                                , viewTrackPoint model.maximums
+                                ]
                             ]
                 ]
         ]
     }
+
+
+displayName n =
+    case n of
+        Just s ->
+            text s
+
+        _ ->
+            none
+
+
+prettyButtonStyles =
+    [ padding 10
+    , Border.width 2
+    , Border.rounded 16
+    , Border.color <| rgb255 0x50 0x50 0x50
+    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
+    , Background.color <| rgb255 114 159 207
+    , Font.color <| rgb255 0xFF 0xFF 0xFF
+    , mouseOver
+        [ Background.color <| rgb255 0xFF 0xFF 0xFF, Font.color <| rgb255 0 0 0 ]
+    , focused
+        [ Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 114 159 207 } ]
+    ]
 
 
 viewTrackPoint : TrackPoint -> Element Msg
