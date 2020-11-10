@@ -226,6 +226,9 @@ parseGPXintoModel content model =
         scalingFactor =
             max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
 
+        elevationToClipSpace e =
+            (e - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
+
         prepareDrawingNode tp =
             { trackPoint = tp
             , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
@@ -233,7 +236,7 @@ parseGPXintoModel content model =
             , vertOffset = tp.ele - mins.ele
             , x = (tp.lon - findCentres.lon) / (0.5 * scalingFactor)
             , y = (tp.lat - findCentres.lat) / (0.5 * scalingFactor)
-            , z = (tp.ele - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
+            , z = elevationToClipSpace tp.ele
             }
 
         drawingNodes =
@@ -259,6 +262,13 @@ parseGPXintoModel content model =
                             (Material.color Color.blue)
                             point
                     )
+
+        seaLevel =
+            Scene3d.quad (Material.color Color.green)
+                (Point3d.meters -1 -1 (elevationToClipSpace 0.0))
+                (Point3d.meters 1 -1 (elevationToClipSpace 0.0))
+                (Point3d.meters 1 1 (elevationToClipSpace 0.0))
+                (Point3d.meters -1 1 (elevationToClipSpace 0.0))
     in
     { model
         | gpx = Just content
@@ -269,7 +279,7 @@ parseGPXintoModel content model =
         , largestDimension = scalingFactor
         , nodes = drawingNodes
         , trackName = parseTrackName content
-        , entities = pointEntities
+        , entities = seaLevel :: pointEntities
     }
 
 
