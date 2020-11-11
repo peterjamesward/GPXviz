@@ -1,11 +1,13 @@
 module Main exposing (main)
 
 import Angle exposing (Angle)
+import Axis3d
 import Browser
 import Browser.Events
 import Camera3d
 import Color
-import Direction3d
+import Cylinder3d
+import Direction3d exposing (negativeZ)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -17,14 +19,14 @@ import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Http as H exposing (expectString, get)
 import Json.Decode as Decode exposing (Decoder)
-import Length
+import Length exposing (meters)
 import List exposing (tail)
 import Maybe.Extra
 import Pixels exposing (Pixels)
 import Point3d exposing (coordinates)
 import Quantity exposing (Quantity)
 import Regex
-import Scene3d exposing (Entity)
+import Scene3d exposing (Entity, cylinder)
 import Scene3d.Material as Material
 import Task
 import Viewpoint3d
@@ -100,6 +102,8 @@ type alias Model =
     , orbiting : Bool -- Whether the mouse button is currently down
     , entities : List (Entity MyCoord)
     , httpError : Maybe String
+    , currentSegment : Int
+    , metresToClipSpace : Float -- Probably should be a proper metric tag!
     }
 
 
@@ -112,6 +116,7 @@ type Msg
     | GpxLoaded String
     | GpxUrlPasted String
     | GpxHttpResult (Result H.Error String)
+    | UserMovedSlider Int
 
 
 zerotp =
@@ -135,6 +140,8 @@ init _ =
       , orbiting = False
       , entities = []
       , httpError = Nothing
+      , currentSegment = 1
+      , metresToClipSpace = 1.0
       }
     , Cmd.none
     )
@@ -220,6 +227,9 @@ update msg model =
                 Err _ ->
                     ( { model | gpxUrl = "" }, Cmd.none )
 
+        UserMovedSlider segment ->
+            ( { model | currentSegment = segment }, Cmd.none )
+
 
 parseGPXintoModel content model =
     let
@@ -253,8 +263,11 @@ parseGPXintoModel content model =
         scalingFactor =
             max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
 
+        metresToClipSpace =
+            1 / (0.5 * scalingFactor * metresPerDegreeLongitude)
+
         elevationToClipSpace e =
-            (e - findCentres.ele) / (0.5 * scalingFactor * metresPerDegreeLongitude)
+            (e - findCentres.ele) * metresToClipSpace
 
         prepareDrawingNode tp =
             { trackPoint = tp
@@ -282,13 +295,17 @@ parseGPXintoModel content model =
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
         pointEntities =
-            points
-                |> List.map
-                    (\point ->
-                        Scene3d.point { radius = Pixels.float 3 }
-                            (Material.color Color.blue)
-                            point
-                    )
+            List.map
+                (\node ->
+                    cylinder (Material.color Color.brown) <|
+                        Cylinder3d.startingAt
+                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                            negativeZ
+                            { radius = meters <| 1.0 * metresToClipSpace
+                            , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
+                            }
+                )
+                drawingNodes
 
         seaLevel =
             Scene3d.quad (Material.color Color.green)
@@ -298,21 +315,38 @@ parseGPXintoModel content model =
                 (Point3d.meters -1.2 1.2 (elevationToClipSpace 0.0))
 
         roadEntities =
-            List.map roadEntity roadSegments
+            List.concat <|
+                List.map roadEntity roadSegments
 
         roadEntity segment =
             let
                 kerbX =
-                    0.02 * sin segment.bearing
+                    -- Road is assumed to be 4 m wide.
+                    2.0 * sin segment.bearing * metresToClipSpace
 
                 kerbY =
-                    0.02 * cos segment.bearing
+                    2.0 * cos segment.bearing * metresToClipSpace
+
+                edgeHeight =
+                    -- Let's try a low wall at the road's edges.
+                    0.3 * metresToClipSpace
             in
-            Scene3d.quad (Material.color Color.darkYellow)
+            [ Scene3d.quad (Material.color Color.grey)
                 (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
                 (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
                 (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
                 (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+            , Scene3d.quad (Material.color Color.darkGrey)
+                (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
+                (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
+                (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) (segment.endsAt.z + edgeHeight))
+                (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) (segment.startsAt.z + edgeHeight))
+            , Scene3d.quad (Material.color Color.darkGrey)
+                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+                (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+                (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
+                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
+            ]
 
         roadSegments =
             List.map3 roadSegment
@@ -355,6 +389,8 @@ parseGPXintoModel content model =
         , roads = roadSegments
         , trackName = parseTrackName content
         , entities = seaLevel :: pointEntities ++ roadEntities
+        , metresToClipSpace = metresToClipSpace
+        , currentSegment = 1
     }
 
 
@@ -442,10 +478,39 @@ view model =
                         none
 
                     Just _ ->
-                        column []
+                        column
+                            [ width <| px 600
+                            , spacing 10
+                            , centerX
+                            ]
                             [ displayName model.trackName
+
                             --, viewPointCloud model
-                            , viewRoadSegment model 1
+                            , viewRoadSegment model model.currentSegment
+                            , Input.slider
+                                [ height <| px 30
+                                , width <| px 400
+                                , centerX
+                                , behindContent <|
+                                    -- Slider track
+                                    el
+                                        [ width <| px 400
+                                        , height <| px 20
+                                        , centerX
+                                        , Background.color <| rgb255 114 159 207
+                                        , Border.rounded 6
+                                        ]
+                                        Element.none
+                                ]
+                                { onChange = UserMovedSlider << round
+                                , label =
+                                    Input.labelBelow [] <| text ("Integer value: " ++ String.fromInt model.currentSegment)
+                                , min = 1.0
+                                , max = toFloat <| List.length model.roads
+                                , step = Just 1
+                                , value = toFloat model.currentSegment
+                                , thumb = Input.defaultThumb
+                                }
                             ]
                 ]
         ]
@@ -481,6 +546,9 @@ viewPointCloud model =
 
 viewRoadSegment model index =
     let
+        eyeHeight =
+            1.5 * model.metresToClipSpace
+
         road : Maybe DrawingRoad
         road =
             List.filter (\r -> r.index == index) model.roads
@@ -488,15 +556,15 @@ viewRoadSegment model index =
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
-                { eyePoint = Point3d.meters someTarmac.startsAt.x someTarmac.startsAt.y (someTarmac.startsAt.z + 0.01)
-                , focalPoint = Point3d.meters someTarmac.endsAt.x someTarmac.endsAt.y (someTarmac.endsAt.z + 0.01)
+                { eyePoint = Point3d.meters someTarmac.startsAt.x someTarmac.startsAt.y (someTarmac.startsAt.z + eyeHeight)
+                , focalPoint = Point3d.meters someTarmac.endsAt.x someTarmac.endsAt.y (someTarmac.endsAt.z + eyeHeight)
                 , upDirection = Direction3d.positiveZ
                 }
 
         camera someTarmac =
             Camera3d.perspective
                 { viewpoint = cameraViewpoint someTarmac
-                , verticalFieldOfView = Angle.degrees 60
+                , verticalFieldOfView = Angle.degrees 80
                 }
     in
     case road of
@@ -506,7 +574,7 @@ viewRoadSegment model index =
                     { camera = camera someTarmac
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.transparentBackground
-                    , clipDepth = Length.meters 0.01
+                    , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
                     , entities = model.entities
                     }
 
