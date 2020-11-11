@@ -33,11 +33,8 @@ import Viewpoint3d
 
 
 
---TODO: Fly-through
---TODO: Put adverts on the page!
---TODO: Zoom into point cloud. (pinch zoom on phone)
---TODO: Allow touch to manipulate point cloud.
---TODO: Drop uprights to the ground?
+--TODO: Fly-through on timer.
+--TODO: DIsplay segment details.
 
 
 main : Program () Model Msg
@@ -502,7 +499,7 @@ view model =
                                 { onChange = UserMovedSlider << round
                                 , label =
                                     Input.labelBelow [] <|
-                                    text ("Road segment " ++ String.fromInt model.currentSegment)
+                                        text ("Road segment " ++ String.fromInt model.currentSegment)
                                 , min = 1.0
                                 , max = toFloat <| List.length model.roads
                                 , step = Just 1
