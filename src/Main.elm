@@ -9,11 +9,12 @@ import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
-import Element.Input exposing (button)
+import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Select as Select
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
+import Http as H exposing (expectString, get)
 import Json.Decode as Decode exposing (Decoder)
 import Length
 import List exposing (tail)
@@ -29,10 +30,11 @@ import Viewpoint3d
 
 
 
---TODO: Zoom into point cloud.
+--TODO: Zoom into point cloud. (pinch zoom on phone)
 --TODO: Allow touch to manipulate point cloud.
 --TODO: Optional tabular display of track points
 --TODO: Fly-through
+--TODO: Put adverts on the page!
 
 
 main : Program () Model Msg
@@ -87,6 +89,7 @@ type MyCoord
 
 type alias Model =
     { gpx : Maybe String
+    , gpxUrl : String
     , trackPoints : List TrackPoint
     , minimums : TrackPoint
     , maximums : TrackPoint
@@ -99,6 +102,7 @@ type alias Model =
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Bool -- Whether the mouse button is currently down
     , entities : List (Entity MyCoord)
+    , httpError : Maybe String
     }
 
 
@@ -109,6 +113,8 @@ type Msg
     | GpxRequested
     | GpxSelected File
     | GpxLoaded String
+    | GpxUrlPasted String
+    | GpxHttpResult (Result H.Error String)
 
 
 zerotp =
@@ -118,6 +124,7 @@ zerotp =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { gpx = Nothing
+      , gpxUrl = ""
       , trackPoints = []
       , minimums = zerotp
       , maximums = zerotp
@@ -130,6 +137,7 @@ init _ =
       , elevation = Angle.degrees 30
       , orbiting = False
       , entities = []
+      , httpError = Nothing
       }
     , Cmd.none
     )
@@ -199,6 +207,25 @@ update msg model =
 
             else
                 ( model, Cmd.none )
+
+        GpxUrlPasted gpxUrl ->
+            ( { model
+                | gpxUrl = gpxUrl
+                , httpError = Nothing
+              }
+            , H.get
+                { url = gpxUrl
+                , expect = H.expectString GpxHttpResult
+                }
+            )
+
+        GpxHttpResult result ->
+            case result of
+                Ok content ->
+                    ( parseGPXintoModel content model, Cmd.none )
+
+                Err _ ->
+                    ( { model | gpxUrl = "" }, Cmd.none )
 
 
 parseGPXintoModel content model =
@@ -411,15 +438,27 @@ view model =
         [ layout
             [ width fill
             , padding 20
-            , spacing 10
+            , spacing 20
             , htmlAttribute <| style "touch-action" "manipulation"
             ]
           <|
-            column [ centerX ]
+            column [ centerX, spacing 20 ]
                 [ button
                     prettyButtonStyles
                     { onPress = Just GpxRequested
-                    , label = text "Load GPX"
+                    , label = text "Load GPX from your computer"
+                    }
+                , Input.text
+                    [ width <| maximum 600 fill
+                    , height <| px 50
+                    , Border.rounded 6
+                    , Border.width 2
+                    , Border.color <| rgb255 0xC0 0xC0 0xC0
+                    ]
+                    { onChange = GpxUrlPasted
+                    , text = model.gpxUrl
+                    , placeholder = Just <| Input.placeholder [] <| text "Paste GPX URL here"
+                    , label = Input.labelAbove [] <| text "... or read GPX file from the Web ..."
                     }
                 , case model.gpx of
                     Nothing ->
