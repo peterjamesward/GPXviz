@@ -5,6 +5,7 @@ import Browser
 import Browser.Events
 import Camera3d
 import Color
+import Direction3d
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -30,11 +31,11 @@ import Viewpoint3d
 
 
 
---TODO: Zoom into point cloud. (pinch zoom on phone)
---TODO: Allow touch to manipulate point cloud.
---TODO: Optional tabular display of track points
 --TODO: Fly-through
 --TODO: Put adverts on the page!
+--TODO: Zoom into point cloud. (pinch zoom on phone)
+--TODO: Allow touch to manipulate point cloud.
+--TODO: Drop uprights to the ground?
 
 
 main : Program () Model Msg
@@ -45,10 +46,6 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
-
-
-
--- MODEL
 
 
 type alias TrackPoint =
@@ -141,10 +138,6 @@ init _ =
       }
     , Cmd.none
     )
-
-
-
--- UPDATE
 
 
 metresPerDegreeLongitude =
@@ -427,10 +420,6 @@ parseTrackName xml =
                     n
 
 
-
--- VIEW
-
-
 view : Model -> Browser.Document Msg
 view model =
     { title = "GPX viewer"
@@ -448,18 +437,6 @@ view model =
                     { onPress = Just GpxRequested
                     , label = text "Load GPX from your computer"
                     }
-                , Input.text
-                    [ width <| maximum 600 fill
-                    , height <| px 50
-                    , Border.rounded 6
-                    , Border.width 2
-                    , Border.color <| rgb255 0xC0 0xC0 0xC0
-                    ]
-                    { onChange = GpxUrlPasted
-                    , text = model.gpxUrl
-                    , placeholder = Just <| Input.placeholder [] <| text "Paste GPX URL here"
-                    , label = Input.labelAbove [] <| text "... or read GPX file from the Web ..."
-                    }
                 , case model.gpx of
                     Nothing ->
                         none
@@ -467,10 +444,8 @@ view model =
                     Just _ ->
                         column []
                             [ displayName model.trackName
-                            , viewPointCloud model
-
-                            --, viewBoundingBox model
-                            --, viewTrackPointTable model
+                            --, viewPointCloud model
+                            , viewRoadSegment model 1
                             ]
                 ]
         ]
@@ -492,18 +467,12 @@ viewPointCloud model =
                 }
     in
     el
-        [ --htmlAttribute <| Pointer.onDown (\event -> RangeGrab event.pointer.offsetPos)
-          -- , htmlAttribute <| Pointer.onMove (\event -> RangeMove event.pointer.offsetPos)
-          -- , htmlAttribute <| Pointer.onUp (\event -> RangeRelease event.pointer.offsetPos)
-          -- , htmlAttribute <| style "touch-action" "none"
-          -- , width (px 200)
-          pointer
-        ]
+        [ pointer ]
     <|
         html <|
             Scene3d.unlit
                 { camera = camera
-                , dimensions = ( Pixels.int 500, Pixels.int 500 )
+                , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.transparentBackground
                 , clipDepth = Length.meters 1.0
                 , entities = model.entities
@@ -512,69 +481,37 @@ viewPointCloud model =
 
 viewRoadSegment model index =
     let
+        road : Maybe DrawingRoad
         road =
             List.filter (\r -> r.index == index) model.roads
                 |> List.head
 
-        camera =
+        cameraViewpoint someTarmac =
+            Viewpoint3d.lookAt
+                { eyePoint = Point3d.meters someTarmac.startsAt.x someTarmac.startsAt.y (someTarmac.startsAt.z + 0.01)
+                , focalPoint = Point3d.meters someTarmac.endsAt.x someTarmac.endsAt.y (someTarmac.endsAt.z + 0.01)
+                , upDirection = Direction3d.positiveZ
+                }
+
+        camera someTarmac =
             Camera3d.perspective
-                { viewpoint =
-                    Viewpoint3d.orbitZ
-                        { focalPoint = Point3d.meters 0.0 0.0 0.0
-                        , azimuth = model.azimuth
-                        , elevation = model.elevation
-                        , distance = Length.meters 4
-                        }
-                , verticalFieldOfView = Angle.degrees 30
+                { viewpoint = cameraViewpoint someTarmac
+                , verticalFieldOfView = Angle.degrees 60
                 }
     in
-    html <|
-        Scene3d.unlit
-            { camera = camera
-            , dimensions = ( Pixels.int 500, Pixels.int 500 )
-            , background = Scene3d.transparentBackground
-            , clipDepth = Length.meters 1.0
-            , entities = model.entities
-            }
+    case road of
+        Just someTarmac ->
+            html <|
+                Scene3d.unlit
+                    { camera = camera someTarmac
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.transparentBackground
+                    , clipDepth = Length.meters 0.01
+                    , entities = model.entities
+                    }
 
-
-viewBoundingBox model =
-    row []
-        [ viewTrackPoint model.minimums
-        , viewTrackPoint model.maximums
-        ]
-
-
-viewTrackPointTable model =
-    table []
-        { data = model.nodes
-        , columns =
-            [ { header = text "Latitude"
-              , width = fill
-              , view = \node -> text <| String.fromFloat node.trackPoint.lat
-              }
-            , { header = text "x"
-              , width = fill
-              , view = \node -> text <| String.fromFloat node.x
-              }
-            , { header = text "Longitude"
-              , width = fill
-              , view = \node -> text <| String.fromFloat node.trackPoint.lon
-              }
-            , { header = text "y"
-              , width = fill
-              , view = \node -> text <| String.fromFloat node.y
-              }
-            , { header = text "Elevation"
-              , width = fill
-              , view = \node -> text <| String.fromFloat node.trackPoint.ele
-              }
-            , { header = text "z"
-              , width = fill
-              , view = \node -> text <| String.fromFloat node.z
-              }
-            ]
-        }
+        Nothing ->
+            none
 
 
 displayName n =
@@ -618,10 +555,6 @@ decodeMouseMove =
     Decode.map2 MouseMove
         (Decode.field "movementX" (Decode.map Pixels.float Decode.float))
         (Decode.field "movementY" (Decode.map Pixels.float Decode.float))
-
-
-
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
