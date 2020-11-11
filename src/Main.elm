@@ -7,7 +7,7 @@ import Browser.Events
 import Camera3d
 import Color
 import Cylinder3d
-import Direction3d exposing (negativeZ)
+import Direction3d exposing (negativeZ, positiveZ)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -464,10 +464,10 @@ view model =
             [ width fill
             , padding 20
             , spacing 20
-            , htmlAttribute <| style "touch-action" "manipulation"
             ]
           <|
-            column [ centerX, spacing 20 ]
+            column
+                [ spacing 20 ]
                 [ button
                     prettyButtonStyles
                     { onPress = Just GpxRequested
@@ -481,22 +481,19 @@ view model =
                         column
                             [ width <| px 600
                             , spacing 10
-                            , centerX
                             ]
                             [ displayName model.trackName
-
-                            --, viewPointCloud model
                             , viewRoadSegment model model.currentSegment
                             , Input.slider
-                                [ height <| px 30
+                                [ height <| px 60
                                 , width <| px 400
-                                , centerX
+                                , centerY
                                 , behindContent <|
                                     -- Slider track
                                     el
                                         [ width <| px 400
                                         , height <| px 20
-                                        , centerX
+                                        , centerY
                                         , Background.color <| rgb255 114 159 207
                                         , Border.rounded 6
                                         ]
@@ -504,7 +501,8 @@ view model =
                                 ]
                                 { onChange = UserMovedSlider << round
                                 , label =
-                                    Input.labelBelow [] <| text ("Integer value: " ++ String.fromInt model.currentSegment)
+                                    Input.labelBelow [] <|
+                                    text ("Road segment " ++ String.fromInt model.currentSegment)
                                 , min = 1.0
                                 , max = toFloat <| List.length model.roads
                                 , step = Just 1
@@ -532,7 +530,9 @@ viewPointCloud model =
                 }
     in
     el
-        [ pointer ]
+        [ pointer
+        , htmlAttribute <| style "touch-action" "manipulation"
+        ]
     <|
         html <|
             Scene3d.unlit
@@ -570,12 +570,15 @@ viewRoadSegment model index =
     case road of
         Just someTarmac ->
             html <|
-                Scene3d.unlit
+                Scene3d.sunny
                     { camera = camera someTarmac
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.transparentBackground
+                    , background = Scene3d.backgroundColor Color.lightBlue
                     , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
                     , entities = model.entities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
                     }
 
         Nothing ->
