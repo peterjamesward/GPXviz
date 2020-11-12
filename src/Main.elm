@@ -1,7 +1,6 @@
 module Main exposing (main)
 
 import Angle exposing (Angle)
-import Axis3d
 import Browser
 import Browser.Events
 import Camera3d
@@ -16,14 +15,12 @@ import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Select as Select
 import Html.Attributes exposing (style)
-import Html.Events.Extra.Pointer as Pointer
-import Http as H exposing (expectString, get)
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (meters)
 import List exposing (tail)
 import Maybe.Extra
 import Pixels exposing (Pixels)
-import Point3d exposing (coordinates)
+import Point3d
 import Quantity exposing (Quantity)
 import Regex
 import Scene3d exposing (Entity, cylinder)
@@ -117,8 +114,6 @@ type Msg
     | GpxRequested
     | GpxSelected File
     | GpxLoaded String
-    | GpxUrlPasted String
-    | GpxHttpResult (Result H.Error String)
     | UserMovedSlider Int
 
 
@@ -210,25 +205,6 @@ update msg model =
 
             else
                 ( model, Cmd.none )
-
-        GpxUrlPasted gpxUrl ->
-            ( { model
-                | gpxUrl = gpxUrl
-                , httpError = Nothing
-              }
-            , H.get
-                { url = gpxUrl
-                , expect = H.expectString GpxHttpResult
-                }
-            )
-
-        GpxHttpResult result ->
-            case result of
-                Ok content ->
-                    ( parseGPXintoModel content model, Cmd.none )
-
-                Err _ ->
-                    ( { model | gpxUrl = "" }, Cmd.none )
 
         UserMovedSlider segment ->
             ( { model | currentSegment = segment }, Cmd.none )
