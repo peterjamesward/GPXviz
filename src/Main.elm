@@ -5,6 +5,7 @@ import Browser
 import Browser.Events
 import Camera3d
 import Color
+import Cone3d
 import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ)
 import Element exposing (..)
@@ -23,14 +24,13 @@ import Pixels exposing (Pixels)
 import Point3d
 import Quantity exposing (Quantity)
 import Regex
-import Scene3d exposing (Entity, cylinder)
+import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Task
 import Viewpoint3d
 
 
 
---TODO: Put cones on top of pillars.
 --TODO: Fly-through on timer.
 --TODO: Display segment details.
 --TODO: Toggle display elements.
@@ -285,6 +285,19 @@ parseGPXintoModel content model =
                             }
                 )
                 drawingNodes
+            ++
+            List.map
+                (\node ->
+                    cone (Material.color Color.black) <|
+                        Cone3d.startingAt
+                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                            positiveZ
+                            { radius = meters <| 1.0 * metresToClipSpace
+                            , length = meters <| 1.0 * metresToClipSpace
+                            }
+                )
+            drawingNodes
+
 
         seaLevel =
             Scene3d.quad (Material.color Color.green)
