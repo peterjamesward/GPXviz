@@ -33,8 +33,14 @@ import Viewpoint3d
 
 
 
+--TODO: Put cones on top of pillars.
 --TODO: Fly-through on timer.
---TODO: DIsplay segment details.
+--TODO: Display segment details.
+--TODO: Toggle display elements.
+--TODO: Detect abrupt gradient changes.
+--TODO: Gradient colours (optional).
+--TODO: Left|Right arrows to move forward and back.
+--TODO: Use Array for road segments (optimisation).
 
 
 main : Program () Model Msg
