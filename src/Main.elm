@@ -32,7 +32,6 @@ import Viewpoint3d
 
 
 --TODO: Fly-through on timer.
---TODO: Display segment details.
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
@@ -285,19 +284,17 @@ parseGPXintoModel content model =
                             }
                 )
                 drawingNodes
-            ++
-            List.map
-                (\node ->
-                    cone (Material.color Color.black) <|
-                        Cone3d.startingAt
-                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                            positiveZ
-                            { radius = meters <| 1.0 * metresToClipSpace
-                            , length = meters <| 1.0 * metresToClipSpace
-                            }
-                )
-            drawingNodes
-
+                ++ List.map
+                    (\node ->
+                        cone (Material.color Color.black) <|
+                            Cone3d.startingAt
+                                (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                                positiveZ
+                                { radius = meters <| 1.0 * metresToClipSpace
+                                , length = meters <| 1.0 * metresToClipSpace
+                                }
+                    )
+                    drawingNodes
 
         seaLevel =
             Scene3d.quad (Material.color Color.green)
@@ -314,10 +311,10 @@ parseGPXintoModel content model =
             let
                 kerbX =
                     -- Road is assumed to be 4 m wide.
-                    2.0 * sin segment.bearing * metresToClipSpace
+                    2.0 * cos segment.bearing * metresToClipSpace
 
                 kerbY =
-                    2.0 * cos segment.bearing * metresToClipSpace
+                    2.0 * sin segment.bearing * metresToClipSpace
 
                 edgeHeight =
                     -- Let's try a low wall at the road's edges.
@@ -363,7 +360,7 @@ parseGPXintoModel content model =
             { startsAt = node1
             , endsAt = node2
             , length = hypotenuse
-            , bearing = atan2 yDifference xDifference
+            , bearing = atan2 xDifference yDifference
             , gradient = atan2 zDifference hypotenuse
             , startDistance = 0.0
             , endDistance = 0.0
@@ -470,38 +467,7 @@ view model =
                         none
 
                     Just _ ->
-                        column
-                            [ width <| px 600
-                            , spacing 10
-                            ]
-                            [ displayName model.trackName
-                            , viewRoadSegment model model.currentSegment
-                            , Input.slider
-                                [ height <| px 60
-                                , width <| px 400
-                                , centerY
-                                , behindContent <|
-                                    -- Slider track
-                                    el
-                                        [ width <| px 400
-                                        , height <| px 20
-                                        , centerY
-                                        , Background.color <| rgb255 114 159 207
-                                        , Border.rounded 6
-                                        ]
-                                        Element.none
-                                ]
-                                { onChange = UserMovedSlider << round
-                                , label =
-                                    Input.labelBelow [] <|
-                                        text ("Road segment " ++ String.fromInt model.currentSegment)
-                                , min = 1.0
-                                , max = toFloat <| List.length model.roads
-                                , step = Just 1
-                                , value = toFloat model.currentSegment
-                                , thumb = Input.defaultThumb
-                                }
-                            ]
+                        viewRollerCoasterTrackAndControls model
                 ]
         ]
     }
@@ -535,16 +501,86 @@ viewPointCloud model =
                 , entities = model.entities
                 }
 
+toDegrees rads = rads * 180.0 / pi
 
-viewRoadSegment model index =
+viewRollerCoasterTrackAndControls model =
+    let
+        getRoad : Maybe DrawingRoad
+        getRoad =
+            List.filter (\r -> r.index == model.currentSegment) model.roads
+                |> List.head
+    in
+    case getRoad of
+        Nothing ->
+            none
+
+        Just road ->
+            row []
+                [ column
+                    [ width <| px 900
+                    , spacing 10
+                    ]
+                    [ displayName model.trackName
+                    , viewRoadSegment model road
+                    , Input.slider
+                        [ height <| px 60
+                        , width <| px 400
+                        , centerY
+                        , behindContent <|
+                            -- Slider track
+                            el
+                                [ width <| px 400
+                                , height <| px 20
+                                , centerY
+                                , Background.color <| rgb255 114 159 207
+                                , Border.rounded 6
+                                ]
+                                Element.none
+                        ]
+                        { onChange = UserMovedSlider << round
+                        , label =
+                            Input.labelBelow [] <|
+                                text ("Road segment " ++ String.fromInt model.currentSegment)
+                        , min = 1.0
+                        , max = toFloat <| List.length model.roads
+                        , step = Just 1
+                        , value = toFloat model.currentSegment
+                        , thumb = Input.defaultThumb
+                        }
+                    ]
+                , row []
+                    [ column [ spacing 10 ]
+                        [ text "Start point index "
+                        , text "Start latitude "
+                        , text "Start longitude "
+                        , text "Start elevation "
+                        , text "End latitude "
+                        , text "End longitude "
+                        , text "End elevation "
+                        , text "Length "
+                        , text "Gradient "
+                        , text "Bearing "
+                        ]
+                    , column [ spacing 10 ]
+                      [ text <| String.fromInt model.currentSegment
+                      , text <| String.fromFloat road.startsAt.trackPoint.lat
+                      , text <| String.fromFloat road.startsAt.trackPoint.lon
+                      , text <| String.fromFloat road.startsAt.trackPoint.ele
+                      , text <| String.fromFloat road.endsAt.trackPoint.lat
+                      , text <| String.fromFloat road.endsAt.trackPoint.lon
+                      , text <| String.fromFloat road.endsAt.trackPoint.ele
+                      , text <| String.fromFloat road.length
+                      , text <| String.fromFloat <| toDegrees road.gradient
+                      , text <| String.fromFloat <| toDegrees road.bearing
+                      ]
+                    ]
+                ]
+
+
+viewRoadSegment model road =
     let
         eyeHeight =
             1.5 * model.metresToClipSpace
-
-        road : Maybe DrawingRoad
-        road =
-            List.filter (\r -> r.index == index) model.roads
-                |> List.head
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
@@ -559,22 +595,17 @@ viewRoadSegment model index =
                 , verticalFieldOfView = Angle.degrees 80
                 }
     in
-    case road of
-        Just someTarmac ->
-            html <|
-                Scene3d.sunny
-                    { camera = camera someTarmac
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
-                    , entities = model.entities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-
-        Nothing ->
-            none
+    html <|
+        Scene3d.sunny
+            { camera = camera road
+            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+            , background = Scene3d.backgroundColor Color.lightBlue
+            , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
+            , entities = model.entities
+            , upDirection = positiveZ
+            , sunlightDirection = negativeZ
+            , shadows = True
+            }
 
 
 displayName n =
