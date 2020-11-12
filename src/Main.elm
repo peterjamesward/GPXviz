@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Angle exposing (Angle)
 import Browser
-import Browser.Events
+import Browser.Events exposing (onKeyDown, onKeyUp)
 import Camera3d
 import Color
 import Cone3d
@@ -35,7 +35,6 @@ import Viewpoint3d
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
---TODO: Left|Right arrows to move forward and back.
 --TODO: Use Array for road segments (optimisation).
 
 
@@ -85,6 +84,11 @@ type MyCoord
     = SomeCoord
 
 
+type ViewingMode
+    = PointCloud
+    | RollerCoaster
+
+
 type alias Model =
     { gpx : Maybe String
     , gpxUrl : String
@@ -103,6 +107,7 @@ type alias Model =
     , httpError : Maybe String
     , currentSegment : Int
     , metresToClipSpace : Float -- Probably should be a proper metric tag!
+    , viewingMode : ViewingMode
     }
 
 
@@ -114,6 +119,8 @@ type Msg
     | GpxSelected File
     | GpxLoaded String
     | UserMovedSlider Int
+    | BackOne
+    | ForwardOne
 
 
 zerotp =
@@ -139,6 +146,7 @@ init _ =
       , httpError = Nothing
       , currentSegment = 1
       , metresToClipSpace = 1.0
+      , viewingMode = RollerCoaster
       }
     , Cmd.none
     )
@@ -207,6 +215,24 @@ update msg model =
 
         UserMovedSlider segment ->
             ( { model | currentSegment = segment }, Cmd.none )
+
+        ForwardOne ->
+            ( { model
+                | currentSegment =
+                    min (model.currentSegment + 1)
+                        (List.length model.roads)
+              }
+            , Cmd.none
+            )
+
+        BackOne ->
+            ( { model
+                | currentSegment =
+                    max (model.currentSegment - 1)
+                        1
+              }
+            , Cmd.none
+            )
 
 
 parseGPXintoModel content model =
@@ -467,10 +493,22 @@ view model =
                         none
 
                     Just _ ->
-                        viewRollerCoasterTrackAndControls model
+                        column []
+                            [ displayName model.trackName
+                            , view3D model
+                            ]
                 ]
         ]
     }
+
+
+view3D model =
+    case model.viewingMode of
+        PointCloud ->
+            viewPointCloud model
+
+        RollerCoaster ->
+            viewRollerCoasterTrackAndControls model
 
 
 viewPointCloud model =
@@ -501,10 +539,41 @@ viewPointCloud model =
                 , entities = model.entities
                 }
 
-toDegrees rads = rads * 180.0 / pi
+
+toDegrees rads =
+    rads * 180.0 / pi
+
 
 viewRollerCoasterTrackAndControls model =
     let
+        slider =
+            Input.slider
+                [ height <| px 60
+                , width <| px 400
+                , centerY
+                , behindContent <|
+                    -- Slider track
+                    el
+                        [ width <| px 400
+                        , height <| px 20
+                        , centerY
+                        , centerX
+                        , Background.color <| rgb255 114 159 207
+                        , Border.rounded 6
+                        ]
+                        Element.none
+                ]
+                { onChange = UserMovedSlider << round
+                , label =
+                    Input.labelBelow [] <|
+                        text "Drag slider or use arrow buttons"
+                , min = 1.0
+                , max = toFloat <| List.length model.roads
+                , step = Just 1
+                , value = toFloat model.currentSegment
+                , thumb = Input.defaultThumb
+                }
+
         getRoad : Maybe DrawingRoad
         getRoad =
             List.filter (\r -> r.index == model.currentSegment) model.roads
@@ -520,33 +589,21 @@ viewRollerCoasterTrackAndControls model =
                     [ width <| px 900
                     , spacing 10
                     ]
-                    [ displayName model.trackName
-                    , viewRoadSegment model road
-                    , Input.slider
-                        [ height <| px 60
-                        , width <| px 400
-                        , centerY
-                        , behindContent <|
-                            -- Slider track
-                            el
-                                [ width <| px 400
-                                , height <| px 20
-                                , centerY
-                                , Background.color <| rgb255 114 159 207
-                                , Border.rounded 6
-                                ]
-                                Element.none
+                    [ viewRoadSegment model road
+                    , row
+                        [ centerX, spaceEvenly, centerY ]
+                        [ slider
+                        , button
+                            prettyButtonStyles
+                            { onPress = Just BackOne
+                            , label = text "◀︎"
+                            }
+                        , button
+                            prettyButtonStyles
+                            { onPress = Just ForwardOne
+                            , label = text "►︎"
+                            }
                         ]
-                        { onChange = UserMovedSlider << round
-                        , label =
-                            Input.labelBelow [] <|
-                                text ("Road segment " ++ String.fromInt model.currentSegment)
-                        , min = 1.0
-                        , max = toFloat <| List.length model.roads
-                        , step = Just 1
-                        , value = toFloat model.currentSegment
-                        , thumb = Input.defaultThumb
-                        }
                     ]
                 , row []
                     [ column [ spacing 10 ]
@@ -562,17 +619,17 @@ viewRollerCoasterTrackAndControls model =
                         , text "Bearing "
                         ]
                     , column [ spacing 10 ]
-                      [ text <| String.fromInt model.currentSegment
-                      , text <| String.fromFloat road.startsAt.trackPoint.lat
-                      , text <| String.fromFloat road.startsAt.trackPoint.lon
-                      , text <| String.fromFloat road.startsAt.trackPoint.ele
-                      , text <| String.fromFloat road.endsAt.trackPoint.lat
-                      , text <| String.fromFloat road.endsAt.trackPoint.lon
-                      , text <| String.fromFloat road.endsAt.trackPoint.ele
-                      , text <| String.fromFloat road.length
-                      , text <| String.fromFloat <| toDegrees road.gradient
-                      , text <| String.fromFloat <| toDegrees road.bearing
-                      ]
+                        [ text <| String.fromInt model.currentSegment
+                        , text <| String.fromFloat road.startsAt.trackPoint.lat
+                        , text <| String.fromFloat road.startsAt.trackPoint.lon
+                        , text <| String.fromFloat road.startsAt.trackPoint.ele
+                        , text <| String.fromFloat road.endsAt.trackPoint.lat
+                        , text <| String.fromFloat road.endsAt.trackPoint.lon
+                        , text <| String.fromFloat road.endsAt.trackPoint.ele
+                        , text <| String.fromFloat road.length
+                        , text <| String.fromFloat <| toDegrees road.gradient
+                        , text <| String.fromFloat <| toDegrees road.bearing
+                        ]
                     ]
                 ]
 
@@ -611,7 +668,8 @@ viewRoadSegment model road =
 displayName n =
     case n of
         Just s ->
-            text s
+            el [ Font.size 32, padding 8 ]
+                (text s)
 
         _ ->
             none
