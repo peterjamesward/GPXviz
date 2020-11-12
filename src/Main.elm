@@ -10,7 +10,7 @@ import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ)
 import Element exposing (..)
 import Element.Background as Background
-import Element.Border as Border
+import Element.Border as Border exposing (color)
 import Element.Font as Font
 import Element.Input as Input exposing (button)
 import File exposing (File)
@@ -80,6 +80,12 @@ type alias DrawingRoad =
     }
 
 
+type ButtonPosition
+    = First
+    | Mid
+    | Last
+
+
 type MyCoord
     = SomeCoord
 
@@ -121,6 +127,7 @@ type Msg
     | UserMovedSlider Int
     | BackOne
     | ForwardOne
+    | ChooseViewMode ViewingMode
 
 
 zerotp =
@@ -234,6 +241,11 @@ update msg model =
             , Cmd.none
             )
 
+        ChooseViewMode mode ->
+            ( { model | viewingMode = mode }
+            , Cmd.none
+            )
+
 
 parseGPXintoModel content model =
     let
@@ -336,21 +348,24 @@ parseGPXintoModel content model =
         roadEntity segment =
             let
                 kerbX =
-                    -- Road is assumed to be 4 m wide.
-                    2.0 * cos segment.bearing * metresToClipSpace
+                    -- Road is assumed to be 6 m wide.
+                    3.0 * cos segment.bearing * metresToClipSpace
 
                 kerbY =
-                    2.0 * sin segment.bearing * metresToClipSpace
+                    3.0 * sin segment.bearing * metresToClipSpace
 
                 edgeHeight =
                     -- Let's try a low wall at the road's edges.
                     0.3 * metresToClipSpace
             in
-            [ Scene3d.quad (Material.color Color.grey)
+            [ --surface
+              Scene3d.quad (Material.color Color.grey)
                 (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
                 (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
                 (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
                 (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+
+            -- kerb walls
             , Scene3d.quad (Material.color Color.darkGrey)
                 (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
                 (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
@@ -473,6 +488,22 @@ parseTrackName xml =
 
 view : Model -> Browser.Document Msg
 view model =
+    let
+        viewModeChoices =
+            Input.radioRow
+                [ Border.rounded 6
+                , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+                ]
+                { onChange = ChooseViewMode
+                , selected = Just model.viewingMode
+                , label =
+                    Input.labelHidden "Choose view"
+                , options =
+                    [ Input.optionWith PointCloud <| radioButton First "Whole route"
+                    , Input.optionWith RollerCoaster <| radioButton Last "First person"
+                    ]
+                }
+    in
     { title = "GPX viewer"
     , body =
         [ layout
@@ -494,7 +525,8 @@ view model =
 
                     Just _ ->
                         column []
-                            [ displayName model.trackName
+                            [ viewModeChoices
+                            , displayName model.trackName
                             , view3D model
                             ]
                 ]
@@ -548,14 +580,14 @@ viewRollerCoasterTrackAndControls model =
     let
         slider =
             Input.slider
-                [ height <| px 60
-                , width <| px 400
+                [ height <| px 80
+                , width <| px 500
                 , centerY
                 , behindContent <|
                     -- Slider track
                     el
-                        [ width <| px 400
-                        , height <| px 20
+                        [ width <| px 500
+                        , height <| px 30
                         , centerY
                         , centerX
                         , Background.color <| rgb255 114 159 207
@@ -637,12 +669,20 @@ viewRollerCoasterTrackAndControls model =
 viewRoadSegment model road =
     let
         eyeHeight =
-            1.5 * model.metresToClipSpace
+            -- Helps to be higher up.
+            2.5 * model.metresToClipSpace
+
+        cameraSetback =
+            1.0 * model.metresToClipSpace
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
-                { eyePoint = Point3d.meters someTarmac.startsAt.x someTarmac.startsAt.y (someTarmac.startsAt.z + eyeHeight)
-                , focalPoint = Point3d.meters someTarmac.endsAt.x someTarmac.endsAt.y (someTarmac.endsAt.z + eyeHeight)
+                { eyePoint =
+                    Point3d.meters
+                        (someTarmac.startsAt.x - cameraSetback * sin road.bearing)
+                        (someTarmac.startsAt.y - cameraSetback * cos road.bearing)
+                        (someTarmac.startsAt.z + eyeHeight)
+                , focalPoint = Point3d.meters someTarmac.endsAt.x someTarmac.endsAt.y someTarmac.endsAt.z
                 , upDirection = Direction3d.positiveZ
                 }
 
@@ -725,3 +765,44 @@ subscriptions model =
         -- If we're not currently orbiting, just listen for mouse down events
         -- to start orbiting
         Browser.Events.onMouseDown (Decode.succeed MouseDown)
+
+
+radioButton position label state =
+    let
+        borders =
+            case position of
+                First ->
+                    { left = 2, right = 2, top = 2, bottom = 2 }
+
+                Mid ->
+                    { left = 0, right = 2, top = 2, bottom = 2 }
+
+                Last ->
+                    { left = 0, right = 2, top = 2, bottom = 2 }
+
+        corners =
+            case position of
+                First ->
+                    { topLeft = 6, bottomLeft = 6, topRight = 0, bottomRight = 0 }
+
+                Mid ->
+                    { topLeft = 0, bottomLeft = 0, topRight = 0, bottomRight = 0 }
+
+                Last ->
+                    { topLeft = 0, bottomLeft = 0, topRight = 6, bottomRight = 6 }
+    in
+    el
+        [ paddingEach { left = 20, right = 20, top = 10, bottom = 10 }
+        , Border.roundEach corners
+        , Border.widthEach borders
+        , Border.color <| rgb255 0xC0 0xC0 0xC0
+        , Background.color <|
+            if state == Input.Selected then
+                rgb255 0xFF 0xFF 0xFF
+
+            else
+                rgb255 114 159 207
+        ]
+    <|
+        el [ centerX, centerY ] <|
+            text label
