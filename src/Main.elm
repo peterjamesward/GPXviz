@@ -35,7 +35,10 @@ import Viewpoint3d
 
 
 
---TODO: View mode -- choose focal node, mouse rotates scene, move in/out, change focal length. (see which works better.)
+--TODO: Add README
+--TODO: Add licence
+--TODO: Zoom in zoomable mode
+--TODO: Trap mouse moves only over image
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
@@ -96,6 +99,7 @@ type MyCoord
 type ViewingMode
     = PointCloud
     | RollerCoaster
+    | Zoomable
 
 
 type alias Model =
@@ -115,6 +119,7 @@ type alias Model =
     , entities : List (Entity MyCoord)
     , httpError : Maybe String
     , currentSegment : Int
+    , currentNode : Maybe Int
     , metresToClipSpace : Float -- Probably should be a proper metric tag!
     , viewingMode : ViewingMode
     , summary : Maybe SummaryData
@@ -141,9 +146,12 @@ type Msg
     | GpxRequested
     | GpxSelected File
     | GpxLoaded String
-    | UserMovedSlider Int
-    | BackOne
-    | ForwardOne
+    | UserMovedRoadSlider Int
+    | UserMovedNodeSlider Int
+    | BackOneRoad
+    | ForwardOneRoad
+    | BackOneNode
+    | ForwardOneNode
     | ChooseViewMode ViewingMode
 
 
@@ -173,7 +181,8 @@ init _ =
       , orbiting = False
       , entities = []
       , httpError = Nothing
-      , currentSegment = 1
+      , currentSegment = 0
+      , currentNode = Nothing
       , metresToClipSpace = 1.0
       , viewingMode = PointCloud
       , summary = Nothing
@@ -245,19 +254,36 @@ update msg model =
             else
                 ( model, Cmd.none )
 
-        UserMovedSlider segment ->
+        UserMovedRoadSlider segment ->
             ( { model | currentSegment = segment }, Cmd.none )
 
-        ForwardOne ->
+        UserMovedNodeSlider node ->
+            ( { model | currentNode = Just node }, Cmd.none )
+
+        ForwardOneRoad ->
             ( { model
                 | currentSegment = modBy (List.length model.roads - 1) (model.currentSegment + 1)
               }
             , Cmd.none
             )
 
-        BackOne ->
+        BackOneRoad ->
             ( { model
                 | currentSegment = modBy (List.length model.roads - 1) (model.currentSegment - 1)
+              }
+            , Cmd.none
+            )
+
+        ForwardOneNode ->
+            ( { model
+                | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
+              }
+            , Cmd.none
+            )
+
+        BackOneNode ->
+            ( { model
+                | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
             , Cmd.none
             )
@@ -267,6 +293,22 @@ update msg model =
             , Cmd.none
             )
 
+
+incrementMaybeModulo modulo mx =
+    case mx of
+        Nothing ->
+            Nothing
+
+        Just x ->
+            Just <| modBy modulo (x + 1)
+
+decrementMaybeModulo modulo mx =
+    case mx of
+        Nothing ->
+            Nothing
+
+        Just x ->
+            Just <| modBy modulo (x - 1)
 
 parseGPXintoModel content model =
     let
@@ -491,6 +533,7 @@ parseGPXintoModel content model =
         , entities = seaLevel :: pointEntities ++ roadEntities
         , metresToClipSpace = metresToClipSpace
         , currentSegment = 0
+        , currentNode = Just 0
         , summary = Just summarise
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
@@ -585,7 +628,8 @@ view model =
                     Input.labelHidden "Choose view"
                 , options =
                     [ Input.optionWith PointCloud <| radioButton First "Whole route"
-                    , Input.optionWith RollerCoaster <| radioButton Last "First person"
+                    , Input.optionWith RollerCoaster <| radioButton Mid "First person"
+                    , Input.optionWith Zoomable <| radioButton Last "Zoomable"
                     ]
                 }
     in
@@ -628,6 +672,9 @@ view3D model =
 
         RollerCoaster ->
             viewRollerCoasterTrackAndControls model
+
+        Zoomable ->
+            viewZoomable model
 
 
 viewPointCloud model =
@@ -712,7 +759,7 @@ viewRollerCoasterTrackAndControls model =
                         ]
                         Element.none
                 ]
-                { onChange = UserMovedSlider << round
+                { onChange = UserMovedRoadSlider << round
                 , label =
                     Input.labelBelow [] <|
                         text "Drag slider or use arrow buttons"
@@ -733,12 +780,12 @@ viewRollerCoasterTrackAndControls model =
                 [ slider
                 , button
                     prettyButtonStyles
-                    { onPress = Just BackOne
+                    { onPress = Just BackOneRoad
                     , label = text "◀︎"
                     }
                 , button
                     prettyButtonStyles
-                    { onPress = Just ForwardOne
+                    { onPress = Just ForwardOneRoad
                     , label = text "►︎"
                     }
                 ]
@@ -839,6 +886,127 @@ displayName n =
 
         _ ->
             none
+
+viewZoomable : Model -> Element Msg
+viewZoomable model =
+    -- Let's the user spin around and zoom in on any road point.
+    let
+        slider =
+            Input.slider
+                [ height <| px 80
+                , width <| px 500
+                , centerY
+                , behindContent <|
+                    -- Slider track
+                    el
+                        [ width <| px 500
+                        , height <| px 30
+                        , centerY
+                        , centerX
+                        , Background.color <| rgb255 114 159 207
+                        , Border.rounded 6
+                        ]
+                        Element.none
+                ]
+                { onChange = UserMovedNodeSlider << truncate
+                , label =
+                    Input.labelBelow [] <|
+                        text "Drag slider or use arrow buttons"
+                , min = 1.0
+                , max = toFloat <| List.length model.nodes - 1
+                , step = Just 1
+                , value = toFloat  getNodeNum
+                , thumb = Input.defaultThumb
+                }
+
+        getNodeNum =
+            case model.currentNode of
+             Just n -> n
+             Nothing -> 0
+
+        getNode =
+            case model.currentNode of
+                Just n ->
+                    Array.get n model.nodeArray
+                Nothing -> Nothing
+
+        controls =
+            row
+                [ centerX, spaceEvenly, centerY ]
+                [ slider
+                , button
+                    prettyButtonStyles
+                    { onPress = Just BackOneNode
+                    , label = text "◀︎"
+                    }
+                , button
+                    prettyButtonStyles
+                    { onPress = Just ForwardOneNode
+                    , label = text "►︎"
+                    }
+                ]
+    in
+    case getNode of
+        Nothing ->
+            none
+
+        Just node ->
+            row []
+                [ column
+                    [ width <| px 900
+                    , spacing 10
+                    ]
+                    [ viewCurrentNode model node
+                    , controls
+                    ]
+                , row []
+                    [ column [ spacing 10 ]
+                        [ text "Index "
+                        , text "Latitude "
+                        , text "Longitude "
+                        , text "Elevation "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text <| String.fromInt <| 1 + getNodeNum
+                        , text <| showDecimal node.trackPoint.lat
+                        , text <| showDecimal node.trackPoint.lon
+                        , text <| showDecimal node.trackPoint.ele
+                        ]
+                    ]
+                ]
+
+
+viewCurrentNode : Model -> DrawingNode -> Element Msg
+viewCurrentNode model node =
+    let
+        camera =
+            Camera3d.perspective
+                { viewpoint =
+                    Viewpoint3d.orbitZ
+                        { focalPoint =
+                            Point3d.meters node.x node.y node.z
+                        , azimuth = model.azimuth
+                        , elevation = model.elevation
+                        , distance = Length.meters 4
+                        }
+                , verticalFieldOfView = Angle.degrees 10
+                }
+    in
+    row []
+        [ el
+            [ pointer
+            , htmlAttribute <| style "touch-action" "manipulation"
+            ]
+          <|
+            html <|
+                Scene3d.unlit
+                    { camera = camera
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.transparentBackground
+                    , clipDepth = Length.meters 1.0
+                    , entities = model.entities
+                    }
+        ]
 
 
 prettyButtonStyles =
