@@ -38,7 +38,7 @@ import Viewpoint3d
 
 --TODO: Add README
 --TODO: Add licence
---TODO: Trap mouse moves only over image
+--TODO: Merge two rotatable views.
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
@@ -262,6 +262,7 @@ update msg model =
                     ( { model
                         | azimuth = newAzimuth
                         , elevation = newElevation
+                        , orbiting = Just (dx, dy)
                       }
                     , Cmd.none
                     )
@@ -702,9 +703,7 @@ viewPointCloud model =
     in
     row []
         [ el
-            [ pointer
-            , htmlAttribute <| style "touch-action" "manipulation"
-            ]
+            withMouseCapture
           <|
             html <|
                 Scene3d.unlit
@@ -863,7 +862,7 @@ viewRoadSegment model road =
                 , verticalFieldOfView = Angle.degrees 80
                 }
     in
-    el withMouseCapture <|
+    el [] <|
         html <|
             Scene3d.sunny
                 { camera = camera road
