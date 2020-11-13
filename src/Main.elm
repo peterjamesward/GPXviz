@@ -15,6 +15,8 @@ import Element.Font as Font
 import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Select as Select
+import FormatNumber exposing (format)
+import FormatNumber.Locales exposing (Decimals(..), usLocale)
 import Html.Attributes exposing (style)
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (meters)
@@ -32,7 +34,6 @@ import Viewpoint3d
 
 
 
---TODO: Summary statistics.
 --TODO: View mode -- choose focal node, mouse rotates scene, move in/out, change focal length. (see which works better.)
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
@@ -146,6 +147,11 @@ type Msg
 
 zerotp =
     TrackPoint 0.0 0.0 0.0
+
+
+percentInOneRadian =
+    -- Who knew?
+    15.91549430919
 
 
 init : () -> ( Model, Cmd Msg )
@@ -398,7 +404,7 @@ parseGPXintoModel content model =
                     node2.northOffset - node1.northOffset
 
                 zDifference =
-                    node2.vertOffset - node1.vertOffset
+                    node2.trackPoint.ele - node1.trackPoint.ele
 
                 earthDistance =
                     -- Great circle distance (!) ignoring elevation difference
@@ -415,7 +421,7 @@ parseGPXintoModel content model =
                 Spherical.findBearingToTarget
                     ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
                     ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
-            , gradient = atan2 zDifference earthDistance
+            , gradient = percentInOneRadian * atan2 zDifference earthDistance
             , startDistance = 0.0
             , endDistance = 0.0
             , index = index
@@ -546,6 +552,18 @@ parseTrackName xml =
                     n
 
 
+decimalPrecision =
+    3
+
+
+showDecimal x =
+    let
+        locale =
+            { usLocale | decimals = Exact 2 }
+    in
+    format locale x
+
+
 view : Model -> Browser.Document Msg
 view model =
     let
@@ -630,14 +648,14 @@ viewPointCloud model =
                             , text "Descending distance "
                             , text "Elevation loss "
                             ]
-                        , column [ spacing 10 ]
-                            [ text <| String.fromInt <| round <| summary.highestMetres
-                            , text <| String.fromInt <| round <| summary.lowestMetres
-                            , text <| String.fromInt <| round <| summary.trackLength
-                            , text <| String.fromInt <| round <| summary.climbingDistance
-                            , text <| String.fromInt <| round <| summary.totalClimbing
-                            , text <| String.fromInt <| round <| summary.descendingDistance
-                            , text <| String.fromInt <| round <| summary.totalDescending
+                        , column [ spacing 10, alignRight ]
+                            [ text <| showDecimal summary.highestMetres
+                            , text <| showDecimal summary.lowestMetres
+                            , text <| showDecimal summary.trackLength
+                            , text <| showDecimal summary.climbingDistance
+                            , text <| showDecimal summary.totalClimbing
+                            , text <| showDecimal summary.descendingDistance
+                            , text <| showDecimal summary.totalDescending
                             ]
                         ]
 
@@ -742,23 +760,22 @@ viewRollerCoasterTrackAndControls model =
                         ]
                     , column [ spacing 10 ]
                         [ text <| String.fromInt model.currentSegment
-                        , text <| String.fromInt <| round <| road.startsAt.trackPoint.lat
-                        , text <| String.fromInt <| round <| road.startsAt.trackPoint.lon
-                        , text <| String.fromInt <| round <| road.startsAt.trackPoint.ele
-                        , text <| String.fromInt <| round <| road.endsAt.trackPoint.lat
-                        , text <| String.fromInt <| round <| road.endsAt.trackPoint.lon
-                        , text <| String.fromInt <| round <| road.endsAt.trackPoint.ele
-                        , text <| String.fromInt <| round <| road.length
-                        , text <| String.fromInt <| round <| toDegrees road.gradient
+                        , text <| showDecimal road.startsAt.trackPoint.lat
+                        , text <| showDecimal road.startsAt.trackPoint.lon
+                        , text <| showDecimal road.startsAt.trackPoint.ele
+                        , text <| showDecimal road.endsAt.trackPoint.lat
+                        , text <| showDecimal road.endsAt.trackPoint.lon
+                        , text <| showDecimal road.endsAt.trackPoint.ele
+                        , text <| showDecimal road.length
+                        , text <| showDecimal <| toDegrees road.gradient
                         , text <|
-                            String.fromInt <|
-                                round <|
-                                    toDegrees <|
-                                        if road.bearing < 0 then
-                                            pi + pi + road.bearing
+                            showDecimal <|
+                                toDegrees <|
+                                    if road.bearing < 0 then
+                                        pi + pi + road.bearing
 
-                                        else
-                                            road.bearing
+                                    else
+                                        road.bearing
                         ]
                     ]
                 ]
