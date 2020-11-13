@@ -42,6 +42,7 @@ import Viewpoint3d
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
+--TODO: ?? Adjust node heights in zoom mode.
 
 
 main : Program () Model Msg
@@ -118,7 +119,6 @@ type alias Model =
     , orbiting : Bool -- Whether the mouse button is currently down
     , entities : List (Entity MyCoord)
     , httpError : Maybe String
-    , currentSegment : Int
     , currentNode : Maybe Int
     , metresToClipSpace : Float -- Probably should be a proper metric tag!
     , viewingMode : ViewingMode
@@ -146,10 +146,7 @@ type Msg
     | GpxRequested
     | GpxSelected File
     | GpxLoaded String
-    | UserMovedRoadSlider Int
     | UserMovedNodeSlider Int
-    | BackOneRoad
-    | ForwardOneRoad
     | BackOneNode
     | ForwardOneNode
     | ChooseViewMode ViewingMode
@@ -181,7 +178,6 @@ init _ =
       , orbiting = False
       , entities = []
       , httpError = Nothing
-      , currentSegment = 0
       , currentNode = Nothing
       , metresToClipSpace = 1.0
       , viewingMode = PointCloud
@@ -254,25 +250,8 @@ update msg model =
             else
                 ( model, Cmd.none )
 
-        UserMovedRoadSlider segment ->
-            ( { model | currentSegment = segment }, Cmd.none )
-
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }, Cmd.none )
-
-        ForwardOneRoad ->
-            ( { model
-                | currentSegment = modBy (List.length model.roads - 1) (model.currentSegment + 1)
-              }
-            , Cmd.none
-            )
-
-        BackOneRoad ->
-            ( { model
-                | currentSegment = modBy (List.length model.roads - 1) (model.currentSegment - 1)
-              }
-            , Cmd.none
-            )
 
         ForwardOneNode ->
             ( { model
@@ -302,6 +281,7 @@ incrementMaybeModulo modulo mx =
         Just x ->
             Just <| modBy modulo (x + 1)
 
+
 decrementMaybeModulo modulo mx =
     case mx of
         Nothing ->
@@ -309,6 +289,7 @@ decrementMaybeModulo modulo mx =
 
         Just x ->
             Just <| modBy modulo (x - 1)
+
 
 parseGPXintoModel content model =
     let
@@ -532,7 +513,6 @@ parseGPXintoModel content model =
         , trackName = parseTrackName content
         , entities = seaLevel :: pointEntities ++ roadEntities
         , metresToClipSpace = metresToClipSpace
-        , currentSegment = 0
         , currentNode = Just 0
         , summary = Just summarise
         , nodeArray = Array.fromList drawingNodes
@@ -759,20 +739,26 @@ viewRollerCoasterTrackAndControls model =
                         ]
                         Element.none
                 ]
-                { onChange = UserMovedRoadSlider << round
+                { onChange = UserMovedNodeSlider << round
                 , label =
                     Input.labelBelow [] <|
                         text "Drag slider or use arrow buttons"
                 , min = 1.0
                 , max = toFloat <| List.length model.roads - 1
                 , step = Just 1
-                , value = toFloat model.currentSegment
+                , value = toFloat <| Maybe.withDefault 0 model.currentNode
                 , thumb = Input.defaultThumb
                 }
 
         getRoad : Maybe DrawingRoad
         getRoad =
-            Array.get model.currentSegment model.roadArray
+            -- N.B. will fail on last node.
+            case model.currentNode of
+                Just n ->
+                    Array.get n model.roadArray
+
+                _ ->
+                    Nothing
 
         controls =
             row
@@ -780,12 +766,12 @@ viewRollerCoasterTrackAndControls model =
                 [ slider
                 , button
                     prettyButtonStyles
-                    { onPress = Just BackOneRoad
+                    { onPress = Just BackOneNode
                     , label = text "◀︎"
                     }
                 , button
                     prettyButtonStyles
-                    { onPress = Just ForwardOneRoad
+                    { onPress = Just ForwardOneNode
                     , label = text "►︎"
                     }
                 ]
@@ -817,7 +803,7 @@ viewRollerCoasterTrackAndControls model =
                         , text "Bearing "
                         ]
                     , column [ spacing 10 ]
-                        [ text <| String.fromInt <| 1 + model.currentSegment
+                        [ text <| String.fromInt <| 1 + Maybe.withDefault 1 model.currentNode
                         , text <| showDecimal road.startsAt.trackPoint.lat
                         , text <| showDecimal road.startsAt.trackPoint.lon
                         , text <| showDecimal road.startsAt.trackPoint.ele
@@ -887,6 +873,7 @@ displayName n =
         _ ->
             none
 
+
 viewZoomable : Model -> Element Msg
 viewZoomable model =
     -- Let's the user spin around and zoom in on any road point.
@@ -915,20 +902,25 @@ viewZoomable model =
                 , min = 1.0
                 , max = toFloat <| List.length model.nodes - 1
                 , step = Just 1
-                , value = toFloat  getNodeNum
+                , value = toFloat getNodeNum
                 , thumb = Input.defaultThumb
                 }
 
         getNodeNum =
             case model.currentNode of
-             Just n -> n
-             Nothing -> 0
+                Just n ->
+                    n
+
+                Nothing ->
+                    0
 
         getNode =
             case model.currentNode of
                 Just n ->
                     Array.get n model.nodeArray
-                Nothing -> Nothing
+
+                Nothing ->
+                    Nothing
 
         controls =
             row
