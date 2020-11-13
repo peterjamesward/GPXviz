@@ -250,18 +250,14 @@ update msg model =
 
         ForwardOne ->
             ( { model
-                | currentSegment =
-                    min (model.currentSegment + 1)
-                        (List.length model.roads)
+                | currentSegment = modBy (List.length model.roads - 1) (model.currentSegment + 1)
               }
             , Cmd.none
             )
 
         BackOne ->
             ( { model
-                | currentSegment =
-                    max (model.currentSegment - 1)
-                        1
+                | currentSegment = modBy (List.length model.roads - 1) (model.currentSegment - 1)
               }
             , Cmd.none
             )
@@ -397,7 +393,7 @@ parseGPXintoModel content model =
             List.map3 roadSegment
                 drawingNodes
                 (Maybe.withDefault [] <| tail drawingNodes)
-                (List.range 1 (List.length drawingNodes))
+                (List.range 0 (List.length drawingNodes))
 
         roadSegment node1 node2 index =
             let
@@ -494,7 +490,7 @@ parseGPXintoModel content model =
         , trackName = parseTrackName content
         , entities = seaLevel :: pointEntities ++ roadEntities
         , metresToClipSpace = metresToClipSpace
-        , currentSegment = 1
+        , currentSegment = 0
         , summary = Just summarise
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
@@ -614,8 +610,10 @@ view model =
 
                     Just _ ->
                         column []
-                            [ viewModeChoices
-                            , displayName model.trackName
+                            [ row []
+                                [ viewModeChoices
+                                , displayName model.trackName
+                                ]
                             , view3D model
                             ]
                 ]
@@ -719,7 +717,7 @@ viewRollerCoasterTrackAndControls model =
                     Input.labelBelow [] <|
                         text "Drag slider or use arrow buttons"
                 , min = 1.0
-                , max = toFloat <| (List.length model.roads) - 1
+                , max = toFloat <| List.length model.roads - 1
                 , step = Just 1
                 , value = toFloat model.currentSegment
                 , thumb = Input.defaultThumb
@@ -772,7 +770,7 @@ viewRollerCoasterTrackAndControls model =
                         , text "Bearing "
                         ]
                     , column [ spacing 10 ]
-                        [ text <| String.fromInt model.currentSegment
+                        [ text <| String.fromInt <| 1 + model.currentSegment
                         , text <| showDecimal road.startsAt.trackPoint.lat
                         , text <| showDecimal road.startsAt.trackPoint.lon
                         , text <| showDecimal road.startsAt.trackPoint.ele
