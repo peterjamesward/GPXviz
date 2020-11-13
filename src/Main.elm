@@ -1,6 +1,6 @@
 module Main exposing (main)
 
-import Angle exposing (Angle)
+import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
@@ -19,6 +19,7 @@ import File.Select as Select
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
 import Html.Attributes exposing (style)
+import Html.Events.Extra.Pointer as Pointer
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (meters)
 import List exposing (tail)
@@ -115,7 +116,7 @@ type alias Model =
     , trackName : Maybe String
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
-    , orbiting : Bool -- Whether the mouse button is currently down
+    , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
     , entities : List (Entity MyCoord)
     , httpError : Maybe String
     , currentNode : Maybe Int
@@ -139,11 +140,12 @@ type alias SummaryData =
     }
 
 
+type alias Point =
+    ( Float, Float )
+
+
 type Msg
-    = MouseDown
-    | MouseUp
-    | MouseMove (Quantity Float Pixels) (Quantity Float Pixels)
-    | GpxRequested
+    = GpxRequested
     | GpxSelected File
     | GpxLoaded String
     | UserMovedNodeSlider Int
@@ -151,15 +153,13 @@ type Msg
     | ForwardOneNode
     | ChooseViewMode ViewingMode
     | ZoomLevel Float
+    | GonioGrab Point
+    | GonioMove Point
+    | GonioRelease Point
 
 
 zerotp =
     TrackPoint 0.0 0.0 0.0
-
-
-percentInOneRadian =
-    -- Who knew?
-    15.91549430919
 
 
 init : () -> ( Model, Cmd Msg )
@@ -176,7 +176,7 @@ init _ =
       , trackName = Nothing
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
-      , orbiting = False
+      , orbiting = Nothing
       , entities = []
       , httpError = Nothing
       , currentNode = Nothing
@@ -213,45 +213,6 @@ update msg model =
             , Cmd.none
             )
 
-        -- Start orbiting when a mouse button is pressed
-        MouseDown ->
-            ( { model | orbiting = True }, Cmd.none )
-
-        -- Stop orbiting when a mouse button is released
-        MouseUp ->
-            ( { model | orbiting = False }, Cmd.none )
-
-        -- Orbit camera on mouse move (if a mouse button is down)
-        MouseMove dx dy ->
-            if model.orbiting then
-                let
-                    -- How fast we want to orbit the camera (orbiting the
-                    -- camera by 1 degree per pixel of drag is a decent default
-                    -- to start with)
-                    rotationRate =
-                        Angle.degrees 1 |> Quantity.per Pixels.pixel
-
-                    -- Adjust azimuth based on horizontal mouse motion (one
-                    -- degree per pixel)
-                    newAzimuth =
-                        model.azimuth
-                            |> Quantity.minus (dx |> Quantity.at rotationRate)
-
-                    -- Adjust elevation based on vertical mouse motion (one
-                    -- degree per pixel), and clamp to make sure camera cannot
-                    -- go past vertical in either direction
-                    newElevation =
-                        model.elevation
-                            |> Quantity.plus (dy |> Quantity.at rotationRate)
-                            |> Quantity.clamp (Angle.degrees -90) (Angle.degrees 90)
-                in
-                ( { model | azimuth = newAzimuth, elevation = newElevation }
-                , Cmd.none
-                )
-
-            else
-                ( model, Cmd.none )
-
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }, Cmd.none )
 
@@ -276,6 +237,40 @@ update msg model =
 
         ZoomLevel level ->
             ( { model | zoomLevel = level }
+            , Cmd.none
+            )
+
+        GonioGrab ( dx, dy ) ->
+            ( { model | orbiting = Just ( dx, dy ) }
+            , Cmd.none
+            )
+
+        GonioMove ( dx, dy ) ->
+            case model.orbiting of
+                Just ( startX, startY ) ->
+                    let
+                        newAzimuth =
+                            Angle.degrees <|
+                                inDegrees model.azimuth
+                                    - (dx - startX)
+
+                        newElevation =
+                            Angle.degrees <|
+                                inDegrees model.elevation
+                                    + (dy - startY)
+                    in
+                    ( { model
+                        | azimuth = newAzimuth
+                        , elevation = newElevation
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        GonioRelease _ ->
+            ( { model | orbiting = Nothing }
             , Cmd.none
             )
 
@@ -832,6 +827,16 @@ viewRollerCoasterTrackAndControls model =
                 ]
 
 
+withMouseCapture =
+    [ htmlAttribute <| Pointer.onDown (\event -> GonioGrab event.pointer.offsetPos)
+    , htmlAttribute <| Pointer.onMove (\event -> GonioMove event.pointer.offsetPos)
+    , htmlAttribute <| Pointer.onUp (\event -> GonioRelease event.pointer.offsetPos)
+    , htmlAttribute <| style "touch-action" "none"
+    , width fill
+    , pointer
+    ]
+
+
 viewRoadSegment model road =
     let
         eyeHeight =
@@ -858,17 +863,18 @@ viewRoadSegment model road =
                 , verticalFieldOfView = Angle.degrees 80
                 }
     in
-    html <|
-        Scene3d.sunny
-            { camera = camera road
-            , dimensions = ( Pixels.int 800, Pixels.int 500 )
-            , background = Scene3d.backgroundColor Color.lightBlue
-            , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
-            , entities = model.entities
-            , upDirection = positiveZ
-            , sunlightDirection = negativeZ
-            , shadows = True
-            }
+    el withMouseCapture <|
+        html <|
+            Scene3d.sunny
+                { camera = camera road
+                , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                , background = Scene3d.backgroundColor Color.lightBlue
+                , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
+                , entities = model.entities
+                , upDirection = positiveZ
+                , sunlightDirection = negativeZ
+                , shadows = True
+                }
 
 
 displayName n =
@@ -1013,16 +1019,14 @@ viewCurrentNode model node =
                             Point3d.meters node.x node.y node.z
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters  4
+                        , distance = Length.meters 4
                         }
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevel
                 }
     in
     row []
         [ el
-            [ pointer
-            , htmlAttribute <| style "touch-action" "manipulation"
-            ]
+            withMouseCapture
           <|
             html <|
                 Scene3d.unlit
@@ -1059,32 +1063,9 @@ viewTrackPoint trkpnt =
         ]
 
 
-{-| Use movementX and movementY for simplicity (don't need to store initial
-mouse position in the model) - not supported in Internet Explorer though
--}
-decodeMouseMove : Decoder Msg
-decodeMouseMove =
-    Decode.map2 MouseMove
-        (Decode.field "movementX" (Decode.map Pixels.float Decode.float))
-        (Decode.field "movementY" (Decode.map Pixels.float Decode.float))
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.orbiting then
-        -- If we're currently orbiting, listen for mouse moves and mouse button
-        -- up events (to stop orbiting); in a real app we'd probably also want
-        -- to listen for page visibility changes to stop orbiting if the user
-        -- switches to a different tab or something
-        Sub.batch
-            [ Browser.Events.onMouseMove decodeMouseMove
-            , Browser.Events.onMouseUp (Decode.succeed MouseUp)
-            ]
-
-    else
-        -- If we're not currently orbiting, just listen for mouse down events
-        -- to start orbiting
-        Browser.Events.onMouseDown (Decode.succeed MouseDown)
+    Sub.none
 
 
 radioButton position label state =
