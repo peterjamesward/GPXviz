@@ -37,7 +37,6 @@ import Viewpoint3d
 
 --TODO: Add README
 --TODO: Add licence
---TODO: Zoom in zoomable mode
 --TODO: Trap mouse moves only over image
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
@@ -125,6 +124,7 @@ type alias Model =
     , summary : Maybe SummaryData
     , nodeArray : Array DrawingNode
     , roadArray : Array DrawingRoad
+    , zoomLevel : Float
     }
 
 
@@ -150,6 +150,7 @@ type Msg
     | BackOneNode
     | ForwardOneNode
     | ChooseViewMode ViewingMode
+    | ZoomLevel Float
 
 
 zerotp =
@@ -184,6 +185,7 @@ init _ =
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
+      , zoomLevel = 1.0
       }
     , Cmd.none
     )
@@ -269,6 +271,11 @@ update msg model =
 
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
+            , Cmd.none
+            )
+
+        ZoomLevel level ->
+            ( { model | zoomLevel = level }
             , Cmd.none
             )
 
@@ -906,6 +913,33 @@ viewZoomable model =
                 , thumb = Input.defaultThumb
                 }
 
+        zoomSlider =
+            Input.slider
+                [ height <| px 400
+                , width <| px 80
+                , centerY
+                , behindContent <|
+                    -- Slider track
+                    el
+                        [ width <| px 30
+                        , height <| px 400
+                        , centerY
+                        , centerX
+                        , Background.color <| rgb255 114 159 207
+                        , Border.rounded 6
+                        ]
+                        Element.none
+                ]
+                { onChange = ZoomLevel
+                , label =
+                    Input.labelHidden "Zoom"
+                , min = 0.1
+                , max = 1.0
+                , step = Nothing
+                , value = model.zoomLevel
+                , thumb = Input.defaultThumb
+                }
+
         getNodeNum =
             case model.currentNode of
                 Just n ->
@@ -943,10 +977,10 @@ viewZoomable model =
             none
 
         Just node ->
-            row []
-                [ column
-                    [ width <| px 900
-                    , spacing 10
+            row [ centerY ]
+                [ zoomSlider
+                , column
+                    [ centerY
                     ]
                     [ viewCurrentNode model node
                     , controls
@@ -979,9 +1013,9 @@ viewCurrentNode model node =
                             Point3d.meters node.x node.y node.z
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters 4
+                        , distance = Length.meters  4
                         }
-                , verticalFieldOfView = Angle.degrees 10
+                , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevel
                 }
     in
     row []
