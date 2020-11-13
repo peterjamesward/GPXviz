@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Angle exposing (Angle)
+import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Camera3d
@@ -38,7 +39,6 @@ import Viewpoint3d
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
---TODO: Use Array for road segments (optimisation).
 
 
 main : Program () Model Msg
@@ -118,6 +118,8 @@ type alias Model =
     , metresToClipSpace : Float -- Probably should be a proper metric tag!
     , viewingMode : ViewingMode
     , summary : Maybe SummaryData
+    , nodeArray : Array DrawingNode
+    , roadArray : Array DrawingRoad
     }
 
 
@@ -175,6 +177,8 @@ init _ =
       , metresToClipSpace = 1.0
       , viewingMode = PointCloud
       , summary = Nothing
+      , nodeArray = Array.empty
+      , roadArray = Array.empty
       }
     , Cmd.none
     )
@@ -421,7 +425,12 @@ parseGPXintoModel content model =
                 Spherical.findBearingToTarget
                     ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
                     ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
-            , gradient = percentInOneRadian * atan2 zDifference earthDistance
+            , gradient =
+                if earthDistance > 0 then
+                    100.0 * (zDifference / earthDistance)
+
+                else
+                    0.0
             , startDistance = 0.0
             , endDistance = 0.0
             , index = index
@@ -487,6 +496,8 @@ parseGPXintoModel content model =
         , metresToClipSpace = metresToClipSpace
         , currentSegment = 1
         , summary = Just summarise
+        , nodeArray = Array.fromList drawingNodes
+        , roadArray = Array.fromList roadSegments
     }
 
 
@@ -708,7 +719,7 @@ viewRollerCoasterTrackAndControls model =
                     Input.labelBelow [] <|
                         text "Drag slider or use arrow buttons"
                 , min = 1.0
-                , max = toFloat <| List.length model.roads
+                , max = toFloat <| (List.length model.roads) - 1
                 , step = Just 1
                 , value = toFloat model.currentSegment
                 , thumb = Input.defaultThumb
@@ -716,8 +727,23 @@ viewRollerCoasterTrackAndControls model =
 
         getRoad : Maybe DrawingRoad
         getRoad =
-            List.filter (\r -> r.index == model.currentSegment) model.roads
-                |> List.head
+            Array.get model.currentSegment model.roadArray
+
+        controls =
+            row
+                [ centerX, spaceEvenly, centerY ]
+                [ slider
+                , button
+                    prettyButtonStyles
+                    { onPress = Just BackOne
+                    , label = text "◀︎"
+                    }
+                , button
+                    prettyButtonStyles
+                    { onPress = Just ForwardOne
+                    , label = text "►︎"
+                    }
+                ]
     in
     case getRoad of
         Nothing ->
@@ -730,20 +756,7 @@ viewRollerCoasterTrackAndControls model =
                     , spacing 10
                     ]
                     [ viewRoadSegment model road
-                    , row
-                        [ centerX, spaceEvenly, centerY ]
-                        [ slider
-                        , button
-                            prettyButtonStyles
-                            { onPress = Just BackOne
-                            , label = text "◀︎"
-                            }
-                        , button
-                            prettyButtonStyles
-                            { onPress = Just ForwardOne
-                            , label = text "►︎"
-                            }
-                        ]
+                    , controls
                     ]
                 , row []
                     [ column [ spacing 10 ]
@@ -767,7 +780,7 @@ viewRollerCoasterTrackAndControls model =
                         , text <| showDecimal road.endsAt.trackPoint.lon
                         , text <| showDecimal road.endsAt.trackPoint.ele
                         , text <| showDecimal road.length
-                        , text <| showDecimal <| toDegrees road.gradient
+                        , text <| showDecimal road.gradient
                         , text <|
                             showDecimal <|
                                 toDegrees <|
