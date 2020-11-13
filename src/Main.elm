@@ -26,12 +26,14 @@ import Quantity exposing (Quantity)
 import Regex
 import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
+import Spherical exposing (range)
 import Task
 import Viewpoint3d
 
 
 
---TODO: Fly-through on timer.
+--TODO: Summary statistics.
+--TODO: View mode -- choose focal node, mouse rotates scene, move in/out, change focal length. (see which works better.)
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: Gradient colours (optional).
@@ -114,6 +116,18 @@ type alias Model =
     , currentSegment : Int
     , metresToClipSpace : Float -- Probably should be a proper metric tag!
     , viewingMode : ViewingMode
+    , summary : Maybe SummaryData
+    }
+
+
+type alias SummaryData =
+    { highestMetres : Float
+    , lowestMetres : Float
+    , trackLength : Float
+    , climbingDistance : Float
+    , descendingDistance : Float
+    , totalClimbing : Float
+    , totalDescending : Float
     }
 
 
@@ -153,7 +167,8 @@ init _ =
       , httpError = Nothing
       , currentSegment = 1
       , metresToClipSpace = 1.0
-      , viewingMode = RollerCoaster
+      , viewingMode = PointCloud
+      , summary = Nothing
       }
     , Cmd.none
     )
@@ -298,16 +313,6 @@ parseGPXintoModel content model =
         drawingNodes =
             List.map prepareDrawingNode tps
 
-        points =
-            List.map
-                (\node ->
-                    Point3d.meters
-                        node.x
-                        node.y
-                        node.z
-                )
-                drawingNodes
-
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
         pointEntities =
@@ -395,18 +400,72 @@ parseGPXintoModel content model =
                 zDifference =
                     node2.vertOffset - node1.vertOffset
 
-                hypotenuse =
-                    sqrt <| yDifference * yDifference + xDifference * xDifference
+                earthDistance =
+                    -- Great circle distance (!) ignoring elevation difference
+                    Spherical.range ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
+                        ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
+
+                segmentLength =
+                    sqrt <| yDifference * yDifference + xDifference * xDifference + zDifference * zDifference
             in
             { startsAt = node1
             , endsAt = node2
-            , length = hypotenuse
-            , bearing = atan2 xDifference yDifference
-            , gradient = atan2 zDifference hypotenuse
+            , length = earthDistance
+            , bearing =
+                Spherical.findBearingToTarget
+                    ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
+                    ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
+            , gradient = atan2 zDifference earthDistance
             , startDistance = 0.0
             , endDistance = 0.0
             , index = index
             }
+
+        accumulateInfo segment summary =
+            { trackLength = summary.trackLength + segment.length
+            , highestMetres =
+                max summary.highestMetres <|
+                    max segment.startsAt.trackPoint.ele segment.endsAt.trackPoint.ele
+            , lowestMetres =
+                min summary.lowestMetres <|
+                    min segment.startsAt.trackPoint.ele segment.endsAt.trackPoint.ele
+            , climbingDistance =
+                if segment.gradient > 0 then
+                    summary.climbingDistance + segment.length
+
+                else
+                    summary.climbingDistance
+            , descendingDistance =
+                if segment.gradient < 0 then
+                    summary.climbingDistance + segment.length
+
+                else
+                    summary.climbingDistance
+            , totalClimbing =
+                if segment.gradient > 0 then
+                    summary.totalClimbing + segment.endsAt.trackPoint.ele - segment.startsAt.trackPoint.ele
+
+                else
+                    summary.totalClimbing
+            , totalDescending =
+                if segment.gradient < 0 then
+                    summary.totalClimbing - segment.endsAt.trackPoint.ele + segment.startsAt.trackPoint.ele
+
+                else
+                    summary.totalClimbing
+            }
+
+        summarise =
+            List.foldl accumulateInfo
+                { trackLength = 0.0
+                , highestMetres = -9999.9
+                , lowestMetres = 9999.9
+                , climbingDistance = 0.0
+                , descendingDistance = 0.0
+                , totalClimbing = 0.0
+                , totalDescending = 0.0
+                }
+                roadSegments
     in
     { model
         | gpx = Just content
@@ -421,6 +480,7 @@ parseGPXintoModel content model =
         , entities = seaLevel :: pointEntities ++ roadEntities
         , metresToClipSpace = metresToClipSpace
         , currentSegment = 1
+        , summary = Just summarise
     }
 
 
@@ -556,20 +616,50 @@ viewPointCloud model =
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
+
+        showSummary =
+            case model.summary of
+                Just summary ->
+                    row []
+                        [ column [ spacing 10 ]
+                            [ text "Highest point "
+                            , text "Lowest point "
+                            , text "Track length "
+                            , text "Climbing distance "
+                            , text "Elevation gain "
+                            , text "Descending distance "
+                            , text "Elevation loss "
+                            ]
+                        , column [ spacing 10 ]
+                            [ text <| String.fromInt <| round <| summary.highestMetres
+                            , text <| String.fromInt <| round <| summary.lowestMetres
+                            , text <| String.fromInt <| round <| summary.trackLength
+                            , text <| String.fromInt <| round <| summary.climbingDistance
+                            , text <| String.fromInt <| round <| summary.totalClimbing
+                            , text <| String.fromInt <| round <| summary.descendingDistance
+                            , text <| String.fromInt <| round <| summary.totalDescending
+                            ]
+                        ]
+
+                _ ->
+                    none
     in
-    el
-        [ pointer
-        , htmlAttribute <| style "touch-action" "manipulation"
+    row []
+        [ el
+            [ pointer
+            , htmlAttribute <| style "touch-action" "manipulation"
+            ]
+          <|
+            html <|
+                Scene3d.unlit
+                    { camera = camera
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.transparentBackground
+                    , clipDepth = Length.meters 1.0
+                    , entities = model.entities
+                    }
+        , showSummary
         ]
-    <|
-        html <|
-            Scene3d.unlit
-                { camera = camera
-                , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                , background = Scene3d.transparentBackground
-                , clipDepth = Length.meters 1.0
-                , entities = model.entities
-                }
 
 
 toDegrees rads =
@@ -652,15 +742,23 @@ viewRollerCoasterTrackAndControls model =
                         ]
                     , column [ spacing 10 ]
                         [ text <| String.fromInt model.currentSegment
-                        , text <| String.fromFloat road.startsAt.trackPoint.lat
-                        , text <| String.fromFloat road.startsAt.trackPoint.lon
-                        , text <| String.fromFloat road.startsAt.trackPoint.ele
-                        , text <| String.fromFloat road.endsAt.trackPoint.lat
-                        , text <| String.fromFloat road.endsAt.trackPoint.lon
-                        , text <| String.fromFloat road.endsAt.trackPoint.ele
-                        , text <| String.fromFloat road.length
-                        , text <| String.fromFloat <| toDegrees road.gradient
-                        , text <| String.fromFloat <| toDegrees road.bearing
+                        , text <| String.fromInt <| round <| road.startsAt.trackPoint.lat
+                        , text <| String.fromInt <| round <| road.startsAt.trackPoint.lon
+                        , text <| String.fromInt <| round <| road.startsAt.trackPoint.ele
+                        , text <| String.fromInt <| round <| road.endsAt.trackPoint.lat
+                        , text <| String.fromInt <| round <| road.endsAt.trackPoint.lon
+                        , text <| String.fromInt <| round <| road.endsAt.trackPoint.ele
+                        , text <| String.fromInt <| round <| road.length
+                        , text <| String.fromInt <| round <| toDegrees road.gradient
+                        , text <|
+                            String.fromInt <|
+                                round <|
+                                    toDegrees <|
+                                        if road.bearing < 0 then
+                                            pi + pi + road.bearing
+
+                                        else
+                                            road.bearing
                         ]
                     ]
                 ]
