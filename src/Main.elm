@@ -23,6 +23,7 @@ import Html.Events.Extra.Pointer as Pointer
 import Json.Decode as Decode exposing (Decoder)
 import Length exposing (meters)
 import List exposing (tail)
+import Markdown exposing (defaultOptions)
 import Maybe.Extra
 import Pixels exposing (Pixels)
 import Point3d
@@ -821,7 +822,30 @@ viewOptions model =
                 , label = Input.labelRight [] (text "Trackpoint cones")
                 }
             ]
+        , html <| Markdown.toHtmlWith { defaultOptions | smartypants = True } [] aboutText
         ]
+
+
+aboutText =
+    """Thank you for trying this GPX viewer.
+
+**Whole route** just shows an overview and summary statistics.
+Zoom is (currently) fixed on the centre of the area and there is no pan capability.
+
+**First person** positions the viewpoint above a _track segment_, sighted along the track.
+The zoom control will move your viewpoint back and forth a bit.
+The bottom slider and arrows will let you move between track segments.
+Information about the current segment is shown.
+
+**Zoomable** (bad name) focuses on track _points_ and lets you fly around
+the current point. The slider and arrows move to other track points.
+Information about the current tarck point is shown.
+
+**Options** (where you are now) lets you turn off some elements.
+You may like this depending on your motivation.
+
+> _Peter Ward, 2020_
+"""
 
 
 viewPointCloud model =
