@@ -669,7 +669,7 @@ viewPointCloud model =
                         { focalPoint = Point3d.meters 0.0 0.0 0.0
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters 4
+                        , distance = Length.meters <| distanceFromZoom model
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
@@ -702,7 +702,8 @@ viewPointCloud model =
                     none
     in
     row []
-        [ el
+        [ zoomSlider model
+        , el
             withMouseCapture
           <|
             html <|
@@ -786,7 +787,8 @@ viewRollerCoasterTrackAndControls model =
 
         Just road ->
             row []
-                [ column
+                [ zoomSlider model
+                , column
                     [ width <| px 900
                     , spacing 10
                     ]
@@ -846,7 +848,7 @@ viewRoadSegment model road =
             2.5 * model.metresToClipSpace
 
         cameraSetback =
-            1.0 * model.metresToClipSpace
+            (5 - model.zoomLevel) * model.metresToClipSpace
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
@@ -862,7 +864,7 @@ viewRoadSegment model road =
         camera someTarmac =
             Camera3d.perspective
                 { viewpoint = cameraViewpoint someTarmac
-                , verticalFieldOfView = Angle.degrees 80
+                , verticalFieldOfView = Angle.degrees <| 80.0 / model.zoomLevel
                 }
     in
     el [] <|
@@ -1011,6 +1013,10 @@ viewZoomable model =
                 ]
 
 
+distanceFromZoom model =
+    1.0 * model.metresToClipSpace * 10 ^ (5.0 - model.zoomLevel)
+
+
 viewCurrentNode : Model -> DrawingNode -> Element Msg
 viewCurrentNode model node =
     let
@@ -1022,7 +1028,7 @@ viewCurrentNode model node =
                             Point3d.meters node.x node.y node.z
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| 1.0 * model.metresToClipSpace * 10 ^ (5.0 - model.zoomLevel)
+                        , distance = Length.meters <| distanceFromZoom model
                         }
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevel
                 }
