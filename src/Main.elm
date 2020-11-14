@@ -690,11 +690,14 @@ parseGPXintoModel content model =
         , elevation = Angle.degrees 30.0
     }
 
+
 rebuildEntitiesOnly gpx model =
     let
-        newModel = parseGPXintoModel gpx model
+        newModel =
+            parseGPXintoModel gpx model
     in
-        { model | entities = newModel.entities }
+    { model | entities = newModel.entities }
+
 
 reg t =
     -- Helper to make a regex pattern.
@@ -777,12 +780,12 @@ viewGenericNew model =
             ]
           <|
             column
-                []
-                [ row []
+                [ spacing 10, centerX ]
+                [ row [ centerX ]
                     [ loadButton
                     , displayName model.trackName
                     ]
-                , row []
+                , row [ centerX ]
                     [ viewModeChoices model
                     ]
                 , row []
@@ -941,7 +944,7 @@ viewPointCloud model =
         showSummary =
             case model.summary of
                 Just summary ->
-                    row []
+                    row [ padding 20 ]
                         [ column [ spacing 10 ]
                             [ text "Highest point "
                             , text "Lowest point "
@@ -951,7 +954,7 @@ viewPointCloud model =
                             , text "Descending distance "
                             , text "Elevation loss "
                             ]
-                        , column [ spacing 10, alignRight ]
+                        , column [ spacing 10 ]
                             [ text <| showDecimal summary.highestMetres
                             , text <| showDecimal summary.lowestMetres
                             , text <| showDecimal summary.trackLength
@@ -1052,14 +1055,11 @@ viewRollerCoasterTrackAndControls model =
         Just road ->
             row []
                 [ zoomSlider model
-                , column
-                    [ width <| px 900
-                    , spacing 10
-                    ]
+                , column []
                     [ viewRoadSegment model road
                     , controls
                     ]
-                , row []
+                , row [ padding 20 ]
                     [ column [ spacing 10 ]
                         [ text "Start point index "
                         , text "Start latitude "
@@ -1260,7 +1260,7 @@ viewZoomable model =
                     [ viewCurrentNode model node
                     , controls
                     ]
-                , row []
+                , row [ padding 20 ]
                     [ column [ spacing 10 ]
                         [ text "Index "
                         , text "Latitude "
