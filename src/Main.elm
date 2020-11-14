@@ -5,10 +5,11 @@ import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Camera3d
+import Circle3d
 import Color
 import Cone3d
 import Cylinder3d
-import Direction3d exposing (negativeZ, positiveZ)
+import Direction3d exposing (negativeX, negativeZ, positiveZ)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border exposing (color)
@@ -37,8 +38,6 @@ import Viewpoint3d
 
 
 
---TODO: Crosshairs or something so we cam see where the focus is!
---TODO: Separate zoom settings for first person and third person modes.
 --TODO: List of possible problems, with click to view.
 --TODO: ?? Adjust node heights in zoom mode.
 --TODO: Autofix ??
@@ -261,12 +260,16 @@ update msg model =
             )
 
         UserMovedNodeSlider node ->
-            ( { model | currentNode = Just node }, Cmd.none )
+            ( { model | currentNode = Just node }
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
 
         ForwardOneNode ->
             ( { model
                 | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -274,11 +277,13 @@ update msg model =
             ( { model
                 | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -516,6 +521,28 @@ parseGPXintoModel content model =
             List.concat <|
                 List.map roadEntity roadSegments
 
+        segmentDirection segment =
+            let
+                maybe =
+                    Direction3d.from
+                        (Point3d.meters
+                            segment.startsAt.x
+                            segment.startsAt.y
+                            segment.startsAt.z
+                        )
+                        (Point3d.meters
+                            segment.endsAt.x
+                            segment.endsAt.y
+                            segment.endsAt.z
+                        )
+            in
+            case maybe of
+                Just dir ->
+                    dir
+
+                Nothing ->
+                    positiveZ
+
         roadEntity segment =
             let
                 kerbX =
@@ -529,30 +556,53 @@ parseGPXintoModel content model =
                     -- Let's try a low wall at the road's edges.
                     0.3 * metresToClipSpace
             in
-            (if model.displayOptions.roadTrack then
-                [ --surface
-                  Scene3d.quad (Material.color Color.grey)
-                    (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
-                    (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
-                    (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
-                    (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
-
-                -- kerb walls
-                , Scene3d.quad (Material.color Color.darkGrey)
-                    (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
-                    (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
-                    (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) (segment.endsAt.z + edgeHeight))
-                    (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) (segment.startsAt.z + edgeHeight))
-                , Scene3d.quad (Material.color Color.darkGrey)
-                    (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
-                    (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
-                    (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
-                    (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
+            -- Highlight current segment with a circle
+            (if
+                Just segment.index
+                    == model.currentNode
+                    && model.viewingMode
+                    == Zoomable
+             then
+                [ cylinder (Material.color Color.lightOrange) <|
+                    Cylinder3d.startingAt
+                        (Point3d.meters
+                            segment.startsAt.x
+                            segment.startsAt.y
+                            segment.startsAt.z
+                        )
+                        (segmentDirection segment)
+                        { radius = meters <| 10.0 * metresToClipSpace
+                        , length = meters <| 1.0 * metresToClipSpace
+                        }
                 ]
 
              else
                 []
             )
+                ++ (if model.displayOptions.roadTrack then
+                        [ --surface
+                          Scene3d.quad (Material.color Color.grey)
+                            (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
+                            (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
+                            (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+                            (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+
+                        -- kerb walls
+                        , Scene3d.quad (Material.color Color.darkGrey)
+                            (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
+                            (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
+                            (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) (segment.endsAt.z + edgeHeight))
+                            (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) (segment.startsAt.z + edgeHeight))
+                        , Scene3d.quad (Material.color Color.darkGrey)
+                            (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+                            (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+                            (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
+                            (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
+                        ]
+
+                    else
+                        []
+                   )
                 ++ (if model.displayOptions.gradientFill then
                         [ -- Drop coloured gradient to the ground
                           Scene3d.quad (Material.color <| gradientColour segment.gradient)
@@ -963,7 +1013,7 @@ viewOptions model =
                 , thumb = Input.defaultThumb
                 }
             ]
-        , paragraph [ width <| px 600] <| [ html <| Markdown.toHtml [] aboutText ]
+        , paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
 
 
