@@ -37,10 +37,9 @@ import Viewpoint3d
 
 
 
---TODO: Merge rotatable views. !!!
---TODO: Adjustable step threshold.
 --TODO: List of possible problems, with click to view.
 --TODO: ?? Adjust node heights in zoom mode.
+--TODO: Autofix ??
 
 
 main : Program () Model Msg
@@ -152,6 +151,7 @@ type alias Model =
     , zoomLevel : Float
     , displayOptions : DisplayOptions
     , suddenChanges : List AbruptChange
+    , gradientChangeThreshold : Float
     }
 
 
@@ -187,6 +187,7 @@ type Msg
     | TogglePillars Bool
     | ToggleCones Bool
     | ToggleProblems Bool
+    | SetGradientChangeThreshold Float
 
 
 zerotp =
@@ -219,6 +220,7 @@ init _ =
       , zoomLevel = 2.0
       , displayOptions = defaultDisplayOptions
       , suddenChanges = []
+      , gradientChangeThreshold = 10.0
       }
     , Cmd.none
     )
@@ -347,6 +349,14 @@ update msg model =
         ToggleProblems _ ->
             ( { model
                 | displayOptions = { options | problems = not options.problems }
+              }
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
+        SetGradientChangeThreshold threshold ->
+            ( { model
+                | gradientChangeThreshold = threshold
               }
                 |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
@@ -629,7 +639,7 @@ parseGPXintoModel content model =
 
         compareGradients : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
         compareGradients seg1 seg2 =
-            if abs (seg1.gradient - seg2.gradient) > 10.0 then
+            if abs (seg1.gradient - seg2.gradient) > model.gradientChangeThreshold then
                 Just
                     { node = seg1.endsAt
                     , before = seg1
@@ -840,8 +850,8 @@ view3D model =
 checkboxIcon : Bool -> Element msg
 checkboxIcon isChecked =
     el
-        [ width <| px 40
-        , height <| px 40
+        [ width <| px 32
+        , height <| px 32
         , centerY
         , padding 4
         , Border.rounded 6
@@ -867,61 +877,88 @@ checkboxIcon isChecked =
 viewOptions : Model -> Element Msg
 viewOptions model =
     row [ centerX ]
-        [ column [ padding 50, centerX ]
-            [ Input.checkbox [ Font.size 24 ]
+        [ column [ padding 50, centerX, alignTop ]
+            [ paragraph
+                [ padding 20
+                , Font.size 24
+                ]
+              <|
+                [ text "Select view elements" ]
+            , Input.checkbox [ Font.size 18 ]
                 { onChange = ToggleGradient
                 , icon = checkboxIcon
                 , checked = model.displayOptions.gradientFill
                 , label = Input.labelRight [] (text "Gradient colours")
                 }
-            , Input.checkbox [ Font.size 24 ]
+            , Input.checkbox [ Font.size 18 ]
                 { onChange = ToggleRoad
                 , icon = checkboxIcon
                 , checked = model.displayOptions.roadTrack
                 , label = Input.labelRight [] (text "Road surface")
                 }
-            , Input.checkbox [ Font.size 24 ]
+            , Input.checkbox [ Font.size 18 ]
                 { onChange = TogglePillars
                 , icon = checkboxIcon
                 , checked = model.displayOptions.roadPillars
                 , label = Input.labelRight [] (text "Road support pillars")
                 }
-            , Input.checkbox [ Font.size 24 ]
+            , Input.checkbox [ Font.size 18 ]
                 { onChange = ToggleCones
                 , icon = checkboxIcon
                 , checked = model.displayOptions.roadCones
                 , label = Input.labelRight [] (text "Trackpoint cones")
                 }
-            , Input.checkbox [ Font.size 24 ]
+            , Input.checkbox [ Font.size 18 ]
                 { onChange = ToggleProblems
                 , icon = checkboxIcon
                 , checked = model.displayOptions.problems
                 , label = Input.labelRight [] (text "Possible problems")
                 }
+            , Input.slider
+                [ height <| px 30
+                , width <| px 100
+                , centerY
+                , behindContent <|
+                    -- Slider track
+                    el
+                        [ width <| px 100
+                        , height <| px 30
+                        , centerY
+                        , centerX
+                        , Background.color <| rgb255 114 159 207
+                        , Border.rounded 6
+                        ]
+                        Element.none
+                ]
+                { onChange = SetGradientChangeThreshold
+                , label =
+                    Input.labelBelow [] <|
+                        text <|
+                            "Gradient change threshold = "
+                                ++ showDecimal model.gradientChangeThreshold
+                , min = 1.0
+                , max = 15.0
+                , step = Nothing
+                , value = model.gradientChangeThreshold
+                , thumb = Input.defaultThumb
+                }
             ]
-        , html <| Markdown.toHtmlWith { defaultOptions | smartypants = True } [] aboutText
+        , paragraph [ width <| px 600] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
 
 
 aboutText =
     """Thank you for trying this GPX viewer.
 
-**Whole route** just shows an overview and summary statistics.
-Zoom is (currently) fixed on the centre of the area and there is no pan capability.
+**Whole route** just shows an overview and summary statistics. Zoom is (currently) fixed on the centre of the area and there is no pan capability.
 
-**First person** positions the viewpoint above a _track segment_, sighted along the track.
-The zoom control will move your viewpoint back and forth a bit.
-The bottom slider and arrows will let you move between track segments.
-Information about the current segment is shown.
+**First person** positions the viewpoint above a _track segment_, sighted along the track. The zoom control will move your viewpoint back and forth a bit. The bottom slider and arrows will let you move between track segments. Information about the current segment is shown.
 
-**Zoomable** (bad name) focuses on track _points_ and lets you fly around
-the current point. The slider and arrows move to other track points.
-Information about the current tarck point is shown.
+**Zoomable** (bad name) focuses on track _points_ and lets you fly around the current point. The slider and arrows move to other track points. Information about the current tarck point is shown.
 
-**Options** (where you are now) lets you turn off some elements.
-You may like this depending on your motivation.
+**Options** (where you are now) lets you turn off some elements. You may like this depending on your motivation. _Gradient change threshold_ will cause markers to hover over any track points where the gradient change exceed this value.
 
-Now click the blue button to choose a file.
+Simply click the blue button to choose a file.
 
 > _Peter Ward, 2020_
 """
@@ -1260,21 +1297,40 @@ viewZoomable model =
                     [ viewCurrentNode model node
                     , controls
                     ]
-                , row [ padding 20 ]
-                    [ column [ spacing 10 ]
-                        [ text "Index "
-                        , text "Latitude "
-                        , text "Longitude "
-                        , text "Elevation "
-                        ]
-                    , column [ spacing 10 ]
-                        [ text <| String.fromInt <| 1 + getNodeNum
-                        , text <| showDecimal node.trackPoint.lat
-                        , text <| showDecimal node.trackPoint.lon
-                        , text <| showDecimal node.trackPoint.ele
-                        ]
+                , viewSummaryStats model
+                ]
+
+
+viewSummaryStats : Model -> Element Msg
+viewSummaryStats model =
+    let
+        getNodeNum =
+            case model.currentNode of
+                Just n ->
+                    n
+
+                Nothing ->
+                    0
+    in
+    case Array.get getNodeNum model.nodeArray of
+        Just node ->
+            row [ padding 20 ]
+                [ column [ spacing 10 ]
+                    [ text "Index "
+                    , text "Latitude "
+                    , text "Longitude "
+                    , text "Elevation "
+                    ]
+                , column [ spacing 10 ]
+                    [ text <| String.fromInt <| 1 + getNodeNum
+                    , text <| showDecimal node.trackPoint.lat
+                    , text <| showDecimal node.trackPoint.lon
+                    , text <| showDecimal node.trackPoint.ele
                     ]
                 ]
+
+        Nothing ->
+            none
 
 
 distanceFromZoom model =
