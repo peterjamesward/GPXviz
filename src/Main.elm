@@ -36,10 +36,7 @@ import Viewpoint3d
 
 
 
---TODO: Add README
---TODO: Add licence
 --TODO: Merge rotatable views.
---TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
 --TODO: ?? Adjust node heights in zoom mode.
 
@@ -100,6 +97,23 @@ type ViewingMode
     = PointCloud
     | RollerCoaster
     | Zoomable
+    | Options
+
+
+type alias DisplayOptions =
+    { roadPillars : Bool
+    , roadCones : Bool
+    , roadTrack : Bool
+    , gradientFill : Bool
+    }
+
+
+defaultDisplayOptions =
+    { roadPillars = True
+    , roadCones = True
+    , roadTrack = True
+    , gradientFill = True
+    }
 
 
 type alias Model =
@@ -125,6 +139,7 @@ type alias Model =
     , nodeArray : Array DrawingNode
     , roadArray : Array DrawingRoad
     , zoomLevel : Float
+    , displayOptions : DisplayOptions
     }
 
 
@@ -155,6 +170,10 @@ type Msg
     | GonioGrab Point
     | GonioMove Point
     | GonioRelease Point
+    | ToggleRoad Bool
+    | ToggleGradient Bool
+    | TogglePillars Bool
+    | ToggleCones Bool
 
 
 zerotp =
@@ -185,6 +204,7 @@ init _ =
       , nodeArray = Array.empty
       , roadArray = Array.empty
       , zoomLevel = 2.0
+      , displayOptions = defaultDisplayOptions
       }
     , Cmd.none
     )
@@ -196,6 +216,10 @@ metresPerDegreeLongitude =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        options =
+            model.displayOptions
+    in
     case msg of
         GpxRequested ->
             ( model
@@ -274,6 +298,38 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleCones _ ->
+            ( { model
+                | displayOptions = { options | roadCones = not options.roadCones }
+              }
+                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
+        TogglePillars _ ->
+            ( { model
+                | displayOptions = { options | roadPillars = not options.roadPillars }
+              }
+                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
+        ToggleRoad _ ->
+            ( { model
+                | displayOptions = { options | roadTrack = not options.roadTrack }
+              }
+                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
+        ToggleGradient _ ->
+            ( { model
+                | displayOptions = { options | gradientFill = not options.gradientFill }
+              }
+                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
 
 incrementMaybeModulo modulo mx =
     case mx of
@@ -311,6 +367,7 @@ gradientColour slope =
     Color.hsl hue 1.0 0.4
 
 
+parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
     let
         lowerBounds tp =
@@ -365,31 +422,41 @@ parseGPXintoModel content model =
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
         pointEntities =
-            List.map
-                (\node ->
-                    cylinder (Material.color Color.brown) <|
-                        Cylinder3d.startingAt
-                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                            negativeZ
-                            { radius = meters <| 1.0 * metresToClipSpace
-                            , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
-                            }
-                )
-                drawingNodes
-                ++ List.map
+            (if model.displayOptions.roadPillars then
+                List.map
                     (\node ->
-                        cone (Material.color Color.black) <|
-                            Cone3d.startingAt
+                        cylinder (Material.color Color.brown) <|
+                            Cylinder3d.startingAt
                                 (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                positiveZ
+                                negativeZ
                                 { radius = meters <| 1.0 * metresToClipSpace
-                                , length = meters <| 1.0 * metresToClipSpace
+                                , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
                                 }
                     )
                     drawingNodes
 
+             else
+                []
+            )
+                ++ (if model.displayOptions.roadCones then
+                        List.map
+                            (\node ->
+                                cone (Material.color Color.black) <|
+                                    Cone3d.startingAt
+                                        (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                                        positiveZ
+                                        { radius = meters <| 1.0 * metresToClipSpace
+                                        , length = meters <| 1.0 * metresToClipSpace
+                                        }
+                            )
+                            drawingNodes
+
+                    else
+                        []
+                   )
+
         seaLevel =
-            Scene3d.quad (Material.color Color.green)
+            Scene3d.quad (Material.color Color.darkGreen)
                 (Point3d.meters -1.2 -1.2 (elevationToClipSpace 0.0))
                 (Point3d.meters 1.2 -1.2 (elevationToClipSpace 0.0))
                 (Point3d.meters 1.2 1.2 (elevationToClipSpace 0.0))
@@ -412,32 +479,42 @@ parseGPXintoModel content model =
                     -- Let's try a low wall at the road's edges.
                     0.3 * metresToClipSpace
             in
-            [ --surface
-              Scene3d.quad (Material.color Color.grey)
-                (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
-                (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
-                (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
-                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+            (if model.displayOptions.roadTrack then
+                [ --surface
+                  Scene3d.quad (Material.color Color.grey)
+                    (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
+                    (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
+                    (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+                    (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
 
-            -- kerb walls
-            , Scene3d.quad (Material.color Color.darkGrey)
-                (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
-                (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
-                (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) (segment.endsAt.z + edgeHeight))
-                (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) (segment.startsAt.z + edgeHeight))
-            , Scene3d.quad (Material.color Color.darkGrey)
-                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
-                (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
-                (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
-                (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
+                -- kerb walls
+                , Scene3d.quad (Material.color Color.darkGrey)
+                    (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
+                    (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
+                    (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) (segment.endsAt.z + edgeHeight))
+                    (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) (segment.startsAt.z + edgeHeight))
+                , Scene3d.quad (Material.color Color.darkGrey)
+                    (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
+                    (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
+                    (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
+                    (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
+                ]
 
-            -- Drop coloured gradient to the ground
-            , Scene3d.quad (Material.color <| gradientColour segment.gradient)
-                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                (Point3d.meters segment.endsAt.x segment.endsAt.y (elevationToClipSpace 0.0))
-                (Point3d.meters segment.startsAt.x segment.startsAt.y (elevationToClipSpace 0.0))
-            ]
+             else
+                []
+            )
+                ++ (if model.displayOptions.gradientFill then
+                        [ -- Drop coloured gradient to the ground
+                          Scene3d.quad (Material.color <| gradientColour segment.gradient)
+                            (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                            (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                            (Point3d.meters segment.endsAt.x segment.endsAt.y (elevationToClipSpace 0.0))
+                            (Point3d.meters segment.startsAt.x segment.startsAt.y (elevationToClipSpace 0.0))
+                        ]
+
+                    else
+                        []
+                   )
 
         roadSegments =
             List.map3 roadSegment
@@ -636,7 +713,8 @@ view model =
                 , options =
                     [ Input.optionWith PointCloud <| radioButton First "Whole route"
                     , Input.optionWith RollerCoaster <| radioButton Mid "First person"
-                    , Input.optionWith Zoomable <| radioButton Last "Zoomable"
+                    , Input.optionWith Zoomable <| radioButton Mid "Zoomable"
+                    , Input.optionWith Options <| radioButton Last "Options"
                     ]
                 }
     in
@@ -682,6 +760,68 @@ view3D model =
 
         Zoomable ->
             viewZoomable model
+
+        Options ->
+            viewOptions model
+
+
+checkboxIcon : Bool -> Element msg
+checkboxIcon isChecked =
+    el
+        [ width <| px 40
+        , height <| px 40
+        , centerY
+        , padding 4
+        , Border.rounded 6
+        , Border.width 2
+        , Border.color <| rgb255 0xC0 0xC0 0xC0
+        ]
+    <|
+        el
+            [ width fill
+            , height fill
+            , Border.rounded 4
+            , Background.color <|
+                if isChecked then
+                    rgb255 114 159 207
+
+                else
+                    rgb255 0xFF 0xFF 0xFF
+            ]
+        <|
+            none
+
+
+viewOptions : Model -> Element Msg
+viewOptions model =
+    row [ centerX ]
+        [ column [ padding 50, centerX ]
+            [ Input.checkbox [ Font.size 24 ]
+                { onChange = ToggleGradient
+                , icon = checkboxIcon
+                , checked = model.displayOptions.gradientFill
+                , label = Input.labelRight [] (text "Gradient colours")
+                }
+            , Input.checkbox [ Font.size 24 ]
+                { onChange = ToggleRoad
+                , icon = checkboxIcon
+                , checked = model.displayOptions.roadTrack
+                , label = Input.labelRight [] (text "Road surface")
+                }
+            , Input.checkbox [ Font.size 24 ]
+                { onChange = TogglePillars
+                , icon = checkboxIcon
+                , checked = model.displayOptions.roadPillars
+                , label = Input.labelRight [] (text "Road support pillars")
+                }
+            , Input.checkbox [ Font.size 24 ]
+                { onChange = ToggleCones
+                , icon = checkboxIcon
+                , checked = model.displayOptions.roadCones
+                , label = Input.labelRight [] (text "Trackpoint cones")
+                }
+            ]
+        ]
 
 
 viewPointCloud model =
