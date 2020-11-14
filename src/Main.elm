@@ -38,10 +38,9 @@ import Viewpoint3d
 
 --TODO: Add README
 --TODO: Add licence
---TODO: Merge two rotatable views.
+--TODO: Merge rotatable views.
 --TODO: Toggle display elements.
 --TODO: Detect abrupt gradient changes.
---TODO: Gradient colours (optional).
 --TODO: ?? Adjust node heights in zoom mode.
 
 
@@ -294,6 +293,24 @@ decrementMaybeModulo modulo mx =
             Just <| modBy modulo (x - 1)
 
 
+gradientColour slope =
+    -- Note we want (say) 15% to be maximum Red, flat is Green, -15% purple.
+    let
+        x =
+            (clamp -15.0 15.0 slope + 15.0) / 30.0
+
+        steepestAscentHue =
+            (Color.toHsla Color.red).hue
+
+        steepestDescentHue =
+            (Color.toHsla Color.purple).hue
+
+        hue =
+            x * steepestAscentHue + (1.0 - x) * steepestDescentHue
+    in
+    Color.hsl hue 1.0 0.4
+
+
 parseGPXintoModel content model =
     let
         lowerBounds tp =
@@ -413,6 +430,13 @@ parseGPXintoModel content model =
                 (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
                 (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
                 (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
+
+            -- Drop coloured gradient to the ground
+            , Scene3d.quad (Material.color <| gradientColour segment.gradient)
+                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                (Point3d.meters segment.endsAt.x segment.endsAt.y (elevationToClipSpace 0.0))
+                (Point3d.meters segment.startsAt.x segment.startsAt.y (elevationToClipSpace 0.0))
             ]
 
         roadSegments =
