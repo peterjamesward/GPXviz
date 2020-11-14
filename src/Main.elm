@@ -185,7 +185,7 @@ init _ =
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
-      , zoomLevel = 1.0
+      , zoomLevel = 2.0
       }
     , Cmd.none
     )
@@ -262,7 +262,7 @@ update msg model =
                     ( { model
                         | azimuth = newAzimuth
                         , elevation = newElevation
-                        , orbiting = Just (dx, dy)
+                        , orbiting = Just ( dx, dy )
                       }
                     , Cmd.none
                     )
@@ -706,12 +706,15 @@ viewPointCloud model =
             withMouseCapture
           <|
             html <|
-                Scene3d.unlit
+                Scene3d.sunny
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.transparentBackground
-                    , clipDepth = Length.meters 1.0
+                    , background = Scene3d.backgroundColor Color.lightBlue
+                    , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
                     , entities = model.entities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
                     }
         , showSummary
         ]
@@ -886,6 +889,34 @@ displayName n =
             none
 
 
+zoomSlider model =
+    Input.slider
+        [ height <| px 400
+        , width <| px 80
+        , centerY
+        , behindContent <|
+            -- Slider track
+            el
+                [ width <| px 30
+                , height <| px 400
+                , centerY
+                , centerX
+                , Background.color <| rgb255 114 159 207
+                , Border.rounded 6
+                ]
+                Element.none
+        ]
+        { onChange = ZoomLevel
+        , label =
+            Input.labelHidden "Zoom"
+        , min = 1.0
+        , max = 4.0
+        , step = Nothing
+        , value = model.zoomLevel
+        , thumb = Input.defaultThumb
+        }
+
+
 viewZoomable : Model -> Element Msg
 viewZoomable model =
     -- Let's the user spin around and zoom in on any road point.
@@ -915,33 +946,6 @@ viewZoomable model =
                 , max = toFloat <| List.length model.nodes - 1
                 , step = Just 1
                 , value = toFloat getNodeNum
-                , thumb = Input.defaultThumb
-                }
-
-        zoomSlider =
-            Input.slider
-                [ height <| px 400
-                , width <| px 80
-                , centerY
-                , behindContent <|
-                    -- Slider track
-                    el
-                        [ width <| px 30
-                        , height <| px 400
-                        , centerY
-                        , centerX
-                        , Background.color <| rgb255 114 159 207
-                        , Border.rounded 6
-                        ]
-                        Element.none
-                ]
-                { onChange = ZoomLevel
-                , label =
-                    Input.labelHidden "Zoom"
-                , min = 1.0
-                , max = 4.0
-                , step = Nothing
-                , value = model.zoomLevel
                 , thumb = Input.defaultThumb
                 }
 
@@ -983,7 +987,7 @@ viewZoomable model =
 
         Just node ->
             row [ centerY ]
-                [ zoomSlider
+                [ zoomSlider model
                 , column
                     [ centerY
                     ]
@@ -1028,12 +1032,15 @@ viewCurrentNode model node =
             withMouseCapture
           <|
             html <|
-                Scene3d.unlit
+                Scene3d.sunny
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.transparentBackground
-                    , clipDepth = Length.meters <| 1.0 * model.metresToClipSpace
+                    , background = Scene3d.backgroundColor Color.lightBlue
+                    , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
                     , entities = model.entities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
                     }
         ]
 
