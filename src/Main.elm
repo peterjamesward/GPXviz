@@ -37,8 +37,7 @@ import Viewpoint3d
 
 
 
---TODO: Merge rotatable views.
---TODO: Detect abrupt gradient changes.
+--TODO: Merge rotatable views. !!!
 --TODO: Adjustable step threshold.
 --TODO: List of possible problems, with click to view.
 --TODO: ?? Adjust node heights in zoom mode.
@@ -48,7 +47,7 @@ main : Program () Model Msg
 main =
     Browser.document
         { init = init
-        , view = view
+        , view = viewGenericNew
         , update = update
         , subscriptions = subscriptions
         }
@@ -213,7 +212,7 @@ init _ =
       , httpError = Nothing
       , currentNode = Nothing
       , metresToClipSpace = 1.0
-      , viewingMode = PointCloud
+      , viewingMode = Options
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
@@ -317,7 +316,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadCones = not options.roadCones }
               }
-                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -325,7 +324,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
               }
-                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -333,7 +332,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadTrack = not options.roadTrack }
               }
-                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -341,7 +340,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | gradientFill = not options.gradientFill }
               }
-                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -349,7 +348,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | problems = not options.problems }
               }
-                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
             )
 
@@ -649,7 +648,9 @@ parseGPXintoModel content model =
         problemEntities =
             if model.displayOptions.problems then
                 List.map problemEntity suddenGradientChanges
-            else []
+
+            else
+                []
 
         problemEntity step =
             -- How shall we highlight possible problems?
@@ -657,9 +658,10 @@ parseGPXintoModel content model =
             cone (Material.color Color.darkPurple) <|
                 Cone3d.startingAt
                     (Point3d.meters
-                    step.node.x
-                    step.node.y
-                    (step.node.z + 50.0 * metresToClipSpace))
+                        step.node.x
+                        step.node.y
+                        (step.node.z + 50.0 * metresToClipSpace)
+                    )
                     negativeZ
                     { radius = meters <| 2.0 * metresToClipSpace
                     , length = meters <| 49.0 * metresToClipSpace
@@ -682,8 +684,17 @@ parseGPXintoModel content model =
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
         , suddenChanges = suddenGradientChanges
+        , viewingMode = PointCloud
+        , zoomLevel = 1.0
+        , azimuth = Angle.degrees 0.0
+        , elevation = Angle.degrees 30.0
     }
 
+rebuildEntitiesOnly gpx model =
+    let
+        newModel = parseGPXintoModel gpx model
+    in
+        { model | entities = newModel.entities }
 
 reg t =
     -- Helper to make a regex pattern.
@@ -747,10 +758,6 @@ parseTrackName xml =
                     n
 
 
-decimalPrecision =
-    3
-
-
 showDecimal x =
     let
         locale =
@@ -759,26 +766,8 @@ showDecimal x =
     format locale x
 
 
-view : Model -> Browser.Document Msg
-view model =
-    let
-        viewModeChoices =
-            Input.radioRow
-                [ Border.rounded 6
-                , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
-                ]
-                { onChange = ChooseViewMode
-                , selected = Just model.viewingMode
-                , label =
-                    Input.labelHidden "Choose view"
-                , options =
-                    [ Input.optionWith PointCloud <| radioButton First "Whole route"
-                    , Input.optionWith RollerCoaster <| radioButton Mid "First person"
-                    , Input.optionWith Zoomable <| radioButton Mid "Zoomable"
-                    , Input.optionWith Options <| radioButton Last "Options"
-                    ]
-                }
-    in
+viewGenericNew : Model -> Browser.Document Msg
+viewGenericNew model =
     { title = "GPX viewer"
     , body =
         [ layout
@@ -788,27 +777,46 @@ view model =
             ]
           <|
             column
-                [ spacing 20 ]
-                [ button
-                    prettyButtonStyles
-                    { onPress = Just GpxRequested
-                    , label = text "Load GPX from your computer"
-                    }
-                , case model.gpx of
-                    Nothing ->
-                        none
-
-                    Just _ ->
-                        column []
-                            [ row []
-                                [ viewModeChoices
-                                , displayName model.trackName
-                                ]
-                            , view3D model
-                            ]
+                []
+                [ row []
+                    [ loadButton
+                    , displayName model.trackName
+                    ]
+                , row []
+                    [ viewModeChoices model
+                    ]
+                , row []
+                    [ view3D model
+                    ]
                 ]
         ]
     }
+
+
+loadButton =
+    button
+        prettyButtonStyles
+        { onPress = Just GpxRequested
+        , label = text "Load GPX from your computer"
+        }
+
+
+viewModeChoices model =
+    Input.radioRow
+        [ Border.rounded 6
+        , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+        ]
+        { onChange = ChooseViewMode
+        , selected = Just model.viewingMode
+        , label =
+            Input.labelHidden "Choose view"
+        , options =
+            [ Input.optionWith PointCloud <| radioButton First "Whole route"
+            , Input.optionWith RollerCoaster <| radioButton Mid "First person"
+            , Input.optionWith Zoomable <| radioButton Mid "Zoomable"
+            , Input.optionWith Options <| radioButton Last "Options"
+            ]
+        }
 
 
 view3D model =
@@ -909,6 +917,8 @@ Information about the current tarck point is shown.
 
 **Options** (where you are now) lets you turn off some elements.
 You may like this depending on your motivation.
+
+Now click the blue button to choose a file.
 
 > _Peter Ward, 2020_
 """
