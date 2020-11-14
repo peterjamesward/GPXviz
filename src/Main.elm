@@ -39,6 +39,8 @@ import Viewpoint3d
 
 --TODO: Merge rotatable views.
 --TODO: Detect abrupt gradient changes.
+--TODO: Adjustable step threshold.
+--TODO: List of possible problems, with click to view.
 --TODO: ?? Adjust node heights in zoom mode.
 
 
@@ -84,6 +86,13 @@ type alias DrawingRoad =
     }
 
 
+type alias AbruptChange =
+    { node : DrawingNode
+    , before : DrawingRoad
+    , after : DrawingRoad
+    }
+
+
 type ButtonPosition
     = First
     | Mid
@@ -106,6 +115,7 @@ type alias DisplayOptions =
     , roadCones : Bool
     , roadTrack : Bool
     , gradientFill : Bool
+    , problems : Bool
     }
 
 
@@ -114,6 +124,7 @@ defaultDisplayOptions =
     , roadCones = True
     , roadTrack = True
     , gradientFill = True
+    , problems = True
     }
 
 
@@ -141,6 +152,7 @@ type alias Model =
     , roadArray : Array DrawingRoad
     , zoomLevel : Float
     , displayOptions : DisplayOptions
+    , suddenChanges : List AbruptChange
     }
 
 
@@ -175,6 +187,7 @@ type Msg
     | ToggleGradient Bool
     | TogglePillars Bool
     | ToggleCones Bool
+    | ToggleProblems Bool
 
 
 zerotp =
@@ -206,6 +219,7 @@ init _ =
       , roadArray = Array.empty
       , zoomLevel = 2.0
       , displayOptions = defaultDisplayOptions
+      , suddenChanges = []
       }
     , Cmd.none
     )
@@ -326,6 +340,14 @@ update msg model =
         ToggleGradient _ ->
             ( { model
                 | displayOptions = { options | gradientFill = not options.gradientFill }
+              }
+                |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
+        ToggleProblems _ ->
+            ( { model
+                | displayOptions = { options | problems = not options.problems }
               }
                 |> parseGPXintoModel (Maybe.withDefault "" model.gpx)
             , Cmd.none
@@ -605,6 +627,43 @@ parseGPXintoModel content model =
                 , totalDescending = 0.0
                 }
                 roadSegments
+
+        compareGradients : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
+        compareGradients seg1 seg2 =
+            if abs (seg1.gradient - seg2.gradient) > 10.0 then
+                Just
+                    { node = seg1.endsAt
+                    , before = seg1
+                    , after = seg2
+                    }
+
+            else
+                Nothing
+
+        suddenGradientChanges =
+            List.filterMap identity <|
+                List.map2 compareGradients
+                    roadSegments
+                    (Maybe.withDefault [] <| tail roadSegments)
+
+        problemEntities =
+            if model.displayOptions.problems then
+                List.map problemEntity suddenGradientChanges
+            else []
+
+        problemEntity step =
+            -- How shall we highlight possible problems?
+            -- A big space arrow?
+            cone (Material.color Color.darkPurple) <|
+                Cone3d.startingAt
+                    (Point3d.meters
+                    step.node.x
+                    step.node.y
+                    (step.node.z + 50.0 * metresToClipSpace))
+                    negativeZ
+                    { radius = meters <| 2.0 * metresToClipSpace
+                    , length = meters <| 49.0 * metresToClipSpace
+                    }
     in
     { model
         | gpx = Just content
@@ -616,12 +675,13 @@ parseGPXintoModel content model =
         , nodes = drawingNodes
         , roads = roadSegments
         , trackName = parseTrackName content
-        , entities = seaLevel :: pointEntities ++ roadEntities
+        , entities = seaLevel :: pointEntities ++ roadEntities ++ problemEntities
         , metresToClipSpace = metresToClipSpace
         , currentNode = Just 0
         , summary = Just summarise
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
+        , suddenChanges = suddenGradientChanges
     }
 
 
@@ -820,6 +880,12 @@ viewOptions model =
                 , icon = checkboxIcon
                 , checked = model.displayOptions.roadCones
                 , label = Input.labelRight [] (text "Trackpoint cones")
+                }
+            , Input.checkbox [ Font.size 24 ]
+                { onChange = ToggleProblems
+                , icon = checkboxIcon
+                , checked = model.displayOptions.problems
+                , label = Input.labelRight [] (text "Possible problems")
                 }
             ]
         , html <| Markdown.toHtmlWith { defaultOptions | smartypants = True } [] aboutText
