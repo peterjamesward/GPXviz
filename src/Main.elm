@@ -37,6 +37,8 @@ import Viewpoint3d
 
 
 
+--TODO: Crosshairs or something so we cam see where the focus is!
+--TODO: Separate zoom settings for first person and third person modes.
 --TODO: List of possible problems, with click to view.
 --TODO: ?? Adjust node heights in zoom mode.
 --TODO: Autofix ??
@@ -148,7 +150,9 @@ type alias Model =
     , summary : Maybe SummaryData
     , nodeArray : Array DrawingNode
     , roadArray : Array DrawingRoad
-    , zoomLevel : Float
+    , zoomLevelOverview : Float
+    , zoomLevelFirstPerson : Float
+    , zoomLevelThirdPerson : Float
     , displayOptions : DisplayOptions
     , suddenChanges : List AbruptChange
     , gradientChangeThreshold : Float
@@ -178,7 +182,9 @@ type Msg
     | BackOneNode
     | ForwardOneNode
     | ChooseViewMode ViewingMode
-    | ZoomLevel Float
+    | ZoomLevelOverview Float
+    | ZoomLevelFirstPerson Float
+    | ZoomLevelThirdPerson Float
     | GonioGrab Point
     | GonioMove Point
     | GonioRelease Point
@@ -217,7 +223,9 @@ init _ =
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
-      , zoomLevel = 2.0
+      , zoomLevelOverview = 2.0
+      , zoomLevelFirstPerson = 2.0
+      , zoomLevelThirdPerson = 2.0
       , displayOptions = defaultDisplayOptions
       , suddenChanges = []
       , gradientChangeThreshold = 10.0
@@ -274,8 +282,18 @@ update msg model =
             , Cmd.none
             )
 
-        ZoomLevel level ->
-            ( { model | zoomLevel = level }
+        ZoomLevelOverview level ->
+            ( { model | zoomLevelOverview = level }
+            , Cmd.none
+            )
+
+        ZoomLevelFirstPerson level ->
+            ( { model | zoomLevelFirstPerson = level }
+            , Cmd.none
+            )
+
+        ZoomLevelThirdPerson level ->
+            ( { model | zoomLevelThirdPerson = level }
             , Cmd.none
             )
 
@@ -695,7 +713,9 @@ parseGPXintoModel content model =
         , roadArray = Array.fromList roadSegments
         , suddenChanges = suddenGradientChanges
         , viewingMode = PointCloud
-        , zoomLevel = 1.0
+        , zoomLevelOverview = 2.0
+        , zoomLevelFirstPerson = 2.0
+        , zoomLevelThirdPerson = 2.0
         , azimuth = Angle.degrees 0.0
         , elevation = Angle.degrees 30.0
     }
@@ -936,8 +956,8 @@ viewOptions model =
                         text <|
                             "Gradient change threshold = "
                                 ++ showDecimal model.gradientChangeThreshold
-                , min = 1.0
-                , max = 15.0
+                , min = 5.0
+                , max = 20.0
                 , step = Nothing
                 , value = model.gradientChangeThreshold
                 , thumb = Input.defaultThumb
@@ -973,7 +993,7 @@ viewPointCloud model =
                         { focalPoint = Point3d.meters 0.0 0.0 0.0
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom model
+                        , distance = Length.meters <| distanceFromZoom model model.zoomLevelOverview
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
@@ -1006,7 +1026,7 @@ viewPointCloud model =
                     none
     in
     row []
-        [ zoomSlider model
+        [ zoomSlider model.zoomLevelOverview ZoomLevelOverview
         , el
             withMouseCapture
           <|
@@ -1091,7 +1111,7 @@ viewRollerCoasterTrackAndControls model =
 
         Just road ->
             row []
-                [ zoomSlider model
+                [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
                 , column []
                     [ viewRoadSegment model road
                     , controls
@@ -1149,7 +1169,7 @@ viewRoadSegment model road =
             2.5 * model.metresToClipSpace
 
         cameraSetback =
-            (5 - model.zoomLevel) * model.metresToClipSpace
+            (5 - model.zoomLevelFirstPerson) * model.metresToClipSpace
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
@@ -1165,7 +1185,7 @@ viewRoadSegment model road =
         camera someTarmac =
             Camera3d.perspective
                 { viewpoint = cameraViewpoint someTarmac
-                , verticalFieldOfView = Angle.degrees <| 80.0 / model.zoomLevel
+                , verticalFieldOfView = Angle.degrees <| 80.0 / model.zoomLevelFirstPerson
                 }
     in
     el [] <|
@@ -1192,7 +1212,7 @@ displayName n =
             none
 
 
-zoomSlider model =
+zoomSlider value msg =
     Input.slider
         [ height <| px 400
         , width <| px 80
@@ -1209,13 +1229,13 @@ zoomSlider model =
                 ]
                 Element.none
         ]
-        { onChange = ZoomLevel
+        { onChange = msg
         , label =
             Input.labelHidden "Zoom"
         , min = 1.0
         , max = 4.0
         , step = Nothing
-        , value = model.zoomLevel
+        , value = value
         , thumb = Input.defaultThumb
         }
 
@@ -1290,7 +1310,7 @@ viewZoomable model =
 
         Just node ->
             row [ centerY ]
-                [ zoomSlider model
+                [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
                 , column
                     [ centerY
                     ]
@@ -1333,8 +1353,8 @@ viewSummaryStats model =
             none
 
 
-distanceFromZoom model =
-    1.0 * model.metresToClipSpace * 10 ^ (5.0 - model.zoomLevel)
+distanceFromZoom model zoomLevel =
+    1.0 * model.metresToClipSpace * 10 ^ (5.0 - zoomLevel)
 
 
 viewCurrentNode : Model -> DrawingNode -> Element Msg
@@ -1348,9 +1368,9 @@ viewCurrentNode model node =
                             Point3d.meters node.x node.y node.z
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom model
+                        , distance = Length.meters <| distanceFromZoom model model.zoomLevelThirdPerson
                         }
-                , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevel
+                , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
                 }
     in
     row []
