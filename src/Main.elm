@@ -938,8 +938,8 @@ viewZoomable model =
                 { onChange = ZoomLevel
                 , label =
                     Input.labelHidden "Zoom"
-                , min = 0.1
-                , max = 1.0
+                , min = 1.0
+                , max = 4.0
                 , step = Nothing
                 , value = model.zoomLevel
                 , thumb = Input.defaultThumb
@@ -1018,7 +1018,7 @@ viewCurrentNode model node =
                             Point3d.meters node.x node.y node.z
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters 4
+                        , distance = Length.meters <| 1.0 * model.metresToClipSpace * 10 ^ (5.0 - model.zoomLevel)
                         }
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevel
                 }
@@ -1032,7 +1032,7 @@ viewCurrentNode model node =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.transparentBackground
-                    , clipDepth = Length.meters 1.0
+                    , clipDepth = Length.meters <| 1.0 * model.metresToClipSpace
                     , entities = model.entities
                     }
         ]
