@@ -25,13 +25,11 @@ import Markdown exposing (defaultOptions)
 import Maybe.Extra
 import Pixels exposing (Pixels)
 import Point3d
-import Quantity exposing (unwrap)
 import Regex
 import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Spherical exposing (range)
 import Task
-import Vector2d
 import Viewpoint3d
 
 
@@ -143,6 +141,7 @@ type alias Model =
     , maximums : TrackPoint
     , centres : TrackPoint -- simplify converting to [-1, +1] coords
     , largestDimension : Float -- biggest bounding box edge determines scaling factor
+    , seaLevelInClipSpace : Float
     , nodes : List DrawingNode
     , roads : List DrawingRoad
     , trackName : Maybe String
@@ -196,17 +195,17 @@ type Msg
     | ZoomLevelOverview Float
     | ZoomLevelFirstPerson Float
     | ZoomLevelThirdPerson Float
-    | GonioGrab Point
-    | GonioMove Point
-    | GonioRelease Point
+    | ImageGrab Point
+    | ImageRotate Point
+    | ImageRelease Point
     | ToggleRoad Bool
     | ToggleGradient Bool
     | TogglePillars Bool
     | ToggleCones Bool
-    | ToggleProblems Bool
     | SetGradientChangeThreshold Float
     | SetBearingChangeThreshold Float
     | SelectProblemType ProblemType
+    | DeleteZeroLengthSegments
 
 
 zerotp =
@@ -222,6 +221,7 @@ init _ =
       , maximums = zerotp
       , centres = zerotp
       , largestDimension = 1.0
+      , seaLevelInClipSpace = 0.0
       , nodes = []
       , roads = []
       , trackName = Nothing
@@ -274,12 +274,14 @@ update msg model =
 
         GpxLoaded content ->
             ( parseGPXintoModel content model
+                |> deriveNodesAndRoads
+                |> deriveVisualEntities
             , Cmd.none
             )
 
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -287,7 +289,7 @@ update msg model =
             ( { model
                 | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -295,13 +297,13 @@ update msg model =
             ( { model
                 | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -320,12 +322,12 @@ update msg model =
             , Cmd.none
             )
 
-        GonioGrab ( dx, dy ) ->
+        ImageGrab ( dx, dy ) ->
             ( { model | orbiting = Just ( dx, dy ) }
             , Cmd.none
             )
 
-        GonioMove ( dx, dy ) ->
+        ImageRotate ( dx, dy ) ->
             case model.orbiting of
                 Just ( startX, startY ) ->
                     let
@@ -350,7 +352,7 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
-        GonioRelease _ ->
+        ImageRelease _ ->
             ( { model | orbiting = Nothing }
             , Cmd.none
             )
@@ -359,7 +361,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadCones = not options.roadCones }
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -367,7 +369,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -375,7 +377,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadTrack = not options.roadTrack }
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -383,15 +385,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | gradientFill = not options.gradientFill }
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
-            , Cmd.none
-            )
-
-        ToggleProblems _ ->
-            ( { model
-                | displayOptions = { options | problems = not options.problems }
-              }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -399,7 +393,7 @@ update msg model =
             ( { model
                 | gradientChangeThreshold = threshold
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveProblems
             , Cmd.none
             )
 
@@ -407,7 +401,7 @@ update msg model =
             ( { model
                 | bearingChangeThreshold = round threshold
               }
-                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+                |> deriveProblems
             , Cmd.none
             )
 
@@ -417,6 +411,9 @@ update msg model =
               }
             , Cmd.none
             )
+
+        DeleteZeroLengthSegments ->
+            ( model, Cmd.none )
 
 
 incrementMaybeModulo modulo mx =
@@ -457,8 +454,23 @@ gradientColour slope =
 
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
-    -- Might want to split this baby,
     let
+        tps =
+            parseTrackPoints content
+    in
+    { model
+        | gpx = Just content
+        , trackName = parseTrackName content
+        , trackPoints = tps
+    }
+
+
+deriveNodesAndRoads : Model -> Model
+deriveNodesAndRoads model =
+    let
+        tps =
+            model.trackPoints
+
         lowerBounds tp =
             { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
             , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tp
@@ -470,9 +482,6 @@ parseGPXintoModel content model =
             , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tp
             , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tp
             }
-
-        tps =
-            parseTrackPoints content
 
         mins =
             lowerBounds tps
@@ -508,148 +517,6 @@ parseGPXintoModel content model =
         drawingNodes =
             List.map prepareDrawingNode tps
 
-        -- Convert the points to a list of entities by providing a radius and
-        -- color for each point
-        pointEntities =
-            (if model.displayOptions.roadPillars then
-                List.map
-                    (\node ->
-                        cylinder (Material.color Color.brown) <|
-                            Cylinder3d.startingAt
-                                (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                negativeZ
-                                { radius = meters <| 1.0 * metresToClipSpace
-                                , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
-                                }
-                    )
-                    drawingNodes
-
-             else
-                []
-            )
-                ++ (if model.displayOptions.roadCones then
-                        List.map
-                            (\node ->
-                                cone (Material.color Color.black) <|
-                                    Cone3d.startingAt
-                                        (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                        positiveZ
-                                        { radius = meters <| 1.0 * metresToClipSpace
-                                        , length = meters <| 1.0 * metresToClipSpace
-                                        }
-                            )
-                            drawingNodes
-
-                    else
-                        []
-                   )
-
-        seaLevel =
-            Scene3d.quad (Material.color Color.darkGreen)
-                (Point3d.meters -1.2 -1.2 (elevationToClipSpace 0.0))
-                (Point3d.meters 1.2 -1.2 (elevationToClipSpace 0.0))
-                (Point3d.meters 1.2 1.2 (elevationToClipSpace 0.0))
-                (Point3d.meters -1.2 1.2 (elevationToClipSpace 0.0))
-
-        roadEntities =
-            List.concat <|
-                List.map roadEntity roadSegments
-
-        segmentDirection segment =
-            let
-                maybe =
-                    Direction3d.from
-                        (Point3d.meters
-                            segment.startsAt.x
-                            segment.startsAt.y
-                            segment.startsAt.z
-                        )
-                        (Point3d.meters
-                            segment.endsAt.x
-                            segment.endsAt.y
-                            segment.endsAt.z
-                        )
-            in
-            case maybe of
-                Just dir ->
-                    dir
-
-                Nothing ->
-                    positiveZ
-
-        roadEntity segment =
-            let
-                kerbX =
-                    -- Road is assumed to be 6 m wide.
-                    3.0 * cos segment.bearing * metresToClipSpace
-
-                kerbY =
-                    3.0 * sin segment.bearing * metresToClipSpace
-
-                edgeHeight =
-                    -- Let's try a low wall at the road's edges.
-                    0.3 * metresToClipSpace
-            in
-            -- Highlight current segment with a circle
-            (if
-                Just segment.index
-                    == model.currentNode
-                    && model.viewingMode
-                    /= FirstPersonView
-             then
-                [ cylinder (Material.color Color.lightOrange) <|
-                    Cylinder3d.startingAt
-                        (Point3d.meters
-                            segment.startsAt.x
-                            segment.startsAt.y
-                            segment.startsAt.z
-                        )
-                        (segmentDirection segment)
-                        { radius = meters <| 10.0 * metresToClipSpace
-                        , length = meters <| 1.0 * metresToClipSpace
-                        }
-                ]
-
-             else
-                []
-            )
-                ++ (if model.displayOptions.roadTrack then
-                        [ --surface
-                          Scene3d.quad (Material.color Color.grey)
-                            (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
-                            (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
-                            (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
-                            (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
-
-                        -- kerb walls
-                        , Scene3d.quad (Material.color Color.darkGrey)
-                            (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) segment.startsAt.z)
-                            (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) segment.endsAt.z)
-                            (Point3d.meters (segment.endsAt.x + kerbX) (segment.endsAt.y - kerbY) (segment.endsAt.z + edgeHeight))
-                            (Point3d.meters (segment.startsAt.x + kerbX) (segment.startsAt.y - kerbY) (segment.startsAt.z + edgeHeight))
-                        , Scene3d.quad (Material.color Color.darkGrey)
-                            (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) segment.startsAt.z)
-                            (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) segment.endsAt.z)
-                            (Point3d.meters (segment.endsAt.x - kerbX) (segment.endsAt.y + kerbY) (segment.endsAt.z + edgeHeight))
-                            (Point3d.meters (segment.startsAt.x - kerbX) (segment.startsAt.y + kerbY) (segment.startsAt.z + edgeHeight))
-                        ]
-
-                    else
-                        []
-                   )
-                ++ (if model.displayOptions.gradientFill then
-                        [ -- Drop coloured gradient to the ground
-                          Scene3d.quad (Material.color <| gradientColour segment.gradient)
-                            (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                            (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                            (Point3d.meters segment.endsAt.x segment.endsAt.y (elevationToClipSpace 0.0))
-                            (Point3d.meters segment.startsAt.x segment.startsAt.y (elevationToClipSpace 0.0))
-                        ]
-
-                    else
-                        []
-                   )
-
         roadSegments =
             List.map3 roadSegment
                 drawingNodes
@@ -671,9 +538,6 @@ parseGPXintoModel content model =
                     -- Great circle distance (!) ignoring elevation difference
                     Spherical.range ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
                         ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
-
-                segmentLength =
-                    sqrt <| yDifference * yDifference + xDifference * xDifference + zDifference * zDifference
             in
             { startsAt = node1
             , endsAt = node2
@@ -738,6 +602,55 @@ parseGPXintoModel content model =
                 , totalDescending = 0.0
                 }
                 roadSegments
+    in
+    { model
+        | minimums = mins
+        , maximums = maxs
+        , centres = findCentres
+        , largestDimension = scalingFactor
+        , nodes = drawingNodes
+        , roads = roadSegments
+        , metresToClipSpace = metresToClipSpace
+        , seaLevelInClipSpace = elevationToClipSpace 0.0
+        , currentNode = Just 0
+        , summary = Just summarise
+        , nodeArray = Array.fromList drawingNodes
+        , roadArray = Array.fromList roadSegments
+        , zoomLevelOverview = 1.0
+        , zoomLevelFirstPerson = 1.0
+        , zoomLevelThirdPerson = 1.0
+        , azimuth = Angle.degrees 0.0
+        , elevation = Angle.degrees 30.0
+    }
+
+
+deriveProblems : Model -> Model
+deriveProblems model =
+    let
+        suddenGradientChanges =
+            List.filterMap identity <|
+                -- Filters out Nothings (nice)
+                List.map2 compareGradients
+                    model.roads
+                    (Maybe.withDefault [] <| tail model.roads)
+
+        suddenBearingChanges =
+            List.filterMap identity <|
+                -- Filters out Nothings (nice)
+                List.map2 compareBearings
+                    model.roads
+                    (Maybe.withDefault [] <| tail model.roads)
+
+        zeroLengths =
+            List.filterMap
+                (\road ->
+                    if road.length == 0.0 then
+                        Just road
+
+                    else
+                        Nothing
+                )
+                model.roads
 
         compareGradients : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
         compareGradients seg1 seg2 =
@@ -762,16 +675,24 @@ parseGPXintoModel content model =
         compareBearings : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
         compareBearings seg1 seg2 =
             -- This list should not include zero length segments; they are separate.
-            let diff = abs <| seg1.bearing - seg2.bearing
-                includedAngle = if (diff > pi) then pi + pi - diff else diff
+            let
+                diff =
+                    abs <| seg1.bearing - seg2.bearing
+
+                includedAngle =
+                    if diff > pi then
+                        pi + pi - diff
+
+                    else
+                        diff
             in
             if
                 seg1.length
                     > 0.0
                     && seg2.length
                     > 0.0
-                    && (toDegrees includedAngle)
-                    > (toFloat model.bearingChangeThreshold)
+                    && toDegrees includedAngle
+                    > toFloat model.bearingChangeThreshold
             then
                 Just
                     { node = seg1.endsAt
@@ -781,93 +702,202 @@ parseGPXintoModel content model =
 
             else
                 Nothing
-
-        suddenGradientChanges =
-            List.filterMap identity <|
-                -- Filters out Nothings (nice)
-                List.map2 compareGradients
-                    roadSegments
-                    (Maybe.withDefault [] <| tail roadSegments)
-
-        suddenBearingChanges =
-            List.filterMap identity <|
-                -- Filters out Nothings (nice)
-                List.map2 compareBearings
-                    roadSegments
-                    (Maybe.withDefault [] <| tail roadSegments)
-
-        zeroLengths =
-            List.filterMap
-                (\road ->
-                    if road.length == 0.0 then
-                        Just road
-
-                    else
-                        Nothing
-                )
-                roadSegments
-
-        problemEntities =
-            if model.displayOptions.problems then
-                List.map problemEntity suddenGradientChanges
-
-            else
-                []
-
-        problemEntity step =
-            -- How shall we highlight possible problems?
-            -- A big space arrow?
-            cone (Material.color Color.darkPurple) <|
-                Cone3d.startingAt
-                    (Point3d.meters
-                        step.node.x
-                        step.node.y
-                        (step.node.z + 50.0 * metresToClipSpace)
-                    )
-                    negativeZ
-                    { radius = meters <| 2.0 * metresToClipSpace
-                    , length = meters <| 49.0 * metresToClipSpace
-                    }
     in
     { model
-        | gpx = Just content
-        , trackPoints = tps
-        , minimums = mins
-        , maximums = maxs
-        , centres = findCentres
-        , largestDimension = scalingFactor
-        , nodes = drawingNodes
-        , roads = roadSegments
-        , trackName = parseTrackName content
-        , entities = seaLevel :: pointEntities ++ roadEntities ++ problemEntities
-        , metresToClipSpace = metresToClipSpace
-        , currentNode = Just 0
-        , summary = Just summarise
-        , nodeArray = Array.fromList drawingNodes
-        , roadArray = Array.fromList roadSegments
-        , abruptGradientChanges = suddenGradientChanges
+        | abruptGradientChanges = suddenGradientChanges
         , abruptBearingChanges = suddenBearingChanges
         , zeroLengths = zeroLengths
-        , viewingMode = OverviewView
-        , zoomLevelOverview = 2.0
-        , zoomLevelFirstPerson = 2.0
-        , zoomLevelThirdPerson = 2.0
-        , azimuth = Angle.degrees 0.0
-        , elevation = Angle.degrees 30.0
     }
 
 
-rebuildEntitiesOnly gpx model =
-    -- This is crappy. Need to separate file parsing from entity building.
+deriveVisualEntities : Model -> Model
+deriveVisualEntities model =
     let
-        newModel =
-            parseGPXintoModel gpx model
+        metresToClipSpace =
+            model.metresToClipSpace
+
+        seaLevelInClipSpace =
+            model.seaLevelInClipSpace
+
+        seaLevel =
+            Scene3d.quad (Material.color Color.darkGreen)
+                (Point3d.meters -1.2 -1.2 seaLevelInClipSpace)
+                (Point3d.meters 1.2 -1.2 seaLevelInClipSpace)
+                (Point3d.meters 1.2 1.2 seaLevelInClipSpace)
+                (Point3d.meters -1.2 1.2 seaLevelInClipSpace)
+
+        -- Convert the points to a list of entities by providing a radius and
+        -- color for each point
+        pointEntities =
+            (if model.displayOptions.roadPillars then
+                List.map
+                    (\node ->
+                        cylinder (Material.color Color.brown) <|
+                            Cylinder3d.startingAt
+                                (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                                negativeZ
+                                { radius = meters <| 1.0 * metresToClipSpace
+                                , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
+                                }
+                    )
+                    model.nodes
+
+             else
+                []
+            )
+                ++ (if model.displayOptions.roadCones then
+                        List.map
+                            (\node ->
+                                cone (Material.color Color.black) <|
+                                    Cone3d.startingAt
+                                        (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                                        positiveZ
+                                        { radius = meters <| 1.0 * metresToClipSpace
+                                        , length = meters <| 1.0 * metresToClipSpace
+                                        }
+                            )
+                            model.nodes
+
+                    else
+                        []
+                   )
+
+        roadEntities =
+            List.concat <|
+                List.map roadEntity model.roads
+
+        roadEntity segment =
+            let
+                kerbX =
+                    -- Road is assumed to be 6 m wide.
+                    3.0 * cos segment.bearing * metresToClipSpace
+
+                kerbY =
+                    3.0 * sin segment.bearing * metresToClipSpace
+
+                edgeHeight =
+                    -- Let's try a low wall at the road's edges.
+                    0.3 * metresToClipSpace
+            in
+            -- Highlight current segment with a circle
+            (if
+                Just segment.index
+                    == model.currentNode
+                    && model.viewingMode
+                    /= FirstPersonView
+             then
+                [ cylinder (Material.color Color.lightOrange) <|
+                    Cylinder3d.startingAt
+                        (Point3d.meters
+                            segment.startsAt.x
+                            segment.startsAt.y
+                            segment.startsAt.z
+                        )
+                        (segmentDirection segment)
+                        { radius = meters <| 10.0 * metresToClipSpace
+                        , length = meters <| 1.0 * metresToClipSpace
+                        }
+                ]
+
+             else
+                []
+            )
+                ++ (if model.displayOptions.roadTrack then
+                        [ --surface
+                          Scene3d.quad (Material.color Color.grey)
+                            (Point3d.meters (segment.startsAt.x + kerbX)
+                                (segment.startsAt.y - kerbY)
+                                segment.startsAt.z
+                            )
+                            (Point3d.meters (segment.endsAt.x + kerbX)
+                                (segment.endsAt.y - kerbY)
+                                segment.endsAt.z
+                            )
+                            (Point3d.meters (segment.endsAt.x - kerbX)
+                                (segment.endsAt.y + kerbY)
+                                segment.endsAt.z
+                            )
+                            (Point3d.meters (segment.startsAt.x - kerbX)
+                                (segment.startsAt.y + kerbY)
+                                segment.startsAt.z
+                            )
+
+                        -- kerb walls
+                        , Scene3d.quad (Material.color Color.darkGrey)
+                            (Point3d.meters (segment.startsAt.x + kerbX)
+                                (segment.startsAt.y - kerbY)
+                                segment.startsAt.z
+                            )
+                            (Point3d.meters (segment.endsAt.x + kerbX)
+                                (segment.endsAt.y - kerbY)
+                                segment.endsAt.z
+                            )
+                            (Point3d.meters (segment.endsAt.x + kerbX)
+                                (segment.endsAt.y - kerbY)
+                                (segment.endsAt.z + edgeHeight)
+                            )
+                            (Point3d.meters (segment.startsAt.x + kerbX)
+                                (segment.startsAt.y - kerbY)
+                                (segment.startsAt.z + edgeHeight)
+                            )
+                        , Scene3d.quad (Material.color Color.darkGrey)
+                            (Point3d.meters (segment.startsAt.x - kerbX)
+                                (segment.startsAt.y + kerbY)
+                                segment.startsAt.z
+                            )
+                            (Point3d.meters (segment.endsAt.x - kerbX)
+                                (segment.endsAt.y + kerbY)
+                                segment.endsAt.z
+                            )
+                            (Point3d.meters (segment.endsAt.x - kerbX)
+                                (segment.endsAt.y + kerbY)
+                                (segment.endsAt.z + edgeHeight)
+                            )
+                            (Point3d.meters (segment.startsAt.x - kerbX)
+                                (segment.startsAt.y + kerbY)
+                                (segment.startsAt.z + edgeHeight)
+                            )
+                        ]
+
+                    else
+                        []
+                   )
+                ++ (if model.displayOptions.gradientFill then
+                        [ -- Drop coloured gradient to the ground
+                          Scene3d.quad (Material.color <| gradientColour segment.gradient)
+                            (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                            (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                            (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
+                            (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
+                        ]
+
+                    else
+                        []
+                   )
+
+        segmentDirection segment =
+            let
+                maybe =
+                    Direction3d.from
+                        (Point3d.meters
+                            segment.startsAt.x
+                            segment.startsAt.y
+                            segment.startsAt.z
+                        )
+                        (Point3d.meters
+                            segment.endsAt.x
+                            segment.endsAt.y
+                            segment.endsAt.z
+                        )
+            in
+            case maybe of
+                Just dir ->
+                    dir
+
+                Nothing ->
+                    positiveZ
     in
-    { model
-        | entities = newModel.entities
-        , abruptGradientChanges = newModel.abruptGradientChanges
-        , abruptBearingChanges = newModel.abruptBearingChanges
-    }
+    { model | entities = seaLevel :: pointEntities ++ roadEntities }
 
 
 reg t =
@@ -1108,20 +1138,31 @@ viewAbruptBearingChanges model =
 viewZeroLengthSegments : Model -> Element Msg
 viewZeroLengthSegments model =
     el [ spacing 10, padding 20 ] <|
-        table [ width fill, centerX, spacing 10 ]
-            { data = model.zeroLengths
-            , columns =
-                [ { header = text "Track point\n(Click to pick)"
-                  , width = fill
-                  , view =
-                        \z ->
-                            button []
-                                { onPress = Just (UserMovedNodeSlider z.index)
-                                , label = text <| String.fromInt z.index
-                                }
-                  }
+        if List.length model.zeroLengths > 0 then
+            column [ spacing 10 ]
+                [ table [ width fill, centerX, spacing 10 ]
+                    { data = model.zeroLengths
+                    , columns =
+                        [ { header = text "Track point\n(Click to pick)"
+                          , width = fill
+                          , view =
+                                \z ->
+                                    button []
+                                        { onPress = Just (UserMovedNodeSlider z.index)
+                                        , label = text <| String.fromInt z.index
+                                        }
+                          }
+                        ]
+                    }
+                , button
+                    prettyButtonStyles
+                    { onPress = Just DeleteZeroLengthSegments
+                    , label = text "Delete these segments"
+                    }
                 ]
-            }
+
+        else
+            text "There are no zero-length segments to see here."
 
 
 checkboxIcon : Bool -> Element msg
@@ -1439,9 +1480,9 @@ bearingToDisplayDegrees x =
 
 
 withMouseCapture =
-    [ htmlAttribute <| Pointer.onDown (\event -> GonioGrab event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onMove (\event -> GonioMove event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onUp (\event -> GonioRelease event.pointer.offsetPos)
+    [ htmlAttribute <| Pointer.onDown (\event -> ImageGrab event.pointer.offsetPos)
+    , htmlAttribute <| Pointer.onMove (\event -> ImageRotate event.pointer.offsetPos)
+    , htmlAttribute <| Pointer.onUp (\event -> ImageRelease event.pointer.offsetPos)
     , htmlAttribute <| style "touch-action" "none"
     , width fill
     , pointer
