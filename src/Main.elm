@@ -164,6 +164,7 @@ type alias Model =
     , gradientChangeThreshold : Float
     , bearingChangeThreshold : Int
     , selectedProblemType : ProblemType
+    , hasBeenChanged : Bool
     }
 
 
@@ -237,6 +238,7 @@ init _ =
       , gradientChangeThreshold = 10.0 -- Note, this is not an angle, it's a percentage (tangent).
       , bearingChangeThreshold = 90
       , selectedProblemType = ZeroLengthSegment
+      , hasBeenChanged = False
       }
     , Cmd.none
     )
@@ -426,7 +428,10 @@ deleteZeroLengthSegments model =
                 (\road -> road.index)
                 model.zeroLengths
     in
-    { model | trackPoints = List.filter keepNonZero model.trackPoints }
+    { model
+        | trackPoints = List.filter keepNonZero model.trackPoints
+        , hasBeenChanged = True
+    }
 
 
 incrementMaybeModulo modulo mx =
@@ -465,6 +470,7 @@ parseGPXintoModel content model =
         | gpx = Just content
         , trackName = parseTrackName content
         , trackPoints = tps
+        , hasBeenChanged = False
     }
 
 
@@ -988,6 +994,8 @@ viewGenericNew model =
                 , row []
                     [ view3D model
                     ]
+                , el []
+                    (saveButtonIfChanged model)
                 ]
         ]
     }
@@ -999,6 +1007,18 @@ loadButton =
         { onPress = Just GpxRequested
         , label = text "Load GPX from your computer"
         }
+
+
+saveButtonIfChanged model =
+    if model.hasBeenChanged then
+        button
+            prettyButtonStyles
+            { onPress = Nothing
+            , label = text "Save new GPX file to your computer"
+            }
+
+    else
+        none
 
 
 viewModeChoices model =
