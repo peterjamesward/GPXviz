@@ -765,9 +765,16 @@ parseGPXintoModel content model =
             -- I'm using Vector cross product here partly to ensure no odd
             -- values from -pi to +pi transition, but also because I need to
             -- be better acquainted with the geometry package.
-            let unitVector1 = Vector2d.rTheta (Length.meters 1) (Angle.radians seg1.bearing)
-                unitVector2 = Vector2d.rTheta (Length.meters 1) (Angle.radians seg2.bearing)
-                includedAngle = acos <| unwrap <| Vector2d.dot unitVector1 unitVector2
+            -- (Note the heinous 'unwrap'.)
+            let
+                unitVector1 =
+                    Vector2d.rTheta (Length.meters 1) (Angle.radians seg1.bearing)
+
+                unitVector2 =
+                    Vector2d.rTheta (Length.meters 1) (Angle.radians seg2.bearing)
+
+                includedAngle =
+                    acos <| unwrap <| Vector2d.dot unitVector1 unitVector2
             in
             if
                 seg1.length
@@ -862,6 +869,7 @@ parseGPXintoModel content model =
 
 
 rebuildEntitiesOnly gpx model =
+    -- This is crappy. Need to separate file parsing from entity building.
     let
         newModel =
             parseGPXintoModel gpx model
@@ -869,6 +877,7 @@ rebuildEntitiesOnly gpx model =
     { model
         | entities = newModel.entities
         , abruptGradientChanges = newModel.abruptGradientChanges
+        , abruptBearingChanges = newModel.abruptBearingChanges
     }
 
 
@@ -1076,6 +1085,7 @@ viewAbruptGradientChanges model =
             }
         ]
 
+
 viewAbruptBearingChanges : Model -> Element Msg
 viewAbruptBearingChanges model =
     column [ spacing 10, padding 20 ]
@@ -1095,16 +1105,15 @@ viewAbruptBearingChanges model =
                   }
                 , { header = text "Bearing before"
                   , width = fill
-                  , view = \abrupt -> text <| showDecimal <| toDegrees abrupt.before.bearing
+                  , view = \abrupt -> text <| bearingToDisplayDegrees abrupt.before.bearing
                   }
                 , { header = text "Bearing after"
                   , width = fill
-                  , view = \abrupt -> text <| showDecimal <| toDegrees abrupt.after.bearing
+                  , view = \abrupt -> text <| bearingToDisplayDegrees abrupt.after.bearing
                   }
                 ]
             }
         ]
-
 
 
 viewZeroLengthSegments : Model -> Element Msg
@@ -1415,7 +1424,7 @@ viewRollerCoasterTrackAndControls model =
                         , text "Bearing "
                         ]
                     , column [ spacing 10 ]
-                        [ text <| String.fromInt <| 1 + Maybe.withDefault 1 model.currentNode
+                        [ text <| String.fromInt <| Maybe.withDefault 1 model.currentNode
                         , text <| showDecimal road.startsAt.trackPoint.lat
                         , text <| showDecimal road.startsAt.trackPoint.lon
                         , text <| showDecimal road.startsAt.trackPoint.ele
@@ -1424,17 +1433,20 @@ viewRollerCoasterTrackAndControls model =
                         , text <| showDecimal road.endsAt.trackPoint.ele
                         , text <| showDecimal road.length
                         , text <| showDecimal road.gradient
-                        , text <|
-                            showDecimal <|
-                                toDegrees <|
-                                    if road.bearing < 0 then
-                                        pi + pi + road.bearing
-
-                                    else
-                                        road.bearing
+                        , text <| bearingToDisplayDegrees road.bearing
                         ]
                     ]
                 ]
+
+
+bearingToDisplayDegrees x =
+    showDecimal <|
+        toDegrees <|
+            if x < 0 then
+                pi + pi + x
+
+            else
+                x
 
 
 withMouseCapture =
@@ -1627,7 +1639,7 @@ viewSummaryStats model =
                     , text "Elevation "
                     ]
                 , column [ spacing 10 ]
-                    [ text <| String.fromInt <| 1 + getNodeNum
+                    [ text <| String.fromInt <| getNodeNum
                     , text <| showDecimal node.trackPoint.lat
                     , text <| showDecimal node.trackPoint.lon
                     , text <| showDecimal node.trackPoint.ele
