@@ -165,7 +165,7 @@ type alias Model =
     , abruptBearingChanges : List AbruptChange -- change in gradient exceeds user's threshold
     , zeroLengths : List DrawingRoad
     , gradientChangeThreshold : Float
-    , bearingChangeThreshold : Float
+    , bearingChangeThreshold : Int
     , selectedProblemType : ProblemType
     }
 
@@ -244,7 +244,7 @@ init _ =
       , abruptBearingChanges = []
       , zeroLengths = []
       , gradientChangeThreshold = 10.0 -- Note, this is not an angle, it's a percentage (tangent).
-      , bearingChangeThreshold = degrees 90.0
+      , bearingChangeThreshold = 90
       , selectedProblemType = ZeroLengthSegment
       }
     , Cmd.none
@@ -405,7 +405,7 @@ update msg model =
 
         SetBearingChangeThreshold threshold ->
             ( { model
-                | bearingChangeThreshold = threshold
+                | bearingChangeThreshold = round threshold
               }
                 |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
             , Cmd.none
@@ -762,27 +762,16 @@ parseGPXintoModel content model =
         compareBearings : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
         compareBearings seg1 seg2 =
             -- This list should not include zero length segments; they are separate.
-            -- I'm using Vector cross product here partly to ensure no odd
-            -- values from -pi to +pi transition, but also because I need to
-            -- be better acquainted with the geometry package.
-            -- (Note the heinous 'unwrap'.)
-            let
-                unitVector1 =
-                    Vector2d.rTheta (Length.meters 1) (Angle.radians seg1.bearing)
-
-                unitVector2 =
-                    Vector2d.rTheta (Length.meters 1) (Angle.radians seg2.bearing)
-
-                includedAngle =
-                    acos <| unwrap <| Vector2d.dot unitVector1 unitVector2
+            let diff = abs <| seg1.bearing - seg2.bearing
+                includedAngle = if (diff > pi) then pi + pi - diff else diff
             in
             if
                 seg1.length
                     > 0.0
                     && seg2.length
                     > 0.0
-                    && includedAngle
-                    > model.bearingChangeThreshold
+                    && (toDegrees includedAngle)
+                    > (toFloat model.bearingChangeThreshold)
             then
                 Just
                     { node = seg1.endsAt
@@ -1252,11 +1241,11 @@ bearingChangeThresholdSlider model =
             Input.labelBelow [] <|
                 text <|
                     "Direction change threshold = "
-                        ++ showDecimal (toDegrees model.bearingChangeThreshold)
-        , min = degrees 30.0
-        , max = degrees 120.0
-        , step = Nothing
-        , value = model.bearingChangeThreshold
+                        ++ String.fromInt model.bearingChangeThreshold
+        , min = 30.0
+        , max = 120.0
+        , step = Just 1.0
+        , value = toFloat model.bearingChangeThreshold
         , thumb = Input.defaultThumb
         }
 
