@@ -57,6 +57,7 @@ type alias TrackPoint =
     { lat : Float
     , lon : Float
     , ele : Float
+    , idx : Int
     }
 
 
@@ -137,9 +138,6 @@ type alias Model =
     { gpx : Maybe String
     , gpxUrl : String
     , trackPoints : List TrackPoint
-    , minimums : TrackPoint
-    , maximums : TrackPoint
-    , centres : TrackPoint -- simplify converting to [-1, +1] coords
     , largestDimension : Float -- biggest bounding box edge determines scaling factor
     , seaLevelInClipSpace : Float
     , nodes : List DrawingNode
@@ -208,18 +206,11 @@ type Msg
     | DeleteZeroLengthSegments
 
 
-zerotp =
-    TrackPoint 0.0 0.0 0.0
-
-
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { gpx = Nothing
       , gpxUrl = ""
       , trackPoints = []
-      , minimums = zerotp
-      , maximums = zerotp
-      , centres = zerotp
       , largestDimension = 1.0
       , seaLevelInClipSpace = 0.0
       , nodes = []
@@ -413,25 +404,36 @@ update msg model =
             )
 
         DeleteZeroLengthSegments ->
-            ( model, Cmd.none )
+            ( deleteZeroLengthSegments model
+            , Cmd.none
+            )
+
+
+deleteZeroLengthSegments : Model -> Model
+deleteZeroLengthSegments model =
+    -- We have a list of them and their indices.
+    -- We remove the troublesome track points and rebuild from there.
+    let
+        keepNonZero tp =
+            not <| List.member tp.idx indexes
+
+        indexes =
+            List.map
+                (\road -> road.index)
+                model.zeroLengths
+    in
+    { model | trackPoints = List.filter keepNonZero model.trackPoints }
+        |> deriveNodesAndRoads
+        |> deriveVisualEntities
+        |> deriveProblems
 
 
 incrementMaybeModulo modulo mx =
-    case mx of
-        Nothing ->
-            Nothing
-
-        Just x ->
-            Just <| modBy modulo (x + 1)
+    Maybe.map (\x -> modBy modulo (x + 1)) mx
 
 
 decrementMaybeModulo modulo mx =
-    case mx of
-        Nothing ->
-            Nothing
-
-        Just x ->
-            Just <| modBy modulo (x - 1)
+    Maybe.map (\x -> modBy modulo (x - 1)) mx
 
 
 gradientColour slope =
@@ -525,12 +527,6 @@ deriveNodesAndRoads model =
 
         roadSegment node1 node2 index =
             let
-                xDifference =
-                    node2.eastOffset - node1.eastOffset
-
-                yDifference =
-                    node2.northOffset - node1.northOffset
-
                 zDifference =
                     node2.trackPoint.ele - node1.trackPoint.ele
 
@@ -604,10 +600,7 @@ deriveNodesAndRoads model =
                 roadSegments
     in
     { model
-        | minimums = mins
-        , maximums = maxs
-        , centres = findCentres
-        , largestDimension = scalingFactor
+        | largestDimension = scalingFactor
         , nodes = drawingNodes
         , roads = roadSegments
         , metresToClipSpace = metresToClipSpace
@@ -917,13 +910,14 @@ parseTrackPoints xml =
         elevations =
             Regex.find (reg "<ele>([\\d\\.-]*)<\\/ele>") xml |> matches
 
-        makeTrackPoint mayLat mayLon mayEle =
+        makeTrackPoint mayLat mayLon mayEle idx =
             case ( mayLat, mayLon, mayEle ) of
                 ( Just a, Just b, Just c ) ->
                     Just
                         { lat = a
                         , lon = b
                         , ele = c
+                        , idx = idx
                         }
 
                 _ ->
@@ -940,11 +934,12 @@ parseTrackPoints xml =
                 _ ->
                     Nothing
     in
-    List.map3
+    List.map4
         makeTrackPoint
         latitudes
         longitudes
         elevations
+        (List.range 0 (List.length latitudes))
         |> Maybe.Extra.values
 
 
