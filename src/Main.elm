@@ -163,7 +163,8 @@ type alias Model =
     , zoomLevelFirstPerson : Float
     , zoomLevelThirdPerson : Float
     , displayOptions : DisplayOptions
-    , suddenChanges : List AbruptChange
+    , suddenChanges : List AbruptChange -- change in gradient exceeds user's threshold
+    , zeroLengths : List DrawingRoad
     , gradientChangeThreshold : Float
     , selectedProblemType : ProblemType
     }
@@ -239,6 +240,7 @@ init _ =
       , zoomLevelThirdPerson = 2.0
       , displayOptions = defaultDisplayOptions
       , suddenChanges = []
+      , zeroLengths = []
       , gradientChangeThreshold = 10.0
       , selectedProblemType = ZeroLengthSegment
       }
@@ -727,7 +729,15 @@ parseGPXintoModel content model =
 
         compareGradients : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
         compareGradients seg1 seg2 =
-            if abs (seg1.gradient - seg2.gradient) > model.gradientChangeThreshold then
+            -- This list should not include zero length segments; they are spearate.
+            if
+                seg1.length
+                    > 0.0
+                    && seg2.length
+                    > 0.0
+                    && abs (seg1.gradient - seg2.gradient)
+                    > model.gradientChangeThreshold
+            then
                 Just
                     { node = seg1.endsAt
                     , before = seg1
@@ -739,9 +749,21 @@ parseGPXintoModel content model =
 
         suddenGradientChanges =
             List.filterMap identity <|
+                -- Filters out Nothings (nice)
                 List.map2 compareGradients
                     roadSegments
                     (Maybe.withDefault [] <| tail roadSegments)
+
+        zeroLengths =
+            List.filterMap
+                (\road ->
+                    if road.length == 0.0 then
+                        Just road
+
+                    else
+                        Nothing
+                )
+                roadSegments
 
         problemEntities =
             if model.displayOptions.problems then
@@ -782,6 +804,7 @@ parseGPXintoModel content model =
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
         , suddenChanges = suddenGradientChanges
+        , zeroLengths = zeroLengths
         , viewingMode = OverviewView
         , zoomLevelOverview = 2.0
         , zoomLevelFirstPerson = 2.0
@@ -946,17 +969,17 @@ view3D model =
 
 viewAllProblems : Model -> Element Msg
 viewAllProblems model =
-    column []
+    column [ spacing 10, padding 10 ]
         [ problemTypeSelectButtons model
         , case model.selectedProblemType of
             ZeroLengthSegment ->
-                none
+                viewZeroLengthSegments model
 
             AbruptGradientChanges ->
                 viewAbruptGradientChanges model
 
             SharpBends ->
-                none
+                text "Not yet!"
         ]
 
 
@@ -979,32 +1002,59 @@ problemTypeSelectButtons model =
 
 viewAbruptGradientChanges : Model -> Element Msg
 viewAbruptGradientChanges model =
-    table [ width fill, centerX, spacing 10  ]
-        { data = model.suddenChanges
-        , columns =
-            [ { header = text "Track point"
-              , width = fill
-              , view = \abrupt -> text <| String.fromInt abrupt.after.index
-              }
-            , { header = text "Gradient before"
-              , width = fill
-              , view = \abrupt -> text <| showDecimal abrupt.before.gradient
-              }
-            , { header = text "Gradient after"
-              , width = fill
-              , view = \abrupt -> text <| showDecimal abrupt.after.gradient
-              }
-            , { header = none
-              , width = fill
-              , view =
-                    \abrupt ->
-                        button []
-                            { onPress = Just (UserMovedNodeSlider abrupt.after.index)
-                            , label = text "Go there"
-                            }
-              }
-            ]
-        }
+    column [ spacing 10, padding 20 ]
+        [ gradientChangeThresholdSlider model
+        , table
+            [ width fill, centerX, spacing 10 ]
+            { data = model.suddenChanges
+            , columns =
+                [ { header = text "Track point"
+                  , width = fill
+                  , view = \abrupt -> text <| String.fromInt abrupt.after.index
+                  }
+                , { header = text "Gradient before"
+                  , width = fill
+                  , view = \abrupt -> text <| showDecimal abrupt.before.gradient
+                  }
+                , { header = text "Gradient after"
+                  , width = fill
+                  , view = \abrupt -> text <| showDecimal abrupt.after.gradient
+                  }
+                , { header = none
+                  , width = fill
+                  , view =
+                        \abrupt ->
+                            button []
+                                { onPress = Just (UserMovedNodeSlider abrupt.after.index)
+                                , label = text "Go there"
+                                }
+                  }
+                ]
+            }
+        ]
+
+
+viewZeroLengthSegments : Model -> Element Msg
+viewZeroLengthSegments model =
+    el [ spacing 10, padding 20 ] <|
+        table [ width fill, centerX, spacing 10 ]
+            { data = model.zeroLengths
+            , columns =
+                [ { header = text "Track point"
+                  , width = fill
+                  , view = \z -> text <| String.fromInt z.index
+                  }
+                , { header = none
+                  , width = fill
+                  , view =
+                        \z ->
+                            button []
+                                { onPress = Just (UserMovedNodeSlider z.index)
+                                , label = text "Go there"
+                                }
+                  }
+                ]
+            }
 
 
 checkboxIcon : Bool -> Element msg
@@ -1074,37 +1124,41 @@ viewOptions model =
                 , checked = model.displayOptions.problems
                 , label = Input.labelRight [] (text "Possible problems")
                 }
-            , Input.slider
-                [ height <| px 30
-                , width <| px 100
-                , centerY
-                , behindContent <|
-                    -- Slider track
-                    el
-                        [ width <| px 100
-                        , height <| px 30
-                        , centerY
-                        , centerX
-                        , Background.color <| rgb255 114 159 207
-                        , Border.rounded 6
-                        ]
-                        Element.none
-                ]
-                { onChange = SetGradientChangeThreshold
-                , label =
-                    Input.labelBelow [] <|
-                        text <|
-                            "Gradient change threshold = "
-                                ++ showDecimal model.gradientChangeThreshold
-                , min = 5.0
-                , max = 20.0
-                , step = Nothing
-                , value = model.gradientChangeThreshold
-                , thumb = Input.defaultThumb
-                }
+            , gradientChangeThresholdSlider model
             ]
         , paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
+
+
+gradientChangeThresholdSlider model =
+    Input.slider
+        [ height <| px 30
+        , width <| px 100
+        , centerY
+        , behindContent <|
+            -- Slider track
+            el
+                [ width <| px 100
+                , height <| px 30
+                , centerY
+                , centerX
+                , Background.color <| rgb255 114 159 207
+                , Border.rounded 6
+                ]
+                Element.none
+        ]
+        { onChange = SetGradientChangeThreshold
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Gradient change threshold = "
+                        ++ showDecimal model.gradientChangeThreshold
+        , min = 5.0
+        , max = 20.0
+        , step = Nothing
+        , value = model.gradientChangeThreshold
+        , thumb = Input.defaultThumb
+        }
 
 
 aboutText =
