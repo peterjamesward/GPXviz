@@ -1,11 +1,9 @@
 module Main exposing (main)
 
-import Angle exposing (Angle, inDegrees)
+import Angle exposing (Angle, inDegrees, normalize)
 import Array exposing (Array)
 import Browser
-import Browser.Events exposing (onKeyDown, onKeyUp)
 import Camera3d
-import Circle3d
 import Color
 import Cone3d
 import Cylinder3d
@@ -21,19 +19,19 @@ import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
-import Json.Decode as Decode exposing (Decoder)
 import Length exposing (meters)
 import List exposing (tail)
 import Markdown exposing (defaultOptions)
 import Maybe.Extra
 import Pixels exposing (Pixels)
 import Point3d
-import Quantity exposing (Quantity)
+import Quantity exposing (unwrap)
 import Regex
 import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Spherical exposing (range)
 import Task
+import Vector2d
 import Viewpoint3d
 
 
@@ -133,7 +131,7 @@ defaultDisplayOptions =
     , roadCones = True
     , roadTrack = True
     , gradientFill = True
-    , problems = True
+    , problems = False
     }
 
 
@@ -163,9 +161,11 @@ type alias Model =
     , zoomLevelFirstPerson : Float
     , zoomLevelThirdPerson : Float
     , displayOptions : DisplayOptions
-    , suddenChanges : List AbruptChange -- change in gradient exceeds user's threshold
+    , abruptGradientChanges : List AbruptChange -- change in gradient exceeds user's threshold
+    , abruptBearingChanges : List AbruptChange -- change in gradient exceeds user's threshold
     , zeroLengths : List DrawingRoad
     , gradientChangeThreshold : Float
+    , bearingChangeThreshold : Float
     , selectedProblemType : ProblemType
     }
 
@@ -205,6 +205,7 @@ type Msg
     | ToggleCones Bool
     | ToggleProblems Bool
     | SetGradientChangeThreshold Float
+    | SetBearingChangeThreshold Float
     | SelectProblemType ProblemType
 
 
@@ -235,13 +236,15 @@ init _ =
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
-      , zoomLevelOverview = 2.0
-      , zoomLevelFirstPerson = 2.0
-      , zoomLevelThirdPerson = 2.0
+      , zoomLevelOverview = 1.0
+      , zoomLevelFirstPerson = 1.0
+      , zoomLevelThirdPerson = 1.0
       , displayOptions = defaultDisplayOptions
-      , suddenChanges = []
+      , abruptGradientChanges = []
+      , abruptBearingChanges = []
       , zeroLengths = []
-      , gradientChangeThreshold = 10.0
+      , gradientChangeThreshold = 10.0 -- Note, this is not an angle, it's a percentage (tangent).
+      , bearingChangeThreshold = degrees 90.0
       , selectedProblemType = ZeroLengthSegment
       }
     , Cmd.none
@@ -400,6 +403,14 @@ update msg model =
             , Cmd.none
             )
 
+        SetBearingChangeThreshold threshold ->
+            ( { model
+                | bearingChangeThreshold = threshold
+              }
+                |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
         SelectProblemType prob ->
             ( { model
                 | selectedProblemType = prob
@@ -446,6 +457,7 @@ gradientColour slope =
 
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
+    -- Might want to split this baby,
     let
         lowerBounds tp =
             { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
@@ -729,7 +741,7 @@ parseGPXintoModel content model =
 
         compareGradients : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
         compareGradients seg1 seg2 =
-            -- This list should not include zero length segments; they are spearate.
+            -- This list should not include zero length segments; they are separate.
             if
                 seg1.length
                     > 0.0
@@ -747,10 +759,44 @@ parseGPXintoModel content model =
             else
                 Nothing
 
+        compareBearings : DrawingRoad -> DrawingRoad -> Maybe AbruptChange
+        compareBearings seg1 seg2 =
+            -- This list should not include zero length segments; they are separate.
+            -- I'm using Vector cross product here partly to ensure no odd
+            -- values from -pi to +pi transition, but also because I need to
+            -- be better acquainted with the geometry package.
+            let unitVector1 = Vector2d.rTheta (Length.meters 1) (Angle.radians seg1.bearing)
+                unitVector2 = Vector2d.rTheta (Length.meters 1) (Angle.radians seg2.bearing)
+                includedAngle = acos <| unwrap <| Vector2d.dot unitVector1 unitVector2
+            in
+            if
+                seg1.length
+                    > 0.0
+                    && seg2.length
+                    > 0.0
+                    && includedAngle
+                    > model.bearingChangeThreshold
+            then
+                Just
+                    { node = seg1.endsAt
+                    , before = seg1
+                    , after = seg2
+                    }
+
+            else
+                Nothing
+
         suddenGradientChanges =
             List.filterMap identity <|
                 -- Filters out Nothings (nice)
                 List.map2 compareGradients
+                    roadSegments
+                    (Maybe.withDefault [] <| tail roadSegments)
+
+        suddenBearingChanges =
+            List.filterMap identity <|
+                -- Filters out Nothings (nice)
+                List.map2 compareBearings
                     roadSegments
                     (Maybe.withDefault [] <| tail roadSegments)
 
@@ -803,7 +849,8 @@ parseGPXintoModel content model =
         , summary = Just summarise
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
-        , suddenChanges = suddenGradientChanges
+        , abruptGradientChanges = suddenGradientChanges
+        , abruptBearingChanges = suddenBearingChanges
         , zeroLengths = zeroLengths
         , viewingMode = OverviewView
         , zoomLevelOverview = 2.0
@@ -821,7 +868,7 @@ rebuildEntitiesOnly gpx model =
     in
     { model
         | entities = newModel.entities
-        , suddenChanges = newModel.suddenChanges
+        , abruptGradientChanges = newModel.abruptGradientChanges
     }
 
 
@@ -979,7 +1026,7 @@ viewAllProblems model =
                 viewAbruptGradientChanges model
 
             SharpBends ->
-                text "Not yet!"
+                viewAbruptBearingChanges model
         ]
 
 
@@ -1006,11 +1053,16 @@ viewAbruptGradientChanges model =
         [ gradientChangeThresholdSlider model
         , table
             [ width fill, centerX, spacing 10 ]
-            { data = model.suddenChanges
+            { data = model.abruptGradientChanges
             , columns =
-                [ { header = text "Track point"
+                [ { header = text "Track point\n(click to pick)"
                   , width = fill
-                  , view = \abrupt -> text <| String.fromInt abrupt.after.index
+                  , view =
+                        \abrupt ->
+                            button []
+                                { onPress = Just (UserMovedNodeSlider abrupt.after.index)
+                                , label = text <| String.fromInt abrupt.after.index
+                                }
                   }
                 , { header = text "Gradient before"
                   , width = fill
@@ -1020,18 +1072,39 @@ viewAbruptGradientChanges model =
                   , width = fill
                   , view = \abrupt -> text <| showDecimal abrupt.after.gradient
                   }
-                , { header = none
+                ]
+            }
+        ]
+
+viewAbruptBearingChanges : Model -> Element Msg
+viewAbruptBearingChanges model =
+    column [ spacing 10, padding 20 ]
+        [ bearingChangeThresholdSlider model
+        , table
+            [ width fill, centerX, spacing 10 ]
+            { data = model.abruptBearingChanges
+            , columns =
+                [ { header = text "Track point\n(click to pick)"
                   , width = fill
                   , view =
                         \abrupt ->
                             button []
                                 { onPress = Just (UserMovedNodeSlider abrupt.after.index)
-                                , label = text "Go there"
+                                , label = text <| String.fromInt abrupt.after.index
                                 }
+                  }
+                , { header = text "Bearing before"
+                  , width = fill
+                  , view = \abrupt -> text <| showDecimal <| toDegrees abrupt.before.bearing
+                  }
+                , { header = text "Bearing after"
+                  , width = fill
+                  , view = \abrupt -> text <| showDecimal <| toDegrees abrupt.after.bearing
                   }
                 ]
             }
         ]
+
 
 
 viewZeroLengthSegments : Model -> Element Msg
@@ -1040,17 +1113,13 @@ viewZeroLengthSegments model =
         table [ width fill, centerX, spacing 10 ]
             { data = model.zeroLengths
             , columns =
-                [ { header = text "Track point"
-                  , width = fill
-                  , view = \z -> text <| String.fromInt z.index
-                  }
-                , { header = none
+                [ { header = text "Track point\n(Click to pick)"
                   , width = fill
                   , view =
                         \z ->
                             button []
                                 { onPress = Just (UserMovedNodeSlider z.index)
-                                , label = text "Go there"
+                                , label = text <| String.fromInt z.index
                                 }
                   }
                 ]
@@ -1118,35 +1187,40 @@ viewOptions model =
                 , checked = model.displayOptions.roadCones
                 , label = Input.labelRight [] (text "Trackpoint cones")
                 }
-            , Input.checkbox [ Font.size 18 ]
-                { onChange = ToggleProblems
-                , icon = checkboxIcon
-                , checked = model.displayOptions.problems
-                , label = Input.labelRight [] (text "Possible problems")
-                }
-            , gradientChangeThresholdSlider model
+
+            --, Input.checkbox [ Font.size 18 ]
+            --    { onChange = ToggleProblems
+            --    , icon = checkboxIcon
+            --    , checked = model.displayOptions.problems
+            --    , label = Input.labelRight [] (text "Possible problems")
+            --    }
+            --, gradientChangeThresholdSlider model
             ]
         , paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
 
 
+commonShortHorizontalSliderStyles =
+    [ height <| px 30
+    , width <| px 200
+    , centerY
+    , behindContent <|
+        -- Slider track
+        el
+            [ width <| px 200
+            , height <| px 30
+            , centerY
+            , centerX
+            , Background.color <| rgb255 114 159 207
+            , Border.rounded 6
+            ]
+            Element.none
+    ]
+
+
 gradientChangeThresholdSlider model =
     Input.slider
-        [ height <| px 30
-        , width <| px 100
-        , centerY
-        , behindContent <|
-            -- Slider track
-            el
-                [ width <| px 100
-                , height <| px 30
-                , centerY
-                , centerX
-                , Background.color <| rgb255 114 159 207
-                , Border.rounded 6
-                ]
-                Element.none
-        ]
+        commonShortHorizontalSliderStyles
         { onChange = SetGradientChangeThreshold
         , label =
             Input.labelBelow [] <|
@@ -1157,6 +1231,23 @@ gradientChangeThresholdSlider model =
         , max = 20.0
         , step = Nothing
         , value = model.gradientChangeThreshold
+        , thumb = Input.defaultThumb
+        }
+
+
+bearingChangeThresholdSlider model =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetBearingChangeThreshold
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Direction change threshold = "
+                        ++ showDecimal (toDegrees model.bearingChangeThreshold)
+        , min = degrees 30.0
+        , max = degrees 120.0
+        , step = Nothing
+        , value = model.bearingChangeThreshold
         , thumb = Input.defaultThumb
         }
 
