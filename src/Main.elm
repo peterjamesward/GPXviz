@@ -113,6 +113,12 @@ type ViewingMode
     | ProblemsView
 
 
+type ProblemType
+    = ZeroLengthSegment
+    | AbruptGradientChanges
+    | SharpBends
+
+
 type alias DisplayOptions =
     { roadPillars : Bool
     , roadCones : Bool
@@ -159,6 +165,7 @@ type alias Model =
     , displayOptions : DisplayOptions
     , suddenChanges : List AbruptChange
     , gradientChangeThreshold : Float
+    , selectedProblemType : ProblemType
     }
 
 
@@ -197,6 +204,7 @@ type Msg
     | ToggleCones Bool
     | ToggleProblems Bool
     | SetGradientChangeThreshold Float
+    | SelectProblemType ProblemType
 
 
 zerotp =
@@ -232,6 +240,7 @@ init _ =
       , displayOptions = defaultDisplayOptions
       , suddenChanges = []
       , gradientChangeThreshold = 10.0
+      , selectedProblemType = ZeroLengthSegment
       }
     , Cmd.none
     )
@@ -386,6 +395,13 @@ update msg model =
                 | gradientChangeThreshold = threshold
               }
                 |> rebuildEntitiesOnly (Maybe.withDefault "" model.gpx)
+            , Cmd.none
+            )
+
+        SelectProblemType prob ->
+            ( { model
+                | selectedProblemType = prob
+              }
             , Cmd.none
             )
 
@@ -925,12 +941,45 @@ view3D model =
             viewOptions model
 
         ProblemsView ->
-            viewProblems model
+            viewAllProblems model
 
 
-viewProblems : Model -> Element Msg
-viewProblems model =
-    table [ width fill, centerX ]
+viewAllProblems : Model -> Element Msg
+viewAllProblems model =
+    column []
+        [ problemTypeSelectButtons model
+        , case model.selectedProblemType of
+            ZeroLengthSegment ->
+                none
+
+            AbruptGradientChanges ->
+                viewAbruptGradientChanges model
+
+            SharpBends ->
+                none
+        ]
+
+
+problemTypeSelectButtons model =
+    Input.radioRow
+        [ Border.rounded 6
+        , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+        ]
+        { onChange = SelectProblemType
+        , selected = Just model.selectedProblemType
+        , label =
+            Input.labelHidden "Choose problem type"
+        , options =
+            [ Input.optionWith ZeroLengthSegment <| radioButton First "Zero length"
+            , Input.optionWith AbruptGradientChanges <| radioButton Mid "Gradient change"
+            , Input.optionWith SharpBends <| radioButton Last "Sharp bend"
+            ]
+        }
+
+
+viewAbruptGradientChanges : Model -> Element Msg
+viewAbruptGradientChanges model =
+    table [ width fill, centerX, spacing 10  ]
         { data = model.suddenChanges
         , columns =
             [ { header = text "Track point"
