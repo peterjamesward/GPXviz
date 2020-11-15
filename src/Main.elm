@@ -14,6 +14,7 @@ import Element.Border as Border exposing (color)
 import Element.Font as Font
 import Element.Input as Input exposing (button)
 import File exposing (File)
+import File.Download as Download
 import File.Select as Select
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
@@ -30,15 +31,13 @@ import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Spherical exposing (range)
 import Task
+import TrackPoint exposing (TrackPoint)
 import Viewpoint3d
+import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Zero length segment is its own kind of problem
---TODO: List of possible problems, with click to view.
---TODO: ?? Adjust node heights in zoom mode.
---TODO: Autofix bumps & dips by using average gradient
---TODO: Autofix zero segments by deletion
+--TODO: Autofix bumps & dips by using average gradient (user to choose the range)
 --TODO: Autofix sharp bends by B-splines
 
 
@@ -50,15 +49,6 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
-
-
-type alias TrackPoint =
-    -- This is the basic info we extract from a GPX file.
-    { lat : Float
-    , lon : Float
-    , ele : Float
-    , idx : Int
-    }
 
 
 type alias DrawingNode =
@@ -205,6 +195,7 @@ type Msg
     | SetBearingChangeThreshold Float
     | SelectProblemType ProblemType
     | DeleteZeroLengthSegments
+    | OutputGPX
 
 
 init : () -> ( Model, Cmd Msg )
@@ -413,6 +404,20 @@ update msg model =
                 |> deriveProblems
             , Cmd.none
             )
+
+        OutputGPX ->
+            ( { model | hasBeenChanged = False }
+            , outputGPX model
+            )
+
+
+outputGPX : Model -> Cmd Msg
+outputGPX model =
+    let
+        gpxString =
+            writeGPX model.trackName model.trackPoints
+    in
+    Download.string "output.gpx" "text/gpx" gpxString
 
 
 deleteZeroLengthSegments : Model -> Model
@@ -1013,7 +1018,7 @@ saveButtonIfChanged model =
     if model.hasBeenChanged then
         button
             prettyButtonStyles
-            { onPress = Nothing
+            { onPress = Just OutputGPX
             , label = text "Save new GPX file to your computer"
             }
 

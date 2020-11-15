@@ -1,6 +1,12 @@
 module WriteGPX exposing (writeGPX)
 
-preamble = """
+import FormatNumber exposing (format)
+import FormatNumber.Locales exposing (Decimals(..), usLocale)
+import TrackPoint exposing (..)
+
+
+preamble =
+    """
 <?xml version='1.0' encoding='UTF-8'?>
 <gpx version="1.1"
   creator="https://www.komoot.de"
@@ -19,28 +25,61 @@ preamble = """
   </metadata>
 """
 
+
 writePreamble =
     preamble
 
-writeTrackPoint tp =
-      <trkpt lat="51.615646" lon="-0.301302">
-        <ele>83.626787</ele>
-      </trkpt>
 
-writeTrack name trackPoints=
+writeTrackPoint : TrackPoint -> String
+writeTrackPoint tp =
+    "<trkpt lat=\""
+        ++ decimals6 tp.lat
+        ++ "\" lon=\""
+        ++ decimals6 tp.lon
+        ++ "\">"
+        ++ "<ele>"
+        ++ decimals6 tp.ele
+        ++ "</ele>"
+        ++ "</trkpt>\n"
+
+
+writeTrack : String -> List TrackPoint -> String
+writeTrack name trackPoints =
     """
   <trk>
-    <name>""" ++ name ++ """</name>
-    <trkseg>"""
-    ++ List.concatMap writeTrackPoint trackPoints ++
-  """    </trkseg>
+    <name>"""
+        ++ name
+        ++ """</name>
+    <trkseg>\n"""
+        ++ String.concat (List.map writeTrackPoint trackPoints)
+        ++ """    </trkseg>
   </trk>
  """
 
-writeFooter =
-</gpx>
 
-writeGPX =
+writeFooter =
+    "</gpx>"
+
+
+writeGPX : Maybe String -> List TrackPoint -> String
+writeGPX name track =
+    let
+        useName =
+            case name of
+                Just n ->
+                    n
+
+                _ ->
+                    "A track"
+    in
     writePreamble
-    ++ writeTrack
-    ++ writeFooter
+        ++ writeTrack useName track
+        ++ writeFooter
+
+
+decimals6 x =
+    let
+        locale =
+            { usLocale | decimals = Exact 6, thousandSeparator = "" }
+    in
+    format locale x
