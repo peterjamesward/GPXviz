@@ -38,9 +38,12 @@ import Viewpoint3d
 
 
 
+--TODO: Zero length segment is its own kind of problem
 --TODO: List of possible problems, with click to view.
 --TODO: ?? Adjust node heights in zoom mode.
---TODO: Autofix ??
+--TODO: Autofix bumps & dips by using average gradient
+--TODO: Autofix zero segments by deletion
+--TODO: Autofix sharp bends by B-splines
 
 
 main : Program () Model Msg
@@ -103,10 +106,11 @@ type MyCoord
 
 
 type ViewingMode
-    = PointCloud
-    | RollerCoaster
-    | Zoomable
-    | Options
+    = OverviewView
+    | FirstPersonView
+    | ThirdPersonView
+    | OptionsView
+    | ProblemsView
 
 
 type alias DisplayOptions =
@@ -218,7 +222,7 @@ init _ =
       , httpError = Nothing
       , currentNode = Nothing
       , metresToClipSpace = 1.0
-      , viewingMode = Options
+      , viewingMode = OptionsView
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
@@ -561,7 +565,7 @@ parseGPXintoModel content model =
                 Just segment.index
                     == model.currentNode
                     && model.viewingMode
-                    == Zoomable
+                    /= FirstPersonView
              then
                 [ cylinder (Material.color Color.lightOrange) <|
                     Cylinder3d.startingAt
@@ -762,7 +766,7 @@ parseGPXintoModel content model =
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
         , suddenChanges = suddenGradientChanges
-        , viewingMode = PointCloud
+        , viewingMode = OverviewView
         , zoomLevelOverview = 2.0
         , zoomLevelFirstPerson = 2.0
         , zoomLevelThirdPerson = 2.0
@@ -776,7 +780,10 @@ rebuildEntitiesOnly gpx model =
         newModel =
             parseGPXintoModel gpx model
     in
-    { model | entities = newModel.entities }
+    { model
+        | entities = newModel.entities
+        , suddenChanges = newModel.suddenChanges
+    }
 
 
 reg t =
@@ -894,27 +901,61 @@ viewModeChoices model =
         , label =
             Input.labelHidden "Choose view"
         , options =
-            [ Input.optionWith PointCloud <| radioButton First "Whole route"
-            , Input.optionWith RollerCoaster <| radioButton Mid "First person"
-            , Input.optionWith Zoomable <| radioButton Mid "Zoomable"
-            , Input.optionWith Options <| radioButton Last "Options"
+            [ Input.optionWith OverviewView <| radioButton First "Overview"
+            , Input.optionWith FirstPersonView <| radioButton Mid "First person"
+            , Input.optionWith ThirdPersonView <| radioButton Mid "Third person"
+            , Input.optionWith ProblemsView <| radioButton Mid "Problems"
+            , Input.optionWith OptionsView <| radioButton Last "Options"
             ]
         }
 
 
 view3D model =
     case model.viewingMode of
-        PointCloud ->
+        OverviewView ->
             viewPointCloud model
 
-        RollerCoaster ->
+        FirstPersonView ->
             viewRollerCoasterTrackAndControls model
 
-        Zoomable ->
+        ThirdPersonView ->
             viewZoomable model
 
-        Options ->
+        OptionsView ->
             viewOptions model
+
+        ProblemsView ->
+            viewProblems model
+
+
+viewProblems : Model -> Element Msg
+viewProblems model =
+    table [ width fill, centerX ]
+        { data = model.suddenChanges
+        , columns =
+            [ { header = text "Track point"
+              , width = fill
+              , view = \abrupt -> text <| String.fromInt abrupt.after.index
+              }
+            , { header = text "Gradient before"
+              , width = fill
+              , view = \abrupt -> text <| showDecimal abrupt.before.gradient
+              }
+            , { header = text "Gradient after"
+              , width = fill
+              , view = \abrupt -> text <| showDecimal abrupt.after.gradient
+              }
+            , { header = none
+              , width = fill
+              , view =
+                    \abrupt ->
+                        button []
+                            { onPress = Just (UserMovedNodeSlider abrupt.after.index)
+                            , label = text "Go there"
+                            }
+              }
+            ]
+        }
 
 
 checkboxIcon : Bool -> Element msg
@@ -1018,17 +1059,17 @@ viewOptions model =
 
 
 aboutText =
-    """Thank you for trying this GPX viewer.
+    """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-**Whole route** just shows an overview and summary statistics. Zoom is (currently) fixed on the centre of the area and there is no pan capability.
+**Overview** shows a route overview and summary statistics. Zoom is (currently) fixed on the centre of the area and there is no pan capability.
 
-**First person** positions the viewpoint above a _track segment_, sighted along the track. The zoom control will move your viewpoint back and forth a bit. The bottom slider and arrows will let you move between track segments. Information about the current segment is shown.
+**First person** positions the viewpoint above a track _road segment_, sighted along the track. The zoom control will move your viewpoint back and forth a bit. The bottom slider and arrows move between track segments. Information about the current segment is shown.
 
-**Zoomable** (bad name) focuses on track _points_ and lets you fly around the current point. The slider and arrows move to other track points. Information about the current tarck point is shown.
+**Third person** focuses on track _points_ and lets you fly around the current point.  An orange disc will indicate the position on the track. The slider and arrows move to other track points. Information about the current track point is shown.
 
-**Options** (where you are now) lets you turn off some elements. You may like this depending on your motivation. _Gradient change threshold_ will cause markers to hover over any track points where the gradient change exceed this value.
+**Options** (this page) lets you turn off some elements. You may like this depending on your motivation; it may help to turn some things off with a complex track. _Gradient change threshold_ will cause markers to hover over any track points where the gradient change exceed this value.
 
-Simply click the blue button to choose a file.
+Simply click the blue button at the page top to choose a file.
 
 > _Peter Ward, 2020_
 """
