@@ -267,6 +267,7 @@ update msg model =
             ( parseGPXintoModel content model
                 |> deriveNodesAndRoads
                 |> deriveVisualEntities
+                |> deriveProblems
             , Cmd.none
             )
 
@@ -405,6 +406,9 @@ update msg model =
 
         DeleteZeroLengthSegments ->
             ( deleteZeroLengthSegments model
+                |> deriveNodesAndRoads
+                |> deriveVisualEntities
+                |> deriveProblems
             , Cmd.none
             )
 
@@ -423,9 +427,6 @@ deleteZeroLengthSegments model =
                 model.zeroLengths
     in
     { model | trackPoints = List.filter keepNonZero model.trackPoints }
-        |> deriveNodesAndRoads
-        |> deriveVisualEntities
-        |> deriveProblems
 
 
 incrementMaybeModulo modulo mx =
