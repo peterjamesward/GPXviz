@@ -164,6 +164,7 @@ type alias Model =
     , bearingChangeThreshold : Int
     , selectedProblemType : ProblemType
     , hasBeenChanged : Bool
+    , smoothingEndIndex : Maybe Int
     }
 
 
@@ -207,6 +208,7 @@ type Msg
     | OutputGPX
     | Tick Time.Posix
     | AdjustTimeZone Time.Zone
+    | SetSmoothingEnd Int
 
 
 init : () -> ( Model, Cmd Msg )
@@ -244,6 +246,7 @@ init _ =
       , bearingChangeThreshold = 90
       , selectedProblemType = ZeroLengthSegment
       , hasBeenChanged = False
+      , smoothingEndIndex = Nothing
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -291,6 +294,11 @@ update msg model =
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }
                 |> deriveVisualEntities
+            , Cmd.none
+            )
+
+        SetSmoothingEnd idx ->
+            ( { model | smoothingEndIndex = Just idx }
             , Cmd.none
             )
 
@@ -447,7 +455,7 @@ outputGPX model =
         outputFilename =
             case model.filename of
                 Just fn ->
-                    fn ++ "_" ++  iso8601
+                    fn ++ "_" ++ iso8601
 
                 Nothing ->
                     iso8601
@@ -1133,7 +1141,7 @@ viewInputError model =
 
 viewAllProblems : Model -> Element Msg
 viewAllProblems model =
-    column [ spacing 10, padding 10 ]
+    column [ spacing 10, padding 10, centerX ]
         [ problemTypeSelectButtons model
         , case model.selectedProblemType of
             ZeroLengthSegment ->
@@ -1166,28 +1174,73 @@ problemTypeSelectButtons model =
 
 viewAbruptGradientChanges : Model -> Element Msg
 viewAbruptGradientChanges model =
+    let
+        i1 change =
+            i2 change - 1
+
+        i2 change =
+            change.node.trackPoint.idx
+
+        i3 change =
+            i2 change + 1
+
+        notValid =
+            text "To attempt a fix, select a start point in the left column and and end point in the right column, with the end point greater than the start point."
+    in
     column [ spacing 10, padding 20 ]
-        [ gradientChangeThresholdSlider model
+        [ case ( model.currentNode, model.smoothingEndIndex ) of
+            ( Just s, Just f ) ->
+                if s < f then
+                    text "FIX IT"
+
+                else
+                    notValid
+
+            _ ->
+                notValid
+        , gradientChangeThresholdSlider model
         , table
             [ width fill, centerX, spacing 10 ]
             { data = model.abruptGradientChanges
             , columns =
-                [ { header = text "Track point\n(click to pick)"
+                [ { header = text "Start"
                   , width = fill
                   , view =
-                        \abrupt ->
-                            button (buttonHighlightCurrent abrupt.after.index model)
-                                { onPress = Just (UserMovedNodeSlider abrupt.after.index)
-                                , label = text <| String.fromInt abrupt.after.index
+                        \change ->
+                            button (buttonHighlightCurrent (i1 change) model)
+                                { onPress = Just (UserMovedNodeSlider (i1 change))
+                                , label = text <| String.fromInt (i1 change)
                                 }
                   }
-                , { header = text "Gradient before"
+                , { header = text "Gradient is"
                   , width = fill
-                  , view = \abrupt -> text <| showDecimal abrupt.before.gradient
+                  , view = \change -> text <| showDecimal change.before.gradient
                   }
-                , { header = text "Gradient after"
+                , { header = text "for metres"
                   , width = fill
-                  , view = \abrupt -> text <| showDecimal abrupt.after.gradient
+                  , view = \change -> text <| showDecimal change.before.length
+                  }
+                , { header = text "Middle"
+                  , width = fill
+                  , view =
+                        \change -> text <| String.fromInt (i2 change)
+                  }
+                , { header = text "Gradient then"
+                  , width = fill
+                  , view = \change -> text <| showDecimal change.after.gradient
+                  }
+                , { header = text "for metres"
+                  , width = fill
+                  , view = \change -> text <| showDecimal change.after.length
+                  }
+                , { header = text "End point"
+                  , width = fill
+                  , view =
+                        \change ->
+                            button (buttonSmoothingEnd (i3 change) model)
+                                { onPress = Just (SetSmoothingEnd (i3 change))
+                                , label = text <| String.fromInt (i3 change)
+                                }
                   }
                 ]
             }
@@ -1227,6 +1280,15 @@ viewAbruptBearingChanges model =
 buttonHighlightCurrent : Int -> Model -> List (Attribute msg)
 buttonHighlightCurrent index model =
     if Just index == model.currentNode then
+        [ Background.color <| rgb255 114 159 207, alignRight ]
+
+    else
+        [ Background.color <| rgb255 0xFF 0xFF 0xFF, alignRight ]
+
+
+buttonSmoothingEnd : Int -> Model -> List (Attribute msg)
+buttonSmoothingEnd index model =
+    if Just index == model.smoothingEndIndex then
         [ Background.color <| rgb255 114 159 207, alignRight ]
 
     else
