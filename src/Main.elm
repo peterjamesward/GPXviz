@@ -40,7 +40,6 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Autofix bumps & dips by using average gradient (user to choose the range)
 --TODO: Autofix sharp bends by B-splines
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
