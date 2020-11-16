@@ -826,6 +826,7 @@ deriveProblems model =
         | abruptGradientChanges = suddenGradientChanges
         , abruptBearingChanges = suddenBearingChanges
         , zeroLengths = zeroLengths
+        , smoothingEndIndex = Nothing
     }
 
 
@@ -1278,21 +1279,24 @@ viewAbruptGradientChanges model =
             i2 change + 1
 
         notValid =
-            el [ width <| px 500 ] <|
-                text "To attempt a fix, select a start point in the left column and and end point in the right column, with the end point greater than the start point."
+            paragraph [ width <| px 500 ]
+                [ text "To attempt a fix, select a start point in the left column and and end point in the right column, with the end point greater than the start point."
+                ]
 
         fixText s f =
             case averageGradient model s f of
                 Just g ->
-                    row [ width fill ]
-                        [ text <|
-                            "Would you like to replace the segments between "
-                                ++ String.fromInt s
-                                ++ " and "
-                                ++ String.fromInt f
-                                ++ " with a constant gradient of "
-                                ++ showDecimal g
-                                ++ "? (This will not affect latitudes and longitudes.)"
+                    row [ width <| px 600 ]
+                        [ paragraph [ width <| px 500 ]
+                            [ text <|
+                                "Would you like to replace the segments between "
+                                    ++ String.fromInt s
+                                    ++ " and "
+                                    ++ String.fromInt f
+                                    ++ " with a constant gradient of "
+                                    ++ showDecimal g
+                                    ++ "? (This will not affect latitudes and longitudes.)"
+                            ]
                         , button prettyButtonStyles
                             { onPress = Just (SmoothGradient s f g)
                             , label = text "Yes! Make it so."
