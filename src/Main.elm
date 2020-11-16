@@ -37,6 +37,11 @@ import WriteGPX exposing (writeGPX)
 
 
 
+--TODO: Highlight selected problem.
+--TODO: Input error page.
+--TODO: Output file name selection dialog.
+--TODO: Optional road shadow.
+--TODO: Select locale for number format.
 --TODO: Autofix bumps & dips by using average gradient (user to choose the range)
 --TODO: Autofix sharp bends by B-splines
 

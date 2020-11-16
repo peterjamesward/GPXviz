@@ -50,7 +50,8 @@ writeTrack name trackPoints =
     <name>"""
         ++ name
         ++ """</name>
-    <trkseg>\n"""
+    <trkseg>
+"""
         ++ String.concat (List.map writeTrackPoint trackPoints)
         ++ """    </trkseg>
   </trk>
@@ -80,6 +81,10 @@ writeGPX name track =
 decimals6 x =
     let
         locale =
-            { usLocale | decimals = Exact 6, thousandSeparator = "" }
+            { usLocale
+                | decimals = Exact 6
+                , thousandSeparator = ""
+                , negativePrefix = "-"
+            }
     in
     format locale x
