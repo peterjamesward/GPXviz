@@ -20,6 +20,7 @@ import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
+import Iso8601
 import Length exposing (meters)
 import List exposing (tail)
 import Markdown exposing (defaultOptions)
@@ -31,6 +32,7 @@ import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Spherical exposing (range)
 import Task
+import Time
 import TrackPoint exposing (TrackPoint)
 import Viewpoint3d
 import WriteGPX exposing (writeGPX)
@@ -40,7 +42,6 @@ import WriteGPX exposing (writeGPX)
 --TODO: Autofix bumps & dips by using average gradient (user to choose the range)
 --TODO: Autofix sharp bends by B-splines
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
---TODO: Better file name for output (based on input file name).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
 
@@ -132,6 +133,8 @@ defaultDisplayOptions =
 type alias Model =
     { gpx : Maybe String
     , filename : Maybe String
+    , time : Time.Posix
+    , zone : Time.Zone
     , gpxUrl : String
     , trackPoints : List TrackPoint
     , largestDimension : Float -- biggest bounding box edge determines scaling factor
@@ -202,12 +205,16 @@ type Msg
     | SelectProblemType ProblemType
     | DeleteZeroLengthSegments
     | OutputGPX
+    | Tick Time.Posix
+    | AdjustTimeZone Time.Zone
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { gpx = Nothing
       , filename = Nothing
+      , time = Time.millisToPosix 0
+      , zone = Time.utc
       , gpxUrl = ""
       , trackPoints = []
       , largestDimension = 1.0
@@ -238,7 +245,7 @@ init _ =
       , selectedProblemType = ZeroLengthSegment
       , hasBeenChanged = False
       }
-    , Cmd.none
+    , Task.perform AdjustTimeZone Time.here
     )
 
 
@@ -253,6 +260,16 @@ update msg model =
             model.displayOptions
     in
     case msg of
+        Tick newTime ->
+            ( { model | time = newTime }
+            , Cmd.none
+            )
+
+        AdjustTimeZone newZone ->
+            ( { model | zone = newZone }
+            , Cmd.none
+            )
+
         GpxRequested ->
             ( model
             , Select.file [ "text/gpx" ] GpxSelected
@@ -423,8 +440,19 @@ outputGPX model =
     let
         gpxString =
             writeGPX model.trackName model.trackPoints
+
+        iso8601 =
+            Iso8601.fromTime model.time
+
+        outputFilename =
+            case model.filename of
+                Just fn ->
+                    fn ++ "_" ++  iso8601
+
+                Nothing ->
+                    iso8601
     in
-    Download.string "output.gpx" "text/gpx" gpxString
+    Download.string outputFilename "text/gpx" gpxString
 
 
 deleteZeroLengthSegments : Model -> Model
@@ -1814,7 +1842,7 @@ viewTrackPoint trkpnt =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Time.every 1000 Tick
 
 
 radioButton position label state =
