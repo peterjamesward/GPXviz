@@ -37,10 +37,12 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Optional road shadow.
---TODO: Select locale for number format.
 --TODO: Autofix bumps & dips by using average gradient (user to choose the range)
 --TODO: Autofix sharp bends by B-splines
+--TODO: Constant speed flythrough (works in either view mode, can still rotate).
+--TODO: Better file name for output (based on input file name).
+--TODO: Optional road shadow.
+--TODO: Optional plain green vertical instead of rainbow.
 
 
 main : Program () Model Msg

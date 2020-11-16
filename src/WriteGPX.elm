@@ -6,8 +6,7 @@ import TrackPoint exposing (..)
 
 
 preamble =
-    """
-<?xml version='1.0' encoding='UTF-8'?>
+    """<?xml version='1.0' encoding='UTF-8'?>
 <gpx version="1.1"
   creator="https://www.komoot.de"
   xmlns="http://www.topografix.com/GPX/1/1"
