@@ -37,9 +37,6 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Highlight selected problem.
---TODO: Input error page.
---TODO: Output file name selection dialog.
 --TODO: Optional road shadow.
 --TODO: Select locale for number format.
 --TODO: Autofix bumps & dips by using average gradient (user to choose the range)
@@ -103,6 +100,7 @@ type ViewingMode
     | ThirdPersonView
     | OptionsView
     | ProblemsView
+    | InputErrorView
 
 
 type ProblemType
@@ -481,6 +479,12 @@ parseGPXintoModel content model =
         , trackName = parseTrackName content
         , trackPoints = tps
         , hasBeenChanged = False
+        , viewingMode =
+            if model.trackPoints == [] then
+                InputErrorView
+
+            else
+                model.viewingMode
     }
 
 
@@ -1067,6 +1071,29 @@ view3D model =
         ProblemsView ->
             viewAllProblems model
 
+        InputErrorView ->
+            viewInputError model
+
+
+viewInputError : Model -> Element Msg
+viewInputError model =
+    if model.trackPoints == [] then
+        column [ spacing 20 ]
+            [ text "I was looking for things like 'lat', 'lon' and 'ele' but didn't find them."
+            , case model.gpx of
+                Just content ->
+                    column []
+                        [ text "This is what I found instead."
+                        , text <| content
+                        ]
+
+                Nothing ->
+                    text "<Nothing to see here>"
+            ]
+
+    else
+        text "That was lovely."
+
 
 viewAllProblems : Model -> Element Msg
 viewAllProblems model =
@@ -1113,7 +1140,7 @@ viewAbruptGradientChanges model =
                   , width = fill
                   , view =
                         \abrupt ->
-                            button []
+                            button (buttonHighlightCurrent abrupt.after.index model)
                                 { onPress = Just (UserMovedNodeSlider abrupt.after.index)
                                 , label = text <| String.fromInt abrupt.after.index
                                 }
@@ -1143,7 +1170,7 @@ viewAbruptBearingChanges model =
                   , width = fill
                   , view =
                         \abrupt ->
-                            button []
+                            button (buttonHighlightCurrent abrupt.after.index model)
                                 { onPress = Just (UserMovedNodeSlider abrupt.after.index)
                                 , label = text <| String.fromInt abrupt.after.index
                                 }
@@ -1161,6 +1188,15 @@ viewAbruptBearingChanges model =
         ]
 
 
+buttonHighlightCurrent : Int -> Model -> List (Attribute msg)
+buttonHighlightCurrent index model =
+    if Just index == model.currentNode then
+        [ Background.color <| rgb255 114 159 207, alignRight ]
+
+    else
+        [ Background.color <| rgb255 0xFF 0xFF 0xFF, alignRight ]
+
+
 viewZeroLengthSegments : Model -> Element Msg
 viewZeroLengthSegments model =
     el [ spacing 10, padding 20 ] <|
@@ -1173,7 +1209,7 @@ viewZeroLengthSegments model =
                           , width = fill
                           , view =
                                 \z ->
-                                    button []
+                                    button (buttonHighlightCurrent z.index model)
                                         { onPress = Just (UserMovedNodeSlider z.index)
                                         , label = text <| String.fromInt z.index
                                         }
