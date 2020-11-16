@@ -34,6 +34,7 @@ import Spherical exposing (range)
 import Task
 import Time
 import TrackPoint exposing (TrackPoint)
+import Tuple exposing (second)
 import Viewpoint3d
 import WriteGPX exposing (writeGPX)
 
@@ -209,6 +210,7 @@ type Msg
     | Tick Time.Posix
     | AdjustTimeZone Time.Zone
     | SetSmoothingEnd Int
+    | SmoothGradient Int Int Float
 
 
 init : () -> ( Model, Cmd Msg )
@@ -442,6 +444,63 @@ update msg model =
             , outputGPX model
             )
 
+        SmoothGradient s f g ->
+            ( smoothGradient model s f g
+                |> deriveNodesAndRoads
+                |> deriveVisualEntities
+                |> deriveProblems
+            , Cmd.none
+            )
+
+
+smoothGradient : Model -> Int -> Int -> Float -> Model
+smoothGradient model start finish gradient =
+    -- This feels like a simple foldl, creating a new list of TrackPoints
+    -- which we then splice into the model.
+    -- It's a fold because we must keep track of the current elevation
+    -- which will increase with each segment.
+    let
+        segments =
+            model.roads |> List.take (finish - 1) |> List.drop start
+
+        startNode =
+            Array.get start model.nodeArray
+    in
+    case startNode of
+        Just n ->
+            let
+                ( _, adjustedTrackPoints ) =
+                    List.foldl
+                        adjustTrackPoint
+                        ( n.trackPoint.ele, [] )
+                        segments
+
+                adjustTrackPoint road ( startEle, newTPs ) =
+                    let
+                        increase =
+                            road.length * gradient / 100.0
+
+                        oldTP =
+                            road.endsAt.trackPoint
+                    in
+                    ( startEle + increase
+                    , { oldTP
+                        | ele = startEle + increase
+                      }
+                        :: newTPs
+                    )
+            in
+            { model
+                | trackPoints =
+                    List.take (start + 1) model.trackPoints
+                        ++ List.reverse adjustedTrackPoints
+                        ++ List.drop finish model.trackPoints
+            }
+
+        Nothing ->
+            -- shouldn't happen
+            model
+
 
 outputGPX : Model -> Cmd Msg
 outputGPX model =
@@ -475,9 +534,15 @@ deleteZeroLengthSegments model =
             List.map
                 (\road -> road.index)
                 model.zeroLengths
+
+        reindex points =
+            List.map2
+                (\p i -> { p | idx = i })
+                points
+                (List.range 0 (List.length points))
     in
     { model
-        | trackPoints = List.filter keepNonZero model.trackPoints
+        | trackPoints = reindex <| List.filter keepNonZero model.trackPoints
         , hasBeenChanged = True
     }
 
@@ -1172,6 +1237,34 @@ problemTypeSelectButtons model =
         }
 
 
+averageGradient : Model -> Int -> Int -> Maybe Float
+averageGradient model s f =
+    let
+        segments =
+            model.roads |> List.take f |> List.drop s
+    in
+    if s < f then
+        case ( Array.get s model.nodeArray, Array.get f model.nodeArray ) of
+            ( Just startNode, Just endNode ) ->
+                let
+                    startElevation =
+                        startNode.trackPoint.ele
+
+                    endElevation =
+                        endNode.trackPoint.ele
+
+                    overallLength =
+                        List.sum <| List.map .length segments
+                in
+                Just <| (endElevation - startElevation) / overallLength * 100.0
+
+            _ ->
+                Nothing
+
+    else
+        Nothing
+
+
 viewAbruptGradientChanges : Model -> Element Msg
 viewAbruptGradientChanges model =
     let
@@ -1185,13 +1278,35 @@ viewAbruptGradientChanges model =
             i2 change + 1
 
         notValid =
-            text "To attempt a fix, select a start point in the left column and and end point in the right column, with the end point greater than the start point."
+            el [ width <| px 500 ] <|
+                text "To attempt a fix, select a start point in the left column and and end point in the right column, with the end point greater than the start point."
+
+        fixText s f =
+            case averageGradient model s f of
+                Just g ->
+                    row [ width fill ]
+                        [ text <|
+                            "Would you like to replace the segments between "
+                                ++ String.fromInt s
+                                ++ " and "
+                                ++ String.fromInt f
+                                ++ " with a constant gradient of "
+                                ++ showDecimal g
+                                ++ "? (This will not affect latitudes and longitudes.)"
+                        , button prettyButtonStyles
+                            { onPress = Just (SmoothGradient s f g)
+                            , label = text "Yes! Make it so."
+                            }
+                        ]
+
+                Nothing ->
+                    notValid
     in
     column [ spacing 10, padding 20 ]
         [ case ( model.currentNode, model.smoothingEndIndex ) of
             ( Just s, Just f ) ->
                 if s < f then
-                    text "FIX IT"
+                    fixText s f
 
                 else
                     notValid
@@ -1656,7 +1771,7 @@ viewRoadSegment model road =
             2.5 * model.metresToClipSpace
 
         cameraSetback =
-            (5 - model.zoomLevelFirstPerson) * model.metresToClipSpace
+            0.0 * model.metresToClipSpace
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
@@ -1672,7 +1787,7 @@ viewRoadSegment model road =
         camera someTarmac =
             Camera3d.perspective
                 { viewpoint = cameraViewpoint someTarmac
-                , verticalFieldOfView = Angle.degrees <| 80.0 / model.zoomLevelFirstPerson
+                , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
                 }
     in
     el [] <|
