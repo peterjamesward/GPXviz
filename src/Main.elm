@@ -1772,7 +1772,7 @@ viewRoadSegment model road =
     let
         eyeHeight =
             -- Helps to be higher up.
-            2.5 * model.metresToClipSpace
+            2.0 * model.metresToClipSpace
 
         cameraSetback =
             0.0 * model.metresToClipSpace
@@ -1784,7 +1784,11 @@ viewRoadSegment model road =
                         (someTarmac.startsAt.x - cameraSetback * sin road.bearing)
                         (someTarmac.startsAt.y - cameraSetback * cos road.bearing)
                         (someTarmac.startsAt.z + eyeHeight)
-                , focalPoint = Point3d.meters someTarmac.endsAt.x someTarmac.endsAt.y someTarmac.endsAt.z
+                , focalPoint =
+                    Point3d.meters
+                        someTarmac.endsAt.x
+                        someTarmac.endsAt.y
+                        (someTarmac.endsAt.z + eyeHeight )
                 , upDirection = Direction3d.positiveZ
                 }
 
