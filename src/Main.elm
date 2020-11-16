@@ -131,6 +131,7 @@ defaultDisplayOptions =
 
 type alias Model =
     { gpx : Maybe String
+    , filename : Maybe String
     , gpxUrl : String
     , trackPoints : List TrackPoint
     , largestDimension : Float -- biggest bounding box edge determines scaling factor
@@ -206,6 +207,7 @@ type Msg
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { gpx = Nothing
+      , filename = Nothing
       , gpxUrl = ""
       , trackPoints = []
       , largestDimension = 1.0
@@ -257,7 +259,7 @@ update msg model =
             )
 
         GpxSelected file ->
-            ( model
+            ( { model | filename = Just (File.name file) }
             , Task.perform GpxLoaded (File.toString file)
             )
 
@@ -1000,10 +1002,14 @@ viewGenericNew model =
           <|
             column
                 [ spacing 10, centerX ]
-                [ row [ centerX ]
-                    [ loadButton
-                    , displayName model.trackName
-                    ]
+                [ loadButton
+                , displayName model.trackName
+                , case model.filename of
+                    Just name ->
+                        text <| "Filename: " ++ name
+
+                    Nothing ->
+                        none
                 , row [ centerX ]
                     [ viewModeChoices model
                     ]
