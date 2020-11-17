@@ -40,7 +40,6 @@ import WriteGPX exposing (writeGPX)
 
 
 --TODO: Autofix sharp bends by B-splines
---TODO: Undo edits (keep old lists of trackpoints)
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
@@ -118,6 +117,11 @@ type ProblemType
     | SharpBends
 
 
+type ThirdPersonSubmode
+    = ShowData
+    | ShowFixes
+
+
 type alias DisplayOptions =
     { roadPillars : Bool
     , roadCones : Bool
@@ -173,6 +177,7 @@ type alias Model =
     , hasBeenChanged : Bool
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
+    , thirdPersonSubmode : ThirdPersonSubmode
     }
 
 
@@ -218,6 +223,9 @@ type Msg
     | AdjustTimeZone Time.Zone
     | SetSmoothingEnd Int
     | SmoothGradient Int Int Float
+    | SetThirdPersonSubmode ThirdPersonSubmode
+    | Undo
+    | ToggleMarker
 
 
 init : () -> ( Model, Cmd Msg )
@@ -258,6 +266,7 @@ init _ =
       , hasBeenChanged = False
       , smoothingEndIndex = Nothing
       , undoStack = []
+      , thirdPersonSubmode = ShowData
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -462,6 +471,41 @@ update msg model =
             , Cmd.none
             )
 
+        SetThirdPersonSubmode mode ->
+            ( { model | thirdPersonSubmode = mode }
+            , Cmd.none
+            )
+
+        Undo ->
+            ( case model.undoStack of
+                action :: undos ->
+                    { model
+                        | trackPoints = action.trackPoints
+                        , undoStack = undos
+                    }
+                        |> deriveNodesAndRoads
+                        |> deriveVisualEntities
+                        |> deriveProblems
+
+                _ ->
+                    model
+            , Cmd.none
+            )
+
+        ToggleMarker ->
+            ( { model
+                | markedNode =
+                    case model.markedNode of
+                        Just _ ->
+                            Nothing
+
+                        Nothing ->
+                            model.currentNode
+              }
+                |> deriveVisualEntities
+            , Cmd.none
+            )
+
 
 smoothGradient : Model -> Int -> Int -> Float -> Model
 smoothGradient model start finish gradient =
@@ -475,6 +519,13 @@ smoothGradient model start finish gradient =
 
         startNode =
             Array.get start model.nodeArray
+
+        undoMessage =
+            "gradient smoothing from "
+                ++ String.fromInt start
+                ++ " to "
+                ++ String.fromInt finish
+                ++ "."
     in
     case startNode of
         Just n ->
@@ -505,6 +556,11 @@ smoothGradient model start finish gradient =
                     List.take (start + 1) model.trackPoints
                         ++ List.reverse adjustedTrackPoints
                         ++ List.drop finish model.trackPoints
+                , undoStack =
+                    { label = undoMessage
+                    , trackPoints = model.trackPoints
+                    }
+                        :: model.undoStack
             }
 
         Nothing ->
@@ -903,6 +959,54 @@ deriveVisualEntities model =
             List.concat <|
                 List.map roadEntity model.roads
 
+        currentPositionDisc =
+            case ( model.currentNode, model.viewingMode ) of
+                ( Just idx, ThirdPersonView ) ->
+                    case Array.get idx model.roadArray of
+                        Just segment ->
+                            [ cylinder (Material.color Color.lightOrange) <|
+                                Cylinder3d.startingAt
+                                    (Point3d.meters
+                                        segment.startsAt.x
+                                        segment.startsAt.y
+                                        segment.startsAt.z
+                                    )
+                                    (segmentDirection segment)
+                                    { radius = meters <| 10.0 * metresToClipSpace
+                                    , length = meters <| 1.0 * metresToClipSpace
+                                    }
+                            ]
+
+                        _ ->
+                            []
+
+                _ ->
+                    []
+
+        markedNode =
+            case ( model.markedNode, model.viewingMode ) of
+                ( Just idx, ThirdPersonView ) ->
+                    case Array.get idx model.roadArray of
+                        Just segment ->
+                            [ cone (Material.color Color.purple) <|
+                                Cone3d.startingAt
+                                    (Point3d.meters
+                                        segment.startsAt.x
+                                        segment.startsAt.y
+                                        segment.startsAt.z
+                                    )
+                                    (segmentDirection segment)
+                                    { radius = meters <| 6.0 * metresToClipSpace
+                                    , length = meters <| 3.0 * metresToClipSpace
+                                    }
+                            ]
+
+                        _ ->
+                            []
+
+                _ ->
+                    []
+
         roadEntity segment =
             let
                 kerbX =
@@ -916,89 +1020,66 @@ deriveVisualEntities model =
                     -- Let's try a low wall at the road's edges.
                     0.3 * metresToClipSpace
             in
-            -- Highlight current segment with a circle
-            (if
-                Just segment.index
-                    == model.currentNode
-                    && model.viewingMode
-                    /= FirstPersonView
-             then
-                [ cylinder (Material.color Color.lightOrange) <|
-                    Cylinder3d.startingAt
-                        (Point3d.meters
-                            segment.startsAt.x
-                            segment.startsAt.y
-                            segment.startsAt.z
-                        )
-                        (segmentDirection segment)
-                        { radius = meters <| 10.0 * metresToClipSpace
-                        , length = meters <| 1.0 * metresToClipSpace
-                        }
+            (if model.displayOptions.roadTrack then
+                [ --surface
+                  Scene3d.quad (Material.color Color.grey)
+                    (Point3d.meters (segment.startsAt.x + kerbX)
+                        (segment.startsAt.y - kerbY)
+                        segment.startsAt.z
+                    )
+                    (Point3d.meters (segment.endsAt.x + kerbX)
+                        (segment.endsAt.y - kerbY)
+                        segment.endsAt.z
+                    )
+                    (Point3d.meters (segment.endsAt.x - kerbX)
+                        (segment.endsAt.y + kerbY)
+                        segment.endsAt.z
+                    )
+                    (Point3d.meters (segment.startsAt.x - kerbX)
+                        (segment.startsAt.y + kerbY)
+                        segment.startsAt.z
+                    )
+
+                -- kerb walls
+                , Scene3d.quad (Material.color Color.darkGrey)
+                    (Point3d.meters (segment.startsAt.x + kerbX)
+                        (segment.startsAt.y - kerbY)
+                        segment.startsAt.z
+                    )
+                    (Point3d.meters (segment.endsAt.x + kerbX)
+                        (segment.endsAt.y - kerbY)
+                        segment.endsAt.z
+                    )
+                    (Point3d.meters (segment.endsAt.x + kerbX)
+                        (segment.endsAt.y - kerbY)
+                        (segment.endsAt.z + edgeHeight)
+                    )
+                    (Point3d.meters (segment.startsAt.x + kerbX)
+                        (segment.startsAt.y - kerbY)
+                        (segment.startsAt.z + edgeHeight)
+                    )
+                , Scene3d.quad (Material.color Color.darkGrey)
+                    (Point3d.meters (segment.startsAt.x - kerbX)
+                        (segment.startsAt.y + kerbY)
+                        segment.startsAt.z
+                    )
+                    (Point3d.meters (segment.endsAt.x - kerbX)
+                        (segment.endsAt.y + kerbY)
+                        segment.endsAt.z
+                    )
+                    (Point3d.meters (segment.endsAt.x - kerbX)
+                        (segment.endsAt.y + kerbY)
+                        (segment.endsAt.z + edgeHeight)
+                    )
+                    (Point3d.meters (segment.startsAt.x - kerbX)
+                        (segment.startsAt.y + kerbY)
+                        (segment.startsAt.z + edgeHeight)
+                    )
                 ]
 
              else
                 []
             )
-                ++ (if model.displayOptions.roadTrack then
-                        [ --surface
-                          Scene3d.quad (Material.color Color.grey)
-                            (Point3d.meters (segment.startsAt.x + kerbX)
-                                (segment.startsAt.y - kerbY)
-                                segment.startsAt.z
-                            )
-                            (Point3d.meters (segment.endsAt.x + kerbX)
-                                (segment.endsAt.y - kerbY)
-                                segment.endsAt.z
-                            )
-                            (Point3d.meters (segment.endsAt.x - kerbX)
-                                (segment.endsAt.y + kerbY)
-                                segment.endsAt.z
-                            )
-                            (Point3d.meters (segment.startsAt.x - kerbX)
-                                (segment.startsAt.y + kerbY)
-                                segment.startsAt.z
-                            )
-
-                        -- kerb walls
-                        , Scene3d.quad (Material.color Color.darkGrey)
-                            (Point3d.meters (segment.startsAt.x + kerbX)
-                                (segment.startsAt.y - kerbY)
-                                segment.startsAt.z
-                            )
-                            (Point3d.meters (segment.endsAt.x + kerbX)
-                                (segment.endsAt.y - kerbY)
-                                segment.endsAt.z
-                            )
-                            (Point3d.meters (segment.endsAt.x + kerbX)
-                                (segment.endsAt.y - kerbY)
-                                (segment.endsAt.z + edgeHeight)
-                            )
-                            (Point3d.meters (segment.startsAt.x + kerbX)
-                                (segment.startsAt.y - kerbY)
-                                (segment.startsAt.z + edgeHeight)
-                            )
-                        , Scene3d.quad (Material.color Color.darkGrey)
-                            (Point3d.meters (segment.startsAt.x - kerbX)
-                                (segment.startsAt.y + kerbY)
-                                segment.startsAt.z
-                            )
-                            (Point3d.meters (segment.endsAt.x - kerbX)
-                                (segment.endsAt.y + kerbY)
-                                segment.endsAt.z
-                            )
-                            (Point3d.meters (segment.endsAt.x - kerbX)
-                                (segment.endsAt.y + kerbY)
-                                (segment.endsAt.z + edgeHeight)
-                            )
-                            (Point3d.meters (segment.startsAt.x - kerbX)
-                                (segment.startsAt.y + kerbY)
-                                (segment.startsAt.z + edgeHeight)
-                            )
-                        ]
-
-                    else
-                        []
-                   )
                 ++ (if model.displayOptions.gradientFill then
                         [ -- Drop coloured gradient to the ground
                           Scene3d.quad (Material.color <| gradientColour segment.gradient)
@@ -1034,7 +1115,14 @@ deriveVisualEntities model =
                 Nothing ->
                     positiveZ
     in
-    { model | entities = seaLevel :: pointEntities ++ roadEntities }
+    { model
+        | entities =
+            seaLevel
+                :: pointEntities
+                ++ roadEntities
+                ++ currentPositionDisc
+                ++ markedNode
+    }
 
 
 reg t =
@@ -1231,10 +1319,10 @@ viewAllProblems model =
                 viewZeroLengthSegments model
 
             AbruptGradientChanges ->
-                viewAbruptGradientChanges model
+                viewGradientChanges model
 
             SharpBends ->
-                viewAbruptBearingChanges model
+                viewBearingChanges model
         ]
 
 
@@ -1283,108 +1371,27 @@ averageGradient model s f =
         Nothing
 
 
-viewAbruptGradientChanges : Model -> Element Msg
-viewAbruptGradientChanges model =
+viewGradientChanges : Model -> Element Msg
+viewGradientChanges model =
     let
-        i1 change =
-            i2 change - 1
-
-        i2 change =
+        idx change =
             change.node.trackPoint.idx
 
-        i3 change =
-            i2 change + 1
-
-        notValid =
-            paragraph [ width <| px 500 ]
-                [ text "To attempt a fix, select a start point in the left column and and end point in the right column, with the end point greater than the start point."
-                ]
-
-        fixText s f =
-            case averageGradient model s f of
-                Just g ->
-                    row [ width <| px 600 ]
-                        [ paragraph [ width <| px 500 ]
-                            [ text <|
-                                "Would you like to replace the segments between "
-                                    ++ String.fromInt s
-                                    ++ " and "
-                                    ++ String.fromInt f
-                                    ++ " with a constant gradient of "
-                                    ++ showDecimal g
-                                    ++ "? (This will not affect latitudes and longitudes.)"
-                            ]
-                        , button prettyButtonStyles
-                            { onPress = Just (SmoothGradient s f g)
-                            , label = text "Yes! Make it so."
-                            }
-                        ]
-
-                Nothing ->
-                    notValid
+        linkButton change =
+            button prettyButtonStyles
+                { onPress = Just (UserMovedNodeSlider (idx change))
+                , label = text <| String.fromInt (idx change)
+                }
     in
     column [ spacing 10, padding 20 ]
-        [ case ( model.currentNode, model.smoothingEndIndex ) of
-            ( Just s, Just f ) ->
-                if s < f then
-                    fixText s f
-
-                else
-                    notValid
-
-            _ ->
-                notValid
-        , gradientChangeThresholdSlider model
-        , table
-            [ width fill, centerX, spacing 10 ]
-            { data = model.abruptGradientChanges
-            , columns =
-                [ { header = text "Start"
-                  , width = fill
-                  , view =
-                        \change ->
-                            button (buttonHighlightCurrent (i1 change) model)
-                                { onPress = Just (UserMovedNodeSlider (i1 change))
-                                , label = text <| String.fromInt (i1 change)
-                                }
-                  }
-                , { header = text "Gradient is"
-                  , width = fill
-                  , view = \change -> text <| showDecimal change.before.gradient
-                  }
-                , { header = text "for metres"
-                  , width = fill
-                  , view = \change -> text <| showDecimal change.before.length
-                  }
-                , { header = text "Middle"
-                  , width = fill
-                  , view =
-                        \change -> text <| String.fromInt (i2 change)
-                  }
-                , { header = text "Gradient then"
-                  , width = fill
-                  , view = \change -> text <| showDecimal change.after.gradient
-                  }
-                , { header = text "for metres"
-                  , width = fill
-                  , view = \change -> text <| showDecimal change.after.length
-                  }
-                , { header = text "End point"
-                  , width = fill
-                  , view =
-                        \change ->
-                            button (buttonSmoothingEnd (i3 change) model)
-                                { onPress = Just (SetSmoothingEnd (i3 change))
-                                , label = text <| String.fromInt (i3 change)
-                                }
-                  }
-                ]
-            }
+        [ gradientChangeThresholdSlider model
+        , wrappedRow [ width <| px 800 ] <|
+            List.map linkButton model.abruptGradientChanges
         ]
 
 
-viewAbruptBearingChanges : Model -> Element Msg
-viewAbruptBearingChanges model =
+viewBearingChanges : Model -> Element Msg
+viewBearingChanges model =
     column [ spacing 10, padding 20 ]
         [ bearingChangeThresholdSlider model
         , table
@@ -1491,7 +1498,7 @@ checkboxIcon isChecked =
 viewOptions : Model -> Element Msg
 viewOptions model =
     row [ centerX ]
-        [ column [ padding 50, alignTop ]
+        [ column [ padding 50, alignTop, spacing 10 ]
             [ paragraph
                 [ padding 20
                 , Font.size 24
@@ -1522,14 +1529,7 @@ viewOptions model =
                 , checked = model.displayOptions.roadCones
                 , label = Input.labelRight [] (text "Trackpoint cones")
                 }
-
-            --, Input.checkbox [ Font.size 18 ]
-            --    { onChange = ToggleProblems
-            --    , icon = checkboxIcon
-            --    , checked = model.displayOptions.problems
-            --    , label = Input.labelRight [] (text "Possible problems")
-            --    }
-            --, gradientChangeThresholdSlider model
+            , gradientChangeThresholdSlider model
             ]
         , paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
@@ -1594,7 +1594,9 @@ aboutText =
 
 **First person** positions the viewpoint above a track _road segment_, sighted along the track. The zoom control will move your viewpoint back and forth a bit. The bottom slider and arrows move between track segments. Information about the current segment is shown.
 
-**Third person** focuses on track _points_ and lets you fly around the current point.  An orange disc will indicate the position on the track. The slider and arrows move to other track points. Information about the current track point is shown.
+**Third person** focuses on track _points_ and lets you fly around the current point.  An orange disc will indicate the position on the track. The slider and arrows move to other track points. Information about the current track point is shown. **NEW** You can apply fixes in this view using the "Fixes" section on the right hand side.
+
+**Problems** details issues with the GPX that you may want to "fix".
 
 **Options** (this page) lets you turn off some elements. You may like this depending on your motivation; it may help to turn some things off with a complex track. _Gradient change threshold_ will cause markers to hover over any track points where the gradient change exceed this value.
 
@@ -1944,8 +1946,117 @@ viewZoomable model =
                     [ viewCurrentNode model node
                     , controls
                     ]
-                , viewSummaryStats model
+                , viewThirdPersonSubpane model
                 ]
+
+
+viewThirdPersonSubpane : Model -> Element Msg
+viewThirdPersonSubpane model =
+    column [ alignTop, padding 20, spacing 10 ]
+        [ Input.radioRow
+            [ Border.rounded 6
+            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+            ]
+            { onChange = SetThirdPersonSubmode
+            , selected = Just model.thirdPersonSubmode
+            , label =
+                Input.labelHidden "Choose mode"
+            , options =
+                [ Input.optionWith ShowData <| radioButton First "Data"
+                , Input.optionWith ShowFixes <| radioButton Last "Fixes"
+                ]
+            }
+        , case model.thirdPersonSubmode of
+            ShowData ->
+                viewSummaryStats model
+
+            ShowFixes ->
+                viewFixesPane model
+        ]
+
+
+viewFixesPane : Model -> Element Msg
+viewFixesPane model =
+    let
+        markerButton =
+            button
+                prettyButtonStyles
+                { onPress = Just ToggleMarker
+                , label =
+                    text <|
+                        case model.markedNode of
+                            Just _ ->
+                                "Clear marker"
+
+                            Nothing ->
+                                "Drop marker"
+                }
+
+        undoButton =
+            button
+                prettyButtonStyles
+                { onPress =
+                    case model.undoStack of
+                        [] ->
+                            Nothing
+
+                        _ ->
+                            Just Undo
+                , label =
+                    case model.undoStack of
+                        u :: _ ->
+                            text <| "Undo " ++ u.label
+
+                        _ ->
+                            text "Nothing to undo"
+                }
+
+        gradientSmoothButton =
+            case ( model.currentNode, model.markedNode ) of
+                ( Just c, Just m ) ->
+                    let
+                        start =
+                            min c m
+
+                        finish =
+                            max c m
+
+                        avg =
+                            averageGradient model start finish
+                    in
+                    case avg of
+                        Just gradient ->
+                            button
+                                prettyButtonStyles
+                                { onPress = Just <| SmoothGradient start finish gradient
+                                , label =
+                                    text <|
+                                        "Smooth between markers\nAverage gradient "
+                                            ++ showDecimal gradient
+                                }
+
+                        _ ->
+                            none
+
+                _ ->
+                    none
+    in
+    column [ spacing 10 ]
+        [ markerButton
+        , gradientSmoothButton
+        , undoButton
+        ]
+
+
+lookupRoad : Model -> Maybe Int -> Maybe DrawingRoad
+lookupRoad model idx =
+    -- Have I not written this already?
+    case idx of
+        Just i ->
+            Array.get i model.roadArray
+
+        _ ->
+            Nothing
 
 
 viewSummaryStats : Model -> Element Msg
