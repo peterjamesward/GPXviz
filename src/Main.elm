@@ -34,13 +34,13 @@ import Spherical exposing (range)
 import Task
 import Time
 import TrackPoint exposing (TrackPoint)
-import Tuple exposing (second)
 import Viewpoint3d
 import WriteGPX exposing (writeGPX)
 
 
 
 --TODO: Autofix sharp bends by B-splines
+--TODO: Undo edits (keep old lists of trackpoints)
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
@@ -84,6 +84,12 @@ type alias AbruptChange =
     { node : DrawingNode
     , before : DrawingRoad
     , after : DrawingRoad
+    }
+
+
+type alias UndoEntry =
+    { label : String
+    , trackPoints : List TrackPoint
     }
 
 
@@ -148,6 +154,7 @@ type alias Model =
     , entities : List (Entity MyCoord)
     , httpError : Maybe String
     , currentNode : Maybe Int
+    , markedNode : Maybe Int
     , metresToClipSpace : Float -- Probably should be a proper metric tag!
     , viewingMode : ViewingMode
     , summary : Maybe SummaryData
@@ -165,6 +172,7 @@ type alias Model =
     , selectedProblemType : ProblemType
     , hasBeenChanged : Bool
     , smoothingEndIndex : Maybe Int
+    , undoStack : List UndoEntry
     }
 
 
@@ -231,6 +239,7 @@ init _ =
       , entities = []
       , httpError = Nothing
       , currentNode = Nothing
+      , markedNode = Nothing
       , metresToClipSpace = 1.0
       , viewingMode = OptionsView
       , summary = Nothing
@@ -248,6 +257,7 @@ init _ =
       , selectedProblemType = ZeroLengthSegment
       , hasBeenChanged = False
       , smoothingEndIndex = Nothing
+      , undoStack = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -289,6 +299,7 @@ update msg model =
                 |> deriveNodesAndRoads
                 |> deriveVisualEntities
                 |> deriveProblems
+                |> resetViewSettings
             , Cmd.none
             )
 
@@ -588,7 +599,7 @@ parseGPXintoModel content model =
                 InputErrorView
 
             else
-                model.viewingMode
+                OverviewView
     }
 
 
@@ -730,15 +741,22 @@ deriveNodesAndRoads model =
         , roads = roadSegments
         , metresToClipSpace = metresToClipSpace
         , seaLevelInClipSpace = elevationToClipSpace 0.0
-        , currentNode = Just 0
         , summary = Just summarise
         , nodeArray = Array.fromList drawingNodes
         , roadArray = Array.fromList roadSegments
-        , zoomLevelOverview = 1.0
+    }
+
+
+resetViewSettings : Model -> Model
+resetViewSettings model =
+    { model
+        | zoomLevelOverview = 1.0
         , zoomLevelFirstPerson = 1.0
         , zoomLevelThirdPerson = 1.0
         , azimuth = Angle.degrees 0.0
         , elevation = Angle.degrees 30.0
+        , currentNode = Just 0
+        , markedNode = Nothing
     }
 
 
@@ -1102,7 +1120,7 @@ viewGenericNew model =
             ]
           <|
             column
-                [ spacing 10, centerX ]
+                [ spacing 10 ]
                 [ loadButton
                 , displayName model.trackName
                 , case model.filename of
@@ -1111,7 +1129,7 @@ viewGenericNew model =
 
                     Nothing ->
                         none
-                , row [ centerX ]
+                , row []
                     [ viewModeChoices model
                     ]
                 , row []
@@ -1473,7 +1491,7 @@ checkboxIcon isChecked =
 viewOptions : Model -> Element Msg
 viewOptions model =
     row [ centerX ]
-        [ column [ padding 50, centerX, alignTop ]
+        [ column [ padding 50, alignTop ]
             [ paragraph
                 [ padding 20
                 , Font.size 24
@@ -1787,7 +1805,7 @@ viewRoadSegment model road =
                     Point3d.meters
                         someTarmac.endsAt.x
                         someTarmac.endsAt.y
-                        (someTarmac.endsAt.z + eyeHeight )
+                        (someTarmac.endsAt.z + eyeHeight)
                 , upDirection = Direction3d.positiveZ
                 }
 
