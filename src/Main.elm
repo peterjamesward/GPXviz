@@ -40,7 +40,7 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Buttons to incrementally move dropped marker.
+--TODO: Single, more prominent Save button (same level as mode selection)
 --TODO: Autofix sharp bends with circular arcs.
 -- 1. Preview proposed fix in 3rd person view.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
@@ -1771,7 +1771,12 @@ toDegrees rads =
 
 positionControls model =
     row
-        [ centerX, spaceEvenly, centerY ]
+        [ spacing 5
+        , padding 5
+        , Border.width 1
+        , centerX
+        , centerY
+        ]
         [ positionSlider model
         , button
             prettyButtonStyles
@@ -2053,7 +2058,7 @@ markerButton model =
                 }
     in
     row [ spacing 5, padding 5, Border.width 1 ] <|
-         case model.markedNode of
+        case model.markedNode of
             Just _ ->
                 [ button
                     prettyButtonStyles
@@ -2070,7 +2075,6 @@ markerButton model =
 
             Nothing ->
                 [ makeButton "Drop marker" ]
-
 
 
 undoButton model =
