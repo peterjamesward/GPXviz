@@ -100,6 +100,7 @@ findIncircleFromTwoRoads r1 r2 =
     case intersection of
         Just p ->
             Just <| findIncircle r1.startAt r2.endsAt p
+            --Just  { centre = { x = p.x, y = p.y }, radius = 0.05 }
 
         Nothing ->
             Nothing
@@ -145,9 +146,10 @@ findIncircle pA pB pC =
             distance pA pB
 
         perimeter =
-            (a + b + c)
+            a + b + c
 
-        s = perimeter / 2.0
+        s =
+            perimeter / 2.0
 
         r =
             sqrt <| (s - a) * (s - b) * (s - c) / s
@@ -180,8 +182,8 @@ findIntercept r1 r2 =
            0 x + 2 y -10 == 0
        &&  2 x - 2 y -2  == 0
 
-       In matrix form  | 0 2  | | x |    | 10 |
-                       | 2 -2 | | y | == | -2 |
+       In matrix form  | 0 2  | | x |    | -10 |
+                       | 2 -2 | | y | == |  +2 |
 
        By inverting and multiplying through, the intersect P is
        | x | = | 4 |
@@ -208,16 +210,16 @@ findIntercept r1 r2 =
             }
 
         column =
-            { t = r1Line.c, b = r2Line.c }
+            { t = -1.0 * r1Line.c, b = -1.0 * r2Line.c }
 
         inv =
             matrixInverse matrix
     in
     case inv of
-        Just m2 ->
+        Just inverse ->
             let
                 col =
-                    matrixMultiplyColumn m2 column
+                    matrixMultiplyColumn inverse column
             in
             Just { x = col.t, y = col.b }
 
@@ -231,15 +233,15 @@ matrixInverse m =
         det =
             m.tl * m.br - m.tr * m.bl
     in
-    if det < 0.000001 then
+    if abs det < 0.000001 then
         Nothing
 
     else
         Just
             { tl = m.br / det
             , tr = -1.0 * m.tr / det
-            , bl = -1.0 * m.tr / det
-            , br = m.tr / det
+            , bl = -1.0 * m.bl / det
+            , br = m.tl / det
             }
 
 

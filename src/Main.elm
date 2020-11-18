@@ -1131,6 +1131,19 @@ deriveVisualEntities model =
             , endsAt = { x = r.endsAt.x, y = r.endsAt.y }
             }
 
+        tallCylinder x y r =
+            cylinder (Material.color Color.white) <|
+                Cylinder3d.startingAt
+                    (Point3d.meters
+                        x
+                        y
+                        seaLevelInClipSpace
+                    )
+                    positiveZ
+                    { radius = meters <| r
+                    , length = meters <| 100.0 * metresToClipSpace
+                    }
+
         bendIncircle =
             -- Right. Let's see if we can fit a circular arc co-tangential
             -- with both end-points. Or disallow if not possible.
@@ -1175,17 +1188,7 @@ deriveVisualEntities model =
                                             r =
                                                 circle.radius
                                         in
-                                        [ cylinder (Material.color Color.white) <|
-                                            Cylinder3d.startingAt
-                                                (Point3d.meters
-                                                    x
-                                                    y
-                                                    seaLevelInClipSpace
-                                                )
-                                                positiveZ
-                                                { radius = meters <| r
-                                                , length = meters <| 100.0 * metresToClipSpace
-                                                }
+                                        [ tallCylinder x y r
                                         ]
 
                                     _ ->
