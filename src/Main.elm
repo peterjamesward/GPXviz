@@ -25,7 +25,7 @@ import Iso8601
 import Length exposing (meters)
 import List exposing (tail)
 import Markdown exposing (defaultOptions)
-import Maybe.Extra
+import Maybe.Extra as Maybe
 import Pixels exposing (Pixels)
 import Point3d
 import Regex
@@ -207,8 +207,8 @@ type Msg
     | GpxSelected File
     | GpxLoaded String
     | UserMovedNodeSlider Int
-    | BackOneNode
-    | ForwardOneNode
+    | PositionBackOne
+    | PositionForwardOne
     | ChooseViewMode ViewingMode
     | ZoomLevelOverview Float
     | ZoomLevelFirstPerson Float
@@ -232,6 +232,8 @@ type Msg
     | SetThirdPersonSubmode ThirdPersonSubmode
     | Undo
     | ToggleMarker
+    | MarkerForwardOne
+    | MarkerBackOne
 
 
 init : () -> ( Model, Cmd Msg )
@@ -329,7 +331,7 @@ update msg model =
             , Cmd.none
             )
 
-        ForwardOneNode ->
+        PositionForwardOne ->
             ( { model
                 | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
@@ -337,9 +339,25 @@ update msg model =
             , Cmd.none
             )
 
-        BackOneNode ->
+        PositionBackOne ->
             ( { model
                 | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
+              }
+                |> deriveVisualEntities
+            , Cmd.none
+            )
+
+        MarkerForwardOne ->
+            ( { model
+                | markedNode = incrementMaybeModulo (List.length model.roads - 1) model.markedNode
+              }
+                |> deriveVisualEntities
+            , Cmd.none
+            )
+
+        MarkerBackOne ->
+            ( { model
+                | markedNode = decrementMaybeModulo (List.length model.roads - 1) model.markedNode
               }
                 |> deriveVisualEntities
             , Cmd.none
@@ -1261,7 +1279,7 @@ parseTrackPoints xml =
         longitudes
         elevations
         (List.range 0 (List.length latitudes))
-        |> Maybe.Extra.values
+        |> List.filterMap identity
 
 
 parseTrackName xml =
@@ -1751,36 +1769,53 @@ toDegrees rads =
     rads * 180.0 / pi
 
 
+positionControls model =
+    row
+        [ centerX, spaceEvenly, centerY ]
+        [ positionSlider model
+        , button
+            prettyButtonStyles
+            { onPress = Just PositionBackOne
+            , label = text "◀︎"
+            }
+        , button
+            prettyButtonStyles
+            { onPress = Just PositionForwardOne
+            , label = text "►︎"
+            }
+        ]
+
+
+positionSlider model =
+    Input.slider
+        [ height <| px 80
+        , width <| px 500
+        , centerY
+        , behindContent <|
+            -- Slider track
+            el
+                [ width <| px 500
+                , height <| px 30
+                , centerY
+                , centerX
+                , Background.color <| rgb255 114 159 207
+                , Border.rounded 6
+                ]
+                Element.none
+        ]
+        { onChange = UserMovedNodeSlider << round
+        , label =
+            Input.labelHidden "Drag slider or use arrow buttons"
+        , min = 1.0
+        , max = toFloat <| List.length model.roads - 1
+        , step = Just 1
+        , value = toFloat <| Maybe.withDefault 0 model.currentNode
+        , thumb = Input.defaultThumb
+        }
+
+
 viewRollerCoasterTrackAndControls model =
     let
-        slider =
-            Input.slider
-                [ height <| px 80
-                , width <| px 500
-                , centerY
-                , behindContent <|
-                    -- Slider track
-                    el
-                        [ width <| px 500
-                        , height <| px 30
-                        , centerY
-                        , centerX
-                        , Background.color <| rgb255 114 159 207
-                        , Border.rounded 6
-                        ]
-                        Element.none
-                ]
-                { onChange = UserMovedNodeSlider << round
-                , label =
-                    Input.labelBelow [] <|
-                        text "Drag slider or use arrow buttons"
-                , min = 1.0
-                , max = toFloat <| List.length model.roads - 1
-                , step = Just 1
-                , value = toFloat <| Maybe.withDefault 0 model.currentNode
-                , thumb = Input.defaultThumb
-                }
-
         getRoad : Maybe DrawingRoad
         getRoad =
             -- N.B. will fail on last node.
@@ -1790,22 +1825,6 @@ viewRollerCoasterTrackAndControls model =
 
                 _ ->
                     Nothing
-
-        controls =
-            row
-                [ centerX, spaceEvenly, centerY ]
-                [ slider
-                , button
-                    prettyButtonStyles
-                    { onPress = Just BackOneNode
-                    , label = text "◀︎"
-                    }
-                , button
-                    prettyButtonStyles
-                    { onPress = Just ForwardOneNode
-                    , label = text "►︎"
-                    }
-                ]
     in
     case getRoad of
         Nothing ->
@@ -1816,7 +1835,7 @@ viewRollerCoasterTrackAndControls model =
                 [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
                 , column []
                     [ viewRoadSegment model road
-                    , controls
+                    , positionControls model
                     ]
                 , row [ padding 20 ]
                     [ column [ spacing 10 ]
@@ -1953,33 +1972,6 @@ viewThirdPerson : Model -> Element Msg
 viewThirdPerson model =
     -- Let's the user spin around and zoom in on any road point.
     let
-        slider =
-            Input.slider
-                [ height <| px 80
-                , width <| px 500
-                , behindContent <|
-                    -- Slider track
-                    el
-                        [ width <| px 500
-                        , height <| px 30
-                        , centerY
-                        , centerX
-                        , Background.color <| rgb255 114 159 207
-                        , Border.rounded 6
-                        ]
-                        Element.none
-                ]
-                { onChange = UserMovedNodeSlider << truncate
-                , label =
-                    Input.labelBelow [] <|
-                        text "Drag slider or use arrow buttons"
-                , min = 1.0
-                , max = toFloat <| List.length model.nodes - 1
-                , step = Just 1
-                , value = toFloat getNodeNum
-                , thumb = Input.defaultThumb
-                }
-
         getNodeNum =
             case model.currentNode of
                 Just n ->
@@ -1995,22 +1987,6 @@ viewThirdPerson model =
 
                 Nothing ->
                     Nothing
-
-        controls =
-            row
-                [ centerX, spaceEvenly, alignTop ]
-                [ slider
-                , button
-                    prettyButtonStyles
-                    { onPress = Just BackOneNode
-                    , label = text "◀︎"
-                    }
-                , button
-                    prettyButtonStyles
-                    { onPress = Just ForwardOneNode
-                    , label = text "►︎"
-                    }
-                ]
     in
     case getNode of
         Nothing ->
@@ -2022,7 +1998,7 @@ viewThirdPerson model =
                     [ alignTop
                     ]
                     [ viewCurrentNode model node
-                    , controls
+                    , positionControls model
                     ]
                 , viewThirdPersonSubpane model
                 ]
@@ -2067,18 +2043,34 @@ viewBendFixerPane model =
 
 
 markerButton model =
-    button
-        prettyButtonStyles
-        { onPress = Just ToggleMarker
-        , label =
-            text <|
-                case model.markedNode of
-                    Just _ ->
-                        "Clear marker"
+    let
+        makeButton label =
+            button
+                prettyButtonStyles
+                { onPress = Just ToggleMarker
+                , label =
+                    text <| label
+                }
+    in
+    row [ spacing 5, padding 5, Border.width 1 ] <|
+         case model.markedNode of
+            Just _ ->
+                [ button
+                    prettyButtonStyles
+                    { onPress = Just MarkerBackOne
+                    , label = text "◀︎"
+                    }
+                , makeButton "Clear marker"
+                , button
+                    prettyButtonStyles
+                    { onPress = Just MarkerForwardOne
+                    , label = text "►︎"
+                    }
+                ]
 
-                    Nothing ->
-                        "Drop marker"
-        }
+            Nothing ->
+                [ makeButton "Drop marker" ]
+
 
 
 undoButton model =
