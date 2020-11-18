@@ -39,7 +39,8 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Autofix sharp bends by B-splines
+--TODO: Autofix sharp bends with circular arcs.
+-- 1. Preview proposed fix in 3rd person view.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
@@ -1114,6 +1115,13 @@ deriveVisualEntities model =
 
                 Nothing ->
                     positiveZ
+
+        --proposedNewBend =
+            -- Right. Let's see if we can fit a circular arc co-tangential
+            -- with both end-points. Or disallow if not possible.
+            -- Note we should work in lat & lon, or accept that we have to
+            -- back-convert when we're done. Which might be easier to cope with.
+            -- How much hekp can we get from elm-3D-geometry?
     in
     { model
         | entities =
@@ -1237,18 +1245,18 @@ loadButton =
         , label = text "Load GPX from your computer"
         }
 
-
+saveButtonIfChanged : Model -> Element Msg
 saveButtonIfChanged model =
-    if model.hasBeenChanged then
-        button
-            prettyButtonStyles
-            { onPress = Just OutputGPX
-            , label = text "Save new GPX file to your computer"
-            }
+    case model.undoStack of
+        ( _ :: _ ) ->
+            button
+                prettyButtonStyles
+                { onPress = Just OutputGPX
+                , label = text "Save as GPX file to your computer"
+                }
 
-    else
-        none
-
+        _ ->
+            none
 
 viewModeChoices model =
     Input.radioRow
@@ -2045,6 +2053,7 @@ viewFixesPane model =
         [ markerButton
         , gradientSmoothButton
         , undoButton
+        , saveButtonIfChanged model
         ]
 
 
