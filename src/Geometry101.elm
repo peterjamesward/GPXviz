@@ -20,11 +20,13 @@ type alias Circle =
     , radius : Float
     }
 
+
 type alias LineEquation =
     { a : Float
     , b : Float
     , c : Float
     }
+
 
 type alias Matrix =
     { tl : Float
@@ -33,15 +35,19 @@ type alias Matrix =
     , br : Float
     }
 
+
 type alias Column =
     { t : Float
     , b : Float
     }
 
+
 type alias Row =
     { l : Float
     , r : Float
     }
+
+
 
 {-
    This is about helping to smooth a bend.
@@ -80,150 +86,198 @@ findIncircleFromRoads roads =
         r1 :: rs ->
             findIncircleFromRoads <| r1 :: List.take 1 (List.reverse rs)
 
+
 findIncircleFromTwoRoads : Road -> Road -> Maybe Circle
 findIncircleFromTwoRoads r1 r2 =
     let
         intersection =
             if r1.endsAt == r2.startAt then
                 Just r1.endsAt
+
             else
                 findIntercept r1 r2
     in
     case intersection of
-        (Just p) ->
+        Just p ->
             Just <| findIncircle r1.startAt r2.endsAt p
-        Nothing -> Nothing
+
+        Nothing ->
+            Nothing
+
 
 findIncircle : Point -> Point -> Point -> Circle
 findIncircle pA pB pC =
-{-
-   The centre of the inscribed triangle (incentre) requires the lengths of the sides.
-   (The naming convention is that side b is opposite angle B, etc.)
-   |b| = |CP| = 2.0
-   |c| = |BP| = 1.0
-   |p| = |BC| = sqrt 5 = 2.236
+    {-
+       The centre of the inscribed triangle (incentre) requires the lengths of the sides.
+       (The naming convention is that side b is opposite angle B, etc.)
+       |b| = |CP| = 2.0
+       |c| = |BP| = 1.0
+       |p| = |BC| = sqrt 5 = 2.236
 
-   X = (|b|.Bx + |c|.Cx + |p|.Px) / (|b| + |c| + |p|)
-     = (2.0 * 3 + 1.0 * 4 + 2.236 * 4) / 5.236
-     = 3.618
+       X = (|b|.Bx + |c|.Cx + |p|.Px) / (|b| + |c| + |p|)
+         = (2.0 * 3 + 1.0 * 4 + 2.236 * 4) / 5.236
+         = 3.618
 
-   Y = (|b|.By + |c|.Cy + |p|.Py) / (|b| + |c| + |p|)
-     = (2.0 * 5 + 1.0 * 3 + 2.236 * 5) / 5.236
-     = 4.618
+       Y = (|b|.By + |c|.Cy + |p|.Py) / (|b| + |c| + |p|)
+         = (2.0 * 5 + 1.0 * 3 + 2.236 * 5) / 5.236
+         = 4.618
 
-   We also derive the radius of the incircle:
+       We also derive the radius of the incircle:
 
-   r = sqrt <| (s - b)(s - c)(s - p)/s, where s = (b + c + p)/2
+       r = sqrt <| (s - b)(s - c)(s - p)/s, where s = (b + c + p)/2
 
-   That should give us enough information to determine the tangent points.
-   (The triangle formed by these touchpoints is the Gergonne triangle.)
+       That should give us enough information to determine the tangent points.
+       (The triangle formed by these touchpoints is the Gergonne triangle.)
 
-   In our case, s = 2.618
-   r = sqrt <| (2.618 - 2)(2.618 - 1)(2.618 - 2.236)/2.618
-     = sqrt 0.1459
-     = 0.382
--}
+       In our case, s = 2.618
+       r = sqrt <| (2.618 - 2)(2.618 - 1)(2.618 - 2.236)/2.618
+         = sqrt 0.1459
+         = 0.382
+    -}
     let
-        a = distance pB pC
-        b = distance pA pC
-        c = distance pA pB
-        s = (a + b + c) /2.0
-        r = sqrt <| (s - a) * (s - b) * (s - c) / s
-        x = (a * pA.x + b * pB.x + c * pC.x) / s
-        y = (a * pA.y + b * pB.y + c * pC.y) / s
-        distance p1 p2 = sqrt <|
-            (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y)
+        a =
+            distance pB pC
+
+        b =
+            distance pA pC
+
+        c =
+            distance pA pB
+
+        perimeter =
+            (a + b + c)
+
+        s = perimeter / 2.0
+
+        r =
+            sqrt <| (s - a) * (s - b) * (s - c) / s
+
+        x =
+            (a * pA.x + b * pB.x + c * pC.x) / perimeter
+
+        y =
+            (a * pA.y + b * pB.y + c * pC.y) / perimeter
+
+        distance p1 p2 =
+            sqrt <|
+                ((p1.x - p2.x)
+                    * (p1.x - p2.x)
+                )
+                    + ((p1.y - p2.y)
+                        * (p1.y - p2.y)
+                      )
     in
-    { centre = { x = x, y = y}
+    { centre = { x = x, y = y }
     , radius = r
     }
 
+
 findIntercept : Road -> Road -> Maybe Point
 findIntercept r1 r2 =
-{-
-   The intercept P of AB and CD, if it exists, satisfies both equations.
+    {-
+       The intercept P of AB and CD, if it exists, satisfies both equations.
 
-       0 x + 2 y -10 == 0
-   &&  2 x - 2 y -2  == 0
+           0 x + 2 y -10 == 0
+       &&  2 x - 2 y -2  == 0
 
-   In matrix form  | 0 2  | | x |    | 10 |
-                   | 2 -2 | | y | == | -2 |
+       In matrix form  | 0 2  | | x |    | 10 |
+                       | 2 -2 | | y | == | -2 |
 
-   By inverting and multiplying through, the intersect P is
-   | x | = | 4 |
-   | y |   | 5 |
+       By inverting and multiplying through, the intersect P is
+       | x | = | 4 |
+       | y |   | 5 |
 
-   We now have three points:
-   B = (3,5)    C = (4,3)   P = (4,5)
+       We now have three points:
+       B = (3,5)    C = (4,3)   P = (4,5)
 
 
-   Now let us try to draw this circle on the third person view!
--}
+       Now let us try to draw this circle on the third person view!
+    -}
     let
-        r1Line = lineEquationFromTwoPoints r1.startAt r1.endsAt
-        r2Line = lineEquationFromTwoPoints r2.startAt r2.endsAt
-        matrix = { tl = r1Line.a
-                , tr = r1Line.b
-                , bl = r2Line.a
-                , br = r2Line.b }
-        column = { t = r1Line.c, b = r2Line.c }
-        inv = matrixInverse matrix
+        r1Line =
+            lineEquationFromTwoPoints r1.startAt r1.endsAt
+
+        r2Line =
+            lineEquationFromTwoPoints r2.startAt r2.endsAt
+
+        matrix =
+            { tl = r1Line.a
+            , tr = r1Line.b
+            , bl = r2Line.a
+            , br = r2Line.b
+            }
+
+        column =
+            { t = r1Line.c, b = r2Line.c }
+
+        inv =
+            matrixInverse matrix
     in
     case inv of
         Just m2 ->
             let
-                col = matrixMultiplyColumn m2 column
+                col =
+                    matrixMultiplyColumn m2 column
             in
             Just { x = col.t, y = col.b }
 
         Nothing ->
             Nothing
 
+
 matrixInverse : Matrix -> Maybe Matrix
 matrixInverse m =
     let
-        det = m.tl * m.br - m.tr * m.bl
+        det =
+            m.tl * m.br - m.tr * m.bl
     in
-    case det of
-        0 -> Nothing
+    if det < 0.000001 then
+        Nothing
 
-        _ ->
-            Just { tl = m.br / det
+    else
+        Just
+            { tl = m.br / det
             , tr = -1.0 * m.tr / det
             , bl = -1.0 * m.tr / det
             , br = m.tr / det
             }
 
+
 matrixMultiplyColumn : Matrix -> Column -> Column
 matrixMultiplyColumn m c =
-    {
-        t = m.tl * c.t + m.tr * c.b
-    ,   b = m.bl * c.t + m.br * c.b
+    { t = m.tl * c.t + m.tr * c.b
+    , b = m.bl * c.t + m.br * c.b
     }
+
 
 lineEquationFromTwoPoints : Point -> Point -> LineEquation
 lineEquationFromTwoPoints p1 p2 =
-{-
-   An arrangement of the two point line equation is:
-   (y1 - y2) X + (x2 - x1) Y + (x1.y2 - x2.y1) = 0
+    {-
+       An arrangement of the two point line equation is:
+       (y1 - y2) X + (x2 - x1) Y + (x1.y2 - x2.y1) = 0
 
-   For AB this is
-   (5.0 - 5.0) X + (3.0 - 1.0) Y + (5.0 - 15.0) = 0
-   Thus A = 0, B = 2, C = -10
+       For AB this is
+       (5.0 - 5.0) X + (3.0 - 1.0) Y + (5.0 - 15.0) = 0
+       Thus A = 0, B = 2, C = -10
 
-   To check, for (1,5) : 0 x 1 + 2 x 5 + (-10) == 0
-             for (3,5) : 0 x 3 + 2 x 5 + (-10) == 0
+       To check, for (1,5) : 0 x 1 + 2 x 5 + (-10) == 0
+                 for (3,5) : 0 x 3 + 2 x 5 + (-10) == 0
 
-   For CD:
-   (3.0 - 1.0) X + (2.0 - 4.0) Y + (4.0 - 6.0) = 0
-   Thus A = 2, B = -2, C = -2
+       For CD:
+       (3.0 - 1.0) X + (2.0 - 4.0) Y + (4.0 - 6.0) = 0
+       Thus A = 2, B = -2, C = -2
 
-   To check, for (4,3) : 2 x 4 + (-2) x 3 + (-2) == 0
-             for (2,1) : 2 x 2 + (-2) x 1 + (-2) == 0
--}
+       To check, for (4,3) : 2 x 4 + (-2) x 3 + (-2) == 0
+                 for (2,1) : 2 x 2 + (-2) x 1 + (-2) == 0
+    -}
     let
-        a = p1.y - p2.y
-        b = p2.x - p1.x
-        c = p1.x * p2.y - p2.x * p1.y
+        a =
+            p1.y - p2.y
+
+        b =
+            p2.x - p1.x
+
+        c =
+            p1.x * p2.y - p2.x * p1.y
     in
     { a = a, b = b, c = c }

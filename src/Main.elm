@@ -18,6 +18,7 @@ import File.Download as Download
 import File.Select as Select
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
+import Geometry101 as G exposing (..)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Iso8601
@@ -46,6 +47,7 @@ import WriteGPX exposing (writeGPX)
 --TODO: Optional plain green vertical instead of rainbow.
 --TODO: List problems on third person view.
 --TODO: Always autofix the zero length segments.
+--TODO: Some way to join the start and end of a loop (although MR does this).
 
 
 main : Program () Model Msg
@@ -661,7 +663,7 @@ parseGPXintoModel content model =
                 InputErrorView
 
             else
-                OverviewView
+                model.viewingMode
     }
 
 
@@ -1121,12 +1123,82 @@ deriveVisualEntities model =
                 Nothing ->
                     positiveZ
 
-        --proposedNewBend =
-        -- Right. Let's see if we can fit a circular arc co-tangential
-        -- with both end-points. Or disallow if not possible.
-        -- Note we should work in lat & lon, or accept that we have to
-        -- back-convert when we're done. Which might be easier to cope with.
-        -- How much hekp can we get from elm-3D-geometry?
+        roadToGeometry : DrawingRoad -> G.Road
+        roadToGeometry r =
+            -- We'll worry about lat and lon afterward.
+            -- For now, just try to show a disc in clipspace.
+            { startAt = { x = r.startsAt.x, y = r.startsAt.y }
+            , endsAt = { x = r.endsAt.x, y = r.endsAt.y }
+            }
+
+        bendIncircle =
+            -- Right. Let's see if we can fit a circular arc co-tangential
+            -- with both end-points. Or disallow if not possible.
+            case ( model.thirdPersonSubmode, model.currentNode, model.markedNode ) of
+                ( ShowBendFixes, Just current, Just marked ) ->
+                    let
+                        start =
+                            min current marked
+
+                        finis =
+                            max current marked
+                    in
+                    if finis >= start + 2 then
+                        let
+                            r1 =
+                                Array.get start model.roadArray
+
+                            r2 =
+                                Array.get (finis - 1) model.roadArray
+                        in
+                        case ( r1, r2 ) of
+                            ( Just road1, Just road2 ) ->
+                                let
+                                    maybeCircle : Maybe G.Circle
+                                    maybeCircle =
+                                        G.findIncircleFromTwoRoads
+                                            (roadToGeometry road1)
+                                            (roadToGeometry road2)
+                                in
+                                case maybeCircle of
+                                    Just circle ->
+                                        let
+                                            x =
+                                                circle.centre.x
+
+                                            y =
+                                                circle.centre.y
+
+                                            z =
+                                                road1.endsAt.z
+
+                                            r =
+                                                circle.radius
+                                        in
+                                        [ cylinder (Material.color Color.white) <|
+                                            Cylinder3d.startingAt
+                                                (Point3d.meters
+                                                    x
+                                                    y
+                                                    seaLevelInClipSpace
+                                                )
+                                                positiveZ
+                                                { radius = meters <| r
+                                                , length = meters <| 100.0 * metresToClipSpace
+                                                }
+                                        ]
+
+                                    _ ->
+                                        []
+
+                            _ ->
+                                []
+
+                    else
+                        []
+
+                _ ->
+                    []
     in
     { model
         | entities =
@@ -1135,6 +1207,7 @@ deriveVisualEntities model =
                 ++ roadEntities
                 ++ currentPositionDisc
                 ++ markedNode
+                ++ bendIncircle
     }
 
 
@@ -1995,46 +2068,50 @@ viewThirdPersonSubpane model =
 viewBendFixerPane : Model -> Element Msg
 viewBendFixerPane model =
     column []
-    [ text "Sorry, we can't fix the bends yet."
-    , viewBearingChanges model
-    ]
+        [ text "Sorry, we can't fix the bends yet."
+        , markerButton model
+        , viewBearingChanges model
+        ]
+
+
+markerButton model =
+    button
+        prettyButtonStyles
+        { onPress = Just ToggleMarker
+        , label =
+            text <|
+                case model.markedNode of
+                    Just _ ->
+                        "Clear marker"
+
+                    Nothing ->
+                        "Drop marker"
+        }
+
+
+undoButton model =
+    button
+        prettyButtonStyles
+        { onPress =
+            case model.undoStack of
+                [] ->
+                    Nothing
+
+                _ ->
+                    Just Undo
+        , label =
+            case model.undoStack of
+                u :: _ ->
+                    text <| "Undo " ++ u.label
+
+                _ ->
+                    text "Nothing to undo"
+        }
+
 
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
     let
-        markerButton =
-            button
-                prettyButtonStyles
-                { onPress = Just ToggleMarker
-                , label =
-                    text <|
-                        case model.markedNode of
-                            Just _ ->
-                                "Clear marker"
-
-                            Nothing ->
-                                "Drop marker"
-                }
-
-        undoButton =
-            button
-                prettyButtonStyles
-                { onPress =
-                    case model.undoStack of
-                        [] ->
-                            Nothing
-
-                        _ ->
-                            Just Undo
-                , label =
-                    case model.undoStack of
-                        u :: _ ->
-                            text <| "Undo " ++ u.label
-
-                        _ ->
-                            text "Nothing to undo"
-                }
-
         gradientSmoothButton =
             case ( model.currentNode, model.markedNode ) of
                 ( Just c, Just m ) ->
@@ -2066,9 +2143,9 @@ viewGradientFixerPane model =
                     none
     in
     column [ spacing 10 ]
-        [ markerButton
+        [ markerButton model
         , gradientSmoothButton
-        , undoButton
+        , undoButton model
         , saveButtonIfChanged model
         , viewGradientChanges model
         ]
