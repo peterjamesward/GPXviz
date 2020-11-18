@@ -122,7 +122,8 @@ type ProblemType
 
 type ThirdPersonSubmode
     = ShowData
-    | ShowFixes
+    | ShowGradientFixes
+    | ShowBendFixes
 
 
 type alias DisplayOptions =
@@ -476,6 +477,8 @@ update msg model =
 
         SetThirdPersonSubmode mode ->
             ( { model | thirdPersonSubmode = mode }
+                |> deriveNodesAndRoads
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -1972,18 +1975,29 @@ viewThirdPersonSubpane model =
             , label =
                 Input.labelHidden "Choose mode"
             , options =
-                [ Input.optionWith ShowData <| radioButton First "Data"
-                , Input.optionWith ShowFixes <| radioButton Last "Fixes"
+                [ Input.optionWith ShowData <| radioButton First "Location\ndata"
+                , Input.optionWith ShowGradientFixes <| radioButton Mid "Gradient\nsmoother"
+                , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
                 ]
             }
         , case model.thirdPersonSubmode of
             ShowData ->
                 viewSummaryStats model
 
-            ShowFixes ->
+            ShowGradientFixes ->
                 viewGradientFixerPane model
+
+            ShowBendFixes ->
+                viewBendFixerPane model
         ]
 
+
+viewBendFixerPane : Model -> Element Msg
+viewBendFixerPane model =
+    column []
+    [ text "Sorry, we can't fix the bends yet."
+    , viewBearingChanges model
+    ]
 
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
