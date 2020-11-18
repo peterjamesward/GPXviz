@@ -44,6 +44,8 @@ import WriteGPX exposing (writeGPX)
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
+--TODO: List problems on third person view.
+--TODO: Always autofix the zero length segments.
 
 
 main : Program () Model Msg
@@ -1117,11 +1119,11 @@ deriveVisualEntities model =
                     positiveZ
 
         --proposedNewBend =
-            -- Right. Let's see if we can fit a circular arc co-tangential
-            -- with both end-points. Or disallow if not possible.
-            -- Note we should work in lat & lon, or accept that we have to
-            -- back-convert when we're done. Which might be easier to cope with.
-            -- How much hekp can we get from elm-3D-geometry?
+        -- Right. Let's see if we can fit a circular arc co-tangential
+        -- with both end-points. Or disallow if not possible.
+        -- Note we should work in lat & lon, or accept that we have to
+        -- back-convert when we're done. Which might be easier to cope with.
+        -- How much hekp can we get from elm-3D-geometry?
     in
     { model
         | entities =
@@ -1245,10 +1247,11 @@ loadButton =
         , label = text "Load GPX from your computer"
         }
 
+
 saveButtonIfChanged : Model -> Element Msg
 saveButtonIfChanged model =
     case model.undoStack of
-        ( _ :: _ ) ->
+        _ :: _ ->
             button
                 prettyButtonStyles
                 { onPress = Just OutputGPX
@@ -1257,6 +1260,7 @@ saveButtonIfChanged model =
 
         _ ->
             none
+
 
 viewModeChoices model =
     Input.radioRow
@@ -1286,7 +1290,7 @@ view3D model =
             viewRollerCoasterTrackAndControls model
 
         ThirdPersonView ->
-            viewZoomable model
+            viewThirdPerson model
 
         OptionsView ->
             viewOptions model
@@ -1393,7 +1397,7 @@ viewGradientChanges model =
     in
     column [ spacing 10, padding 20 ]
         [ gradientChangeThresholdSlider model
-        , wrappedRow [ width <| px 800 ] <|
+        , wrappedRow [ width <| px 300 ] <|
             List.map linkButton model.abruptGradientChanges
         ]
 
@@ -1853,13 +1857,13 @@ zoomSlider value msg =
     Input.slider
         [ height <| px 400
         , width <| px 80
-        , centerY
+        , alignTop
         , behindContent <|
             -- Slider track
             el
                 [ width <| px 30
                 , height <| px 400
-                , centerY
+                , alignTop
                 , centerX
                 , Background.color <| rgb255 114 159 207
                 , Border.rounded 6
@@ -1877,15 +1881,14 @@ zoomSlider value msg =
         }
 
 
-viewZoomable : Model -> Element Msg
-viewZoomable model =
+viewThirdPerson : Model -> Element Msg
+viewThirdPerson model =
     -- Let's the user spin around and zoom in on any road point.
     let
         slider =
             Input.slider
                 [ height <| px 80
                 , width <| px 500
-                , centerY
                 , behindContent <|
                     -- Slider track
                     el
@@ -1927,7 +1930,7 @@ viewZoomable model =
 
         controls =
             row
-                [ centerX, spaceEvenly, centerY ]
+                [ centerX, spaceEvenly, alignTop ]
                 [ slider
                 , button
                     prettyButtonStyles
@@ -1946,10 +1949,9 @@ viewZoomable model =
             none
 
         Just node ->
-            row [ centerY ]
-                [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
-                , column
-                    [ centerY
+            row [ alignTop ]
+                [ column
+                    [ alignTop
                     ]
                     [ viewCurrentNode model node
                     , controls
@@ -1979,12 +1981,12 @@ viewThirdPersonSubpane model =
                 viewSummaryStats model
 
             ShowFixes ->
-                viewFixesPane model
+                viewGradientFixerPane model
         ]
 
 
-viewFixesPane : Model -> Element Msg
-viewFixesPane model =
+viewGradientFixerPane : Model -> Element Msg
+viewGradientFixerPane model =
     let
         markerButton =
             button
@@ -2054,6 +2056,7 @@ viewFixesPane model =
         , gradientSmoothButton
         , undoButton
         , saveButtonIfChanged model
+        , viewGradientChanges model
         ]
 
 
@@ -2121,7 +2124,8 @@ viewCurrentNode model node =
                 }
     in
     row []
-        [ el
+        [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
+        , el
             withMouseCapture
           <|
             html <|
