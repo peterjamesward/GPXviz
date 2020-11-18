@@ -40,12 +40,12 @@ import WriteGPX exposing (writeGPX)
 
 
 
+--TODO: Buttons to incrementally move dropped marker.
 --TODO: Autofix sharp bends with circular arcs.
 -- 1. Preview proposed fix in 3rd person view.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
---TODO: List problems on third person view.
 --TODO: Always autofix the zero length segments.
 --TODO: Some way to join the start and end of a loop (although MR does this).
 
@@ -1480,31 +1480,20 @@ viewGradientChanges model =
 
 viewBearingChanges : Model -> Element Msg
 viewBearingChanges model =
+    let
+        idx change =
+            change.node.trackPoint.idx
+
+        linkButton change =
+            button prettyButtonStyles
+                { onPress = Just (UserMovedNodeSlider (idx change))
+                , label = text <| String.fromInt (idx change)
+                }
+    in
     column [ spacing 10, padding 20 ]
-        [ bearingChangeThresholdSlider model
-        , table
-            [ width fill, centerX, spacing 10 ]
-            { data = model.abruptBearingChanges
-            , columns =
-                [ { header = text "Track point\n(click to pick)"
-                  , width = fill
-                  , view =
-                        \abrupt ->
-                            button (buttonHighlightCurrent abrupt.after.index model)
-                                { onPress = Just (UserMovedNodeSlider abrupt.after.index)
-                                , label = text <| String.fromInt abrupt.after.index
-                                }
-                  }
-                , { header = text "Bearing before"
-                  , width = fill
-                  , view = \abrupt -> text <| bearingToDisplayDegrees abrupt.before.bearing
-                  }
-                , { header = text "Bearing after"
-                  , width = fill
-                  , view = \abrupt -> text <| bearingToDisplayDegrees abrupt.after.bearing
-                  }
-                ]
-            }
+        [ gradientChangeThresholdSlider model
+        , wrappedRow [ width <| px 300 ] <|
+            List.map linkButton model.abruptBearingChanges
         ]
 
 
