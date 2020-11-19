@@ -256,7 +256,7 @@ matrixInverse m =
         det =
             m.tl * m.br - m.tr * m.bl
     in
-    if abs det < 0.000001 then
+    if abs det < 10^(-20) then
         Nothing
 
     else

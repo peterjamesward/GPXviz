@@ -192,6 +192,8 @@ type alias Model =
     , undoStack : List UndoEntry
     , thirdPersonSubmode : ThirdPersonSubmode
     , smoothedBend : Maybe SmoothedBend
+    , smoothedNodes : List DrawingNode
+    , smoothedRoads : List DrawingRoad
     }
 
 
@@ -282,6 +284,8 @@ init _ =
       , undoStack = []
       , thirdPersonSubmode = ShowData
       , smoothedBend = Nothing
+      , smoothedNodes = []
+      , smoothedRoads = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -542,6 +546,7 @@ update msg model =
                         Nothing ->
                             model.currentNode
               }
+                |> tryBendSmoother
                 |> deriveVisualEntities
             , Cmd.none
             )
@@ -549,19 +554,59 @@ update msg model =
 
 tryBendSmoother : Model -> Model
 tryBendSmoother model =
-    case ( model.currentNode, model.markedNode ) of
-        ( Just c, Just m ) ->
+    case ( model.scaling, model.currentNode, model.markedNode ) of
+        ( Just scale, Just c, Just m ) ->
             let
                 ( n1, n2 ) =
                     ( min c m, max c m )
 
-                track =
-                    List.drop n1 <| List.take n2 model.trackPoints
+                entrySegment =
+                    Array.get n1 model.roadArray
+
+                exitSegment =
+                    Array.get (n2 - 1) model.roadArray
             in
-            { model | smoothedBend = bendIncircle track }
+            case ( entrySegment, exitSegment ) of
+                ( Just road1, Just road2 ) ->
+                    let
+                        pa =
+                            road1.startsAt.trackPoint
+
+                        pb =
+                            road1.endsAt.trackPoint
+
+                        pc =
+                            road2.startsAt.trackPoint
+
+                        pd =
+                            road2.endsAt.trackPoint
+
+                        newTrack =
+                            bendIncircle pa pb pc pd
+                    in
+                    case newTrack of
+                        Just track ->
+                            let
+                                newNodes =
+                                    deriveNodes scale track.trackPoints
+
+                                newRoads =
+                                    deriveRoads newNodes
+                            in
+                            { model
+                                | smoothedBend = newTrack
+                                , smoothedNodes = newNodes
+                                , smoothedRoads = newRoads
+                            }
+
+                        _ ->
+                            { model | smoothedBend = Nothing }
+
+                _ ->
+                    { model | smoothedBend = Nothing }
 
         _ ->
-            model
+            { model | smoothedBend = Nothing }
 
 
 smoothGradient : Model -> Int -> Int -> Float -> Model
@@ -901,7 +946,12 @@ deriveNodesAndRoads model =
                 , roadArray = Array.fromList m.roads
             }
     in
-    model |> withScaling |> withNodes |> withRoads |> withSummary |> withArrays
+    model
+        |> withScaling
+        |> withNodes
+        |> withRoads
+        |> withSummary
+        |> withArrays
 
 
 resetViewSettings : Model -> Model
@@ -1210,27 +1260,34 @@ deriveVisualEntities model =
                 Nothing ->
                     positiveZ
 
-        tallCylinder seaLevelInClipSpace metresToClipSpace x y r =
-            cylinder (Material.color Color.white) <|
-                Cylinder3d.startingAt
-                    (Point3d.meters
-                        x
-                        y
-                        seaLevelInClipSpace
-                    )
-                    positiveZ
-                    { radius = meters <| r
-                    , length = meters <| 100.0 * metresToClipSpace
-                    }
+        suggestedBend metresToClipSpace roads =
+            List.map (bendElement metresToClipSpace) roads
 
-        suggestedBend seaLevelInClipSpace metresToClipSpace =
-            case model.smoothedBend of
-                Just smooth ->
-                    [
-                    ]
+        bendElement metresToClipSpace segment =
+            let
+                kerbX =
+                    10.0 * cos segment.bearing * metresToClipSpace
 
-                Nothing ->
-                    []
+                kerbY =
+                    10.0 * sin segment.bearing * metresToClipSpace
+            in
+            Scene3d.quad (Material.color Color.white)
+                (Point3d.meters (segment.startsAt.x + kerbX)
+                    (segment.startsAt.y - kerbY)
+                    segment.startsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x + kerbX)
+                    (segment.endsAt.y - kerbY)
+                    segment.endsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x - kerbX)
+                    (segment.endsAt.y + kerbY)
+                    segment.endsAt.z
+                )
+                (Point3d.meters (segment.startsAt.x - kerbX)
+                    (segment.startsAt.y + kerbY)
+                    segment.startsAt.z
+                )
     in
     case model.scaling of
         Just scale ->
@@ -1241,7 +1298,7 @@ deriveVisualEntities model =
                         ++ roadEntities scale.seaLevelInClipSpace scale.metresToClipSpace
                         ++ currentPositionDisc scale.metresToClipSpace
                         ++ markedNode scale.metresToClipSpace
-                        ++ suggestedBend scale.seaLevelInClipSpace scale.metresToClipSpace
+                        ++ suggestedBend scale.metresToClipSpace model.smoothedRoads
             }
 
         Nothing ->
@@ -2069,8 +2126,37 @@ viewBendFixerPane model =
     column []
         [ text "Sorry, we can't fix the bends yet."
         , markerButton model
+        , showCircle model.smoothedBend
         , viewBearingChanges model
         ]
+
+
+showMaybe : Maybe Int -> String
+showMaybe mi =
+    case mi of
+        Just i ->
+            String.fromInt i
+
+        Nothing ->
+            "----"
+
+
+showCircle : Maybe SmoothedBend -> Element Msg
+showCircle hello =
+    case hello of
+        Just sb ->
+            let
+                ( x, y ) =
+                    sb.centre
+            in
+            column [ Border.width 1 ]
+                [ text <| String.fromFloat x
+                , text <| String.fromFloat y
+                , text <| String.fromFloat <| metresPerDegreeLatitude * sb.radius
+                ]
+
+        Nothing ->
+            none
 
 
 markerButton model =

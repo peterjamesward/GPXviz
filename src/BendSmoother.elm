@@ -6,7 +6,7 @@ import TrackPoint exposing (TrackPoint)
 
 type alias SmoothedBend =
     { trackPoints : List TrackPoint
-    , centre : (Float, Float)
+    , centre : ( Float, Float )
     , radius : Float
     }
 
@@ -28,19 +28,14 @@ toTrackPoint p =
     }
 
 
-bendIncircle : List TrackPoint -> Maybe SmoothedBend
-bendIncircle tps =
+bendIncircle :  TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
+bendIncircle pa pb pc pd =
     -- Given the actual road between two markers, this will
     -- return a suggested smoothed bend, if it exists.
-    -- The input convention is that the first two trackpoints designate the lead-in road segment,
-    -- and the last two trackpoints designate the exit segment.
-    -- There must be at least three trackpoints to form a bend.
-    case ( tps, List.reverse tps ) of
-        ( [ pa, pb, _ ], [ pz, py, _ ] ) ->
             let
                 maybeCircle : Maybe G.Circle
                 maybeCircle =
-                    G.findIncircleFromTwoRoads (roadToGeometry pa pb) (roadToGeometry py pz)
+                    G.findIncircleFromTwoRoads (roadToGeometry pa pb) (roadToGeometry pc pd)
             in
             case maybeCircle of
                 Just circle ->
@@ -49,18 +44,25 @@ bendIncircle tps =
                             G.findTangentPoint (roadToGeometry pa pb) circle
 
                         exitPoint =
-                            G.findTangentPoint (roadToGeometry py pz) circle
+                            G.findTangentPoint (roadToGeometry pc pd) circle
                     in
                     case ( entryPoint, exitPoint ) of
                         ( Just p1, Just p2 ) ->
+                            let
+                                t1 =
+                                    toTrackPoint p1
+
+                                t2 =
+                                    toTrackPoint p2
+                            in
                             Just
                                 { trackPoints =
                                     [ pa
-                                    , toTrackPoint p1
-                                    , toTrackPoint p2
-                                    , pz
+                                    , { t1 | ele = pa.ele }
+                                    , { t2 | ele = pc.ele }
+                                    , pd
                                     ]
-                                , centre = (circle.centre.x, circle.centre.y)
+                                , centre = ( circle.centre.x, circle.centre.y )
                                 , radius = circle.radius
                                 }
 
@@ -70,5 +72,3 @@ bendIncircle tps =
                 _ ->
                     Nothing
 
-        _ ->
-            Nothing
