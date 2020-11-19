@@ -25,7 +25,6 @@ import Iso8601
 import Length exposing (meters)
 import List exposing (tail)
 import Markdown exposing (defaultOptions)
-import Maybe.Extra as Maybe
 import Pixels exposing (Pixels)
 import Point3d
 import Regex
@@ -34,7 +33,7 @@ import Scene3d.Material as Material
 import Spherical exposing (range)
 import Task
 import Time
-import TrackPoint exposing (TrackPoint)
+import TrackPoint exposing (TrackPoint, dummyTrackPoint)
 import Viewpoint3d
 import WriteGPX exposing (writeGPX)
 
@@ -145,6 +144,26 @@ defaultDisplayOptions =
     }
 
 
+type alias SmoothedBend =
+    { replacesFrom : Int
+    , replacesTo : Int
+    , trackPoints : List TrackPoint
+    , nodes : List DrawingNode
+    , roads : List DrawingRoad
+    , radius : Float
+    }
+
+
+type alias ScalingInfo =
+    { mins : TrackPoint
+    , maxs : TrackPoint
+    , centres : TrackPoint
+    , largestDimension : Float -- biggest bounding box edge determines scaling factor
+    , seaLevelInClipSpace : Float
+    , metresToClipSpace : Float -- Probably should be a proper metric tag!
+    }
+
+
 type alias Model =
     { gpx : Maybe String
     , filename : Maybe String
@@ -152,8 +171,7 @@ type alias Model =
     , zone : Time.Zone
     , gpxUrl : String
     , trackPoints : List TrackPoint
-    , largestDimension : Float -- biggest bounding box edge determines scaling factor
-    , seaLevelInClipSpace : Float
+    , scaling : Maybe ScalingInfo
     , nodes : List DrawingNode
     , roads : List DrawingRoad
     , trackName : Maybe String
@@ -164,7 +182,6 @@ type alias Model =
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
-    , metresToClipSpace : Float -- Probably should be a proper metric tag!
     , viewingMode : ViewingMode
     , summary : Maybe SummaryData
     , nodeArray : Array DrawingNode
@@ -183,6 +200,7 @@ type alias Model =
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
     , thirdPersonSubmode : ThirdPersonSubmode
+    , smoothedBend : Maybe SmoothedBend
     }
 
 
@@ -243,8 +261,7 @@ init _ =
       , zone = Time.utc
       , gpxUrl = ""
       , trackPoints = []
-      , largestDimension = 1.0
-      , seaLevelInClipSpace = 0.0
+      , scaling = Nothing
       , nodes = []
       , roads = []
       , trackName = Nothing
@@ -255,7 +272,6 @@ init _ =
       , httpError = Nothing
       , currentNode = Nothing
       , markedNode = Nothing
-      , metresToClipSpace = 1.0
       , viewingMode = OptionsView
       , summary = Nothing
       , nodeArray = Array.empty
@@ -274,12 +290,13 @@ init _ =
       , smoothingEndIndex = Nothing
       , undoStack = []
       , thirdPersonSubmode = ShowData
+      , smoothedBend = Nothing
       }
     , Task.perform AdjustTimeZone Time.here
     )
 
 
-metresPerDegreeLongitude =
+metresPerDegreeLatitude =
     78846.81
 
 
@@ -684,22 +701,21 @@ parseGPXintoModel content model =
     }
 
 
-deriveNodesAndRoads : Model -> Model
-deriveNodesAndRoads model =
+deriveScalingInfo : List TrackPoint -> ScalingInfo
+deriveScalingInfo tps =
     let
-        tps =
-            model.trackPoints
-
         lowerBounds tp =
             { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
             , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tp
             , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tp
+            , idx = 0
             }
 
         upperBounds tp =
             { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tp
             , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tp
             , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tp
+            , idx = 0
             }
 
         mins =
@@ -712,36 +728,55 @@ deriveNodesAndRoads model =
             { lat = (mins.lat + maxs.lat) / 2.0
             , lon = (mins.lon + maxs.lon) / 2.0
             , ele = (mins.ele + maxs.ele) / 2.0
+            , idx = 0
             }
 
         scalingFactor =
             max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
 
         metresToClipSpace =
-            1 / (0.5 * scalingFactor * metresPerDegreeLongitude)
+            1 / (0.5 * scalingFactor * metresPerDegreeLatitude)
 
         elevationToClipSpace e =
             (e - findCentres.ele) * metresToClipSpace
+    in
+    { mins = mins
+    , maxs = maxs
+    , centres = findCentres
+    , largestDimension = scalingFactor
+    , metresToClipSpace = metresToClipSpace
+    , seaLevelInClipSpace = elevationToClipSpace 0.0
+    }
+
+
+deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
+deriveNodes scale tps =
+    let
+        elevationToClipSpace e =
+            (e - findCentres.ele) * scale.metresToClipSpace
+
+        findCentres =
+            scale.centres
+
+        mins =
+            scale.mins
 
         prepareDrawingNode tp =
             { trackPoint = tp
-            , northOffset = (tp.lat - mins.lat) * metresPerDegreeLongitude
-            , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLongitude * cos tp.lat
+            , northOffset = (tp.lat - mins.lat) * metresPerDegreeLatitude
+            , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLatitude * cos tp.lat
             , vertOffset = tp.ele - mins.ele
-            , x = (tp.lon - findCentres.lon) / (0.5 * scalingFactor)
-            , y = (tp.lat - findCentres.lat) / (0.5 * scalingFactor)
+            , x = (tp.lon - findCentres.lon) / (0.5 * scale.largestDimension)
+            , y = (tp.lat - findCentres.lat) / (0.5 * scale.largestDimension)
             , z = elevationToClipSpace tp.ele
             }
+    in
+    List.map prepareDrawingNode tps
 
-        drawingNodes =
-            List.map prepareDrawingNode tps
 
-        roadSegments =
-            List.map3 roadSegment
-                drawingNodes
-                (Maybe.withDefault [] <| tail drawingNodes)
-                (List.range 0 (List.length drawingNodes))
-
+deriveRoads : List DrawingNode -> List DrawingRoad
+deriveRoads drawingNodes =
+    let
         roadSegment node1 node2 index =
             let
                 zDifference =
@@ -769,7 +804,16 @@ deriveNodesAndRoads model =
             , endDistance = 0.0
             , index = index
             }
+    in
+    List.map3 roadSegment
+        drawingNodes
+        (List.drop 1 drawingNodes)
+        (List.range 0 (List.length drawingNodes))
 
+
+deriveSummary : List DrawingRoad -> SummaryData
+deriveSummary roadSegments =
+    let
         accumulateInfo segment summary =
             { trackLength = summary.trackLength + segment.length
             , highestMetres =
@@ -803,29 +847,46 @@ deriveNodesAndRoads model =
                 else
                     summary.totalClimbing
             }
-
-        summarise =
-            List.foldl accumulateInfo
-                { trackLength = 0.0
-                , highestMetres = -9999.9
-                , lowestMetres = 9999.9
-                , climbingDistance = 0.0
-                , descendingDistance = 0.0
-                , totalClimbing = 0.0
-                , totalDescending = 0.0
-                }
-                roadSegments
     in
-    { model
-        | largestDimension = scalingFactor
-        , nodes = drawingNodes
-        , roads = roadSegments
-        , metresToClipSpace = metresToClipSpace
-        , seaLevelInClipSpace = elevationToClipSpace 0.0
-        , summary = Just summarise
-        , nodeArray = Array.fromList drawingNodes
-        , roadArray = Array.fromList roadSegments
-    }
+    List.foldl accumulateInfo
+        { trackLength = 0.0
+        , highestMetres = -9999.9
+        , lowestMetres = 9999.9
+        , climbingDistance = 0.0
+        , descendingDistance = 0.0
+        , totalClimbing = 0.0
+        , totalDescending = 0.0
+        }
+        roadSegments
+
+
+deriveNodesAndRoads : Model -> Model
+deriveNodesAndRoads model =
+    let
+        withScaling m =
+            { m | scaling = Just <| deriveScalingInfo m.trackPoints }
+
+        withNodes m =
+            case m.scaling of
+                Just scale ->
+                    { m | nodes = deriveNodes scale m.trackPoints }
+
+                Nothing ->
+                    m
+
+        withRoads m =
+            { m | roads = deriveRoads m.nodes }
+
+        withSummary m =
+            { m | summary = Just <| deriveSummary m.roads }
+
+        withArrays m =
+            { m
+                | nodeArray = Array.fromList m.nodes
+                , roadArray = Array.fromList m.roads
+            }
+    in
+    model |> withScaling |> withNodes |> withRoads |> withSummary |> withArrays
 
 
 resetViewSettings : Model -> Model
@@ -931,13 +992,7 @@ deriveProblems model =
 deriveVisualEntities : Model -> Model
 deriveVisualEntities model =
     let
-        metresToClipSpace =
-            model.metresToClipSpace
-
-        seaLevelInClipSpace =
-            model.seaLevelInClipSpace
-
-        seaLevel =
+        seaLevel seaLevelInClipSpace =
             Scene3d.quad (Material.color Color.darkGreen)
                 (Point3d.meters -1.2 -1.2 seaLevelInClipSpace)
                 (Point3d.meters 1.2 -1.2 seaLevelInClipSpace)
@@ -946,7 +1001,7 @@ deriveVisualEntities model =
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
-        pointEntities =
+        pointEntities metresToClipSpace =
             (if model.displayOptions.roadPillars then
                 List.map
                     (\node ->
@@ -980,11 +1035,11 @@ deriveVisualEntities model =
                         []
                    )
 
-        roadEntities =
+        roadEntities seaLevelInClipSpace metresToClipSpace =
             List.concat <|
-                List.map roadEntity model.roads
+                List.map (roadEntity seaLevelInClipSpace metresToClipSpace) model.roads
 
-        currentPositionDisc =
+        currentPositionDisc metresToClipSpace =
             case ( model.currentNode, model.viewingMode ) of
                 ( Just idx, ThirdPersonView ) ->
                     case Array.get idx model.roadArray of
@@ -1008,7 +1063,7 @@ deriveVisualEntities model =
                 _ ->
                     []
 
-        markedNode =
+        markedNode metresToClipSpace =
             case ( model.markedNode, model.viewingMode ) of
                 ( Just idx, ThirdPersonView ) ->
                     case Array.get idx model.roadArray of
@@ -1032,7 +1087,7 @@ deriveVisualEntities model =
                 _ ->
                     []
 
-        roadEntity segment =
+        roadEntity seaLevelInClipSpace metresToClipSpace segment =
             let
                 kerbX =
                     -- Road is assumed to be 6 m wide.
@@ -1148,7 +1203,7 @@ deriveVisualEntities model =
             , endsAt = { x = r.endsAt.x, y = r.endsAt.y }
             }
 
-        tallCylinder x y r =
+        tallCylinder seaLevelInClipSpace metresToClipSpace x y r =
             cylinder (Material.color Color.white) <|
                 Cylinder3d.startingAt
                     (Point3d.meters
@@ -1161,9 +1216,9 @@ deriveVisualEntities model =
                     , length = meters <| 100.0 * metresToClipSpace
                     }
 
-        bendIncircle =
-            -- Right. Let's see if we can fit a circular arc co-tangential
-            -- with both end-points. Or disallow if not possible.
+        bendIncircle seaLevelInClipSpace metresToClipSpace =
+            -- Need to move this out of here. This should only be visual
+            -- stuff, and the geometry happens elsewhere!
             case ( model.thirdPersonSubmode, model.currentNode, model.markedNode ) of
                 ( ShowBendFixes, Just current, Just marked ) ->
                     let
@@ -1193,20 +1248,41 @@ deriveVisualEntities model =
                                 case maybeCircle of
                                     Just circle ->
                                         let
+                                            entryPoint =
+                                                G.findTangentPoint
+                                                    (roadToGeometry road1)
+                                                    circle
+
+                                            exitPoint =
+                                                G.findTangentPoint (roadToGeometry road2) circle
+
                                             x =
                                                 circle.centre.x
 
                                             y =
                                                 circle.centre.y
 
-                                            z =
-                                                road1.endsAt.z
-
                                             r =
                                                 circle.radius
                                         in
-                                        [ tallCylinder x y r
-                                        ]
+                                        case ( entryPoint, exitPoint ) of
+                                            ( Just p1, Just p2 ) ->
+                                                [ tallCylinder
+                                                    seaLevelInClipSpace
+                                                    metresToClipSpace
+                                                    p1.x
+                                                    p1.y
+                                                    0.01
+                                                , tallCylinder
+                                                    seaLevelInClipSpace
+                                                    metresToClipSpace
+                                                    p2.x
+                                                    p2.y
+                                                    0.01
+                                                ]
+
+                                            _ ->
+                                                []
 
                                     _ ->
                                         []
@@ -1220,15 +1296,20 @@ deriveVisualEntities model =
                 _ ->
                     []
     in
-    { model
-        | entities =
-            seaLevel
-                :: pointEntities
-                ++ roadEntities
-                ++ currentPositionDisc
-                ++ markedNode
-                ++ bendIncircle
-    }
+    case model.scaling of
+        Just scale ->
+            { model
+                | entities =
+                    seaLevel scale.seaLevelInClipSpace
+                        :: pointEntities scale.metresToClipSpace
+                        ++ roadEntities scale.seaLevelInClipSpace scale.metresToClipSpace
+                        ++ currentPositionDisc scale.metresToClipSpace
+                        ++ markedNode scale.metresToClipSpace
+                        ++ bendIncircle scale.seaLevelInClipSpace scale.metresToClipSpace
+            }
+
+        Nothing ->
+            model
 
 
 reg t =
@@ -1331,9 +1412,13 @@ viewGenericNew model =
                 , row []
                     [ viewModeChoices model
                     ]
-                , row []
-                    [ view3D model
-                    ]
+                , case model.scaling of
+                    Just scale ->
+                        row []
+                            [ view3D scale model ]
+
+                    Nothing ->
+                        none
                 ]
         ]
     }
@@ -1380,16 +1465,17 @@ viewModeChoices model =
         }
 
 
-view3D model =
+view3D : ScalingInfo -> Model -> Element Msg
+view3D scale model =
     case model.viewingMode of
         OverviewView ->
-            viewPointCloud model
+            viewPointCloud scale model
 
         FirstPersonView ->
-            viewRollerCoasterTrackAndControls model
+            viewRollerCoasterTrackAndControls scale model
 
         ThirdPersonView ->
-            viewThirdPerson model
+            viewThirdPerson scale model
 
         OptionsView ->
             viewOptions model
@@ -1706,7 +1792,8 @@ Simply click the blue button at the page top to choose a file.
 """
 
 
-viewPointCloud model =
+viewPointCloud : ScalingInfo -> Model -> Element Msg
+viewPointCloud scale model =
     let
         camera =
             Camera3d.perspective
@@ -1715,7 +1802,7 @@ viewPointCloud model =
                         { focalPoint = Point3d.meters 0.0 0.0 0.0
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom model model.zoomLevelOverview
+                        , distance = Length.meters <| distanceFromZoom scale model.zoomLevelOverview
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
@@ -1757,7 +1844,7 @@ viewPointCloud model =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
+                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
                     , entities = model.entities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ
@@ -1821,7 +1908,7 @@ positionSlider model =
         }
 
 
-viewRollerCoasterTrackAndControls model =
+viewRollerCoasterTrackAndControls scale model =
     let
         getRoad : Maybe DrawingRoad
         getRoad =
@@ -1841,7 +1928,7 @@ viewRollerCoasterTrackAndControls model =
             row []
                 [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
                 , column []
-                    [ viewRoadSegment model road
+                    [ viewRoadSegment scale model road
                     , positionControls model
                     ]
                 , row [ padding 20 ]
@@ -1893,14 +1980,15 @@ withMouseCapture =
     ]
 
 
-viewRoadSegment model road =
+viewRoadSegment : ScalingInfo -> Model -> DrawingRoad -> Element Msg
+viewRoadSegment scale model road =
     let
         eyeHeight =
             -- Helps to be higher up.
-            2.0 * model.metresToClipSpace
+            2.0 * scale.metresToClipSpace
 
         cameraSetback =
-            0.0 * model.metresToClipSpace
+            0.0 * scale.metresToClipSpace
 
         cameraViewpoint someTarmac =
             Viewpoint3d.lookAt
@@ -1929,7 +2017,7 @@ viewRoadSegment model road =
                 { camera = camera road
                 , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.backgroundColor Color.lightBlue
-                , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
+                , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
                 , entities = model.entities
                 , upDirection = positiveZ
                 , sunlightDirection = negativeZ
@@ -1975,9 +2063,9 @@ zoomSlider value msg =
         }
 
 
-viewThirdPerson : Model -> Element Msg
-viewThirdPerson model =
-    -- Let's the user spin around and zoom in on any road point.
+viewThirdPerson : ScalingInfo -> Model -> Element Msg
+viewThirdPerson scale model =
+    -- Let's the user spin around and zoom in on selected road point.
     let
         getNodeNum =
             case model.currentNode of
@@ -2004,7 +2092,7 @@ viewThirdPerson model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNode model node
+                    [ viewCurrentNode scale model node
                     , positionControls model
                     ]
                 , viewThirdPersonSubpane model
@@ -2183,12 +2271,13 @@ viewSummaryStats model =
             none
 
 
-distanceFromZoom model zoomLevel =
-    1.0 * model.metresToClipSpace * 10 ^ (5.0 - zoomLevel)
+distanceFromZoom : ScalingInfo -> Float -> Float
+distanceFromZoom scale zoomLevel =
+    1.0 * scale.metresToClipSpace * 10 ^ (5.0 - zoomLevel)
 
 
-viewCurrentNode : Model -> DrawingNode -> Element Msg
-viewCurrentNode model node =
+viewCurrentNode : ScalingInfo -> Model -> DrawingNode -> Element Msg
+viewCurrentNode scale model node =
     let
         camera =
             Camera3d.perspective
@@ -2198,7 +2287,9 @@ viewCurrentNode model node =
                             Point3d.meters node.x node.y node.z
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom model model.zoomLevelThirdPerson
+                        , distance =
+                            Length.meters <|
+                                distanceFromZoom scale model.zoomLevelThirdPerson
                         }
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
                 }
@@ -2213,7 +2304,7 @@ viewCurrentNode model node =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0 * model.metresToClipSpace)
+                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
                     , entities = model.entities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ

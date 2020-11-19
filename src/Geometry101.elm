@@ -106,6 +106,22 @@ findIncircleFromTwoRoads r1 r2 =
             Nothing
 
 
+findTangentPoint : Road -> Circle -> Maybe Point
+findTangentPoint road incircle =
+{-
+    Given the road's line is Ax + By + C = 0,
+    the radius is perpendicular hence has line Bx - Ay + D = 0
+    and it passes through the circle centre (X, Y) so BX - AY + D = 0
+    or D = AY - BX.
+    Then we can find the intercept point using existing code.
+-}
+    let
+        roadLine = lineEquationFromTwoPoints road.startAt road.endsAt
+        radiusLine = { a = roadLine.b, b = -1.0 * roadLine.a, c = aybx}
+        aybx = roadLine.a * incircle.centre.y - roadLine.b * incircle.centre.x
+    in
+    lineIntersection roadLine radiusLine
+
 findIncircle : Point -> Point -> Point -> Circle
 findIncircle pA pB pC =
     {-
@@ -201,16 +217,22 @@ findIntercept r1 r2 =
 
         r2Line =
             lineEquationFromTwoPoints r2.startAt r2.endsAt
+    in
+    lineIntersection r1Line r2Line
 
+
+lineIntersection : LineEquation -> LineEquation -> Maybe Point
+lineIntersection l1 l2 =
+    let
         matrix =
-            { tl = r1Line.a
-            , tr = r1Line.b
-            , bl = r2Line.a
-            , br = r2Line.b
+            { tl = l1.a
+            , tr = l1.b
+            , bl = l2.a
+            , br = l2.b
             }
 
         column =
-            { t = -1.0 * r1Line.c, b = -1.0 * r2Line.c }
+            { t = -1.0 * l1.c, b = -1.0 * l2.c }
 
         inv =
             matrixInverse matrix
@@ -225,6 +247,7 @@ findIntercept r1 r2 =
 
         Nothing ->
             Nothing
+
 
 
 matrixInverse : Matrix -> Maybe Matrix
