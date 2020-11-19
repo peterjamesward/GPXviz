@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Angle exposing (Angle, inDegrees, normalize)
 import Array exposing (Array)
+import BendSmoother exposing (SmoothedBend, bendIncircle)
 import Browser
 import Camera3d
 import Color
@@ -23,7 +24,7 @@ import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Iso8601
 import Length exposing (meters)
-import List exposing (tail)
+import List exposing (tail, take)
 import Markdown exposing (defaultOptions)
 import Pixels exposing (Pixels)
 import Point3d
@@ -141,16 +142,6 @@ defaultDisplayOptions =
     , roadTrack = True
     , gradientFill = True
     , problems = False
-    }
-
-
-type alias SmoothedBend =
-    { replacesFrom : Int
-    , replacesTo : Int
-    , trackPoints : List TrackPoint
-    , nodes : List DrawingNode
-    , roads : List DrawingRoad
-    , radius : Float
     }
 
 
@@ -338,12 +329,15 @@ update msg model =
 
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }
+                |> tryBendSmoother
                 |> deriveVisualEntities
             , Cmd.none
             )
 
         SetSmoothingEnd idx ->
             ( { model | smoothingEndIndex = Just idx }
+                |> tryBendSmoother
+                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -351,6 +345,7 @@ update msg model =
             ( { model
                 | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
+                |> tryBendSmoother
                 |> deriveVisualEntities
             , Cmd.none
             )
@@ -359,6 +354,7 @@ update msg model =
             ( { model
                 | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
+                |> tryBendSmoother
                 |> deriveVisualEntities
             , Cmd.none
             )
@@ -367,6 +363,7 @@ update msg model =
             ( { model
                 | markedNode = incrementMaybeModulo (List.length model.roads - 1) model.markedNode
               }
+                |> tryBendSmoother
                 |> deriveVisualEntities
             , Cmd.none
             )
@@ -375,6 +372,7 @@ update msg model =
             ( { model
                 | markedNode = decrementMaybeModulo (List.length model.roads - 1) model.markedNode
               }
+                |> tryBendSmoother
                 |> deriveVisualEntities
             , Cmd.none
             )
@@ -547,6 +545,23 @@ update msg model =
                 |> deriveVisualEntities
             , Cmd.none
             )
+
+
+tryBendSmoother : Model -> Model
+tryBendSmoother model =
+    case ( model.currentNode, model.markedNode ) of
+        ( Just c, Just m ) ->
+            let
+                ( n1, n2 ) =
+                    ( min c m, max c m )
+
+                track =
+                    List.drop n1 <| List.take n2 model.trackPoints
+            in
+            { model | smoothedBend = bendIncircle track }
+
+        _ ->
+            model
 
 
 smoothGradient : Model -> Int -> Int -> Float -> Model
@@ -1195,14 +1210,6 @@ deriveVisualEntities model =
                 Nothing ->
                     positiveZ
 
-        roadToGeometry : DrawingRoad -> G.Road
-        roadToGeometry r =
-            -- We'll worry about lat and lon afterward.
-            -- For now, just try to show a disc in clipspace.
-            { startAt = { x = r.startsAt.x, y = r.startsAt.y }
-            , endsAt = { x = r.endsAt.x, y = r.endsAt.y }
-            }
-
         tallCylinder seaLevelInClipSpace metresToClipSpace x y r =
             cylinder (Material.color Color.white) <|
                 Cylinder3d.startingAt
@@ -1216,84 +1223,13 @@ deriveVisualEntities model =
                     , length = meters <| 100.0 * metresToClipSpace
                     }
 
-        bendIncircle seaLevelInClipSpace metresToClipSpace =
-            -- Need to move this out of here. This should only be visual
-            -- stuff, and the geometry happens elsewhere!
-            case ( model.thirdPersonSubmode, model.currentNode, model.markedNode ) of
-                ( ShowBendFixes, Just current, Just marked ) ->
-                    let
-                        start =
-                            min current marked
+        suggestedBend seaLevelInClipSpace metresToClipSpace =
+            case model.smoothedBend of
+                Just smooth ->
+                    [
+                    ]
 
-                        finis =
-                            max current marked
-                    in
-                    if finis >= start + 2 then
-                        let
-                            r1 =
-                                Array.get start model.roadArray
-
-                            r2 =
-                                Array.get (finis - 1) model.roadArray
-                        in
-                        case ( r1, r2 ) of
-                            ( Just road1, Just road2 ) ->
-                                let
-                                    maybeCircle : Maybe G.Circle
-                                    maybeCircle =
-                                        G.findIncircleFromTwoRoads
-                                            (roadToGeometry road1)
-                                            (roadToGeometry road2)
-                                in
-                                case maybeCircle of
-                                    Just circle ->
-                                        let
-                                            entryPoint =
-                                                G.findTangentPoint
-                                                    (roadToGeometry road1)
-                                                    circle
-
-                                            exitPoint =
-                                                G.findTangentPoint (roadToGeometry road2) circle
-
-                                            x =
-                                                circle.centre.x
-
-                                            y =
-                                                circle.centre.y
-
-                                            r =
-                                                circle.radius
-                                        in
-                                        case ( entryPoint, exitPoint ) of
-                                            ( Just p1, Just p2 ) ->
-                                                [ tallCylinder
-                                                    seaLevelInClipSpace
-                                                    metresToClipSpace
-                                                    p1.x
-                                                    p1.y
-                                                    0.01
-                                                , tallCylinder
-                                                    seaLevelInClipSpace
-                                                    metresToClipSpace
-                                                    p2.x
-                                                    p2.y
-                                                    0.01
-                                                ]
-
-                                            _ ->
-                                                []
-
-                                    _ ->
-                                        []
-
-                            _ ->
-                                []
-
-                    else
-                        []
-
-                _ ->
+                Nothing ->
                     []
     in
     case model.scaling of
@@ -1305,7 +1241,7 @@ deriveVisualEntities model =
                         ++ roadEntities scale.seaLevelInClipSpace scale.metresToClipSpace
                         ++ currentPositionDisc scale.metresToClipSpace
                         ++ markedNode scale.metresToClipSpace
-                        ++ bendIncircle scale.seaLevelInClipSpace scale.metresToClipSpace
+                        ++ suggestedBend scale.seaLevelInClipSpace scale.metresToClipSpace
             }
 
         Nothing ->
