@@ -40,7 +40,6 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Single, more prominent Save button (same level as mode selection)
 --TODO: Autofix sharp bends with circular arcs.
 -- 1. Preview proposed fix in 3rd person view.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
@@ -1316,22 +1315,25 @@ viewGenericNew model =
           <|
             column
                 [ spacing 10 ]
-                [ loadButton
-                , displayName model.trackName
-                , case model.filename of
-                    Just name ->
-                        text <| "Filename: " ++ name
+                [ row [ centerX, spaceEvenly, spacing 20 ]
+                    [ loadButton
+                    , case model.filename of
+                        Just name ->
+                            column []
+                                [ displayName model.trackName
+                                , text <| "Filename: " ++ name
+                                ]
 
-                    Nothing ->
-                        none
+                        Nothing ->
+                            none
+                    , saveButtonIfChanged model
+                    ]
                 , row []
                     [ viewModeChoices model
                     ]
                 , row []
                     [ view3D model
                     ]
-                , el []
-                    (saveButtonIfChanged model)
                 ]
         ]
     }
@@ -2134,7 +2136,6 @@ viewGradientFixerPane model =
         [ markerButton model
         , gradientSmoothButton
         , undoButton model
-        , saveButtonIfChanged model
         , viewGradientChanges model
         ]
 
