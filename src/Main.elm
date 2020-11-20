@@ -196,6 +196,7 @@ type alias Model =
     , smoothedNodes : List DrawingNode
     , smoothedRoads : List DrawingRoad
     , maxTurnPerSegment : Float
+    , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     }
 
 
@@ -247,6 +248,7 @@ type Msg
     | MarkerForwardOne
     | MarkerBackOne
     | SetMaxTurnPerSegment Float
+    | SetBumpinessFactor Float
 
 
 init : () -> ( Model, Cmd Msg )
@@ -290,6 +292,7 @@ init _ =
       , smoothedNodes = []
       , smoothedRoads = []
       , maxTurnPerSegment = 20.0
+      , bumpinessFactor = 0.0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -564,6 +567,11 @@ update msg model =
             , Cmd.none
             )
 
+        SetBumpinessFactor factor ->
+            ( { model | bumpinessFactor = factor }
+            , Cmd.none
+            )
+
 
 tryBendSmoother : Model -> Model
 tryBendSmoother model =
@@ -652,6 +660,7 @@ smoothGradient model start finish gradient =
                         segments
 
                 adjustTrackPoint road ( startEle, newTPs ) =
+                    -- This would be the elevations along the average, bumpiness == 0.0
                     let
                         increase =
                             road.length * gradient / 100.0
@@ -665,11 +674,31 @@ smoothGradient model start finish gradient =
                       }
                         :: newTPs
                     )
+
+                bumpyTrackPoints =
+                    -- Intermediate between original and smooth
+                    List.map2
+                        applyBumpiness
+                        (List.reverse adjustedTrackPoints)
+                        segments
+
+                applyBumpiness newTP oldSeg =
+                    let
+                        oldTP =
+                            oldSeg.endsAt.trackPoint
+                    in
+                    { oldTP
+                        | ele =
+                            model.bumpinessFactor
+                                * oldTP.ele
+                                + (1.0 - model.bumpinessFactor)
+                                * newTP.ele
+                    }
             in
             { model
                 | trackPoints =
                     List.take (start + 1) model.trackPoints
-                        ++ List.reverse adjustedTrackPoints
+                        ++ bumpyTrackPoints
                         ++ List.drop finish model.trackPoints
                 , undoStack =
                     { label = undoMessage
@@ -1741,7 +1770,7 @@ viewOptions model =
 viewAboutText : Element Msg
 viewAboutText =
     row [ centerX ]
-        [ paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
+        [ paragraph [ width <| px 800 ] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
 
 
@@ -2299,10 +2328,29 @@ viewGradientFixerPane model =
     in
     column [ spacing 10 ]
         [ markerButton model
+        , smoothnessSlider model
         , gradientSmoothButton
         , undoButton model
         , viewGradientChanges model
         ]
+
+
+smoothnessSlider : Model -> Element Msg
+smoothnessSlider model =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetBumpinessFactor
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Bumpiness factor = "
+                        ++ showDecimal model.bumpinessFactor
+        , min = 0.0
+        , max = 1.0
+        , step = Nothing
+        , value = model.bumpinessFactor
+        , thumb = Input.defaultThumb
+        }
 
 
 lookupRoad : Model -> Maybe Int -> Maybe DrawingRoad
