@@ -39,6 +39,7 @@ import WriteGPX exposing (writeGPX)
 
 
 
+--TODO: Flythrough should also work in third person view.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Autofix bends with circular arcs.
 -- 1. Understand the basics of turn angles!
@@ -205,9 +206,11 @@ type alias Model =
 
 
 type alias Flythrough =
-    { segment : DrawingRoad
-    , metresFromSegmentStart : Float
-    , segmentsRemaining : List DrawingRoad
+    { cameraPosition : ( Float, Float, Float )
+    , metresFromRouteStart : Float
+    , lastUpdated : Time.Posix
+    , running : Bool
+    , segment : DrawingRoad
     }
 
 
@@ -262,6 +265,7 @@ type Msg
     | SetBumpinessFactor Float
     | SetFlythroughSpeed Float
     | RunFlythrough Bool
+    | ResetFlythrough
 
 
 init : () -> ( Model, Cmd Msg )
@@ -325,7 +329,7 @@ update msg model =
     in
     case msg of
         Tick newTime ->
-            ( { model | time = newTime }
+            ( { model | time = newTime } |> advanceFlythrough newTime
             , Cmd.none
             )
 
@@ -599,30 +603,145 @@ update msg model =
                 startFlythrough model
 
               else
-                { model | flythrough = Nothing }
+                pauseFlythrough model
+            , Cmd.none
+            )
+
+        ResetFlythrough ->
+            ( resetFlythrough model
             , Cmd.none
             )
 
 
 startFlythrough : Model -> Model
 startFlythrough model =
+    case model.flythrough of
+        Just flying ->
+            { model
+                | flythrough =
+                    Just
+                        { flying
+                            | running = True
+                            , lastUpdated = model.time
+                        }
+            }
+
+        Nothing ->
+            resetFlythrough model |> startFlythrough
+
+
+pauseFlythrough : Model -> Model
+pauseFlythrough model =
+    case model.flythrough of
+        Just flying ->
+            { model
+                | flythrough =
+                    Just
+                        { flying
+                            | running = False
+                        }
+            }
+
+        Nothing ->
+            model
+
+
+advanceFlythrough : Time.Posix -> Model -> Model
+advanceFlythrough newTime model =
+    let
+        findRoadByDistance d roads =
+            case roads of
+                r1 :: rN ->
+                    if d >= r1.startDistance && d < r1.endDistance then
+                        Just r1
+
+                    else
+                        findRoadByDistance d rN
+
+                [] ->
+                    Nothing
+    in
+    case model.flythrough of
+        Nothing ->
+            model
+
+        Just flying ->
+            if flying.running then
+                let
+                    groundSpeed =
+                        10.0 ^ model.flythroughSpeed
+
+                    newDistance =
+                        flying.metresFromRouteStart + tempus * groundSpeed
+
+                    tempus =
+                        toFloat (Time.posixToMillis newTime - Time.posixToMillis flying.lastUpdated) / 1000.0
+
+                    currentSegment =
+                        findRoadByDistance newDistance model.roads
+                in
+                case ( currentSegment, model.scaling ) of
+                    ( Just seg, Just scale ) ->
+                        { model
+                            | flythrough =
+                                let
+                                    segInsetMetres =
+                                        newDistance - seg.startDistance
+
+                                    segFraction =
+                                        segInsetMetres / seg.length
+
+                                    x =
+                                        segFraction * seg.endsAt.x + (1 - segFraction) * seg.startsAt.x
+
+                                    y =
+                                        segFraction * seg.endsAt.y + (1 - segFraction) * seg.startsAt.y
+
+                                    z =
+                                        segFraction * seg.endsAt.z + (1 - segFraction) * seg.startsAt.z
+                                in
+                                Just
+                                    { flying
+                                        | metresFromRouteStart = newDistance
+                                        , lastUpdated = newTime
+                                        , segment = seg
+                                        , cameraPosition =
+                                            ( x
+                                            , y
+                                            , z
+                                            )
+                                    }
+                        }
+
+                    _ ->
+                        { model | flythrough = Just { flying | running = False } }
+
+            else
+                model
+
+
+resetFlythrough : Model -> Model
+resetFlythrough model =
     case model.currentNode of
-        Just n ->
-            case Array.get n model.roadArray of
+        Just node ->
+            case Array.get node model.roadArray of
                 Just road ->
                     { model
                         | flythrough =
                             Just
-                                { segment = road
-                                , metresFromSegmentStart = 0.0
-                                , segmentsRemaining = List.drop n model.roads
+                                { metresFromRouteStart = road.startDistance
+                                , running = False
+                                , cameraPosition = (road.startsAt.x, road.startsAt.y, road.startsAt.z)
+                                , lastUpdated = model.time
+                                , segment = road
                                 }
                     }
 
                 Nothing ->
-                    model
+                    -- Why no road? Something amiss.
+                    { model | flythrough = Nothing }
 
-        Nothing ->
+        _ ->
             model
 
 
@@ -780,13 +899,24 @@ outputGPX model =
             case model.filename of
                 Just fn ->
                     let
-                        dropAfterLastDot s = s |> String.split "." |> List.reverse |> List.drop 1  |> List.reverse
-                                                                      |> String.join "."
-                        prefix = dropAfterLastDot fn
-                        timestamp = dropAfterLastDot iso8601
-                        suffix = "gpx"
+                        dropAfterLastDot s =
+                            s
+                                |> String.split "."
+                                |> List.reverse
+                                |> List.drop 1
+                                |> List.reverse
+                                |> String.join "."
+
+                        prefix =
+                            dropAfterLastDot fn
+
+                        timestamp =
+                            dropAfterLastDot iso8601
+
+                        suffix =
+                            "gpx"
                     in
-                        prefix ++ "_" ++ timestamp ++ "." ++ suffix
+                    prefix ++ "_" ++ timestamp ++ "." ++ suffix
 
                 Nothing ->
                     iso8601
@@ -946,7 +1076,7 @@ deriveNodes scale tps =
 deriveRoads : List DrawingNode -> List DrawingRoad
 deriveRoads drawingNodes =
     let
-        roadSegment node1 node2 index =
+        roadSegment node1 node2 =
             let
                 zDifference =
                     node2.trackPoint.ele - node1.trackPoint.ele
@@ -971,13 +1101,31 @@ deriveRoads drawingNodes =
                     0.0
             , startDistance = 0.0
             , endDistance = 0.0
-            , index = index
+            , index = 0
             }
+
+        roadSegments =
+            List.map2 roadSegment
+                drawingNodes
+                (List.drop 1 drawingNodes)
+
+        ( _, _, withAccumulations ) =
+            List.foldl
+                (\road ( idx, dist, done ) ->
+                    ( idx + 1
+                    , dist + road.length
+                    , { road
+                        | startDistance = dist
+                        , endDistance = dist + road.length
+                        , index = idx
+                      }
+                        :: done
+                    )
+                )
+                ( 0, 0.0, [] )
+                roadSegments
     in
-    List.map3 roadSegment
-        drawingNodes
-        (List.drop 1 drawingNodes)
-        (List.range 0 (List.length drawingNodes))
+    List.reverse withAccumulations
 
 
 deriveSummary : List DrawingRoad -> SummaryData
@@ -2081,9 +2229,11 @@ viewFirstPerson scale model =
                     , text "Start latitude "
                     , text "Start longitude "
                     , text "Start elevation "
+                    , text "Start distance "
                     , text "End latitude "
                     , text "End longitude "
                     , text "End elevation "
+                    , text "End distance "
                     , text "Length "
                     , text "Gradient "
                     , text "Bearing "
@@ -2093,9 +2243,11 @@ viewFirstPerson scale model =
                     , text <| showDecimal road.startsAt.trackPoint.lat
                     , text <| showDecimal road.startsAt.trackPoint.lon
                     , text <| showDecimal road.startsAt.trackPoint.ele
+                    , text <| showDecimal road.startDistance
                     , text <| showDecimal road.endsAt.trackPoint.lat
                     , text <| showDecimal road.endsAt.trackPoint.lon
                     , text <| showDecimal road.endsAt.trackPoint.ele
+                    , text <| showDecimal road.endDistance
                     , text <| showDecimal road.length
                     , text <| showDecimal road.gradient
                     , text <| bearingToDisplayDegrees road.bearing
@@ -2115,7 +2267,7 @@ viewFirstPerson scale model =
                     ]
                 , column [ alignTop, padding 20, spacing 10 ]
                     [ summaryData road
-                    --, flythroughControls model
+                    , flythroughControls model
                     ]
                 ]
 
@@ -2147,30 +2299,49 @@ flythroughControls model =
         resetButton =
             button
                 prettyButtonStyles
-                { onPress = Just (RunFlythrough False)
+                { onPress = Just ResetFlythrough
                 , label = el [ Font.size 24 ] <| text "⏮️"
+                }
+
+        playButton =
+            button
+                prettyButtonStyles
+                { onPress = Just (RunFlythrough True)
+                , label = el [ Font.size 24 ] <| text "▶️"
+                }
+
+        pauseButton =
+            button
+                prettyButtonStyles
+                { onPress = Just (RunFlythrough False)
+                , label = el [ Font.size 24 ] <| text "⏸"
                 }
 
         playPauseButton =
             case model.flythrough of
                 Nothing ->
-                    button
-                        prettyButtonStyles
-                        { onPress = Just (RunFlythrough True)
-                        , label = el [ Font.size 24 ] <| text "▶️"
-                        }
+                    playButton
 
-                Just _ ->
-                    button
-                        prettyButtonStyles
-                        { onPress = Just (RunFlythrough False)
-                        , label = el [ Font.size 24 ] <| text "⏸"
-                        }
+                Just flying ->
+                    if flying.running then
+                        pauseButton
+
+                    else
+                        playButton
+
+        flythroughPosition =
+            case model.flythrough of
+                Just fly ->
+                    text <| showDecimal fly.metresFromRouteStart
+
+                Nothing ->
+                    none
     in
     row [ padding 10, spacing 10 ]
         [ resetButton
         , playPauseButton
         , flythroughSpeedSlider
+        , flythroughPosition
         ]
 
 
@@ -2201,34 +2372,61 @@ viewRoadSegment scale model road =
             -- Helps to be higher up.
             2.0 * scale.metresToClipSpace
 
-        cameraSetback =
-            0.0 * scale.metresToClipSpace
-
-        cameraViewpoint someTarmac =
-            Viewpoint3d.lookAt
-                { eyePoint =
+        eyePoint =
+            case model.flythrough of
+                Nothing ->
                     Point3d.meters
-                        (someTarmac.startsAt.x - cameraSetback * sin road.bearing)
-                        (someTarmac.startsAt.y - cameraSetback * cos road.bearing)
-                        (someTarmac.startsAt.z + eyeHeight)
-                , focalPoint =
-                    Point3d.meters
-                        someTarmac.endsAt.x
-                        someTarmac.endsAt.y
-                        (someTarmac.endsAt.z + eyeHeight)
-                , upDirection = Direction3d.positiveZ
-                }
+                        road.startsAt.x
+                        road.startsAt.y
+                        (road.startsAt.z + eyeHeight)
 
-        camera someTarmac =
+                Just flying ->
+                    let
+                        ( x, y, z ) =
+                            flying.cameraPosition
+                    in
+                    Point3d.meters
+                        x
+                        y
+                        (z + eyeHeight)
+
+        cameraViewpoint =
+            case model.flythrough of
+                Nothing ->
+                    Viewpoint3d.lookAt
+                        { eyePoint = eyePoint
+                        , focalPoint =
+                            Point3d.meters
+                                road.endsAt.x
+                                road.endsAt.y
+                                (road.endsAt.z + eyeHeight)
+                        , upDirection = Direction3d.positiveZ
+                        }
+
+                Just flying ->
+                    let
+                        r = flying.segment
+                    in
+                    Viewpoint3d.lookAt
+                        { eyePoint = eyePoint
+                        , focalPoint =
+                            Point3d.meters
+                                r.endsAt.x
+                                r.endsAt.y
+                                (r.endsAt.z + eyeHeight)
+                        , upDirection = Direction3d.positiveZ
+                        }
+
+        camera =
             Camera3d.perspective
-                { viewpoint = cameraViewpoint someTarmac
+                { viewpoint = cameraViewpoint
                 , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
                 }
     in
     el [] <|
         html <|
             Scene3d.sunny
-                { camera = camera road
+                { camera = camera
                 , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.backgroundColor Color.lightBlue
                 , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
@@ -2603,7 +2801,7 @@ viewTrackPoint trkpnt =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every 1000 Tick
+    Time.every 10 Tick
 
 
 radioButton position label state =
