@@ -1221,6 +1221,7 @@ resetViewSettings model =
         , currentNode = Just 0
         , markedNode = Nothing
         , viewingMode = OverviewView
+        , flythrough = Nothing
     }
 
 
