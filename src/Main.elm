@@ -23,7 +23,7 @@ import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Iso8601
 import Length exposing (meters)
-import List exposing (tail, take)
+import List exposing (drop, tail, take)
 import Markdown exposing (defaultOptions)
 import Pixels exposing (Pixels)
 import Point3d
@@ -199,6 +199,15 @@ type alias Model =
     , smoothedRoads : List DrawingRoad
     , maxTurnPerSegment : Float
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
+    , flythroughSpeed : Float
+    , flythrough : Maybe Flythrough
+    }
+
+
+type alias Flythrough =
+    { segment : DrawingRoad
+    , metresFromSegmentStart : Float
+    , segmentsRemaining : List DrawingRoad
     }
 
 
@@ -251,6 +260,8 @@ type Msg
     | MarkerBackOne
     | SetMaxTurnPerSegment Float
     | SetBumpinessFactor Float
+    | SetFlythroughSpeed Float
+    | RunFlythrough Bool
 
 
 init : () -> ( Model, Cmd Msg )
@@ -295,6 +306,8 @@ init _ =
       , smoothedRoads = []
       , maxTurnPerSegment = 20.0
       , bumpinessFactor = 0.0
+      , flythrough = Nothing
+      , flythroughSpeed = 1.0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -503,6 +516,13 @@ update msg model =
             , Cmd.none
             )
 
+        SetFlythroughSpeed speed ->
+            ( { model
+                | flythroughSpeed = speed
+              }
+            , Cmd.none
+            )
+
         SelectProblemType prob ->
             ( { model
                 | selectedProblemType = prob
@@ -573,6 +593,37 @@ update msg model =
             ( { model | bumpinessFactor = factor }
             , Cmd.none
             )
+
+        RunFlythrough isOn ->
+            ( if isOn then
+                startFlythrough model
+
+              else
+                { model | flythrough = Nothing }
+            , Cmd.none
+            )
+
+
+startFlythrough : Model -> Model
+startFlythrough model =
+    case model.currentNode of
+        Just n ->
+            case Array.get n model.roadArray of
+                Just road ->
+                    { model
+                        | flythrough =
+                            Just
+                                { segment = road
+                                , metresFromSegmentStart = 0.0
+                                , segmentsRemaining = List.drop n model.roads
+                                }
+                    }
+
+                Nothing ->
+                    model
+
+        Nothing ->
+            model
 
 
 tryBendSmoother : Model -> Model
@@ -728,7 +779,14 @@ outputGPX model =
         outputFilename =
             case model.filename of
                 Just fn ->
-                    fn ++ "_" ++ iso8601
+                    let
+                        dropAfterLastDot s = s |> String.split "." |> List.reverse |> List.drop 1  |> List.reverse
+                                                                      |> String.join "."
+                        prefix = dropAfterLastDot fn
+                        timestamp = dropAfterLastDot iso8601
+                        suffix = "gpx"
+                    in
+                        prefix ++ "_" ++ timestamp ++ "." ++ suffix
 
                 Nothing ->
                     iso8601
@@ -1533,7 +1591,7 @@ view3D scale model =
             viewPointCloud scale model
 
         FirstPersonView ->
-            viewRollerCoasterTrackAndControls scale model
+            viewFirstPerson scale model
 
         ThirdPersonView ->
             viewThirdPerson scale model
@@ -2004,7 +2062,7 @@ positionSlider model =
         }
 
 
-viewRollerCoasterTrackAndControls scale model =
+viewFirstPerson scale model =
     let
         getRoad : Maybe DrawingRoad
         getRoad =
@@ -2015,6 +2073,34 @@ viewRollerCoasterTrackAndControls scale model =
 
                 _ ->
                     Nothing
+
+        summaryData road =
+            row [ padding 20 ]
+                [ column [ spacing 10 ]
+                    [ text "Start point index "
+                    , text "Start latitude "
+                    , text "Start longitude "
+                    , text "Start elevation "
+                    , text "End latitude "
+                    , text "End longitude "
+                    , text "End elevation "
+                    , text "Length "
+                    , text "Gradient "
+                    , text "Bearing "
+                    ]
+                , column [ spacing 10 ]
+                    [ text <| String.fromInt <| Maybe.withDefault 1 model.currentNode
+                    , text <| showDecimal road.startsAt.trackPoint.lat
+                    , text <| showDecimal road.startsAt.trackPoint.lon
+                    , text <| showDecimal road.startsAt.trackPoint.ele
+                    , text <| showDecimal road.endsAt.trackPoint.lat
+                    , text <| showDecimal road.endsAt.trackPoint.lon
+                    , text <| showDecimal road.endsAt.trackPoint.ele
+                    , text <| showDecimal road.length
+                    , text <| showDecimal road.gradient
+                    , text <| bearingToDisplayDegrees road.bearing
+                    ]
+                ]
     in
     case getRoad of
         Nothing ->
@@ -2027,33 +2113,65 @@ viewRollerCoasterTrackAndControls scale model =
                     [ viewRoadSegment scale model road
                     , positionControls model
                     ]
-                , row [ padding 20 ]
-                    [ column [ spacing 10 ]
-                        [ text "Start point index "
-                        , text "Start latitude "
-                        , text "Start longitude "
-                        , text "Start elevation "
-                        , text "End latitude "
-                        , text "End longitude "
-                        , text "End elevation "
-                        , text "Length "
-                        , text "Gradient "
-                        , text "Bearing "
-                        ]
-                    , column [ spacing 10 ]
-                        [ text <| String.fromInt <| Maybe.withDefault 1 model.currentNode
-                        , text <| showDecimal road.startsAt.trackPoint.lat
-                        , text <| showDecimal road.startsAt.trackPoint.lon
-                        , text <| showDecimal road.startsAt.trackPoint.ele
-                        , text <| showDecimal road.endsAt.trackPoint.lat
-                        , text <| showDecimal road.endsAt.trackPoint.lon
-                        , text <| showDecimal road.endsAt.trackPoint.ele
-                        , text <| showDecimal road.length
-                        , text <| showDecimal road.gradient
-                        , text <| bearingToDisplayDegrees road.bearing
-                        ]
+                , column [ alignTop, padding 20, spacing 10 ]
+                    [ summaryData road
+                    --, flythroughControls model
                     ]
                 ]
+
+
+flythroughControls : Model -> Element Msg
+flythroughControls model =
+    let
+        flythroughSpeedSlider =
+            Input.slider
+                commonShortHorizontalSliderStyles
+                { onChange = SetFlythroughSpeed
+                , label =
+                    Input.labelBelow [] <|
+                        text <|
+                            "Fly-through speed = "
+                                ++ (showDecimal <|
+                                        30.0
+                                            * 10
+                                            ^ model.flythroughSpeed
+                                   )
+                                ++ " km/h"
+                , min = 0.0 -- i.e. 1 * 30 km/h
+                , max = 3.0 -- i.e. 1000 * 30 km/h
+                , step = Nothing
+                , value = model.flythroughSpeed
+                , thumb = Input.defaultThumb
+                }
+
+        resetButton =
+            button
+                prettyButtonStyles
+                { onPress = Just (RunFlythrough False)
+                , label = el [ Font.size 24 ] <| text "⏮️"
+                }
+
+        playPauseButton =
+            case model.flythrough of
+                Nothing ->
+                    button
+                        prettyButtonStyles
+                        { onPress = Just (RunFlythrough True)
+                        , label = el [ Font.size 24 ] <| text "▶️"
+                        }
+
+                Just _ ->
+                    button
+                        prettyButtonStyles
+                        { onPress = Just (RunFlythrough False)
+                        , label = el [ Font.size 24 ] <| text "⏸"
+                        }
+    in
+    row [ padding 10, spacing 10 ]
+        [ resetButton
+        , playPauseButton
+        , flythroughSpeedSlider
+        ]
 
 
 bearingToDisplayDegrees x =
