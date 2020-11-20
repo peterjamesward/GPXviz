@@ -648,6 +648,8 @@ smoothGradient model start finish gradient =
                 ++ String.fromInt start
                 ++ " to "
                 ++ String.fromInt finish
+                ++ ", \nbumpiness "
+                ++ showDecimal model.bumpinessFactor
                 ++ "."
     in
     case startNode of
