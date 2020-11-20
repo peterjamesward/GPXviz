@@ -39,10 +39,9 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Optional plain green vertical instead of rainbow.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
---TODO: Autofix sharp bends with circular arcs.
--- 1. Preview proposed fix in 3rd person view.
+--TODO: Autofix bends with circular arcs.
+-- 1. Understand the basics of turn angles!
 --TODO: Some way to join the start and end of a loop (although MR does this).
 
 
