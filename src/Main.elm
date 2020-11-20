@@ -39,14 +39,10 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Always autofix the zero length segments.
---TODO: Lose the Problem page.
---TODO: Tweak single node elevation.
+--TODO: Optional plain green vertical instead of rainbow.
 --TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Autofix sharp bends with circular arcs.
 -- 1. Preview proposed fix in 3rd person view.
---TODO: Optional road shadow.
---TODO: Optional plain green vertical instead of rainbow.
 --TODO: Some way to join the start and end of a loop (although MR does this).
 
 
