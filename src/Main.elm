@@ -124,20 +124,27 @@ type ThirdPersonSubmode
     | ShowBendFixes
 
 
+type CurtainStyle
+    = NoCurtain
+    | PlainCurtain
+    | RainbowCurtain
+
+
 type alias DisplayOptions =
     { roadPillars : Bool
     , roadCones : Bool
     , roadTrack : Bool
-    , gradientFill : Bool
+    , curtainStyle : CurtainStyle
     , problems : Bool
     }
 
 
+defaultDisplayOptions : DisplayOptions
 defaultDisplayOptions =
     { roadPillars = True
     , roadCones = True
     , roadTrack = True
-    , gradientFill = True
+    , curtainStyle = RainbowCurtain
     , problems = False
     }
 
@@ -225,10 +232,10 @@ type Msg
     | ImageGrab Point
     | ImageRotate Point
     | ImageRelease Point
-    | ToggleRoad Bool
-    | ToggleGradient Bool
     | TogglePillars Bool
+    | ToggleRoad Bool
     | ToggleCones Bool
+    | SetCurtainStyle CurtainStyle
     | SetGradientChangeThreshold Float
     | SetBearingChangeThreshold Float
     | SelectProblemType ProblemType
@@ -457,7 +464,7 @@ update msg model =
             , Cmd.none
             )
 
-        TogglePillars _ ->
+        TogglePillars style ->
             ( { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
               }
@@ -473,9 +480,9 @@ update msg model =
             , Cmd.none
             )
 
-        ToggleGradient _ ->
+        SetCurtainStyle style ->
             ( { model
-                | displayOptions = { options | gradientFill = not options.gradientFill }
+                | displayOptions = { options | curtainStyle = style }
               }
                 |> deriveVisualEntities
             , Cmd.none
@@ -1271,17 +1278,25 @@ deriveVisualEntities model =
              else
                 []
             )
-                ++ (if model.displayOptions.gradientFill then
-                        [ -- Drop coloured gradient to the ground
-                          Scene3d.quad (Material.color <| gradientColour segment.gradient)
-                            (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                            (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                            (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                            (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
-                        ]
+                ++ (case model.displayOptions.curtainStyle of
+                        RainbowCurtain ->
+                            [ Scene3d.quad (Material.color <| gradientColour segment.gradient)
+                                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
+                                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
+                            ]
 
-                    else
-                        []
+                        PlainCurtain ->
+                            [ Scene3d.quad (Material.color Color.green)
+                                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
+                                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
+                            ]
+
+                        NoCurtain ->
+                            []
                    )
 
         segmentDirection segment =
@@ -1738,12 +1753,6 @@ viewOptions model =
           <|
             [ text "Select view elements" ]
         , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleGradient
-            , icon = checkboxIcon
-            , checked = model.displayOptions.gradientFill
-            , label = Input.labelRight [] (text "Gradient colours")
-            }
-        , Input.checkbox [ Font.size 18 ]
             { onChange = ToggleRoad
             , icon = checkboxIcon
             , checked = model.displayOptions.roadTrack
@@ -1760,6 +1769,20 @@ viewOptions model =
             , icon = checkboxIcon
             , checked = model.displayOptions.roadCones
             , label = Input.labelRight [] (text "Trackpoint cones")
+            }
+        , Input.radioRow
+            [ Border.rounded 6
+            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+            ]
+            { onChange = SetCurtainStyle
+            , selected = Just model.displayOptions.curtainStyle
+            , label =
+                Input.labelHidden "Curtain style"
+            , options =
+                [ Input.optionWith NoCurtain <| radioButton First "None"
+                , Input.optionWith PlainCurtain <| radioButton Mid "Plain"
+                , Input.optionWith RainbowCurtain <| radioButton Last "Rainbow"
+                ]
             }
         , gradientChangeThresholdSlider model
         ]
