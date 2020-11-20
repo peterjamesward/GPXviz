@@ -1492,7 +1492,7 @@ deriveVisualEntities model =
                             ]
 
                         PlainCurtain ->
-                            [ Scene3d.quad (Material.color Color.green)
+                            [ Scene3d.quad (Material.color <| Color.rgb255 0 100 0)
                                 (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
                                 (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
                                 (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
