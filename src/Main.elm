@@ -40,7 +40,6 @@ import WriteGPX exposing (writeGPX)
 
 
 --TODO: Flythrough should also work in third person view.
---TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Autofix bends with circular arcs.
 -- 1. Understand the basics of turn angles!
 --TODO: Some way to join the start and end of a loop (although MR does this).
@@ -731,7 +730,7 @@ resetFlythrough model =
                             Just
                                 { metresFromRouteStart = road.startDistance
                                 , running = False
-                                , cameraPosition = (road.startsAt.x, road.startsAt.y, road.startsAt.z)
+                                , cameraPosition = ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
                                 , lastUpdated = model.time
                                 , segment = road
                                 }
@@ -2284,13 +2283,12 @@ flythroughControls model =
                         text <|
                             "Fly-through speed = "
                                 ++ (showDecimal <|
-                                        30.0
-                                            * 10
-                                            ^ model.flythroughSpeed
+                                        10.0 ^ model.flythroughSpeed
+
                                    )
-                                ++ " km/h"
-                , min = 0.0 -- i.e. 1 * 30 km/h
-                , max = 3.0 -- i.e. 1000 * 30 km/h
+                                ++ " m/sec"
+                , min = 1.0 -- i.e. 1
+                , max = 3.0 -- i.e. 1000
                 , step = Nothing
                 , value = model.flythroughSpeed
                 , thumb = Input.defaultThumb
@@ -2341,7 +2339,8 @@ flythroughControls model =
         [ resetButton
         , playPauseButton
         , flythroughSpeedSlider
-        , flythroughPosition
+
+        --, flythroughPosition
         ]
 
 
@@ -2405,7 +2404,8 @@ viewRoadSegment scale model road =
 
                 Just flying ->
                     let
-                        r = flying.segment
+                        r =
+                            flying.segment
                     in
                     Viewpoint3d.lookAt
                         { eyePoint = eyePoint
@@ -2714,19 +2714,22 @@ viewSummaryStats model =
     in
     case Array.get getNodeNum model.nodeArray of
         Just node ->
-            row [ padding 20 ]
-                [ column [ spacing 10 ]
-                    [ text "Index "
-                    , text "Latitude "
-                    , text "Longitude "
-                    , text "Elevation "
+            column [ padding 20, spacing 20 ]
+                [ row [ padding 20 ]
+                    [ column [ spacing 10 ]
+                        [ text "Index "
+                        , text "Latitude "
+                        , text "Longitude "
+                        , text "Elevation "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text <| String.fromInt <| getNodeNum
+                        , text <| showDecimal node.trackPoint.lat
+                        , text <| showDecimal node.trackPoint.lon
+                        , text <| showDecimal node.trackPoint.ele
+                        ]
                     ]
-                , column [ spacing 10 ]
-                    [ text <| String.fromInt <| getNodeNum
-                    , text <| showDecimal node.trackPoint.lat
-                    , text <| showDecimal node.trackPoint.lon
-                    , text <| showDecimal node.trackPoint.ele
-                    ]
+                , flythroughControls model
                 ]
 
         Nothing ->
@@ -2741,12 +2744,23 @@ distanceFromZoom scale zoomLevel =
 viewCurrentNode : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNode scale model node =
     let
+        focus =
+            case model.flythrough of
+                Just fly ->
+                    let
+                        ( x, y, z ) =
+                            fly.cameraPosition
+                    in
+                    Point3d.meters x y z
+
+                Nothing ->
+                    Point3d.meters node.x node.y node.z
+
         camera =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
-                        { focalPoint =
-                            Point3d.meters node.x node.y node.z
+                        { focalPoint = focus
                         , azimuth = model.azimuth
                         , elevation = model.elevation
                         , distance =
