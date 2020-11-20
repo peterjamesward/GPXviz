@@ -1,6 +1,7 @@
 module Geometry101 exposing (..)
 
 import List
+import Arc2d
 
 
 type alias Point =
@@ -100,27 +101,33 @@ findIncircleFromTwoRoads r1 r2 =
     case intersection of
         Just p ->
             Just <| findIncircle r1.startAt r2.endsAt p
-            --Just  { centre = { x = p.x, y = p.y }, radius = 0.05 }
 
+        --Just  { centre = { x = p.x, y = p.y }, radius = 0.05 }
         Nothing ->
             Nothing
 
 
 findTangentPoint : Road -> Circle -> Maybe Point
 findTangentPoint road incircle =
-{-
-    Given the road's line is Ax + By + C = 0,
-    the radius is perpendicular hence has line Bx - Ay + D = 0
-    and it passes through the circle centre (X, Y) so BX - AY + D = 0
-    or D = AY - BX.
-    Then we can find the intercept point using existing code.
--}
+    {-
+       Given the road's line is Ax + By + C = 0,
+       the radius is perpendicular hence has line Bx - Ay + D = 0
+       and it passes through the circle centre (X, Y) so BX - AY + D = 0
+       or D = AY - BX.
+       Then we can find the intercept point using existing code.
+    -}
     let
-        roadLine = lineEquationFromTwoPoints road.startAt road.endsAt
-        radiusLine = { a = roadLine.b, b = -1.0 * roadLine.a, c = aybx}
-        aybx = roadLine.a * incircle.centre.y - roadLine.b * incircle.centre.x
+        roadLine =
+            lineEquationFromTwoPoints road.startAt road.endsAt
+
+        radiusLine =
+            { a = roadLine.b, b = -1.0 * roadLine.a, c = aybx }
+
+        aybx =
+            roadLine.a * incircle.centre.y - roadLine.b * incircle.centre.x
     in
     lineIntersection roadLine radiusLine
+
 
 findIncircle : Point -> Point -> Point -> Circle
 findIncircle pA pB pC =
@@ -249,14 +256,13 @@ lineIntersection l1 l2 =
             Nothing
 
 
-
 matrixInverse : Matrix -> Maybe Matrix
 matrixInverse m =
     let
         det =
             m.tl * m.br - m.tr * m.bl
     in
-    if abs det < 10^(-20) then
+    if abs det < 10 ^ -20 then
         Nothing
 
     else
@@ -306,3 +312,4 @@ lineEquationFromTwoPoints p1 p2 =
             p1.x * p2.y - p2.x * p1.y
     in
     { a = a, b = b, c = c }
+

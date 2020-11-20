@@ -19,7 +19,6 @@ import File.Download as Download
 import File.Select as Select
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
-import Geometry101 as G exposing (..)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Iso8601
@@ -40,12 +39,14 @@ import WriteGPX exposing (writeGPX)
 
 
 
+--TODO: Always autofix the zero length segments.
+--TODO: Lose the Problem page.
+--TODO: Tweak single node elevation.
+--TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Autofix sharp bends with circular arcs.
 -- 1. Preview proposed fix in 3rd person view.
---TODO: Constant speed flythrough (works in either view mode, can still rotate).
 --TODO: Optional road shadow.
 --TODO: Optional plain green vertical instead of rainbow.
---TODO: Always autofix the zero length segments.
 --TODO: Some way to join the start and end of a loop (although MR does this).
 
 
@@ -110,7 +111,7 @@ type ViewingMode
     = OverviewView
     | FirstPersonView
     | ThirdPersonView
-    | OptionsView
+    | AboutView
     | ProblemsView
     | InputErrorView
 
@@ -194,6 +195,7 @@ type alias Model =
     , smoothedBend : Maybe SmoothedBend
     , smoothedNodes : List DrawingNode
     , smoothedRoads : List DrawingRoad
+    , maxTurnPerSegment : Float
     }
 
 
@@ -244,6 +246,7 @@ type Msg
     | ToggleMarker
     | MarkerForwardOne
     | MarkerBackOne
+    | SetMaxTurnPerSegment Float
 
 
 init : () -> ( Model, Cmd Msg )
@@ -265,7 +268,7 @@ init _ =
       , httpError = Nothing
       , currentNode = Nothing
       , markedNode = Nothing
-      , viewingMode = OptionsView
+      , viewingMode = AboutView
       , summary = Nothing
       , nodeArray = Array.empty
       , roadArray = Array.empty
@@ -286,6 +289,7 @@ init _ =
       , smoothedBend = Nothing
       , smoothedNodes = []
       , smoothedRoads = []
+      , maxTurnPerSegment = 20.0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -375,6 +379,15 @@ update msg model =
         MarkerBackOne ->
             ( { model
                 | markedNode = decrementMaybeModulo (List.length model.roads - 1) model.markedNode
+              }
+                |> tryBendSmoother
+                |> deriveVisualEntities
+            , Cmd.none
+            )
+
+        SetMaxTurnPerSegment turn ->
+            ( { model
+                | maxTurnPerSegment = turn
               }
                 |> tryBendSmoother
                 |> deriveVisualEntities
@@ -582,7 +595,7 @@ tryBendSmoother model =
                             road2.endsAt.trackPoint
 
                         newTrack =
-                            bendIncircle pa pb pc pd
+                            bendIncircle 10.0 pa pb pc pd
                     in
                     case newTrack of
                         Just track ->
@@ -712,6 +725,11 @@ deleteZeroLengthSegments model =
     { model
         | trackPoints = reindex <| List.filter keepNonZero model.trackPoints
         , hasBeenChanged = True
+        , undoStack =
+            { label = " remove zero length segments."
+            , trackPoints = model.trackPoints
+            }
+                :: model.undoStack
     }
 
 
@@ -964,6 +982,7 @@ resetViewSettings model =
         , elevation = Angle.degrees 30.0
         , currentNode = Just 0
         , markedNode = Nothing
+        , viewingMode = OverviewView
     }
 
 
@@ -1261,32 +1280,39 @@ deriveVisualEntities model =
                     positiveZ
 
         suggestedBend metresToClipSpace roads =
-            List.map (bendElement metresToClipSpace) roads
+            if model.thirdPersonSubmode == ShowBendFixes then
+                List.map (bendElement metresToClipSpace) roads
+
+            else
+                []
 
         bendElement metresToClipSpace segment =
             let
                 kerbX =
-                    10.0 * cos segment.bearing * metresToClipSpace
+                    2.0 * cos segment.bearing * metresToClipSpace
 
                 kerbY =
-                    10.0 * sin segment.bearing * metresToClipSpace
+                    2.0 * sin segment.bearing * metresToClipSpace
+
+                floatHeight =
+                    0.1 * metresToClipSpace
             in
             Scene3d.quad (Material.color Color.white)
                 (Point3d.meters (segment.startsAt.x + kerbX)
                     (segment.startsAt.y - kerbY)
-                    segment.startsAt.z
+                    (segment.startsAt.z + floatHeight)
                 )
                 (Point3d.meters (segment.endsAt.x + kerbX)
                     (segment.endsAt.y - kerbY)
-                    segment.endsAt.z
+                    (segment.endsAt.z + floatHeight)
                 )
                 (Point3d.meters (segment.endsAt.x - kerbX)
                     (segment.endsAt.y + kerbY)
-                    segment.endsAt.z
+                    (segment.endsAt.z + floatHeight)
                 )
                 (Point3d.meters (segment.startsAt.x - kerbX)
                     (segment.startsAt.y + kerbY)
-                    segment.startsAt.z
+                    (segment.startsAt.z + floatHeight)
                 )
     in
     case model.scaling of
@@ -1411,7 +1437,7 @@ viewGenericNew model =
                             [ view3D scale model ]
 
                     Nothing ->
-                        none
+                        viewAboutText
                 ]
         ]
     }
@@ -1452,8 +1478,9 @@ viewModeChoices model =
             [ Input.optionWith OverviewView <| radioButton First "Overview"
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ThirdPersonView <| radioButton Mid "Third person"
-            , Input.optionWith ProblemsView <| radioButton Mid "Problems"
-            , Input.optionWith OptionsView <| radioButton Last "Options"
+
+            --, Input.optionWith ProblemsView <| radioButton Mid "Problems"
+            , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
 
@@ -1470,8 +1497,8 @@ view3D scale model =
         ThirdPersonView ->
             viewThirdPerson scale model
 
-        OptionsView ->
-            viewOptions model
+        AboutView ->
+            viewAboutText
 
         ProblemsView ->
             viewAllProblems model
@@ -1593,7 +1620,7 @@ viewBearingChanges model =
                 }
     in
     column [ spacing 10, padding 20 ]
-        [ gradientChangeThresholdSlider model
+        [ bearingChangeThresholdSlider model
         , wrappedRow [ width <| px 300 ] <|
             List.map linkButton model.abruptBearingChanges
         ]
@@ -1676,41 +1703,45 @@ checkboxIcon isChecked =
 
 viewOptions : Model -> Element Msg
 viewOptions model =
-    row [ centerX ]
-        [ column [ padding 50, alignTop, spacing 10 ]
-            [ paragraph
-                [ padding 20
-                , Font.size 24
-                ]
-              <|
-                [ text "Select view elements" ]
-            , Input.checkbox [ Font.size 18 ]
-                { onChange = ToggleGradient
-                , icon = checkboxIcon
-                , checked = model.displayOptions.gradientFill
-                , label = Input.labelRight [] (text "Gradient colours")
-                }
-            , Input.checkbox [ Font.size 18 ]
-                { onChange = ToggleRoad
-                , icon = checkboxIcon
-                , checked = model.displayOptions.roadTrack
-                , label = Input.labelRight [] (text "Road surface")
-                }
-            , Input.checkbox [ Font.size 18 ]
-                { onChange = TogglePillars
-                , icon = checkboxIcon
-                , checked = model.displayOptions.roadPillars
-                , label = Input.labelRight [] (text "Road support pillars")
-                }
-            , Input.checkbox [ Font.size 18 ]
-                { onChange = ToggleCones
-                , icon = checkboxIcon
-                , checked = model.displayOptions.roadCones
-                , label = Input.labelRight [] (text "Trackpoint cones")
-                }
-            , gradientChangeThresholdSlider model
+    column [ padding 50, alignTop, spacing 10 ]
+        [ paragraph
+            [ padding 20
+            , Font.size 24
             ]
-        , paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
+          <|
+            [ text "Select view elements" ]
+        , Input.checkbox [ Font.size 18 ]
+            { onChange = ToggleGradient
+            , icon = checkboxIcon
+            , checked = model.displayOptions.gradientFill
+            , label = Input.labelRight [] (text "Gradient colours")
+            }
+        , Input.checkbox [ Font.size 18 ]
+            { onChange = ToggleRoad
+            , icon = checkboxIcon
+            , checked = model.displayOptions.roadTrack
+            , label = Input.labelRight [] (text "Road surface")
+            }
+        , Input.checkbox [ Font.size 18 ]
+            { onChange = TogglePillars
+            , icon = checkboxIcon
+            , checked = model.displayOptions.roadPillars
+            , label = Input.labelRight [] (text "Road support pillars")
+            }
+        , Input.checkbox [ Font.size 18 ]
+            { onChange = ToggleCones
+            , icon = checkboxIcon
+            , checked = model.displayOptions.roadCones
+            , label = Input.labelRight [] (text "Trackpoint cones")
+            }
+        , gradientChangeThresholdSlider model
+        ]
+
+
+viewAboutText : Element Msg
+viewAboutText =
+    row [ centerX ]
+        [ paragraph [ width <| px 600 ] <| [ html <| Markdown.toHtml [] aboutText ]
         ]
 
 
@@ -1749,6 +1780,7 @@ gradientChangeThresholdSlider model =
         }
 
 
+bearingChangeThresholdSlider : Model -> Element Msg
 bearingChangeThresholdSlider model =
     Input.slider
         commonShortHorizontalSliderStyles
@@ -1762,6 +1794,24 @@ bearingChangeThresholdSlider model =
         , max = 120.0
         , step = Just 1.0
         , value = toFloat model.bearingChangeThreshold
+        , thumb = Input.defaultThumb
+        }
+
+
+bendSmoothnessSlider : Model -> Element Msg
+bendSmoothnessSlider model =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetMaxTurnPerSegment
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Maximum turn per segment = "
+                        ++ String.fromFloat model.maxTurnPerSegment
+        , min = 10.0
+        , max = 30.0
+        , step = Just 1.0
+        , value = model.maxTurnPerSegment
         , thumb = Input.defaultThumb
         }
 
@@ -1843,7 +1893,10 @@ viewPointCloud scale model =
                     , sunlightDirection = negativeZ
                     , shadows = True
                     }
-        , showSummary
+        , column []
+            [ showSummary
+            , viewOptions model
+            ]
         ]
 
 
@@ -2105,8 +2158,9 @@ viewThirdPersonSubpane model =
                 Input.labelHidden "Choose mode"
             , options =
                 [ Input.optionWith ShowData <| radioButton First "Location\ndata"
-                , Input.optionWith ShowGradientFixes <| radioButton Mid "Gradient\nsmoother"
-                , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
+                , Input.optionWith ShowGradientFixes <| radioButton Last "Gradient\nsmoother"
+
+                --, Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
                 ]
             }
         , case model.thirdPersonSubmode of
@@ -2127,6 +2181,7 @@ viewBendFixerPane model =
         [ text "Sorry, we can't fix the bends yet."
         , markerButton model
         , showCircle model.smoothedBend
+        , bendSmoothnessSlider model
         , viewBearingChanges model
         ]
 
