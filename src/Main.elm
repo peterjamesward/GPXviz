@@ -39,6 +39,7 @@ import WriteGPX exposing (writeGPX)
 
 
 
+--TODO: Stop using node & road numbers. Maybe Zippers.
 --TODO: Improve removal of zero lengths so we don't have to repeat ourselves!
 --TODO: Allow drag & zoom in 1st person including flythrough (offset, not angles).
 --TODO: Autofix bends with circular arcs.
@@ -2028,7 +2029,6 @@ viewOptions model =
                 , Input.optionWith RainbowCurtain <| radioButton Last "Rainbow"
                 ]
             }
-        , gradientChangeThresholdSlider model
         ]
 
 
