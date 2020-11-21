@@ -39,13 +39,13 @@ import WriteGPX exposing (writeGPX)
 
 
 
+--TODO: Try chamfer for horizontal turns.
 --TODO: Stop using node & road numbers. Maybe Zippers.
 --TODO: Improve removal of zero lengths so we don't have to repeat ourselves!
 --TODO: Allow drag & zoom in 1st person including flythrough (offset, not angles).
 --TODO: Autofix bends with circular arcs.
 --TODO: Break up this module.
 --TODO: Linear orthographic ride profile.
---TODO: Third person focal point is average of N points around current, or current..marker.
 --TODO: Some way to join the start and end of a loop (although MR does this).
 --TODO: Remove duplicate helpers.
 
@@ -642,7 +642,7 @@ verticalNodeSplit n model =
         undoMessage =
             "Vertical chamfer at " ++ String.fromInt n
     in
-    case ( Array.get n model.roadArray, Array.get (n + 1) model.roadArray ) of
+    case ( Array.get (n - 1) model.roadArray, Array.get n model.roadArray ) of
         ( Just before, Just after ) ->
             let
                 newChange =
@@ -956,7 +956,7 @@ smoothGradient model start finish gradient =
                 ++ " to "
                 ++ String.fromInt finish
                 ++ ", \nbumpiness "
-                ++ showDecimal model.bumpinessFactor
+                ++ showDecimal2 model.bumpinessFactor
                 ++ "."
     in
     case startNode of
@@ -1773,10 +1773,18 @@ parseTrackName xml =
                     n
 
 
-showDecimal x =
+showDecimal2 x =
     let
         locale =
             { usLocale | decimals = Exact 2 }
+    in
+    format locale x
+
+
+showDecimal6 x =
+    let
+        locale =
+            { usLocale | decimals = Exact 6 }
     in
     format locale x
 
@@ -2156,7 +2164,7 @@ gradientChangeThresholdSlider model =
             Input.labelBelow [] <|
                 text <|
                     "Gradient change threshold = "
-                        ++ showDecimal model.gradientChangeThreshold
+                        ++ showDecimal2 model.gradientChangeThreshold
         , min = 5.0
         , max = 20.0
         , step = Nothing
@@ -2254,13 +2262,13 @@ viewPointCloud scale model =
                             , text "Elevation loss "
                             ]
                         , column [ spacing 10 ]
-                            [ text <| showDecimal summary.highestMetres
-                            , text <| showDecimal summary.lowestMetres
-                            , text <| showDecimal summary.trackLength
-                            , text <| showDecimal summary.climbingDistance
-                            , text <| showDecimal summary.totalClimbing
-                            , text <| showDecimal summary.descendingDistance
-                            , text <| showDecimal summary.totalDescending
+                            [ text <| showDecimal2 summary.highestMetres
+                            , text <| showDecimal2 summary.lowestMetres
+                            , text <| showDecimal2 summary.trackLength
+                            , text <| showDecimal2 summary.climbingDistance
+                            , text <| showDecimal2 summary.totalClimbing
+                            , text <| showDecimal2 summary.descendingDistance
+                            , text <| showDecimal2 summary.totalDescending
                             ]
                         ]
 
@@ -2374,16 +2382,16 @@ viewFirstPerson scale model =
                     ]
                 , column [ spacing 10 ]
                     [ text <| String.fromInt <| Maybe.withDefault 1 model.currentNode
-                    , text <| showDecimal road.startsAt.trackPoint.lat
-                    , text <| showDecimal road.startsAt.trackPoint.lon
-                    , text <| showDecimal road.startsAt.trackPoint.ele
-                    , text <| showDecimal road.startDistance
-                    , text <| showDecimal road.endsAt.trackPoint.lat
-                    , text <| showDecimal road.endsAt.trackPoint.lon
-                    , text <| showDecimal road.endsAt.trackPoint.ele
-                    , text <| showDecimal road.endDistance
-                    , text <| showDecimal road.length
-                    , text <| showDecimal road.gradient
+                    , text <| showDecimal6 road.startsAt.trackPoint.lat
+                    , text <| showDecimal6 road.startsAt.trackPoint.lon
+                    , text <| showDecimal2 road.startsAt.trackPoint.ele
+                    , text <| showDecimal2 road.startDistance
+                    , text <| showDecimal6 road.endsAt.trackPoint.lat
+                    , text <| showDecimal6 road.endsAt.trackPoint.lon
+                    , text <| showDecimal2 road.endsAt.trackPoint.ele
+                    , text <| showDecimal2 road.endDistance
+                    , text <| showDecimal2 road.length
+                    , text <| showDecimal2 road.gradient
                     , text <| bearingToDisplayDegrees road.bearing
                     ]
                 ]
@@ -2417,7 +2425,7 @@ flythroughControls model =
                     Input.labelBelow [] <|
                         text <|
                             "Fly-through speed = "
-                                ++ (showDecimal <|
+                                ++ (showDecimal2 <|
                                         10.0
                                             ^ model.flythroughSpeed
                                    )
@@ -2465,7 +2473,7 @@ flythroughControls model =
         flythroughPosition =
             case model.flythrough of
                 Just fly ->
-                    text <| showDecimal fly.metresFromRouteStart
+                    text <| showDecimal2 fly.metresFromRouteStart
 
                 Nothing ->
                     none
@@ -2480,7 +2488,7 @@ flythroughControls model =
 
 
 bearingToDisplayDegrees x =
-    showDecimal <|
+    showDecimal2 <|
         toDegrees <|
             if x < 0 then
                 pi + pi + x
@@ -2789,7 +2797,7 @@ viewGradientFixerPane model =
                                 , label =
                                     text <|
                                         "Smooth between markers\nAverage gradient "
-                                            ++ showDecimal gradient
+                                            ++ showDecimal2 gradient
                                 }
                             , smoothnessSlider model
                             ]
@@ -2825,7 +2833,7 @@ smoothnessSlider model =
             Input.labelBelow [] <|
                 text <|
                     "Bumpiness factor = "
-                        ++ showDecimal model.bumpinessFactor
+                        ++ showDecimal2 model.bumpinessFactor
         , min = 0.0
         , max = 1.0
         , step = Nothing
@@ -2868,9 +2876,9 @@ viewSummaryStats model =
                         ]
                     , column [ spacing 10 ]
                         [ text <| String.fromInt <| getNodeNum
-                        , text <| showDecimal node.trackPoint.lat
-                        , text <| showDecimal node.trackPoint.lon
-                        , text <| showDecimal node.trackPoint.ele
+                        , text <| showDecimal6 node.trackPoint.lat
+                        , text <| showDecimal6 node.trackPoint.lon
+                        , text <| showDecimal2 node.trackPoint.ele
                         ]
                     ]
                 , flythroughControls model
@@ -2890,7 +2898,7 @@ meanPositionOfNearbyNodes node model =
     -- Probably should not do this in the View.
     let
         eachSide =
-            5
+            2
 
         nearbyNodes =
             model.nodes |> drop (node.trackPoint.idx - eachSide) |> take (2 * eachSide)
