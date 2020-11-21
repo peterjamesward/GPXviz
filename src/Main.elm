@@ -39,10 +39,15 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Flythrough should also work in third person view.
+--TODO: Improve removal of zero lengths so we don't have to repeat ourselves!
+--TODO: Allow drag & zoom in 1st person including flythrough (offset, not angles).
 --TODO: Autofix bends with circular arcs.
--- 1. Understand the basics of turn angles!
+--TODO: Break up this module.
+--TODO: Linear orthographic ride profile.
+--TODO: Vertical 'chamfer' option for single node, adds nodes either side (? angle bisectors ?)
+--TODO: Third person focal point is average of N points around current, or current..marker.
 --TODO: Some way to join the start and end of a loop (although MR does this).
+--TODO: Remove duplicate helpers.
 
 
 main : Program () Model Msg
@@ -206,6 +211,7 @@ type alias Model =
 
 type alias Flythrough =
     { cameraPosition : ( Float, Float, Float )
+    , focusPoint : ( Float, Float, Float )
     , metresFromRouteStart : Float
     , lastUpdated : Time.Posix
     , running : Bool
@@ -350,8 +356,10 @@ update msg model =
         GpxLoaded content ->
             ( parseGPXintoModel content model
                 |> deriveNodesAndRoads
-                |> deriveVisualEntities
                 |> deriveProblems
+                |> deleteZeroLengthSegments
+                |> deriveProblems
+                |> deriveVisualEntities
                 |> resetViewSettings
             , Cmd.none
             )
@@ -360,6 +368,7 @@ update msg model =
             ( { model | currentNode = Just node }
                 |> tryBendSmoother
                 |> deriveVisualEntities
+                |> cancelFlythrough
             , Cmd.none
             )
 
@@ -376,6 +385,7 @@ update msg model =
               }
                 |> tryBendSmoother
                 |> deriveVisualEntities
+                |> cancelFlythrough
             , Cmd.none
             )
 
@@ -385,6 +395,7 @@ update msg model =
               }
                 |> tryBendSmoother
                 |> deriveVisualEntities
+                |> cancelFlythrough
             , Cmd.none
             )
 
@@ -629,6 +640,11 @@ startFlythrough model =
             resetFlythrough model |> startFlythrough
 
 
+cancelFlythrough : Model -> Model
+cancelFlythrough model =
+    { model | flythrough = Nothing }
+
+
 pauseFlythrough : Model -> Model
 pauseFlythrough model =
     case model.flythrough of
@@ -698,17 +714,45 @@ advanceFlythrough newTime model =
 
                                     z =
                                         segFraction * seg.endsAt.z + (1 - segFraction) * seg.startsAt.z
+
+                                    nextSeg =
+                                        Array.get (seg.index + 1) model.roadArray
+
+                                    lookingAt =
+                                        case nextSeg of
+                                            Just next ->
+                                                -- Start looking around the bend, makin flythrough smoother.
+                                                let
+                                                    nextX =
+                                                        (next.startsAt.x + next.endsAt.x) / 2.0
+
+                                                    nextY =
+                                                        (next.startsAt.y + next.endsAt.y) / 2.0
+
+                                                    nextZ =
+                                                        (next.startsAt.z + next.endsAt.z) / 2.0
+
+                                                    focusX =
+                                                        (nextX + seg.endsAt.x) / 2.0
+
+                                                    focusY =
+                                                        (nextY + seg.endsAt.y) / 2.0
+
+                                                    focusZ =
+                                                        (nextZ + seg.endsAt.z) / 2.0
+                                                in
+                                                ( focusX, focusY, focusZ )
+
+                                            Nothing ->
+                                                ( seg.endsAt.x, seg.endsAt.y, seg.endsAt.z )
                                 in
                                 Just
                                     { flying
                                         | metresFromRouteStart = newDistance
                                         , lastUpdated = newTime
                                         , segment = seg
-                                        , cameraPosition =
-                                            ( x
-                                            , y
-                                            , z
-                                            )
+                                        , cameraPosition = ( x, y, z )
+                                        , focusPoint = lookingAt
                                     }
                         }
 
@@ -731,6 +775,7 @@ resetFlythrough model =
                                 { metresFromRouteStart = road.startDistance
                                 , running = False
                                 , cameraPosition = ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
+                                , focusPoint = ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
                                 , lastUpdated = model.time
                                 , segment = road
                                 }
@@ -944,12 +989,6 @@ deleteZeroLengthSegments model =
     in
     { model
         | trackPoints = reindex <| List.filter keepNonZero model.trackPoints
-        , hasBeenChanged = True
-        , undoStack =
-            { label = " remove zero length segments."
-            , trackPoints = model.trackPoints
-            }
-                :: model.undoStack
     }
 
 
@@ -2074,9 +2113,13 @@ bendSmoothnessSlider model =
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
+> _This text updated 2020-11-21_
+
 **Overview** shows a route overview and summary statistics. Zoom is (currently) fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
 **First person** positions the viewpoint above a track _road segment_, sighted along the track. The zoom control will move your viewpoint back and forth a bit. The bottom slider and arrows move between track segments. Information about the current segment is shown.
+
+> **NEW** Fly-through controls on the right hand pane: Reset, Play/Pause, Speed. Have fun with that. Works on Third person view also.
 
 **Third person** focuses on track _points_ and lets you fly around the current point.  An orange disc will indicate the position on the track. The slider and arrows move to other track points. Information about the current track point is shown. On the right hand side, you can click "Gradient smoother" to smooth dodgy gradients.
 
@@ -2284,8 +2327,8 @@ flythroughControls model =
                         text <|
                             "Fly-through speed = "
                                 ++ (showDecimal <|
-                                        10.0 ^ model.flythroughSpeed
-
+                                        10.0
+                                            ^ model.flythroughSpeed
                                    )
                                 ++ " m/sec"
                 , min = 1.0 -- i.e. 1
@@ -2407,14 +2450,14 @@ viewRoadSegment scale model road =
                     let
                         r =
                             flying.segment
+
+                        ( focusX, focusY, focusZ ) =
+                            flying.focusPoint
                     in
                     Viewpoint3d.lookAt
                         { eyePoint = eyePoint
                         , focalPoint =
-                            Point3d.meters
-                                r.endsAt.x
-                                r.endsAt.y
-                                (r.endsAt.z + eyeHeight)
+                            Point3d.meters focusX focusY (focusZ + eyeHeight)
                         , upDirection = Direction3d.positiveZ
                         }
 
@@ -2742,6 +2785,36 @@ distanceFromZoom scale zoomLevel =
     1.0 * scale.metresToClipSpace * 10 ^ (5.0 - zoomLevel)
 
 
+meanPositionOfNearbyNodes : DrawingNode -> Model -> ( Float, Float, Float )
+meanPositionOfNearbyNodes node model =
+    -- Probably should not do this in the View.
+    let
+        eachSide =
+            5
+
+        nearbyNodes =
+            model.nodes |> drop (node.trackPoint.idx - eachSide) |> take (2 * eachSide)
+
+        acc =
+            { count = 0.0, x = 0.0, y = 0.0, z = 0.0 }
+
+        accumulated =
+            List.foldl adder acc nearbyNodes
+
+        adder a b =
+            { b
+                | count = b.count + 1.0
+                , x = b.x + a.x
+                , y = b.y + a.y
+                , z = b.z + a.z
+            }
+    in
+    ( accumulated.x / accumulated.count
+    , accumulated.y / accumulated.count
+    , accumulated.z / accumulated.count
+    )
+
+
 viewCurrentNode : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNode scale model node =
     let
@@ -2755,7 +2828,11 @@ viewCurrentNode scale model node =
                     Point3d.meters x y z
 
                 Nothing ->
-                    Point3d.meters node.x node.y node.z
+                    let
+                        ( x, y, z ) =
+                            meanPositionOfNearbyNodes node model
+                    in
+                    Point3d.meters x y z
 
         camera =
             Camera3d.perspective
