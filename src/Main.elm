@@ -2022,7 +2022,7 @@ viewOptions model =
             { onChange = SetCurtainStyle
             , selected = Just model.displayOptions.curtainStyle
             , label =
-                Input.labelHidden "Curtain style"
+                Input.labelBelow [centerX] <| text "Curtain style"
             , options =
                 [ Input.optionWith NoCurtain <| radioButton First "None"
                 , Input.optionWith PlainCurtain <| radioButton Mid "Plain"
