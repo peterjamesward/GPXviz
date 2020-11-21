@@ -39,13 +39,13 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Try chamfer for horizontal turns.
 --TODO: Stop using node & road numbers. Maybe Zippers.
+--TODO: Linear orthographic ride profile.
+--TODO: Break up this module.
+--TODO: Try chamfer for horizontal turns.
+--TODO: Autofix bends with circular arcs.
 --TODO: Improve removal of zero lengths so we don't have to repeat ourselves!
 --TODO: Allow drag & zoom in 1st person including flythrough (offset, not angles).
---TODO: Autofix bends with circular arcs.
---TODO: Break up this module.
---TODO: Linear orthographic ride profile.
 --TODO: Some way to join the start and end of a loop (although MR does this).
 --TODO: Remove duplicate helpers.
 
