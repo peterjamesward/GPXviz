@@ -3,6 +3,10 @@ module NodesAndRoads exposing (..)
 import TrackPoint exposing (TrackPoint)
 
 
+type MyCoord
+    = SomeCoord
+
+
 type alias DrawingNode =
     -- We will draw in a rectangular space using metre units. Probably.
     { trackPoint : TrackPoint

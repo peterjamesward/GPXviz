@@ -1,6 +1,5 @@
 module ViewElements exposing (..)
 
-
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -23,10 +22,10 @@ prettyButtonStyles =
         [ Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 114 159 207 } ]
     ]
 
+
 loadButton =
     button
         prettyButtonStyles
         { onPress = Just GpxRequested
         , label = text "Load GPX from your computer"
         }
-

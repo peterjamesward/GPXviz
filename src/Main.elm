@@ -8,7 +8,7 @@ import Camera3d
 import Color
 import Cone3d
 import Cylinder3d
-import Direction3d exposing (negativeX, negativeZ, positiveZ)
+import Direction3d exposing (negativeZ, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -18,8 +18,6 @@ import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import FormatNumber exposing (format)
-import FormatNumber.Locales exposing (Decimals(..), usLocale)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Iso8601
@@ -27,13 +25,12 @@ import Length exposing (meters)
 import List exposing (drop, tail, take)
 import Markdown exposing (defaultOptions)
 import Msg exposing (..)
-import NodesAndRoads exposing (DrawingNode, DrawingRoad)
+import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
 import Pixels exposing (Pixels)
 import Point3d
-import Regex
 import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
-import Spherical exposing (range)
+import Spherical
 import Task
 import Time
 import TrackPoint exposing (..)
@@ -41,6 +38,7 @@ import Utils exposing (..)
 import ViewElements exposing (loadButton, prettyButtonStyles)
 import ViewTypes exposing (..)
 import Viewpoint3d
+import VisualEntities exposing (makeVisualEntities)
 import WriteGPX exposing (writeGPX)
 
 
@@ -84,11 +82,6 @@ type ButtonPosition
     | Last
 
 
-type MyCoord
-    = SomeCoord
-
-
-
 type alias Model =
     { gpx : Maybe String
     , filename : Maybe String
@@ -103,7 +96,8 @@ type alias Model =
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
-    , entities : List (Entity MyCoord)
+    , entities : List (Entity MyCoord) -- our 3D world
+    , profileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
@@ -171,6 +165,7 @@ init _ =
       , elevation = Angle.degrees 30
       , orbiting = Nothing
       , entities = []
+      , profileEntities = []
       , httpError = Nothing
       , currentNode = Nothing
       , markedNode = Nothing
@@ -1214,264 +1209,26 @@ deriveProblems model =
 deriveVisualEntities : Model -> Model
 deriveVisualEntities model =
     let
-        seaLevel seaLevelInClipSpace =
-            Scene3d.quad (Material.color Color.darkGreen)
-                (Point3d.meters -1.2 -1.2 seaLevelInClipSpace)
-                (Point3d.meters 1.2 -1.2 seaLevelInClipSpace)
-                (Point3d.meters 1.2 1.2 seaLevelInClipSpace)
-                (Point3d.meters -1.2 1.2 seaLevelInClipSpace)
+        currentRoad =
+            lookupRoad model model.currentNode
 
-        -- Convert the points to a list of entities by providing a radius and
-        -- color for each point
-        pointEntities metresToClipSpace =
-            (if model.displayOptions.roadPillars then
-                List.map
-                    (\node ->
-                        cylinder (Material.color Color.brown) <|
-                            Cylinder3d.startingAt
-                                (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                negativeZ
-                                { radius = meters <| 1.0 * metresToClipSpace
-                                , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
-                                }
-                    )
-                    model.nodes
-
-             else
-                []
-            )
-                ++ (if model.displayOptions.roadCones then
-                        List.map
-                            (\node ->
-                                cone (Material.color Color.black) <|
-                                    Cone3d.startingAt
-                                        (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                        positiveZ
-                                        { radius = meters <| 1.0 * metresToClipSpace
-                                        , length = meters <| 1.0 * metresToClipSpace
-                                        }
-                            )
-                            model.nodes
-
-                    else
-                        []
-                   )
-
-        roadEntities seaLevelInClipSpace metresToClipSpace =
-            List.concat <|
-                List.map (roadEntity seaLevelInClipSpace metresToClipSpace) model.roads
-
-        currentPositionDisc metresToClipSpace =
-            case ( model.currentNode, model.viewingMode ) of
-                ( Just idx, ThirdPersonView ) ->
-                    case Array.get idx model.roadArray of
-                        Just segment ->
-                            [ cylinder (Material.color Color.lightOrange) <|
-                                Cylinder3d.startingAt
-                                    (Point3d.meters
-                                        segment.startsAt.x
-                                        segment.startsAt.y
-                                        segment.startsAt.z
-                                    )
-                                    (segmentDirection segment)
-                                    { radius = meters <| 10.0 * metresToClipSpace
-                                    , length = meters <| 1.0 * metresToClipSpace
-                                    }
-                            ]
-
-                        _ ->
-                            []
-
-                _ ->
-                    []
-
-        markedNode metresToClipSpace =
-            case ( model.markedNode, model.viewingMode ) of
-                ( Just idx, ThirdPersonView ) ->
-                    case Array.get idx model.roadArray of
-                        Just segment ->
-                            [ cone (Material.color Color.purple) <|
-                                Cone3d.startingAt
-                                    (Point3d.meters
-                                        segment.startsAt.x
-                                        segment.startsAt.y
-                                        segment.startsAt.z
-                                    )
-                                    (segmentDirection segment)
-                                    { radius = meters <| 6.0 * metresToClipSpace
-                                    , length = meters <| 3.0 * metresToClipSpace
-                                    }
-                            ]
-
-                        _ ->
-                            []
-
-                _ ->
-                    []
-
-        roadEntity seaLevelInClipSpace metresToClipSpace segment =
-            let
-                kerbX =
-                    -- Road is assumed to be 6 m wide.
-                    3.0 * cos segment.bearing * metresToClipSpace
-
-                kerbY =
-                    3.0 * sin segment.bearing * metresToClipSpace
-
-                edgeHeight =
-                    -- Let's try a low wall at the road's edges.
-                    0.3 * metresToClipSpace
-            in
-            (if model.displayOptions.roadTrack then
-                [ --surface
-                  Scene3d.quad (Material.color Color.grey)
-                    (Point3d.meters (segment.startsAt.x + kerbX)
-                        (segment.startsAt.y - kerbY)
-                        segment.startsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x + kerbX)
-                        (segment.endsAt.y - kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x - kerbX)
-                        (segment.endsAt.y + kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.startsAt.x - kerbX)
-                        (segment.startsAt.y + kerbY)
-                        segment.startsAt.z
-                    )
-
-                -- kerb walls
-                , Scene3d.quad (Material.color Color.darkGrey)
-                    (Point3d.meters (segment.startsAt.x + kerbX)
-                        (segment.startsAt.y - kerbY)
-                        segment.startsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x + kerbX)
-                        (segment.endsAt.y - kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x + kerbX)
-                        (segment.endsAt.y - kerbY)
-                        (segment.endsAt.z + edgeHeight)
-                    )
-                    (Point3d.meters (segment.startsAt.x + kerbX)
-                        (segment.startsAt.y - kerbY)
-                        (segment.startsAt.z + edgeHeight)
-                    )
-                , Scene3d.quad (Material.color Color.darkGrey)
-                    (Point3d.meters (segment.startsAt.x - kerbX)
-                        (segment.startsAt.y + kerbY)
-                        segment.startsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x - kerbX)
-                        (segment.endsAt.y + kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x - kerbX)
-                        (segment.endsAt.y + kerbY)
-                        (segment.endsAt.z + edgeHeight)
-                    )
-                    (Point3d.meters (segment.startsAt.x - kerbX)
-                        (segment.startsAt.y + kerbY)
-                        (segment.startsAt.z + edgeHeight)
-                    )
-                ]
-
-             else
-                []
-            )
-                ++ (case model.displayOptions.curtainStyle of
-                        RainbowCurtain ->
-                            [ Scene3d.quad (Material.color <| gradientColour segment.gradient)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
-                            ]
-
-                        PlainCurtain ->
-                            [ Scene3d.quad (Material.color <| Color.rgb255 0 100 0)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
-                            ]
-
-                        NoCurtain ->
-                            []
-                   )
-
-        segmentDirection segment =
-            let
-                maybe =
-                    Direction3d.from
-                        (Point3d.meters
-                            segment.startsAt.x
-                            segment.startsAt.y
-                            segment.startsAt.z
-                        )
-                        (Point3d.meters
-                            segment.endsAt.x
-                            segment.endsAt.y
-                            segment.endsAt.z
-                        )
-            in
-            case maybe of
-                Just dir ->
-                    dir
-
-                Nothing ->
-                    positiveZ
-
-        suggestedBend metresToClipSpace roads =
-            if model.thirdPersonSubmode == ShowBendFixes then
-                List.map (bendElement metresToClipSpace) roads
-
-            else
-                []
-
-        bendElement metresToClipSpace segment =
-            let
-                kerbX =
-                    2.0 * cos segment.bearing * metresToClipSpace
-
-                kerbY =
-                    2.0 * sin segment.bearing * metresToClipSpace
-
-                floatHeight =
-                    0.1 * metresToClipSpace
-            in
-            Scene3d.quad (Material.color Color.white)
-                (Point3d.meters (segment.startsAt.x + kerbX)
-                    (segment.startsAt.y - kerbY)
-                    (segment.startsAt.z + floatHeight)
-                )
-                (Point3d.meters (segment.endsAt.x + kerbX)
-                    (segment.endsAt.y - kerbY)
-                    (segment.endsAt.z + floatHeight)
-                )
-                (Point3d.meters (segment.endsAt.x - kerbX)
-                    (segment.endsAt.y + kerbY)
-                    (segment.endsAt.z + floatHeight)
-                )
-                (Point3d.meters (segment.startsAt.x - kerbX)
-                    (segment.startsAt.y + kerbY)
-                    (segment.startsAt.z + floatHeight)
-                )
+        markedRoad =
+            lookupRoad model model.markedNode
     in
     case model.scaling of
         Just scale ->
-            { model
-                | entities =
-                    seaLevel scale.seaLevelInClipSpace
-                        :: pointEntities scale.metresToClipSpace
-                        ++ roadEntities scale.seaLevelInClipSpace scale.metresToClipSpace
-                        ++ currentPositionDisc scale.metresToClipSpace
-                        ++ markedNode scale.metresToClipSpace
-                        ++ suggestedBend scale.metresToClipSpace model.smoothedRoads
-            }
+            let
+                context =
+                    { displayOptions = model.displayOptions
+                    , currentNode = currentRoad
+                    , markedNode = markedRoad
+                    , scaling = scale
+                    , viewingMode = model.viewingMode
+                    , viewingSubMode = model.thirdPersonSubmode
+                    , smoothedBend = model.smoothedRoads
+                    }
+            in
+            { model | entities = makeVisualEntities context model.roadArray }
 
         Nothing ->
             model
@@ -1529,6 +1286,7 @@ saveButtonIfChanged model =
 
         _ ->
             none
+
 
 viewModeChoices : Model -> Element Msg
 viewModeChoices model =
@@ -1588,7 +1346,6 @@ viewInputError model =
 
     else
         text "That was lovely."
-
 
 
 averageGradient : Model -> Int -> Int -> Maybe Float
@@ -2618,7 +2375,6 @@ viewCurrentNode scale model node =
                     , shadows = True
                     }
         ]
-
 
 
 viewTrackPoint : TrackPoint -> Element Msg
