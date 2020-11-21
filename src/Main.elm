@@ -45,7 +45,6 @@ import WriteGPX exposing (writeGPX)
 --TODO: Autofix bends with circular arcs.
 --TODO: Break up this module.
 --TODO: Linear orthographic ride profile.
---TODO: Vertical 'chamfer' option for single node, adds nodes either side (? angle bisectors ?)
 --TODO: Third person focal point is average of N points around current, or current..marker.
 --TODO: Some way to join the start and end of a loop (although MR does this).
 --TODO: Remove duplicate helpers.
@@ -272,6 +271,7 @@ type Msg
     | SetFlythroughSpeed Float
     | RunFlythrough Bool
     | ResetFlythrough
+    | VerticalNodeSpilt Int
 
 
 init : () -> ( Model, Cmd Msg )
@@ -622,6 +622,96 @@ update msg model =
             ( resetFlythrough model
             , Cmd.none
             )
+
+        VerticalNodeSpilt node ->
+            ( verticalNodeSplit node model
+                |> deriveNodesAndRoads
+                |> deriveVisualEntities
+                |> deriveProblems
+                |> (\m -> { m | currentNode = model.currentNode })
+            , Cmd.none
+            )
+
+
+verticalNodeSplit : Int -> Model -> Model
+verticalNodeSplit n model =
+    -- Replace the current node with two close nodes that each have half the gradient change.
+    -- 'Close' being perhaps the lesser of one metre and a third segment length.
+    -- Lat and Lon to be linear interpolation.
+    let
+        undoMessage =
+            "Vertical chamfer at " ++ String.fromInt n
+    in
+    case ( Array.get n model.roadArray, Array.get (n + 1) model.roadArray ) of
+        ( Just before, Just after ) ->
+            let
+                newChange =
+                    0.5 * (after.gradient - before.gradient)
+
+                placeInFirstSegment =
+                    max (before.length - 1.0) (before.length / 2.0)
+
+                placeInSecondSegment =
+                    min 1.0 (after.length / 2.0)
+
+                firstTP =
+                    interpolateSegment
+                        (placeInFirstSegment / before.length)
+                        before.startsAt.trackPoint
+                        before.endsAt.trackPoint
+
+                secondTP =
+                    interpolateSegment
+                        (placeInSecondSegment / after.length)
+                        after.startsAt.trackPoint
+                        after.endsAt.trackPoint
+
+                precedingTPs =
+                    model.trackPoints |> List.take n
+
+                remainingTPs =
+                    model.trackPoints |> List.drop (n + 1)
+
+                newTPs =
+                    precedingTPs
+                        ++ [ firstTP, secondTP ]
+                        ++ remainingTPs
+            in
+            { model
+                | trackPoints = reindexTrackpoints newTPs
+                , undoStack =
+                    { label = undoMessage
+                    , trackPoints = model.trackPoints
+                    }
+                        :: model.undoStack
+            }
+
+        _ ->
+            model
+
+
+interpolateSegment : Float -> TrackPoint -> TrackPoint -> TrackPoint
+interpolateSegment w startTP endTP =
+    -- We work in TrackPoints so that everything has a lat, lon and ele.
+    -- Everything else derives from those three coordinates.
+    let
+        ( x1, y1, z1 ) =
+            ( startTP.lon, startTP.lat, startTP.ele )
+
+        ( x2, y2, z2 ) =
+            ( endTP.lon, endTP.lat, endTP.ele )
+
+        ( x, y, z ) =
+            ( w * x2 + (1.0 - w) * x1
+            , w * y2 + (1.0 - w) * y1
+            , w * z2 + (1.0 - w) * z1
+            )
+    in
+    { lat = y
+    , lon = x
+    , ele = z
+    , idx = 0
+    }
 
 
 startFlythrough : Model -> Model
@@ -981,16 +1071,17 @@ deleteZeroLengthSegments model =
             List.map
                 (\road -> road.index)
                 model.zeroLengths
-
-        reindex points =
-            List.map2
-                (\p i -> { p | idx = i })
-                points
-                (List.range 0 (List.length points))
     in
     { model
-        | trackPoints = reindex <| List.filter keepNonZero model.trackPoints
+        | trackPoints = reindexTrackpoints <| List.filter keepNonZero model.trackPoints
     }
+
+
+reindexTrackpoints points =
+    List.map2
+        (\p i -> { p | idx = i })
+        points
+        (List.range 0 (List.length points))
 
 
 incrementMaybeModulo modulo mx =
@@ -2022,7 +2113,7 @@ viewOptions model =
             { onChange = SetCurtainStyle
             , selected = Just model.displayOptions.curtainStyle
             , label =
-                Input.labelBelow [centerX] <| text "Curtain style"
+                Input.labelBelow [ centerX ] <| text "Curtain style"
             , options =
                 [ Input.optionWith NoCurtain <| radioButton First "None"
                 , Input.optionWith PlainCurtain <| radioButton Mid "Plain"
@@ -2677,7 +2768,7 @@ undoButton model =
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
     let
-        gradientSmoothButton =
+        gradientSmoothControls =
             case ( model.currentNode, model.markedNode ) of
                 ( Just c, Just m ) ->
                     let
@@ -2692,7 +2783,7 @@ viewGradientFixerPane model =
                     in
                     case avg of
                         Just gradient ->
-                            button
+                            [ button
                                 prettyButtonStyles
                                 { onPress = Just <| SmoothGradient start finish gradient
                                 , label =
@@ -2700,20 +2791,29 @@ viewGradientFixerPane model =
                                         "Smooth between markers\nAverage gradient "
                                             ++ showDecimal gradient
                                 }
+                            , smoothnessSlider model
+                            ]
 
                         _ ->
-                            none
+                            []
+
+                ( Just c, Nothing ) ->
+                    [ button
+                        prettyButtonStyles
+                        { onPress = Just (VerticalNodeSpilt c)
+                        , label = text "Smooth this transition by\nreplacing with two nodes"
+                        }
+                    ]
 
                 _ ->
-                    none
+                    []
     in
-    column [ spacing 10 ]
-        [ markerButton model
-        , smoothnessSlider model
-        , gradientSmoothButton
-        , undoButton model
-        , viewGradientChanges model
-        ]
+    column [ spacing 10 ] <|
+        [ markerButton model ]
+            ++ gradientSmoothControls
+            ++ [ undoButton model
+               , viewGradientChanges model
+               ]
 
 
 smoothnessSlider : Model -> Element Msg
