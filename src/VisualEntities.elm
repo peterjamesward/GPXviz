@@ -59,44 +59,36 @@ makeVisualEntities context roads =
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
-        pointEntities =
-            (if context.displayOptions.roadPillars then
-                List.map
-                    (\node ->
-                        cylinder (Material.color Color.brown) <|
-                            Cylinder3d.startingAt
-                                (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                negativeZ
-                                { radius = meters <| 1.0 * metresToClipSpace
-                                , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
-                                }
-                    )
-                    nodes
+        pillars =
+            List.map
+                (\node ->
+                    cylinder (Material.color Color.brown) <|
+                        Cylinder3d.startingAt
+                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                            negativeZ
+                            { radius = meters <| 1.0 * metresToClipSpace
+                            , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
+                            }
+                )
+                nodes
 
-             else
-                []
-            )
-                ++ (if context.displayOptions.roadCones then
-                        List.map
-                            (\node ->
-                                cone (Material.color Color.black) <|
-                                    Cone3d.startingAt
-                                        (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
-                                        positiveZ
-                                        { radius = meters <| 1.0 * metresToClipSpace
-                                        , length = meters <| 1.0 * metresToClipSpace
-                                        }
-                            )
-                            nodes
+        cones =
+            List.map
+                (\node ->
+                    cone (Material.color Color.black) <|
+                        Cone3d.startingAt
+                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                            positiveZ
+                            { radius = meters <| 1.0 * metresToClipSpace
+                            , length = meters <| 1.0 * metresToClipSpace
+                            }
+                )
+                nodes
 
-                    else
-                        []
-                   )
-
-        roadEntities =
+        roadSurfaces =
             List.concat <|
-                List.map roadEntity <|
-                    Array.toList roads
+                List.map roadSurface <|
+                    roadList
 
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
@@ -136,7 +128,7 @@ makeVisualEntities context roads =
                 _ ->
                     []
 
-        roadEntity segment =
+        roadSurface segment =
             let
                 kerbX =
                     -- Road is assumed to be 6 m wide.
@@ -149,86 +141,87 @@ makeVisualEntities context roads =
                     -- Let's try a low wall at the road's edges.
                     0.3 * metresToClipSpace
             in
-            (if context.displayOptions.roadTrack then
-                [ --surface
-                  Scene3d.quad (Material.color Color.grey)
-                    (Point3d.meters (segment.startsAt.x + kerbX)
-                        (segment.startsAt.y - kerbY)
-                        segment.startsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x + kerbX)
-                        (segment.endsAt.y - kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x - kerbX)
-                        (segment.endsAt.y + kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.startsAt.x - kerbX)
-                        (segment.startsAt.y + kerbY)
-                        segment.startsAt.z
-                    )
+            [ --surface
+              Scene3d.quad (Material.color Color.grey)
+                (Point3d.meters (segment.startsAt.x + kerbX)
+                    (segment.startsAt.y - kerbY)
+                    segment.startsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x + kerbX)
+                    (segment.endsAt.y - kerbY)
+                    segment.endsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x - kerbX)
+                    (segment.endsAt.y + kerbY)
+                    segment.endsAt.z
+                )
+                (Point3d.meters (segment.startsAt.x - kerbX)
+                    (segment.startsAt.y + kerbY)
+                    segment.startsAt.z
+                )
 
-                -- kerb walls
-                , Scene3d.quad (Material.color Color.darkGrey)
-                    (Point3d.meters (segment.startsAt.x + kerbX)
-                        (segment.startsAt.y - kerbY)
-                        segment.startsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x + kerbX)
-                        (segment.endsAt.y - kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x + kerbX)
-                        (segment.endsAt.y - kerbY)
-                        (segment.endsAt.z + edgeHeight)
-                    )
-                    (Point3d.meters (segment.startsAt.x + kerbX)
-                        (segment.startsAt.y - kerbY)
-                        (segment.startsAt.z + edgeHeight)
-                    )
-                , Scene3d.quad (Material.color Color.darkGrey)
-                    (Point3d.meters (segment.startsAt.x - kerbX)
-                        (segment.startsAt.y + kerbY)
-                        segment.startsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x - kerbX)
-                        (segment.endsAt.y + kerbY)
-                        segment.endsAt.z
-                    )
-                    (Point3d.meters (segment.endsAt.x - kerbX)
-                        (segment.endsAt.y + kerbY)
-                        (segment.endsAt.z + edgeHeight)
-                    )
-                    (Point3d.meters (segment.startsAt.x - kerbX)
-                        (segment.startsAt.y + kerbY)
-                        (segment.startsAt.z + edgeHeight)
-                    )
-                ]
+            -- kerb walls
+            , Scene3d.quad (Material.color Color.darkGrey)
+                (Point3d.meters (segment.startsAt.x + kerbX)
+                    (segment.startsAt.y - kerbY)
+                    segment.startsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x + kerbX)
+                    (segment.endsAt.y - kerbY)
+                    segment.endsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x + kerbX)
+                    (segment.endsAt.y - kerbY)
+                    (segment.endsAt.z + edgeHeight)
+                )
+                (Point3d.meters (segment.startsAt.x + kerbX)
+                    (segment.startsAt.y - kerbY)
+                    (segment.startsAt.z + edgeHeight)
+                )
+            , Scene3d.quad (Material.color Color.darkGrey)
+                (Point3d.meters (segment.startsAt.x - kerbX)
+                    (segment.startsAt.y + kerbY)
+                    segment.startsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x - kerbX)
+                    (segment.endsAt.y + kerbY)
+                    segment.endsAt.z
+                )
+                (Point3d.meters (segment.endsAt.x - kerbX)
+                    (segment.endsAt.y + kerbY)
+                    (segment.endsAt.z + edgeHeight)
+                )
+                (Point3d.meters (segment.startsAt.x - kerbX)
+                    (segment.startsAt.y + kerbY)
+                    (segment.startsAt.z + edgeHeight)
+                )
+            ]
 
-             else
-                []
-            )
-                ++ (case context.displayOptions.curtainStyle of
-                        RainbowCurtain ->
-                            [ Scene3d.quad (Material.color <| gradientColour segment.gradient)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
-                            ]
+        curtains =
+            List.concat <|
+                List.map curtain <|
+                    roadList
 
-                        PlainCurtain ->
-                            [ Scene3d.quad (Material.color <| Color.rgb255 0 100 0)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
-                            ]
+        curtain segment =
+            case context.displayOptions.curtainStyle of
+                RainbowCurtain ->
+                    [ Scene3d.quad (Material.color <| gradientColour segment.gradient)
+                        (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                        (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                        (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
+                        (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
+                    ]
 
-                        NoCurtain ->
-                            []
-                   )
+                PlainCurtain ->
+                    [ Scene3d.quad (Material.color <| Color.rgb255 0 100 0)
+                        (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
+                        (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
+                        (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
+                        (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
+                    ]
+
+                NoCurtain ->
+                    []
 
         segmentDirection segment =
             let
@@ -287,10 +280,20 @@ makeVisualEntities context roads =
                     (segment.startsAt.y + kerbY)
                     (segment.startsAt.z + floatHeight)
                 )
+
+        optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
+        optionally test element =
+            if test then
+                element
+
+            else
+                []
     in
     seaLevel
-        :: pointEntities
-        ++ roadEntities
+        :: optionally context.displayOptions.roadPillars pillars
+        ++ optionally context.displayOptions.roadCones cones
+        ++ optionally context.displayOptions.roadTrack roadSurfaces
+        ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ currentPositionDisc
         ++ markedNode
         ++ suggestedBend
