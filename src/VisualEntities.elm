@@ -202,26 +202,25 @@ makeVisualEntities context roads =
                 List.map curtain <|
                     roadList
 
-        curtain segment =
+        curtainColour gradient =
             case context.displayOptions.curtainStyle of
                 RainbowCurtain ->
-                    [ Scene3d.quad (Material.color <| gradientColour segment.gradient)
-                        (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                        (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                        (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                        (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
-                    ]
+                    gradientColour gradient
 
                 PlainCurtain ->
-                    [ Scene3d.quad (Material.color <| Color.rgb255 0 100 0)
+                    Color.rgb255 0 100 0
+
+                NoCurtain ->
+                    Color.rgb255 0 0 0
+
+        curtain segment =
+                    [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
                         (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
                         (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
                         (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
                         (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
                     ]
 
-                NoCurtain ->
-                    []
 
         segmentDirection segment =
             let
