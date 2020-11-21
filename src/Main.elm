@@ -26,6 +26,7 @@ import Iso8601
 import Length exposing (meters)
 import List exposing (drop, tail, take)
 import Markdown exposing (defaultOptions)
+import Msg exposing (..)
 import NodesAndRoads exposing (DrawingNode, DrawingRoad)
 import Pixels exposing (Pixels)
 import Point3d
@@ -35,7 +36,10 @@ import Scene3d.Material as Material
 import Spherical exposing (range)
 import Task
 import Time
-import TrackPoint exposing (TrackPoint, dummyTrackPoint)
+import TrackPoint exposing (..)
+import Utils exposing (..)
+import ViewElements exposing (loadButton, prettyButtonStyles)
+import ViewTypes exposing (..)
 import Viewpoint3d
 import WriteGPX exposing (writeGPX)
 
@@ -84,37 +88,6 @@ type MyCoord
     = SomeCoord
 
 
-type ViewingMode
-    = OverviewView
-    | FirstPersonView
-    | ThirdPersonView
-    | AboutView
-    | ProblemsView
-    | InputErrorView
-
-
-type ProblemType
-    = ZeroLengthSegment
-    | AbruptGradientChanges
-    | SharpBends
-
-
-type ThirdPersonSubmode
-    = ShowData
-    | ShowGradientFixes
-    | ShowBendFixes
-
-
-
-type alias ScalingInfo =
-    { mins : TrackPoint
-    , maxs : TrackPoint
-    , centres : TrackPoint
-    , largestDimension : Float -- biggest bounding box edge determines scaling factor
-    , seaLevelInClipSpace : Float
-    , metresToClipSpace : Float -- Probably should be a proper metric tag!
-    }
-
 
 type alias Model =
     { gpx : Maybe String
@@ -147,7 +120,6 @@ type alias Model =
     , zeroLengths : List DrawingRoad
     , gradientChangeThreshold : Float
     , bearingChangeThreshold : Int
-    , selectedProblemType : ProblemType
     , hasBeenChanged : Bool
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
@@ -183,50 +155,6 @@ type alias SummaryData =
     }
 
 
-type alias Point =
-    ( Float, Float )
-
-
-type Msg
-    = GpxRequested
-    | GpxSelected File
-    | GpxLoaded String
-    | UserMovedNodeSlider Int
-    | PositionBackOne
-    | PositionForwardOne
-    | ChooseViewMode ViewingMode
-    | ZoomLevelOverview Float
-    | ZoomLevelFirstPerson Float
-    | ZoomLevelThirdPerson Float
-    | ImageGrab Point
-    | ImageRotate Point
-    | ImageRelease Point
-    | TogglePillars Bool
-    | ToggleRoad Bool
-    | ToggleCones Bool
-    | SetCurtainStyle CurtainStyle
-    | SetGradientChangeThreshold Float
-    | SetBearingChangeThreshold Float
-    | SelectProblemType ProblemType
-    | DeleteZeroLengthSegments
-    | OutputGPX
-    | Tick Time.Posix
-    | AdjustTimeZone Time.Zone
-    | SetSmoothingEnd Int
-    | SmoothGradient Int Int Float
-    | SetThirdPersonSubmode ThirdPersonSubmode
-    | Undo
-    | ToggleMarker
-    | MarkerForwardOne
-    | MarkerBackOne
-    | SetMaxTurnPerSegment Float
-    | SetBumpinessFactor Float
-    | SetFlythroughSpeed Float
-    | RunFlythrough Bool
-    | ResetFlythrough
-    | VerticalNodeSpilt Int
-
-
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { gpx = Nothing
@@ -259,7 +187,6 @@ init _ =
       , zeroLengths = []
       , gradientChangeThreshold = 10.0 -- Note, this is not an angle, it's a percentage (tangent).
       , bearingChangeThreshold = 90
-      , selectedProblemType = ZeroLengthSegment
       , hasBeenChanged = False
       , smoothingEndIndex = Nothing
       , undoStack = []
@@ -491,13 +418,6 @@ update msg model =
             , Cmd.none
             )
 
-        SelectProblemType prob ->
-            ( { model
-                | selectedProblemType = prob
-              }
-            , Cmd.none
-            )
-
         DeleteZeroLengthSegments ->
             ( deleteZeroLengthSegments model
                 |> deriveNodesAndRoads
@@ -641,30 +561,6 @@ verticalNodeSplit n model =
 
         _ ->
             model
-
-
-interpolateSegment : Float -> TrackPoint -> TrackPoint -> TrackPoint
-interpolateSegment w startTP endTP =
-    -- We work in TrackPoints so that everything has a lat, lon and ele.
-    -- Everything else derives from those three coordinates.
-    let
-        ( x1, y1, z1 ) =
-            ( startTP.lon, startTP.lat, startTP.ele )
-
-        ( x2, y2, z2 ) =
-            ( endTP.lon, endTP.lat, endTP.ele )
-
-        ( x, y, z ) =
-            ( w * x2 + (1.0 - w) * x1
-            , w * y2 + (1.0 - w) * y1
-            , w * z2 + (1.0 - w) * z1
-            )
-    in
-    { lat = y
-    , lon = x
-    , ele = z
-    , idx = 0
-    }
 
 
 startFlythrough : Model -> Model
@@ -1030,39 +926,6 @@ deleteZeroLengthSegments model =
     }
 
 
-reindexTrackpoints points =
-    List.map2
-        (\p i -> { p | idx = i })
-        points
-        (List.range 0 (List.length points))
-
-
-incrementMaybeModulo modulo mx =
-    Maybe.map (\x -> modBy modulo (x + 1)) mx
-
-
-decrementMaybeModulo modulo mx =
-    Maybe.map (\x -> modBy modulo (x - 1)) mx
-
-
-gradientColour slope =
-    -- Note we want (say) 15% to be maximum Red, flat is Green, -15% purple.
-    let
-        x =
-            (clamp -15.0 15.0 slope + 15.0) / 30.0
-
-        steepestAscentHue =
-            (Color.toHsla Color.red).hue
-
-        steepestDescentHue =
-            (Color.toHsla Color.purple).hue
-
-        hue =
-            x * steepestAscentHue + (1.0 - x) * steepestDescentHue
-    in
-    Color.hsl hue 1.0 0.4
-
-
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
     let
@@ -1080,54 +943,6 @@ parseGPXintoModel content model =
 
             else
                 model.viewingMode
-    }
-
-
-deriveScalingInfo : List TrackPoint -> ScalingInfo
-deriveScalingInfo tps =
-    let
-        lowerBounds tp =
-            { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
-            , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tp
-            , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tp
-            , idx = 0
-            }
-
-        upperBounds tp =
-            { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tp
-            , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tp
-            , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tp
-            , idx = 0
-            }
-
-        mins =
-            lowerBounds tps
-
-        maxs =
-            upperBounds tps
-
-        findCentres =
-            { lat = (mins.lat + maxs.lat) / 2.0
-            , lon = (mins.lon + maxs.lon) / 2.0
-            , ele = (mins.ele + maxs.ele) / 2.0
-            , idx = 0
-            }
-
-        scalingFactor =
-            max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
-
-        metresToClipSpace =
-            1 / (0.5 * scalingFactor * metresPerDegreeLatitude)
-
-        elevationToClipSpace e =
-            (e - findCentres.ele) * metresToClipSpace
-    in
-    { mins = mins
-    , maxs = maxs
-    , centres = findCentres
-    , largestDimension = scalingFactor
-    , metresToClipSpace = metresToClipSpace
-    , seaLevelInClipSpace = elevationToClipSpace 0.0
     }
 
 
@@ -1662,86 +1477,6 @@ deriveVisualEntities model =
             model
 
 
-reg t =
-    -- Helper to make a regex pattern.
-    Maybe.withDefault Regex.never <| Regex.fromString t
-
-
-parseTrackPoints : String -> List TrackPoint
-parseTrackPoints xml =
-    let
-        latitudes =
-            Regex.find (reg "lat=\\\"([\\d\\.-]*)\\\"") xml |> matches
-
-        longitudes =
-            Regex.find (reg "lon=\\\"([\\d\\.-]*)\\\"") xml |> matches
-
-        elevations =
-            Regex.find (reg "<ele>([\\d\\.-]*)<\\/ele>") xml |> matches
-
-        makeTrackPoint mayLat mayLon mayEle idx =
-            case ( mayLat, mayLon, mayEle ) of
-                ( Just a, Just b, Just c ) ->
-                    Just
-                        { lat = a
-                        , lon = b
-                        , ele = c
-                        , idx = idx
-                        }
-
-                _ ->
-                    Nothing
-
-        matches xs =
-            List.map value xs
-
-        value x =
-            case x.submatches of
-                (Just val) :: _ ->
-                    String.toFloat val
-
-                _ ->
-                    Nothing
-    in
-    List.map4
-        makeTrackPoint
-        latitudes
-        longitudes
-        elevations
-        (List.range 0 (List.length latitudes))
-        |> List.filterMap identity
-
-
-parseTrackName xml =
-    case Regex.find (reg "<name>(.*)<\\/name>") xml of
-        [] ->
-            Nothing
-
-        x :: _ ->
-            case x.submatches of
-                [] ->
-                    Nothing
-
-                n :: _ ->
-                    n
-
-
-showDecimal2 x =
-    let
-        locale =
-            { usLocale | decimals = Exact 2 }
-    in
-    format locale x
-
-
-showDecimal6 x =
-    let
-        locale =
-            { usLocale | decimals = Exact 6 }
-    in
-    format locale x
-
-
 viewGenericNew : Model -> Browser.Document Msg
 viewGenericNew model =
     { title = "GPX viewer"
@@ -1782,14 +1517,6 @@ viewGenericNew model =
     }
 
 
-loadButton =
-    button
-        prettyButtonStyles
-        { onPress = Just GpxRequested
-        , label = text "Load GPX from your computer"
-        }
-
-
 saveButtonIfChanged : Model -> Element Msg
 saveButtonIfChanged model =
     case model.undoStack of
@@ -1803,7 +1530,7 @@ saveButtonIfChanged model =
         _ ->
             none
 
-
+viewModeChoices : Model -> Element Msg
 viewModeChoices model =
     Input.radioRow
         [ Border.rounded 6
@@ -1839,9 +1566,6 @@ view3D scale model =
         AboutView ->
             viewAboutText
 
-        ProblemsView ->
-            viewAllProblems model
-
         InputErrorView ->
             viewInputError model
 
@@ -1865,38 +1589,6 @@ viewInputError model =
     else
         text "That was lovely."
 
-
-viewAllProblems : Model -> Element Msg
-viewAllProblems model =
-    column [ spacing 10, padding 10, centerX ]
-        [ problemTypeSelectButtons model
-        , case model.selectedProblemType of
-            ZeroLengthSegment ->
-                viewZeroLengthSegments model
-
-            AbruptGradientChanges ->
-                viewGradientChanges model
-
-            SharpBends ->
-                viewBearingChanges model
-        ]
-
-
-problemTypeSelectButtons model =
-    Input.radioRow
-        [ Border.rounded 6
-        , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
-        ]
-        { onChange = SelectProblemType
-        , selected = Just model.selectedProblemType
-        , label =
-            Input.labelHidden "Choose problem type"
-        , options =
-            [ Input.optionWith ZeroLengthSegment <| radioButton First "Zero length"
-            , Input.optionWith AbruptGradientChanges <| radioButton Mid "Gradient change"
-            , Input.optionWith SharpBends <| radioButton Last "Sharp bend"
-            ]
-        }
 
 
 averageGradient : Model -> Int -> Int -> Maybe Float
@@ -2927,20 +2619,6 @@ viewCurrentNode scale model node =
                     }
         ]
 
-
-prettyButtonStyles =
-    [ padding 10
-    , Border.width 2
-    , Border.rounded 16
-    , Border.color <| rgb255 0x50 0x50 0x50
-    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
-    , Background.color <| rgb255 114 159 207
-    , Font.color <| rgb255 0xFF 0xFF 0xFF
-    , mouseOver
-        [ Background.color <| rgb255 0xFF 0xFF 0xFF, Font.color <| rgb255 0 0 0 ]
-    , focused
-        [ Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 114 159 207 } ]
-    ]
 
 
 viewTrackPoint : TrackPoint -> Element Msg
