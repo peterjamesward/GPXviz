@@ -5,6 +5,9 @@ module Spherical exposing (..)
 
 meanRadius = 6371000
 
+metresPerDegreeLatitude = 78846.81
+
+
 -- Equirectangular approximation
 range (φ1, λ1) (φ2, λ2) = 
   let 

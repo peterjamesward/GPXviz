@@ -9,6 +9,7 @@ import Color
 import Cone3d
 import Cylinder3d
 import Direction3d exposing (negativeX, negativeZ, positiveZ)
+import DisplayOptions exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border exposing (color)
@@ -25,6 +26,7 @@ import Iso8601
 import Length exposing (meters)
 import List exposing (drop, tail, take)
 import Markdown exposing (defaultOptions)
+import NodesAndRoads exposing (DrawingNode, DrawingRoad)
 import Pixels exposing (Pixels)
 import Point3d
 import Regex
@@ -39,7 +41,6 @@ import WriteGPX exposing (writeGPX)
 
 
 
---TODO: Stop using node & road numbers. Maybe Zippers.
 --TODO: Linear orthographic ride profile.
 --TODO: Break up this module.
 --TODO: Try chamfer for horizontal turns.
@@ -58,30 +59,6 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
-
-
-type alias DrawingNode =
-    -- We will draw in a rectangular space using metre units. Probably.
-    { trackPoint : TrackPoint
-    , northOffset : Float -- metres from bottom edge of bounding box
-    , eastOffset : Float -- metres from left edge of bounding box
-    , vertOffset : Float -- metres from base of bounding box
-    , x : Float -- east offset convrted to [-1, +1] system
-    , y : Float -- north, ditto
-    , z : Float -- vert, ditto
-    }
-
-
-type alias DrawingRoad =
-    { startsAt : DrawingNode
-    , endsAt : DrawingNode
-    , length : Float
-    , bearing : Float
-    , gradient : Float -- radians
-    , startDistance : Float
-    , endDistance : Float
-    , index : Int
-    }
 
 
 type alias AbruptChange =
@@ -127,30 +104,6 @@ type ThirdPersonSubmode
     | ShowGradientFixes
     | ShowBendFixes
 
-
-type CurtainStyle
-    = NoCurtain
-    | PlainCurtain
-    | RainbowCurtain
-
-
-type alias DisplayOptions =
-    { roadPillars : Bool
-    , roadCones : Bool
-    , roadTrack : Bool
-    , curtainStyle : CurtainStyle
-    , problems : Bool
-    }
-
-
-defaultDisplayOptions : DisplayOptions
-defaultDisplayOptions =
-    { roadPillars = True
-    , roadCones = True
-    , roadTrack = True
-    , curtainStyle = RainbowCurtain
-    , problems = False
-    }
 
 
 type alias ScalingInfo =

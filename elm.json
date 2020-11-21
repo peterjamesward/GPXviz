@@ -22,6 +22,7 @@
             "ianmackenzie/elm-3d-scene": "1.0.1",
             "ianmackenzie/elm-geometry": "3.8.0",
             "ianmackenzie/elm-units": "2.7.0",
+            "jjant/elm-comonad-zipper": "1.0.1",
             "mdgriffith/elm-ui": "1.1.8",
             "mpizenberg/elm-pointer-events": "4.0.2",
             "rtfeldman/elm-iso8601-date-strings": "1.1.3"
