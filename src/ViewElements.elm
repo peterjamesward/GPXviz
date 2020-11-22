@@ -8,7 +8,7 @@ import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Msg exposing (Msg(..))
-import TrackPoint exposing (ScalingInfo)
+import ScalingInfo exposing (ScalingInfo)
 
 
 withMouseCapture =

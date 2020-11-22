@@ -1,27 +1,18 @@
 module TrackPoint exposing (..)
 
-
 import Element exposing (..)
 import Msg exposing (..)
 import Regex
 import Spherical exposing (metresPerDegreeLatitude)
 import Utils exposing (asRegex)
+
+
 type alias TrackPoint =
     -- This is the basic info we extract from a GPX file.
     { lat : Float
     , lon : Float
     , ele : Float
     , idx : Int
-    }
-
-
-type alias ScalingInfo =
-    { mins : TrackPoint
-    , maxs : TrackPoint
-    , centres : TrackPoint
-    , largestDimension : Float -- biggest bounding box edge determines scaling factor
-    , seaLevelInClipSpace : Float
-    , metresToClipSpace : Float -- Probably should be a proper metric tag!
     }
 
 
@@ -64,7 +55,6 @@ reindexTrackpoints points =
         (List.range 0 (List.length points))
 
 
-
 viewTrackPoint : TrackPoint -> Element Msg
 viewTrackPoint trkpnt =
     column [ padding 5, spacing 5 ]
@@ -72,7 +62,6 @@ viewTrackPoint trkpnt =
         , text <| "Lon:" ++ String.fromFloat trkpnt.lon
         , text <| "Ele:" ++ String.fromFloat trkpnt.ele
         ]
-
 
 
 parseTrackPoints : String -> List TrackPoint
@@ -118,4 +107,3 @@ parseTrackPoints xml =
         elevations
         (List.range 0 (List.length latitudes))
         |> List.filterMap identity
-

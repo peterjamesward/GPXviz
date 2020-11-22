@@ -1,12 +1,13 @@
 module VisualEntities exposing
     ( ThingsWeNeedForRendering
     , deriveScalingInfo
-    , makeStaticVisualEntities
+    ,  makeStaticVisualEntities
+       --, makeStaticProfileEntities
+
     , makeVaryingVisualEntities
     )
 
 import Array exposing (Array)
-import BendSmoother exposing (SmoothedBend)
 import Color
 import Cone3d
 import Cylinder3d
@@ -15,10 +16,11 @@ import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
 import Point3d
+import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Spherical exposing (metresPerDegreeLatitude)
-import TrackPoint exposing (ScalingInfo, TrackPoint)
+import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import ViewTypes exposing (ThirdPersonSubmode(..), ViewingMode(..))
 
@@ -57,6 +59,18 @@ segmentDirection segment =
             positiveZ
 
 
+nodeToClipSpace : DrawingNode -> ( Float, Float, Float )
+nodeToClipSpace node =
+    ( node.x, node.y, node.z )
+
+
+roadToClipSpace : DrawingRoad -> ( ( Float, Float, Float ), ( Float, Float, Float ) )
+roadToClipSpace road =
+    ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
+    , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
+    )
+
+
 makeStaticVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
 makeStaticVisualEntities context roads =
     let
@@ -91,11 +105,15 @@ makeStaticVisualEntities context roads =
         pillars =
             List.map
                 (\node ->
+                    let
+                        ( x, y, z ) =
+                            nodeToClipSpace node
+                    in
                     cylinder (Material.color Color.brown) <|
                         Cylinder3d.startingAt
-                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                            (Point3d.meters x y (z - 1.0 * metresToClipSpace))
                             negativeZ
-                            { radius = meters <| 1.0 * metresToClipSpace
+                            { radius = meters <| 0.5 * metresToClipSpace
                             , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
                             }
                 )
@@ -104,9 +122,13 @@ makeStaticVisualEntities context roads =
         cones =
             List.map
                 (\node ->
+                    let
+                        ( x, y, z ) =
+                            nodeToClipSpace node
+                    in
                     cone (Material.color Color.black) <|
                         Cone3d.startingAt
-                            (Point3d.meters node.x node.y (node.z - 1.0 * metresToClipSpace))
+                            (Point3d.meters x y (z - 0.6 * metresToClipSpace))
                             positiveZ
                             { radius = meters <| 1.0 * metresToClipSpace
                             , length = meters <| 1.0 * metresToClipSpace
@@ -131,61 +153,28 @@ makeStaticVisualEntities context roads =
                 edgeHeight =
                     -- Let's try a low wall at the road's edges.
                     0.3 * metresToClipSpace
+
+                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
+                    roadToClipSpace segment
             in
             [ --surface
               Scene3d.quad (Material.color Color.grey)
-                (Point3d.meters (segment.startsAt.x + kerbX)
-                    (segment.startsAt.y - kerbY)
-                    segment.startsAt.z
-                )
-                (Point3d.meters (segment.endsAt.x + kerbX)
-                    (segment.endsAt.y - kerbY)
-                    segment.endsAt.z
-                )
-                (Point3d.meters (segment.endsAt.x - kerbX)
-                    (segment.endsAt.y + kerbY)
-                    segment.endsAt.z
-                )
-                (Point3d.meters (segment.startsAt.x - kerbX)
-                    (segment.startsAt.y + kerbY)
-                    segment.startsAt.z
-                )
+                (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
+                (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
+                (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
+                (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
 
             -- kerb walls
             , Scene3d.quad (Material.color Color.darkGrey)
-                (Point3d.meters (segment.startsAt.x + kerbX)
-                    (segment.startsAt.y - kerbY)
-                    segment.startsAt.z
-                )
-                (Point3d.meters (segment.endsAt.x + kerbX)
-                    (segment.endsAt.y - kerbY)
-                    segment.endsAt.z
-                )
-                (Point3d.meters (segment.endsAt.x + kerbX)
-                    (segment.endsAt.y - kerbY)
-                    (segment.endsAt.z + edgeHeight)
-                )
-                (Point3d.meters (segment.startsAt.x + kerbX)
-                    (segment.startsAt.y - kerbY)
-                    (segment.startsAt.z + edgeHeight)
-                )
+                (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
+                (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
+                (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + edgeHeight))
+                (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + edgeHeight))
             , Scene3d.quad (Material.color Color.darkGrey)
-                (Point3d.meters (segment.startsAt.x - kerbX)
-                    (segment.startsAt.y + kerbY)
-                    segment.startsAt.z
-                )
-                (Point3d.meters (segment.endsAt.x - kerbX)
-                    (segment.endsAt.y + kerbY)
-                    segment.endsAt.z
-                )
-                (Point3d.meters (segment.endsAt.x - kerbX)
-                    (segment.endsAt.y + kerbY)
-                    (segment.endsAt.z + edgeHeight)
-                )
-                (Point3d.meters (segment.startsAt.x - kerbX)
-                    (segment.startsAt.y + kerbY)
-                    (segment.startsAt.z + edgeHeight)
-                )
+                (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
+                (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
+                (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + edgeHeight))
+                (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + edgeHeight))
             ]
 
         curtains =
@@ -208,11 +197,15 @@ makeStaticVisualEntities context roads =
                     Color.rgb255 0 0 0
 
         curtain segment =
+            let
+                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
+                    roadToClipSpace segment
+            in
             [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
-                (Point3d.meters segment.startsAt.x segment.startsAt.y segment.startsAt.z)
-                (Point3d.meters segment.endsAt.x segment.endsAt.y segment.endsAt.z)
-                (Point3d.meters segment.endsAt.x segment.endsAt.y seaLevelInClipSpace)
-                (Point3d.meters segment.startsAt.x segment.startsAt.y seaLevelInClipSpace)
+                (Point3d.meters x1 y1 z1)
+                (Point3d.meters x2 y2 z2)
+                (Point3d.meters x2 y2 seaLevelInClipSpace)
+                (Point3d.meters x1 y1 seaLevelInClipSpace)
             ]
 
         optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
@@ -228,6 +221,13 @@ makeStaticVisualEntities context roads =
         ++ optionally context.displayOptions.roadCones cones
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
+
+
+
+--makeStaticProfileEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
+--makeStaticProfileEntities context roads =
+-- Same thing as above but "unrolled" view of road for viewing profile.
+-- Should be able to share most code if we factor out the Node -> ClipSpace functions.
 
 
 makeVaryingVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)

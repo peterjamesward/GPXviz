@@ -1,7 +1,8 @@
 module NodesAndRoads exposing (..)
 
+import ScalingInfo exposing (ScalingInfo)
 import Spherical exposing (metresPerDegreeLatitude)
-import TrackPoint exposing (ScalingInfo, TrackPoint)
+import TrackPoint exposing (TrackPoint)
 
 
 type MyCoord

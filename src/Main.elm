@@ -26,6 +26,7 @@ import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
 import Point3d
+import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity, cone, cylinder)
 import Task
 import Time
@@ -1055,20 +1056,13 @@ deriveProblems model =
 deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
-    let
-        currentRoad =
-            lookupRoad model model.currentNode
-
-        markedRoad =
-            lookupRoad model model.markedNode
-    in
     case model.scaling of
         Just scale ->
             let
                 context =
                     { displayOptions = model.displayOptions
-                    , currentNode = currentRoad
-                    , markedNode = markedRoad
+                    , currentNode = Nothing
+                    , markedNode = Nothing
                     , scaling = scale
                     , viewingMode = model.viewingMode
                     , viewingSubMode = model.thirdPersonSubmode
@@ -1076,6 +1070,29 @@ deriveStaticVisualEntities model =
                     }
             in
             { model | staticVisualEntities = makeStaticVisualEntities context model.roadArray }
+
+        Nothing ->
+            model
+
+
+deriveProfileVisualEntities : Model -> Model
+deriveProfileVisualEntities model =
+    -- These need building only when a file is loaded, or a fix is applied.
+    case model.scaling of
+        Just scale ->
+            let
+                context =
+                    { displayOptions = model.displayOptions
+                    , currentNode = Nothing
+                    , markedNode = Nothing
+                    , scaling = scale
+                    , viewingMode = model.viewingMode
+                    , viewingSubMode = model.thirdPersonSubmode
+                    , smoothedBend = model.smoothedRoads
+                    }
+            in
+            model
+            --| staticProfileEntities = makeStaticProfileEntities context model.roadArray }
 
         Nothing ->
             model
