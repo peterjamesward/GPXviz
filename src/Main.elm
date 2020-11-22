@@ -2065,7 +2065,7 @@ meanPositionOfNearbyNodes node model =
             1
 
         nearbyNodes =
-            model.nodes |> drop (node.trackPoint.idx - eachSide) |> take (2 * eachSide)
+            model.nodes |> drop (node.trackPoint.idx - eachSide) |> take (1 + 2 * eachSide)
 
         acc =
             { count = 0.0, x = 0.0, y = 0.0, z = 0.0 }
@@ -2141,22 +2141,32 @@ viewCurrentNode scale model node =
 
 viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewRouteProfile scale model node =
+    --TODO: Need current node with coordinates in profile space.
+    --TODO: Proper position along the line.
+    --TODO: Current and marked node markers visible.
+    --TODO: Zoom out = whole profile visible. Current node is more relevant at high zoom.
     let
+        currentNodeApproximation =
+            toFloat node.trackPoint.idx / (toFloat <| List.length model.roads)
+
+        y =
+            currentNodeApproximation * 2.0 - 1.0
+
         focus =
-            let
-                ( x, y, z ) =
-                    meanPositionOfNearbyNodes node model
-            in
-            Point3d.meters x y z
+            Point3d.meters 0.0 y node.z
+
+        eyePoint =
+            Point3d.meters 0.5 y node.z
 
         camera =
             Camera3d.orthographic
-                { viewpoint = Viewpoint3d.lookAt
-                    { focalPoint = focus
-                    , eyePoint = Point3d.meters 10.0 0.0 0.0
-                    , upDirection = positiveZ
-                    }
-                    , viewportHeight = Length.meters 2.0
+                { viewpoint =
+                    Viewpoint3d.lookAt
+                        { focalPoint = focus
+                        , eyePoint = eyePoint
+                        , upDirection = positiveZ
+                        }
+                , viewportHeight = Length.meters <| 0.5 / model.zoomLevelThirdPerson
                 }
     in
     row []
