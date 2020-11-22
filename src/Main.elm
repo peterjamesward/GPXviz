@@ -105,6 +105,7 @@ type alias Model =
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
     , flythrough : Maybe Flythrough
+    , roadsForProfileView : List DrawingRoad -- yes, cheating somewhat.
     }
 
 
@@ -164,6 +165,7 @@ init _ =
       , bumpinessFactor = 0.0
       , flythrough = Nothing
       , flythroughSpeed = 1.0
+      , roadsForProfileView = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -932,7 +934,14 @@ deriveNodesAndRoads model =
                     m
 
         withRoads m =
-            { m | roads = deriveRoads m.nodes }
+            let
+                roads =
+                    deriveRoads m.nodes
+            in
+            { m
+                | roads = roads
+                , roadsForProfileView = roadsForProfileView roads
+            }
 
         withSummary m =
             { m | summary = Just <| deriveSummary m.roads }
@@ -1071,7 +1080,7 @@ deriveStaticVisualEntities model =
             in
             { model
                 | staticVisualEntities = makeStatic3DEntities context model.roadArray
-                , staticProfileEntities = makeStaticProfileEntities context model.roadArray
+                , staticProfileEntities = makeStaticProfileEntities context model.roadsForProfileView
             }
 
         Nothing ->
@@ -2172,13 +2181,13 @@ viewRouteProfile scale model node =
     row []
         [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
         , el
-            withMouseCapture
+            []
           <|
             html <|
                 Scene3d.sunny
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
+                    , background = Scene3d.backgroundColor Color.lightCharcoal
                     , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
                     , entities = model.varyingProfileEntities ++ model.staticProfileEntities
                     , upDirection = positiveZ

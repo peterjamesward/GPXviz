@@ -253,49 +253,13 @@ makeStaticVisualEntities context roadMapper roads =
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
 
-makeStaticProfileEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
+makeStaticProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
 makeStaticProfileEntities context roads =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
-    let
-        roadList =
-            Array.toList roads
-
-        totalLength =
-            Maybe.withDefault 1.0 <|
-                List.maximum <|
-                    List.map .endDistance roadList
-
-        unrolledRoads : List DrawingRoad
-        unrolledRoads =
-            List.map unrollRoad roadList
-
-        unrollRoad : DrawingRoad -> DrawingRoad
-        unrollRoad road =
-            let
-                startNode =
-                    road.startsAt
-
-                endNode =
-                    road.endsAt
-
-                newStartNode =
-                    { startNode
-                        | y = 2.0 * road.startDistance / totalLength - 1.0
-                        , x = 0.0
-                    }
-
-                newEndNode =
-                    { endNode
-                        | y = 2.0 * road.endDistance / totalLength - 1.0
-                        , x = 0.0
-                    }
-            in
-            { road | startsAt = newStartNode, endsAt = newEndNode }
-    in
     makeStaticVisualEntities context
         preserve3Dspace
-        (Array.fromList unrolledRoads)
+        (Array.fromList roads)
 
 
 makeVaryingVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
@@ -374,47 +338,11 @@ makeVaryingVisualEntities context roads =
         ++ suggestedBend
 
 
-makeProfileVaryingEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
+makeProfileVaryingEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
 makeProfileVaryingEntities context roads =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
-    let
-        roadList =
-            Array.toList roads
-
-        totalLength =
-            Maybe.withDefault 1.0 <|
-                List.maximum <|
-                    List.map .endDistance roadList
-
-        unrolledRoads : List DrawingRoad
-        unrolledRoads =
-            List.map unrollRoad roadList
-
-        unrollRoad : DrawingRoad -> DrawingRoad
-        unrollRoad road =
-            let
-                startNode =
-                    road.startsAt
-
-                endNode =
-                    road.endsAt
-
-                newStartNode =
-                    { startNode
-                        | y = 2.0 * road.startDistance / totalLength - 1.0
-                        , x = 0.0
-                    }
-
-                newEndNode =
-                    { endNode
-                        | y = 2.0 * road.endDistance / totalLength - 1.0
-                        , x = 0.0
-                    }
-            in
-            { road | startsAt = newStartNode, endsAt = newEndNode }
-    in
-    makeVaryingVisualEntities context (Array.fromList unrolledRoads)
+    makeVaryingVisualEntities context <| Array.fromList roads
 
 
 deriveScalingInfo : List TrackPoint -> ScalingInfo

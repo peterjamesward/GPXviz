@@ -171,3 +171,42 @@ deriveSummary roadSegments =
         , totalDescending = 0.0
         }
         roadSegments
+
+
+roadsForProfileView : List DrawingRoad -> List DrawingRoad
+roadsForProfileView roads =
+    -- Don't try to be clever. Be pragmatic.
+    let
+        totalLength =
+            Maybe.withDefault 1.0 <|
+                List.maximum <|
+                    List.map .endDistance roads
+
+        unrolledRoads : List DrawingRoad
+        unrolledRoads =
+            List.map unrollRoad roads
+
+        unrollRoad : DrawingRoad -> DrawingRoad
+        unrollRoad road =
+            let
+                startNode =
+                    road.startsAt
+
+                endNode =
+                    road.endsAt
+
+                newStartNode =
+                    { startNode
+                        | y = 2.0 * road.startDistance / totalLength - 1.0
+                        , x = 0.0
+                    }
+
+                newEndNode =
+                    { endNode
+                        | y = 2.0 * road.endDistance / totalLength - 1.0
+                        , x = 0.0
+                    }
+            in
+            { road | startsAt = newStartNode, endsAt = newEndNode }
+    in
+    unrolledRoads
