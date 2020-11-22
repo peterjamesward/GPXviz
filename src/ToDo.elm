@@ -1,6 +1,7 @@
 module ToDo exposing (..)
 
 --TODO: Save static display artefacts separately and combine them when needed.
+--TODO: Scaling info only needed for visuals, so move it.
 --TODO: Linear orthographic ride profile.
 --TODO: Break up this module.
 --TODO: Try chamfer for horizontal turns.
