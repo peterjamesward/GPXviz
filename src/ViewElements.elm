@@ -29,3 +29,30 @@ loadButton =
         { onPress = Just GpxRequested
         , label = text "Load GPX from your computer"
         }
+
+
+checkboxIcon : Bool -> Element msg
+checkboxIcon isChecked =
+    el
+        [ width <| px 32
+        , height <| px 32
+        , centerY
+        , padding 4
+        , Border.rounded 6
+        , Border.width 2
+        , Border.color <| rgb255 0xC0 0xC0 0xC0
+        ]
+    <|
+        el
+            [ width fill
+            , height fill
+            , Border.rounded 4
+            , Background.color <|
+                if isChecked then
+                    rgb255 114 159 207
+
+                else
+                    rgb255 0xFF 0xFF 0xFF
+            ]
+        <|
+            none
