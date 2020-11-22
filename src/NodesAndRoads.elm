@@ -207,6 +207,6 @@ roadsForProfileView roads =
                         , x = 0.0
                     }
             in
-            { road | startsAt = newStartNode, endsAt = newEndNode }
+            { road | startsAt = newStartNode, endsAt = newEndNode, bearing = 0.0 }
     in
     unrolledRoads

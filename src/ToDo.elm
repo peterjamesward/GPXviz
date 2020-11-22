@@ -1,9 +1,6 @@
 module ToDo exposing (..)
 
---TODO: Save static display artefacts separately and combine them when needed.
---TODO: Scaling info only needed for visuals, so move it.
---TODO: Linear orthographic ride profile.
---TODO: Break up this module.
+--TODO: Put 'unrolled' coordinates in Node and Road rather than have two collections.
 --TODO: Try chamfer for horizontal turns.
 --TODO: Autofix bends with circular arcs.
 --TODO: Improve removal of zero lengths so we don't have to repeat ourselves!

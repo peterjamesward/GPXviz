@@ -1818,24 +1818,24 @@ viewProfileView scale model =
                 Nothing ->
                     0
 
-        getNode =
+        getRoad =
             case model.currentNode of
                 Just n ->
-                    Array.get n model.nodeArray
+                    model.roadsForProfileView |> List.drop n |> List.head
 
                 Nothing ->
                     Nothing
     in
-    case getNode of
+    case getRoad of
         Nothing ->
             none
 
-        Just node ->
+        Just road ->
             row [ alignTop ]
                 [ column
                     [ alignTop
                     ]
-                    [ viewRouteProfile scale model node
+                    [ viewRouteProfile scale model road.startsAt
                     , positionControls model
                     ]
                 , viewThirdPersonSubpane model
@@ -2151,21 +2151,13 @@ viewCurrentNode scale model node =
 viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewRouteProfile scale model node =
     --TODO: Need current node with coordinates in profile space.
-    --TODO: Proper position along the line.
     --TODO: Current and marked node markers visible.
-    --TODO: Zoom out = whole profile visible. Current node is more relevant at high zoom.
     let
-        currentNodeApproximation =
-            toFloat node.trackPoint.idx / (toFloat <| List.length model.roads)
-
-        y =
-            currentNodeApproximation * 2.0 - 1.0
-
         focus =
-            Point3d.meters 0.0 y node.z
+            Point3d.meters 0.0 node.y node.z
 
         eyePoint =
-            Point3d.meters 0.5 y node.z
+            Point3d.meters 0.5 node.y node.z
 
         camera =
             Camera3d.orthographic
@@ -2175,7 +2167,7 @@ viewRouteProfile scale model node =
                         , eyePoint = eyePoint
                         , upDirection = positiveZ
                         }
-                , viewportHeight = Length.meters <| 0.5 / model.zoomLevelThirdPerson
+                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (1.0 - model.zoomLevelThirdPerson)
                 }
     in
     row []
