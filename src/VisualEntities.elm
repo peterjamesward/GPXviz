@@ -238,15 +238,15 @@ makeVaryingVisualEntities context roads =
 
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
-                ( Just node, ThirdPersonView ) ->
+                ( Just road, ThirdPersonView ) ->
+                    let
+                        ((x, y, z), _) =
+                            roadToClipSpace road
+                    in
                     [ cylinder (Material.color Color.lightOrange) <|
                         Cylinder3d.startingAt
-                            (Point3d.meters
-                                node.startsAt.x
-                                node.startsAt.y
-                                node.startsAt.z
-                            )
-                            (segmentDirection node)
+                            (Point3d.meters x y z)
+                            (segmentDirection road)
                             { radius = meters <| 10.0 * metresToClipSpace
                             , length = meters <| 1.0 * metresToClipSpace
                             }
@@ -258,13 +258,13 @@ makeVaryingVisualEntities context roads =
         markedNode =
             case ( context.markedNode, context.viewingMode ) of
                 ( Just road, ThirdPersonView ) ->
+                    let
+                        ((x, y, z), _) =
+                            roadToClipSpace road
+                    in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters
-                                road.startsAt.x
-                                road.startsAt.y
-                                road.startsAt.z
-                            )
+                            (Point3d.meters x y z)
                             (segmentDirection road)
                             { radius = meters <| 6.0 * metresToClipSpace
                             , length = meters <| 3.0 * metresToClipSpace
