@@ -1,9 +1,8 @@
 module VisualEntities exposing
     ( ThingsWeNeedForRendering
     , deriveScalingInfo
-    ,  makeStatic3DEntities
-       --, makeStaticProfileEntities
-
+    , makeStatic3DEntities
+    , makeStaticProfileEntities
     , makeVaryingVisualEntities
     )
 
@@ -72,13 +71,6 @@ preserve3Dspace : RoadMapping
 preserve3Dspace road =
     ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
     , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
-    )
-
-
-mapToProfile : RoadMapping
-mapToProfile road =
-    ( ( road.startDistance, 0.0, road.startsAt.z )
-    , ( road.endDistance, 0.0, road.endsAt.z )
     )
 
 
@@ -260,11 +252,49 @@ makeStaticVisualEntities context roadMapper roads =
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
 
+makeStaticProfileEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
+makeStaticProfileEntities context roads =
+    -- Same thing as above but "unrolled" view of road for viewing profile.
+    -- We manipulate the context to get the scaling right.
+    let
+        roadList =
+            Array.toList roads
 
---makeStaticProfileEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
---makeStaticProfileEntities context roads =
--- Same thing as above but "unrolled" view of road for viewing profile.
--- Should be able to share most code if we factor out the Node -> ClipSpace functions.
+        totalLength =
+            Maybe.withDefault 1.0 <|
+                List.maximum <|
+                    List.map .endDistance roadList
+
+        unrolledRoads : List DrawingRoad
+        unrolledRoads =
+            List.map unrollRoad roadList
+
+        unrollRoad : DrawingRoad -> DrawingRoad
+        unrollRoad road =
+            let
+                startNode =
+                    road.startsAt
+
+                endNode =
+                    road.endsAt
+
+                newStartNode =
+                    { startNode
+                        | y = 2.0 * road.startDistance / totalLength - 1.0
+                        , x = 0.0
+                    }
+
+                newEndNode =
+                    { endNode
+                        | y = 2.0 * road.endDistance / totalLength - 1.0
+                        , x = 0.0
+                    }
+            in
+            { road | startsAt = newStartNode, endsAt = newEndNode }
+    in
+    makeStaticVisualEntities context
+        preserve3Dspace
+        (Array.fromList unrolledRoads)
 
 
 makeVaryingVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
