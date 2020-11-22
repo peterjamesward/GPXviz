@@ -60,6 +60,7 @@ segmentDirection segment =
 
 
 type alias NodeMapping =
+    -- This turned out to be superfluous, but let's keep it in case.
     DrawingNode -> ( Float, Float, Float )
 
 
@@ -371,6 +372,49 @@ makeVaryingVisualEntities context roads =
     currentPositionDisc
         ++ markedNode
         ++ suggestedBend
+
+
+makeProfileVaryingEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
+makeProfileVaryingEntities context roads =
+    -- Same thing as above but "unrolled" view of road for viewing profile.
+    -- We manipulate the context to get the scaling right.
+    let
+        roadList =
+            Array.toList roads
+
+        totalLength =
+            Maybe.withDefault 1.0 <|
+                List.maximum <|
+                    List.map .endDistance roadList
+
+        unrolledRoads : List DrawingRoad
+        unrolledRoads =
+            List.map unrollRoad roadList
+
+        unrollRoad : DrawingRoad -> DrawingRoad
+        unrollRoad road =
+            let
+                startNode =
+                    road.startsAt
+
+                endNode =
+                    road.endsAt
+
+                newStartNode =
+                    { startNode
+                        | y = 2.0 * road.startDistance / totalLength - 1.0
+                        , x = 0.0
+                    }
+
+                newEndNode =
+                    { endNode
+                        | y = 2.0 * road.endDistance / totalLength - 1.0
+                        , x = 0.0
+                    }
+            in
+            { road | startsAt = newStartNode, endsAt = newEndNode }
+    in
+    makeVaryingVisualEntities context (Array.fromList unrolledRoads)
 
 
 deriveScalingInfo : List TrackPoint -> ScalingInfo

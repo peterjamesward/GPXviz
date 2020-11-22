@@ -17,8 +17,6 @@ import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import Html.Attributes exposing (style)
-import Html.Events.Extra.Pointer as Pointer
 import Iso8601
 import Length exposing (meters)
 import List exposing (drop, tail, take)
@@ -32,9 +30,9 @@ import Task
 import Time
 import TrackPoint exposing (..)
 import Utils exposing (..)
-import ViewElements exposing (ButtonPosition(..), checkboxIcon, commonShortHorizontalSliderStyles, displayName, distanceFromZoom, loadButton, prettyButtonStyles, radioButton, withMouseCapture, zoomSlider)
+import ViewElements exposing (..)
 import ViewTypes exposing (..)
-import Viewpoint3d
+import Viewpoint3d exposing (lookAt)
 import VisualEntities exposing (..)
 import WriteGPX exposing (writeGPX)
 
@@ -79,6 +77,7 @@ type alias Model =
     , staticVisualEntities : List (Entity MyCoord) -- our 3D world
     , staticProfileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
     , varyingVisualEntities : List (Entity MyCoord) -- current position and marker node.
+    , varyingProfileEntities : List (Entity MyCoord)
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
@@ -137,6 +136,7 @@ init _ =
       , staticVisualEntities = []
       , varyingVisualEntities = []
       , staticProfileEntities = []
+      , varyingProfileEntities = []
       , httpError = Nothing
       , currentNode = Nothing
       , markedNode = Nothing
@@ -1069,30 +1069,10 @@ deriveStaticVisualEntities model =
                     , smoothedBend = model.smoothedRoads
                     }
             in
-            { model | staticVisualEntities = makeStatic3DEntities context model.roadArray }
-
-        Nothing ->
-            model
-
-
-deriveProfileVisualEntities : Model -> Model
-deriveProfileVisualEntities model =
-    -- These need building only when a file is loaded, or a fix is applied.
-    case model.scaling of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = Nothing
-                    , markedNode = Nothing
-                    , scaling = scale
-                    , viewingMode = model.viewingMode
-                    , viewingSubMode = model.thirdPersonSubmode
-                    , smoothedBend = model.smoothedRoads
-                    }
-            in
-            model
-            --| staticProfileEntities = makeStaticProfileEntities context model.roadArray }
+            { model
+                | staticVisualEntities = makeStatic3DEntities context model.roadArray
+                , staticProfileEntities = makeStaticProfileEntities context model.roadArray
+            }
 
         Nothing ->
             model
@@ -1121,7 +1101,10 @@ deriveVaryingVisualEntities model =
                     , smoothedBend = model.smoothedRoads
                     }
             in
-            { model | varyingVisualEntities = makeVaryingVisualEntities context model.roadArray }
+            { model
+                | varyingVisualEntities = makeVaryingVisualEntities context model.roadArray
+                , varyingProfileEntities = makeVaryingVisualEntities context model.roadArray
+            }
 
         Nothing ->
             model
@@ -1195,8 +1178,7 @@ viewModeChoices model =
             [ Input.optionWith OverviewView <| radioButton First "Overview"
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ThirdPersonView <| radioButton Mid "Third person"
-
-            --, Input.optionWith ProblemsView <| radioButton Mid "Problems"
+            , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
@@ -1213,6 +1195,9 @@ view3D scale model =
 
         ThirdPersonView ->
             viewThirdPerson scale model
+
+        ProfileView ->
+            viewProfileView scale model
 
         AboutView ->
             viewAboutText
@@ -1400,7 +1385,6 @@ viewOptions model =
         ]
 
 
-
 gradientChangeThresholdSlider model =
     Input.slider
         commonShortHorizontalSliderStyles
@@ -1517,6 +1501,7 @@ viewPointCloud scale model =
             , viewOptions model
             ]
         ]
+
 
 positionControls model =
     row
@@ -1703,7 +1688,6 @@ flythroughControls model =
         ]
 
 
-
 viewRoadSegment : ScalingInfo -> Model -> DrawingRoad -> Element Msg
 viewRoadSegment scale model road =
     let
@@ -1777,7 +1761,6 @@ viewRoadSegment scale model road =
                 }
 
 
-
 viewThirdPerson : ScalingInfo -> Model -> Element Msg
 viewThirdPerson scale model =
     -- Let's the user spin around and zoom in on selected road point.
@@ -1808,6 +1791,42 @@ viewThirdPerson scale model =
                     [ alignTop
                     ]
                     [ viewCurrentNode scale model node
+                    , positionControls model
+                    ]
+                , viewThirdPersonSubpane model
+                ]
+
+
+viewProfileView : ScalingInfo -> Model -> Element Msg
+viewProfileView scale model =
+    -- Let's the user spin around and zoom in on selected road point.
+    let
+        getNodeNum =
+            case model.currentNode of
+                Just n ->
+                    n
+
+                Nothing ->
+                    0
+
+        getNode =
+            case model.currentNode of
+                Just n ->
+                    Array.get n model.nodeArray
+
+                Nothing ->
+                    Nothing
+    in
+    case getNode of
+        Nothing ->
+            none
+
+        Just node ->
+            row [ alignTop ]
+                [ column
+                    [ alignTop
+                    ]
+                    [ viewRouteProfile scale model node
                     , positionControls model
                     ]
                 , viewThirdPersonSubpane model
@@ -2043,7 +2062,7 @@ meanPositionOfNearbyNodes node model =
     -- Probably should not do this in the View.
     let
         eachSide =
-            2
+            1
 
         nearbyNodes =
             model.nodes |> drop (node.trackPoint.idx - eachSide) |> take (2 * eachSide)
@@ -2120,7 +2139,45 @@ viewCurrentNode scale model node =
         ]
 
 
+viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
+viewRouteProfile scale model node =
+    let
+        focus =
+            let
+                ( x, y, z ) =
+                    meanPositionOfNearbyNodes node model
+            in
+            Point3d.meters x y z
+
+        camera =
+            Camera3d.orthographic
+                { viewpoint = Viewpoint3d.lookAt
+                    { focalPoint = focus
+                    , eyePoint = Point3d.meters 10.0 0.0 0.0
+                    , upDirection = positiveZ
+                    }
+                    , viewportHeight = Length.meters 2.0
+                }
+    in
+    row []
+        [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
+        , el
+            withMouseCapture
+          <|
+            html <|
+                Scene3d.sunny
+                    { camera = camera
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.backgroundColor Color.lightBlue
+                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                    , entities = model.varyingProfileEntities ++ model.staticProfileEntities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
+                    }
+        ]
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Time.every 10 Tick
-

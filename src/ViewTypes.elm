@@ -7,6 +7,7 @@ type ViewingMode
     | ThirdPersonView
     | AboutView
     | InputErrorView
+    | ProfileView
 
 
 type ThirdPersonSubmode
