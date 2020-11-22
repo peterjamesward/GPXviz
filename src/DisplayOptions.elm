@@ -5,6 +5,7 @@ type CurtainStyle
     = NoCurtain
     | PlainCurtain
     | RainbowCurtain
+    | PastelCurtain
 
 
 type alias DisplayOptions =

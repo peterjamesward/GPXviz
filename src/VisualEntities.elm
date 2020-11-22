@@ -19,7 +19,7 @@ import Scene3d exposing (Entity, cone, cylinder)
 import Scene3d.Material as Material
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (ScalingInfo, TrackPoint)
-import Utils exposing (gradientColour)
+import Utils exposing (gradientColourPastel, gradientColourVivid)
 import ViewTypes exposing (ThirdPersonSubmode(..), ViewingMode(..))
 
 
@@ -196,7 +196,10 @@ makeStaticVisualEntities context roads =
         curtainColour gradient =
             case context.displayOptions.curtainStyle of
                 RainbowCurtain ->
-                    gradientColour gradient
+                    gradientColourVivid gradient
+
+                PastelCurtain ->
+                    gradientColourPastel gradient
 
                 PlainCurtain ->
                     Color.rgb255 0 100 0

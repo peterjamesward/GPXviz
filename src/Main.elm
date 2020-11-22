@@ -1376,6 +1376,7 @@ viewOptions model =
             , options =
                 [ Input.optionWith NoCurtain <| radioButton First "None"
                 , Input.optionWith PlainCurtain <| radioButton Mid "Plain"
+                , Input.optionWith PastelCurtain <| radioButton Mid "Pastel"
                 , Input.optionWith RainbowCurtain <| radioButton Last "Rainbow"
                 ]
             }

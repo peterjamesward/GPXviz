@@ -34,7 +34,7 @@ showMaybe mi =
 
 
 
-gradientColour slope =
+gradientColourVivid slope =
     -- Note we want (say) 15% to be maximum Red, flat is Green, -15% purple.
     let
         x =
@@ -50,6 +50,24 @@ gradientColour slope =
             x * steepestAscentHue + (1.0 - x) * steepestDescentHue
     in
     Color.hsl hue 1.0 0.4
+
+
+gradientColourPastel slope =
+    let
+        x =
+            (clamp -15.0 15.0 slope + 15.0) / 30.0
+
+        steepestAscentHue =
+            (Color.toHsla Color.red).hue
+
+        steepestDescentHue =
+            (Color.toHsla Color.purple).hue
+
+        hue =
+            x * steepestAscentHue + (1.0 - x) * steepestDescentHue
+    in
+    Color.hsl hue 0.6 0.7
+
 
 
 asRegex t =
