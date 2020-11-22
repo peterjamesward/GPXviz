@@ -38,7 +38,7 @@ import Utils exposing (..)
 import ViewElements exposing (loadButton, prettyButtonStyles)
 import ViewTypes exposing (..)
 import Viewpoint3d
-import VisualEntities exposing (makeVisualEntities)
+import VisualEntities exposing (deriveScalingInfo, makeStaticVisualEntities, makeVaryingVisualEntities)
 import WriteGPX exposing (writeGPX)
 
 
@@ -88,8 +88,9 @@ type alias Model =
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
-    , entities : List (Entity MyCoord) -- our 3D world
-    , profileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
+    , staticVisualEntities : List (Entity MyCoord) -- our 3D world
+    , staticProfileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
+    , varyingVisualEntities : List (Entity MyCoord) -- current position and marker node.
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
@@ -156,8 +157,9 @@ init _ =
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
       , orbiting = Nothing
-      , entities = []
-      , profileEntities = []
+      , staticVisualEntities = []
+      , varyingVisualEntities = []
+      , staticProfileEntities = []
       , httpError = Nothing
       , currentNode = Nothing
       , markedNode = Nothing
@@ -222,12 +224,16 @@ update msg model =
             )
 
         GpxLoaded content ->
+            -- TODO: Tidy up the removal of zero length segments,
+            -- so as not to repeat ourselves here.
             ( parseGPXintoModel content model
                 |> deriveNodesAndRoads
                 |> deriveProblems
                 |> deleteZeroLengthSegments
+                |> deriveNodesAndRoads
                 |> deriveProblems
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
                 |> resetViewSettings
             , Cmd.none
             )
@@ -235,7 +241,7 @@ update msg model =
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
                 |> cancelFlythrough
             , Cmd.none
             )
@@ -243,7 +249,7 @@ update msg model =
         SetSmoothingEnd idx ->
             ( { model | smoothingEndIndex = Just idx }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -252,7 +258,7 @@ update msg model =
                 | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
                 |> cancelFlythrough
             , Cmd.none
             )
@@ -262,7 +268,7 @@ update msg model =
                 | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
               }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
                 |> cancelFlythrough
             , Cmd.none
             )
@@ -272,7 +278,7 @@ update msg model =
                 | markedNode = incrementMaybeModulo (List.length model.roads - 1) model.markedNode
               }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -281,7 +287,7 @@ update msg model =
                 | markedNode = decrementMaybeModulo (List.length model.roads - 1) model.markedNode
               }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -290,13 +296,13 @@ update msg model =
                 | maxTurnPerSegment = turn
               }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
-                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -354,7 +360,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadCones = not options.roadCones }
               }
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
             , Cmd.none
             )
 
@@ -362,7 +368,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
               }
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
             , Cmd.none
             )
 
@@ -370,7 +376,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | roadTrack = not options.roadTrack }
               }
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
             , Cmd.none
             )
 
@@ -378,7 +384,7 @@ update msg model =
             ( { model
                 | displayOptions = { options | curtainStyle = style }
               }
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
             , Cmd.none
             )
 
@@ -408,7 +414,7 @@ update msg model =
         DeleteZeroLengthSegments ->
             ( deleteZeroLengthSegments model
                 |> deriveNodesAndRoads
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
                 |> deriveProblems
             , Cmd.none
             )
@@ -421,15 +427,14 @@ update msg model =
         SmoothGradient s f g ->
             ( smoothGradient model s f g
                 |> deriveNodesAndRoads
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
                 |> deriveProblems
             , Cmd.none
             )
 
         SetThirdPersonSubmode mode ->
             ( { model | thirdPersonSubmode = mode }
-                |> deriveNodesAndRoads
-                |> deriveVisualEntities
             , Cmd.none
             )
 
@@ -441,7 +446,8 @@ update msg model =
                         , undoStack = undos
                     }
                         |> deriveNodesAndRoads
-                        |> deriveVisualEntities
+                        |> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
                         |> deriveProblems
 
                 _ ->
@@ -460,7 +466,7 @@ update msg model =
                             model.currentNode
               }
                 |> tryBendSmoother
-                |> deriveVisualEntities
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -486,7 +492,8 @@ update msg model =
         VerticalNodeSpilt node ->
             ( verticalNodeSplit node model
                 |> deriveNodesAndRoads
-                |> deriveVisualEntities
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> (\m -> { m | currentNode = model.currentNode })
             , Cmd.none
@@ -1198,8 +1205,9 @@ deriveProblems model =
     }
 
 
-deriveVisualEntities : Model -> Model
-deriveVisualEntities model =
+deriveStaticVisualEntities : Model -> Model
+deriveStaticVisualEntities model =
+    -- These need building only when a file is loaded, or a fix is applied.
     let
         currentRoad =
             lookupRoad model model.currentNode
@@ -1220,7 +1228,35 @@ deriveVisualEntities model =
                     , smoothedBend = model.smoothedRoads
                     }
             in
-            { model | entities = makeVisualEntities context model.roadArray }
+            { model | staticVisualEntities = makeStaticVisualEntities context model.roadArray }
+
+        Nothing ->
+            model
+
+deriveVaryingVisualEntities : Model -> Model
+deriveVaryingVisualEntities model =
+    -- These need building each time the user changes current or marked nodes.
+    let
+        currentRoad =
+            lookupRoad model model.currentNode
+
+        markedRoad =
+            lookupRoad model model.markedNode
+    in
+    case model.scaling of
+        Just scale ->
+            let
+                context =
+                    { displayOptions = model.displayOptions
+                    , currentNode = currentRoad
+                    , markedNode = markedRoad
+                    , scaling = scale
+                    , viewingMode = model.viewingMode
+                    , viewingSubMode = model.thirdPersonSubmode
+                    , smoothedBend = model.smoothedRoads
+                    }
+            in
+            { model | varyingVisualEntities = makeVaryingVisualEntities context model.roadArray }
 
         Nothing ->
             model
@@ -1680,7 +1716,7 @@ viewPointCloud scale model =
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
                     , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
-                    , entities = model.entities
+                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ
                     , shadows = True
@@ -1967,7 +2003,7 @@ viewRoadSegment scale model road =
                 , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.backgroundColor Color.lightBlue
                 , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
-                , entities = model.entities
+                , entities = model.varyingVisualEntities ++ model.staticVisualEntities
                 , upDirection = positiveZ
                 , sunlightDirection = negativeZ
                 , shadows = True
@@ -2361,7 +2397,7 @@ viewCurrentNode scale model node =
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
                     , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
-                    , entities = model.entities
+                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ
                     , shadows = True

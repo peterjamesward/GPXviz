@@ -62,52 +62,6 @@ reindexTrackpoints points =
         (List.range 0 (List.length points))
 
 
-deriveScalingInfo : List TrackPoint -> ScalingInfo
-deriveScalingInfo tps =
-    let
-        lowerBounds tp =
-            { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
-            , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tp
-            , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tp
-            , idx = 0
-            }
-
-        upperBounds tp =
-            { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tp
-            , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tp
-            , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tp
-            , idx = 0
-            }
-
-        mins =
-            lowerBounds tps
-
-        maxs =
-            upperBounds tps
-
-        findCentres =
-            { lat = (mins.lat + maxs.lat) / 2.0
-            , lon = (mins.lon + maxs.lon) / 2.0
-            , ele = (mins.ele + maxs.ele) / 2.0
-            , idx = 0
-            }
-
-        scalingFactor =
-            max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
-
-        metresToClipSpace =
-            1 / (0.5 * scalingFactor * metresPerDegreeLatitude)
-
-        elevationToClipSpace e =
-            (e - findCentres.ele) * metresToClipSpace
-    in
-    { mins = mins
-    , maxs = maxs
-    , centres = findCentres
-    , largestDimension = scalingFactor
-    , metresToClipSpace = metresToClipSpace
-    , seaLevelInClipSpace = elevationToClipSpace 0.0
-    }
 
 
 parseTrackPoints : String -> List TrackPoint
