@@ -1069,7 +1069,7 @@ deriveStaticVisualEntities model =
                     , smoothedBend = model.smoothedRoads
                     }
             in
-            { model | staticVisualEntities = makeStaticVisualEntities context model.roadArray }
+            { model | staticVisualEntities = makeStatic3DEntities context model.roadArray }
 
         Nothing ->
             model

@@ -1,7 +1,7 @@
 module VisualEntities exposing
     ( ThingsWeNeedForRendering
     , deriveScalingInfo
-    ,  makeStaticVisualEntities
+    ,  makeStatic3DEntities
        --, makeStaticProfileEntities
 
     , makeVaryingVisualEntities
@@ -14,6 +14,7 @@ import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
+import List exposing (take)
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
 import Point3d
 import ScalingInfo exposing (ScalingInfo)
@@ -59,33 +60,57 @@ segmentDirection segment =
             positiveZ
 
 
-nodeToClipSpace : DrawingNode -> ( Float, Float, Float )
-nodeToClipSpace node =
+type alias NodeMapping =
+    DrawingNode -> ( Float, Float, Float )
+
+
+type alias RoadMapping =
+    DrawingRoad -> ( ( Float, Float, Float ), ( Float, Float, Float ) )
+
+
+nodeToClipSpace3D : NodeMapping
+nodeToClipSpace3D node =
     ( node.x, node.y, node.z )
 
 
-roadToClipSpace : DrawingRoad -> ( ( Float, Float, Float ), ( Float, Float, Float ) )
-roadToClipSpace road =
+roadToClipSpace3D : RoadMapping
+roadToClipSpace3D road =
     ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
     , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
     )
 
 
-makeStaticVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
-makeStaticVisualEntities context roads =
+nodeToClipSpaceProfile : NodeMapping
+nodeToClipSpaceProfile node =
+    -- Hmm. Can't really show nodes in profile.
+    ( 0.0, 0.0, 0.0 )
+
+
+roadToClipSpaceProfile : RoadMapping
+roadToClipSpaceProfile road =
+    ( ( road.startDistance, 0.0, road.startsAt.z )
+    , ( road.endDistance, 0.0, road.endsAt.z )
+    )
+
+
+makeStatic3DEntities :
+    ThingsWeNeedForRendering
+    -> Array DrawingRoad
+    -> List (Entity MyCoord)
+makeStatic3DEntities context roads =
+    makeStaticVisualEntities context nodeToClipSpace3D roadToClipSpace3D roads
+
+
+makeStaticVisualEntities :
+    ThingsWeNeedForRendering
+    -> NodeMapping
+    -> RoadMapping
+    -> Array DrawingRoad
+    -> List (Entity MyCoord)
+makeStaticVisualEntities context nodeMapper roadMapper roads =
     let
         roadList =
             Array.toList roads
-
-        beginnings =
-            List.map .startsAt roadList
-
-        endings =
-            List.map .endsAt roadList
-
-        nodes =
-            -- No, it's not efficient. Let's make it work first.
-            List.take 1 beginnings ++ endings
 
         seaLevelInClipSpace =
             context.scaling.seaLevelInClipSpace
@@ -102,39 +127,61 @@ makeStaticVisualEntities context roads =
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
-        pillars =
-            List.map
-                (\node ->
-                    let
-                        ( x, y, z ) =
-                            nodeToClipSpace node
-                    in
-                    cylinder (Material.color Color.brown) <|
-                        Cylinder3d.startingAt
-                            (Point3d.meters x y (z - 1.0 * metresToClipSpace))
-                            negativeZ
-                            { radius = meters <| 0.5 * metresToClipSpace
-                            , length = meters <| (node.trackPoint.ele - 1.0) * metresToClipSpace
-                            }
-                )
-                nodes
+        brownPillar x y z =
+            cylinder (Material.color Color.brown) <|
+                Cylinder3d.startingAt
+                    (Point3d.meters x y (z - 1.0 * metresToClipSpace))
+                    negativeZ
+                    { radius = meters <| 0.5 * metresToClipSpace
+                    , length = meters <| z - 1.0 * metresToClipSpace - seaLevelInClipSpace
+                    }
 
-        cones =
-            List.map
-                (\node ->
+        pillars =
+            let
+                makeStartPillar road =
                     let
-                        ( x, y, z ) =
-                            nodeToClipSpace node
+                        ( _, ( x2, y2, z2 ) ) =
+                            roadToClipSpace3D road
                     in
-                    cone (Material.color Color.black) <|
-                        Cone3d.startingAt
-                            (Point3d.meters x y (z - 0.6 * metresToClipSpace))
-                            positiveZ
-                            { radius = meters <| 1.0 * metresToClipSpace
-                            , length = meters <| 1.0 * metresToClipSpace
-                            }
-                )
-                nodes
+                    brownPillar x2 y2 z2
+
+                makeEndPillar road =
+                    let
+                        ( _, ( x2, y2, z2 ) ) =
+                            roadToClipSpace3D road
+                    in
+                    brownPillar x2 y2 z2
+            in
+            List.map makeStartPillar (List.take 1 roadList)
+                ++ List.map makeEndPillar roadList
+
+        trackpointmarker x y z =
+            cone (Material.color Color.black) <|
+                Cone3d.startingAt
+                    (Point3d.meters x y (z - 1.0 * metresToClipSpace))
+                    positiveZ
+                    { radius = meters <| 0.6 * metresToClipSpace
+                    , length = meters <| 1.0 * metresToClipSpace
+                    }
+
+        trackpointMarkers =
+            let
+                makeStartCone road =
+                    let
+                        ( ( x1, y1, z1 ), _ ) =
+                            roadToClipSpace3D road
+                    in
+                    trackpointmarker x1 y1 z1
+
+                makeEndCone road =
+                    let
+                        ( _, ( x2, y2, z2 ) ) =
+                            roadToClipSpace3D road
+                    in
+                    trackpointmarker x2 y2 z2
+            in
+            List.map makeStartCone (List.take 1 roadList)
+                ++ List.map makeEndCone roadList
 
         roadSurfaces =
             List.concat <|
@@ -155,7 +202,7 @@ makeStaticVisualEntities context roads =
                     0.3 * metresToClipSpace
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadToClipSpace segment
+                    roadToClipSpace3D segment
             in
             [ --surface
               Scene3d.quad (Material.color Color.grey)
@@ -199,7 +246,7 @@ makeStaticVisualEntities context roads =
         curtain segment =
             let
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadToClipSpace segment
+                    roadToClipSpace3D segment
             in
             [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
                 (Point3d.meters x1 y1 z1)
@@ -218,7 +265,7 @@ makeStaticVisualEntities context roads =
     in
     seaLevel
         :: optionally context.displayOptions.roadPillars pillars
-        ++ optionally context.displayOptions.roadCones cones
+        ++ optionally context.displayOptions.roadCones trackpointMarkers
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
@@ -240,8 +287,8 @@ makeVaryingVisualEntities context roads =
             case ( context.currentNode, context.viewingMode ) of
                 ( Just road, ThirdPersonView ) ->
                     let
-                        ((x, y, z), _) =
-                            roadToClipSpace road
+                        ( ( x, y, z ), _ ) =
+                            roadToClipSpace3D road
                     in
                     [ cylinder (Material.color Color.lightOrange) <|
                         Cylinder3d.startingAt
@@ -259,8 +306,8 @@ makeVaryingVisualEntities context roads =
             case ( context.markedNode, context.viewingMode ) of
                 ( Just road, ThirdPersonView ) ->
                     let
-                        ((x, y, z), _) =
-                            roadToClipSpace road
+                        ( ( x, y, z ), _ ) =
+                            roadToClipSpace3D road
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
@@ -291,24 +338,15 @@ makeVaryingVisualEntities context roads =
 
                 floatHeight =
                     0.1 * metresToClipSpace
+
+                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
+                    roadToClipSpace3D segment
             in
             Scene3d.quad (Material.color Color.white)
-                (Point3d.meters (segment.startsAt.x + kerbX)
-                    (segment.startsAt.y - kerbY)
-                    (segment.startsAt.z + floatHeight)
-                )
-                (Point3d.meters (segment.endsAt.x + kerbX)
-                    (segment.endsAt.y - kerbY)
-                    (segment.endsAt.z + floatHeight)
-                )
-                (Point3d.meters (segment.endsAt.x - kerbX)
-                    (segment.endsAt.y + kerbY)
-                    (segment.endsAt.z + floatHeight)
-                )
-                (Point3d.meters (segment.startsAt.x - kerbX)
-                    (segment.startsAt.y + kerbY)
-                    (segment.startsAt.z + floatHeight)
-                )
+                (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))
+                (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + floatHeight))
+                (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + floatHeight))
+                (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + floatHeight))
     in
     currentPositionDisc
         ++ markedNode
