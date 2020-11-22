@@ -31,7 +31,7 @@ import Task
 import Time
 import TrackPoint exposing (..)
 import Utils exposing (..)
-import ViewElements exposing (checkboxIcon, loadButton, prettyButtonStyles)
+import ViewElements exposing (ButtonPosition(..), checkboxIcon, commonShortHorizontalSliderStyles, displayName, distanceFromZoom, loadButton, prettyButtonStyles, radioButton, withMouseCapture, zoomSlider)
 import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
@@ -59,12 +59,6 @@ type alias UndoEntry =
     { label : String
     , trackPoints : List TrackPoint
     }
-
-
-type ButtonPosition
-    = First
-    | Mid
-    | Last
 
 
 type alias Model =
@@ -1388,23 +1382,6 @@ viewOptions model =
         ]
 
 
-commonShortHorizontalSliderStyles =
-    [ height <| px 30
-    , width <| px 200
-    , centerY
-    , behindContent <|
-        -- Slider track
-        el
-            [ width <| px 200
-            , height <| px 30
-            , centerY
-            , centerX
-            , Background.color <| rgb255 114 159 207
-            , Border.rounded 6
-            ]
-            Element.none
-    ]
-
 
 gradientChangeThresholdSlider model =
     Input.slider
@@ -1522,11 +1499,6 @@ viewPointCloud scale model =
             , viewOptions model
             ]
         ]
-
-
-toDegrees rads =
-    rads * 180.0 / pi
-
 
 positionControls model =
     row
@@ -1713,25 +1685,6 @@ flythroughControls model =
         ]
 
 
-bearingToDisplayDegrees x =
-    showDecimal2 <|
-        toDegrees <|
-            if x < 0 then
-                pi + pi + x
-
-            else
-                x
-
-
-withMouseCapture =
-    [ htmlAttribute <| Pointer.onDown (\event -> ImageGrab event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onMove (\event -> ImageRotate event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onUp (\event -> ImageRelease event.pointer.offsetPos)
-    , htmlAttribute <| style "touch-action" "none"
-    , width fill
-    , pointer
-    ]
-
 
 viewRoadSegment : ScalingInfo -> Model -> DrawingRoad -> Element Msg
 viewRoadSegment scale model road =
@@ -1805,43 +1758,6 @@ viewRoadSegment scale model road =
                 , shadows = True
                 }
 
-
-displayName n =
-    case n of
-        Just s ->
-            el [ Font.size 32, padding 8 ]
-                (text s)
-
-        _ ->
-            none
-
-
-zoomSlider value msg =
-    Input.slider
-        [ height <| px 400
-        , width <| px 80
-        , alignTop
-        , behindContent <|
-            -- Slider track
-            el
-                [ width <| px 30
-                , height <| px 400
-                , alignTop
-                , centerX
-                , Background.color <| rgb255 114 159 207
-                , Border.rounded 6
-                ]
-                Element.none
-        ]
-        { onChange = msg
-        , label =
-            Input.labelHidden "Zoom"
-        , min = 1.0
-        , max = 4.0
-        , step = Nothing
-        , value = value
-        , thumb = Input.defaultThumb
-        }
 
 
 viewThirdPerson : ScalingInfo -> Model -> Element Msg
@@ -1919,16 +1835,6 @@ viewBendFixerPane model =
         , bendSmoothnessSlider model
         , viewBearingChanges model
         ]
-
-
-showMaybe : Maybe Int -> String
-showMaybe mi =
-    case mi of
-        Just i ->
-            String.fromInt i
-
-        Nothing ->
-            "----"
 
 
 showCircle : Maybe SmoothedBend -> Element Msg
@@ -2114,11 +2020,6 @@ viewSummaryStats model =
             none
 
 
-distanceFromZoom : ScalingInfo -> Float -> Float
-distanceFromZoom scale zoomLevel =
-    1.0 * scale.metresToClipSpace * 10 ^ (5.0 - zoomLevel)
-
-
 meanPositionOfNearbyNodes : DrawingNode -> Model -> ( Float, Float, Float )
 meanPositionOfNearbyNodes node model =
     -- Probably should not do this in the View.
@@ -2201,56 +2102,7 @@ viewCurrentNode scale model node =
         ]
 
 
-viewTrackPoint : TrackPoint -> Element Msg
-viewTrackPoint trkpnt =
-    column [ padding 5, spacing 5 ]
-        [ text <| "Lat:" ++ String.fromFloat trkpnt.lat
-        , text <| "Lon:" ++ String.fromFloat trkpnt.lon
-        , text <| "Ele:" ++ String.fromFloat trkpnt.ele
-        ]
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Time.every 10 Tick
 
-
-radioButton position label state =
-    let
-        borders =
-            case position of
-                First ->
-                    { left = 2, right = 2, top = 2, bottom = 2 }
-
-                Mid ->
-                    { left = 0, right = 2, top = 2, bottom = 2 }
-
-                Last ->
-                    { left = 0, right = 2, top = 2, bottom = 2 }
-
-        corners =
-            case position of
-                First ->
-                    { topLeft = 6, bottomLeft = 6, topRight = 0, bottomRight = 0 }
-
-                Mid ->
-                    { topLeft = 0, bottomLeft = 0, topRight = 0, bottomRight = 0 }
-
-                Last ->
-                    { topLeft = 0, bottomLeft = 0, topRight = 6, bottomRight = 6 }
-    in
-    el
-        [ paddingEach { left = 20, right = 20, top = 10, bottom = 10 }
-        , Border.roundEach corners
-        , Border.widthEach borders
-        , Border.color <| rgb255 0xC0 0xC0 0xC0
-        , Background.color <|
-            if state == Input.Selected then
-                rgb255 0xFF 0xFF 0xFF
-
-            else
-                rgb255 114 159 207
-        ]
-    <|
-        el [ centerX, centerY ] <|
-            text label

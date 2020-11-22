@@ -10,6 +10,30 @@ type alias Point =
     ( Float, Float )
 
 
+toDegrees rads =
+    rads * 180.0 / pi
+
+
+bearingToDisplayDegrees x =
+    showDecimal2 <|
+        toDegrees <|
+            if x < 0 then
+                pi + pi + x
+
+            else
+                x
+
+showMaybe : Maybe Int -> String
+showMaybe mi =
+    case mi of
+        Just i ->
+            String.fromInt i
+
+        Nothing ->
+            "----"
+
+
+
 gradientColour slope =
     -- Note we want (say) 15% to be maximum Red, flat is Green, -15% purple.
     let

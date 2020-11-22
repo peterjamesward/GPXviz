@@ -1,6 +1,8 @@
 module TrackPoint exposing (..)
 
 
+import Element exposing (..)
+import Msg exposing (..)
 import Regex
 import Spherical exposing (metresPerDegreeLatitude)
 import Utils exposing (asRegex)
@@ -61,6 +63,15 @@ reindexTrackpoints points =
         points
         (List.range 0 (List.length points))
 
+
+
+viewTrackPoint : TrackPoint -> Element Msg
+viewTrackPoint trkpnt =
+    column [ padding 5, spacing 5 ]
+        [ text <| "Lat:" ++ String.fromFloat trkpnt.lat
+        , text <| "Lon:" ++ String.fromFloat trkpnt.lon
+        , text <| "Ele:" ++ String.fromFloat trkpnt.ele
+        ]
 
 
 
