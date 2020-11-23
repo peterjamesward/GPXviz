@@ -1,8 +1,6 @@
 module BendSmoother exposing (..)
 
-import Arc2d
 import Geometry101 as G exposing (..)
-import Spherical exposing (findBearingToTarget)
 import TrackPoint exposing (TrackPoint)
 
 

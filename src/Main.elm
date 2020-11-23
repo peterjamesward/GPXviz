@@ -652,17 +652,14 @@ tryBendSmoother model =
             case ( entrySegment, exitSegment ) of
                 ( Just road1, Just road2 ) ->
                     let
-                        pa =
-                            road1.startsAt.trackPoint
-
-                        pb =
-                            road1.endsAt.trackPoint
-
-                        pc =
-                            road2.startsAt.trackPoint
-
-                        pd =
-                            road2.endsAt.trackPoint
+                        ( ( pa, pb ), ( pc, pd ) ) =
+                            ( ( road1.startsAt.trackPoint
+                              , road1.endsAt.trackPoint
+                              )
+                            , ( road2.startsAt.trackPoint
+                              , road2.endsAt.trackPoint
+                              )
+                            )
 
                         newTrack =
                             bendIncircle 10.0 pa pb pc pd
@@ -1772,7 +1769,7 @@ viewPlanView scale model =
                     [ viewCurrentNodePlanView scale model node.startsAt
                     , positionControls model
                     ]
-                , column [spacing 10, padding 10]
+                , column [ spacing 10, padding 10 ]
                     [ viewSummaryStats model
                     ]
                 ]
@@ -2073,6 +2070,7 @@ viewCurrentNode scale model node =
         focus =
             case model.flythrough of
                 Just fly ->
+                    -- During flythrough, centre on current position
                     let
                         ( x, y, z ) =
                             fly.cameraPosition
@@ -2080,11 +2078,31 @@ viewCurrentNode scale model node =
                     Point3d.meters x y z
 
                 Nothing ->
-                    let
-                        ( x, y, z ) =
-                            meanPositionOfNearbyNodes node model
-                    in
-                    Point3d.meters x y z
+                    case model.markedNode of
+                        Nothing ->
+                            -- No dropped marker, centre on current node, ish.
+                            let
+                                ( x, y, z ) =
+                                    meanPositionOfNearbyNodes node model
+                            in
+                            Point3d.meters x y z
+
+                        Just marked ->
+                            let
+                                intermediateNode =
+                                    lookupRoad model
+                                        (Just
+                                            ((node.trackPoint.idx + marked)
+                                                // 2
+                                            )
+                                        )
+                            in
+                            case intermediateNode of
+                                Just n ->
+                                    Point3d.meters n.startsAt.x n.startsAt.y n.startsAt.z
+
+                                Nothing ->
+                                    Point3d.meters node.x node.y node.z
 
         camera =
             Camera3d.perspective
@@ -2122,11 +2140,33 @@ viewCurrentNode scale model node =
 viewCurrentNodePlanView : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView scale model node =
     let
+        ( x, y, z ) =
+            case model.markedNode of
+                Nothing ->
+                    ( node.x, node.y, node.z )
+
+                Just marked ->
+                    let
+                        intermediateNode =
+                            lookupRoad model
+                                (Just
+                                    ((node.trackPoint.idx + marked)
+                                        // 2
+                                    )
+                                )
+                    in
+                    case intermediateNode of
+                        Just n ->
+                            ( n.startsAt.x, n.startsAt.y, n.startsAt.z )
+
+                        Nothing ->
+                            ( node.x, node.y, node.z )
+
         focus =
-            Point3d.meters node.x node.y 0.0
+            Point3d.meters x y 0.0
 
         eyePoint =
-            Point3d.meters node.x node.y 5.0
+            Point3d.meters x y 5.0
 
         camera =
             Camera3d.orthographic
@@ -2160,14 +2200,33 @@ viewCurrentNodePlanView scale model node =
 
 viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewRouteProfile scale model node =
-    --TODO: Need current node with coordinates in profile space.
-    --TODO: Current and marked node markers visible.
     let
+        ( x, y, z ) =
+            case model.markedNode of
+                Nothing ->
+                    -- No dropped marker, centre on current node, ish.
+                    ( node.x, node.y, node.z )
+
+                Just marked ->
+                    let
+                        intermediate =
+                            (node.trackPoint.idx + marked) // 2
+
+                        focusNode =
+                            model.roadsForProfileView |> List.drop intermediate |> List.head
+                    in
+                    case focusNode of
+                        Just n ->
+                            ( n.startsAt.x, n.startsAt.y, n.startsAt.z )
+
+                        Nothing ->
+                            ( node.x, node.y, node.z )
+
         focus =
-            Point3d.meters 0.0 node.y node.z
+            Point3d.meters 0.0 y z
 
         eyePoint =
-            Point3d.meters 0.5 node.y node.z
+            Point3d.meters 0.5 y z
 
         camera =
             Camera3d.orthographic

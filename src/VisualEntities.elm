@@ -449,11 +449,11 @@ makeVaryingVisualEntities context roads =
                     []
 
         suggestedBend =
-            if context.viewingSubMode == ShowBendFixes then
+            --if context.viewingSubMode == ShowBendFixes then
                 List.map bendElement context.smoothedBend
 
-            else
-                []
+            --else
+            --    []
 
         bendElement segment =
             let
