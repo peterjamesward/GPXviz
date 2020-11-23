@@ -389,12 +389,20 @@ makeVaryingVisualEntities context roads =
                         ( ( x, y, z ), _ ) =
                             preserve3Dspace road
                     in
-                    [ cylinder (Material.color Color.lightOrange) <|
-                        Cylinder3d.startingAt
-                            (Point3d.meters x y z)
-                            (segmentDirection road)
-                            { radius = meters <| 10.0 * metresToClipSpace
-                            , length = meters <| 0.3 * metresToClipSpace
+                    --[ cylinder (Material.color Color.lightOrange) <|
+                    --    Cylinder3d.startingAt
+                    --        (Point3d.meters x y z)
+                    --        (segmentDirection road)
+                    --        { radius = meters <| 10.0 * metresToClipSpace
+                    --        , length = meters <| 0.3 * metresToClipSpace
+                    --        }
+                    --]
+                    [ cone (Material.color Color.lightOrange) <|
+                        Cone3d.startingAt
+                            (Point3d.meters x y (z + 10.1 * metresToClipSpace))
+                            negativeZ
+                            { radius = meters <| 3.0 * metresToClipSpace
+                            , length = meters <| 10.0 * metresToClipSpace
                             }
                     ]
 
@@ -410,10 +418,10 @@ makeVaryingVisualEntities context roads =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y z)
-                            (segmentDirection road)
-                            { radius = meters <| 6.0 * metresToClipSpace
-                            , length = meters <| 3.0 * metresToClipSpace
+                            (Point3d.meters x y (z + 10.1 * metresToClipSpace))
+                            negativeZ
+                            { radius = meters <| 3.0 * metresToClipSpace
+                            , length = meters <| 10.0 * metresToClipSpace
                             }
                     ]
 
