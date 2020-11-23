@@ -49,14 +49,14 @@ bendIncircle numPoints pa pb pc pd =
             -- Express point as vector from circle centre, for finding angles.
             { x = pt.x - circ.centre.x, y = pt.y - circ.centre.y }
 
-        det p1 p2 =
-            p1.x * p2.x + p1.y * p2.y
+        det v1 v2 =
+            v1.x * v2.x + v1.y * v2.y
 
-        dot p1 p2 =
-            p1.x * p2.y - p1.y * p2.x
+        dot v1 v2 =
+            v1.x * v2.y - v1.y * v2.x
 
-        angle p1 p2 =
-            atan2 (det p1 p2) (dot p1 p2)
+        angle v1 v2 =
+            atan2 (det v1 v2) (dot v1 v2)
 
         circleAngle circ p =
             atan2 (p.y - circ.centre.y) (p.x - circ.centre.x)
@@ -80,17 +80,19 @@ bendIncircle numPoints pa pb pc pd =
                         ( t1, t2 ) =
                             ( toTrackPoint p1, toTrackPoint p2 )
 
-                        (firstTangentAngle, secondTangentAngle) =
-                            (circleAngle circle p1, circleAngle circle p2)
+                        ( firstTangentAngle, secondTangentAngle ) =
+                            ( circleAngle circle p1, circleAngle circle p2 )
 
                         totalAngle =
                             secondTangentAngle - firstTangentAngle
 
                         extraPoints =
+                            -- In addition to the known tangent points.
                             numPoints - 2
 
                         turnPerPoint =
-                            totalAngle / ( toFloat numPoints + 3.0)
+                            -- 5 points, 4 gaps.
+                            totalAngle / toFloat (numPoints - 1)
 
                         newPoints =
                             List.map (toTrackPoint << newPoint) <| List.range 1 extraPoints
