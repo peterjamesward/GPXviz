@@ -7,7 +7,7 @@ import BendSmoother exposing (SmoothedBend, bendIncircle)
 import Browser
 import Camera3d
 import Color
-import Direction3d exposing (negativeZ, positiveZ)
+import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
 import Element.Background as Background
@@ -90,6 +90,7 @@ type alias Model =
     , zoomLevelFirstPerson : Float
     , zoomLevelThirdPerson : Float
     , zoomLevelProfile : Float
+    , zoomLevelPlan : Float
     , displayOptions : DisplayOptions
     , abruptGradientChanges : List AbruptChange -- change in gradient exceeds user's threshold
     , abruptBearingChanges : List AbruptChange -- change in gradient exceeds user's threshold
@@ -151,6 +152,7 @@ init _ =
       , zoomLevelFirstPerson = 1.0
       , zoomLevelThirdPerson = 2.0
       , zoomLevelProfile = 1.0
+      , zoomLevelPlan = 2.0
       , displayOptions = defaultDisplayOptions
       , abruptGradientChanges = []
       , abruptBearingChanges = []
@@ -306,6 +308,11 @@ update msg model =
 
         ZoomLevelProfile level ->
             ( { model | zoomLevelProfile = level }
+            , Cmd.none
+            )
+
+        ZoomLevelPlan level ->
+            ( { model | zoomLevelPlan = level }
             , Cmd.none
             )
 
@@ -1142,6 +1149,7 @@ viewModeChoices model =
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ThirdPersonView <| radioButton Mid "Third person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
+            , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
@@ -1167,6 +1175,9 @@ view3D scale model =
 
         InputErrorView ->
             viewInputError model
+
+        PlanView ->
+            viewPlanView scale model
 
 
 viewInputError : Model -> Element Msg
@@ -1746,6 +1757,27 @@ viewThirdPerson scale model =
                 ]
 
 
+viewPlanView : ScalingInfo -> Model -> Element Msg
+viewPlanView scale model =
+    -- Let's the user spin around and zoom in on selected road point.
+    case lookupRoad model model.currentNode of
+        Nothing ->
+            none
+
+        Just node ->
+            row [ alignTop ]
+                [ column
+                    [ alignTop
+                    ]
+                    [ viewCurrentNodePlanView scale model node.startsAt
+                    , positionControls model
+                    ]
+                , column [spacing 10, padding 10]
+                    [ viewSummaryStats model
+                    ]
+                ]
+
+
 viewProfileView : ScalingInfo -> Model -> Element Msg
 viewProfileView scale model =
     -- Let's the user spin around and zoom in on selected road point.
@@ -2072,6 +2104,45 @@ viewCurrentNode scale model node =
         [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
         , el
             withMouseCapture
+          <|
+            html <|
+                Scene3d.sunny
+                    { camera = camera
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.backgroundColor Color.lightBlue
+                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
+                    }
+        ]
+
+
+viewCurrentNodePlanView : ScalingInfo -> Model -> DrawingNode -> Element Msg
+viewCurrentNodePlanView scale model node =
+    let
+        focus =
+            Point3d.meters node.x node.y 0.0
+
+        eyePoint =
+            Point3d.meters node.x node.y 5.0
+
+        camera =
+            Camera3d.orthographic
+                { viewpoint =
+                    Viewpoint3d.lookAt
+                        { focalPoint = focus
+                        , eyePoint = eyePoint
+                        , upDirection = positiveY
+                        }
+                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (1.0 - model.zoomLevelPlan)
+                }
+    in
+    row []
+        [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
+        , el
+            []
           <|
             html <|
                 Scene3d.sunny

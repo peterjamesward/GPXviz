@@ -8,6 +8,7 @@ type ViewingMode
     | AboutView
     | InputErrorView
     | ProfileView
+    | PlanView
 
 
 type ThirdPersonSubmode

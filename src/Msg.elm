@@ -18,6 +18,7 @@ type Msg
     | ZoomLevelOverview Float
     | ZoomLevelFirstPerson Float
     | ZoomLevelThirdPerson Float
+    | ZoomLevelPlan Float
     | ZoomLevelProfile Float
     | ImageGrab Point
     | ImageRotate Point
