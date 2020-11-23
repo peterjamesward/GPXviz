@@ -1821,7 +1821,10 @@ viewThirdPerson scale model =
                     [ viewCurrentNode scale model node.startsAt
                     , positionControls model
                     ]
-                , viewThirdPersonSubpane model
+                , column []
+                    [ viewThirdPersonSubpane model
+                    , flythroughControls model
+                    ]
                 ]
 
 
@@ -2078,7 +2081,6 @@ viewSummaryStats model =
                         , text <| showDecimal2 node.trackPoint.ele
                         ]
                     ]
-                , flythroughControls model
                 ]
 
         Nothing ->

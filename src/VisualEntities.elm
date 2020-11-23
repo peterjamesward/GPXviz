@@ -420,8 +420,8 @@ makeVaryingVisualEntities context roads =
                         Cone3d.startingAt
                             (Point3d.meters x y (z + 10.1 * metresToClipSpace))
                             negativeZ
-                            { radius = meters <| 3.0 * metresToClipSpace
-                            , length = meters <| 10.0 * metresToClipSpace
+                            { radius = meters <| 3.5 * metresToClipSpace
+                            , length = meters <| 8.0 * metresToClipSpace
                             }
                     ]
 
