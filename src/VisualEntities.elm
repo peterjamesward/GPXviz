@@ -398,20 +398,6 @@ makeVaryingVisualEntities context roads =
                             }
                     ]
 
-                ( Just road, ProfileView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
-                    in
-                    [ cylinder (Material.color Color.lightOrange) <|
-                        Cylinder3d.startingAt
-                            (Point3d.meters x y z)
-                            (segmentDirection road)
-                            { radius = meters <| 10.0 * metresToClipSpace
-                            , length = meters <| 0.3 * metresToClipSpace
-                            }
-                    ]
-
                 _ ->
                     []
 
@@ -467,11 +453,80 @@ makeVaryingVisualEntities context roads =
 
 
 makeVaryingProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
-makeVaryingProfileEntities context roads =
+makeVaryingProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
-    -- We manipulate the context to get the scaling right.
-    makeVaryingVisualEntities context
-        (Array.fromList roads)
+    let
+        metresToClipSpace =
+            context.scaling.metresToClipSpace
+
+        currentPositionDisc =
+            case ( context.currentNode, context.viewingMode ) of
+                ( Just road, ProfileView ) ->
+                    let
+                        ( ( x, y, z ), _ ) =
+                            preserve3Dspace road
+                    in
+                    [ cone (Material.color Color.lightOrange) <|
+                        Cone3d.startingAt
+                            (Point3d.meters x y (z + 2.0 * metresToClipSpace))
+                            negativeZ
+                            { radius = meters <| 0.3 * metresToClipSpace
+                            , length = meters <| 1.9 * metresToClipSpace
+                            }
+                    ]
+
+                _ ->
+                    []
+
+        markedNode =
+            case ( context.markedNode, context.viewingMode ) of
+                ( Just road, ProfileView ) ->
+                    let
+                        ( ( x, y, z ), _ ) =
+                            preserve3Dspace road
+                    in
+                    [ cone (Material.color Color.purple) <|
+                        Cone3d.startingAt
+                            (Point3d.meters x y (z + 2.0 * metresToClipSpace))
+                            negativeZ
+                            { radius = meters <| 0.3 * metresToClipSpace
+                            , length = meters <| 1.9 * metresToClipSpace
+                            }
+                    ]
+
+                _ ->
+                    []
+
+        suggestedBend =
+            if context.viewingSubMode == ShowBendFixes then
+                List.map bendElement context.smoothedBend
+
+            else
+                []
+
+        bendElement segment =
+            let
+                kerbX =
+                    2.0 * cos segment.bearing * metresToClipSpace
+
+                kerbY =
+                    2.0 * sin segment.bearing * metresToClipSpace
+
+                floatHeight =
+                    0.1 * metresToClipSpace
+
+                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
+                    preserve3Dspace segment
+            in
+            Scene3d.quad (Material.color Color.white)
+                (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))
+                (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + floatHeight))
+                (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + floatHeight))
+                (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + floatHeight))
+    in
+    currentPositionDisc
+        ++ markedNode
+        ++ suggestedBend
 
 
 deriveScalingInfo : List TrackPoint -> ScalingInfo

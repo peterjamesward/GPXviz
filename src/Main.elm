@@ -1106,6 +1106,20 @@ deriveVaryingVisualEntities model =
 
         markedRoad =
             lookupRoad model model.markedNode
+
+        currentRoadInProfileList =
+            findUnrolledRoad currentRoad
+
+        markedRoadInProfileList =
+            findUnrolledRoad markedRoad
+
+        findUnrolledRoad r =
+            case r of
+                Just road ->
+                    model.roadsForProfileView |> List.drop road.index |> List.head
+
+                Nothing ->
+                    Nothing
     in
     case model.scaling of
         Just scale ->
@@ -1119,10 +1133,22 @@ deriveVaryingVisualEntities model =
                     , viewingSubMode = model.thirdPersonSubmode
                     , smoothedBend = model.smoothedRoads
                     }
+
+                profileContext =
+                    { context
+                        | currentNode = currentRoadInProfileList
+                        , markedNode = markedRoadInProfileList
+                    }
             in
             { model
-                | varyingVisualEntities = makeVaryingVisualEntities context model.roadArray
-                , varyingProfileEntities = makeVaryingProfileEntities context model.roadsForProfileView
+                | varyingVisualEntities =
+                    makeVaryingVisualEntities
+                        context
+                        model.roadArray
+                , varyingProfileEntities =
+                    makeVaryingProfileEntities
+                        profileContext
+                        model.roadsForProfileView
             }
 
         Nothing ->
