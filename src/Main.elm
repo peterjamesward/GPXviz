@@ -17,6 +17,7 @@ import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
+import Flythrough exposing (flythrough)
 import Iso8601
 import Length exposing (meters)
 import List exposing (drop, tail, take)
@@ -584,104 +585,21 @@ pauseFlythrough model =
 
 advanceFlythrough : Time.Posix -> Model -> Model
 advanceFlythrough newTime model =
-    let
-        findRoadByDistance d roads =
-            case roads of
-                r1 :: rN ->
-                    if d >= r1.startDistance && d < r1.endDistance then
-                        Just r1
+    case ( model.flythrough, model.scaling ) of
+        ( Just flying, Just scale ) ->
+            { model
+                | flythrough =
+                    Just <|
+                        flythrough
+                            newTime
+                            flying
+                            model.flythroughSpeed
+                            scale
+                            model.roads
+            }
 
-                    else
-                        findRoadByDistance d rN
-
-                [] ->
-                    Nothing
-    in
-    case model.flythrough of
-        Nothing ->
+        _ ->
             model
-
-        Just flying ->
-            if flying.running then
-                let
-                    groundSpeed =
-                        10.0 ^ model.flythroughSpeed
-
-                    newDistance =
-                        flying.metresFromRouteStart + tempus * groundSpeed
-
-                    tempus =
-                        toFloat (Time.posixToMillis newTime - Time.posixToMillis flying.lastUpdated) / 1000.0
-
-                    currentSegment =
-                        findRoadByDistance newDistance model.roads
-                in
-                case ( currentSegment, model.scaling ) of
-                    ( Just seg, Just scale ) ->
-                        { model
-                            | flythrough =
-                                let
-                                    segInsetMetres =
-                                        newDistance - seg.startDistance
-
-                                    segFraction =
-                                        segInsetMetres / seg.length
-
-                                    x =
-                                        segFraction * seg.endsAt.x + (1 - segFraction) * seg.startsAt.x
-
-                                    y =
-                                        segFraction * seg.endsAt.y + (1 - segFraction) * seg.startsAt.y
-
-                                    z =
-                                        segFraction * seg.endsAt.z + (1 - segFraction) * seg.startsAt.z
-
-                                    nextSeg =
-                                        Array.get (seg.index + 1) model.roadArray
-
-                                    lookingAt =
-                                        case nextSeg of
-                                            Just next ->
-                                                -- Start looking around the bend, makin flythrough smoother.
-                                                let
-                                                    nextX =
-                                                        (next.startsAt.x + next.endsAt.x) / 2.0
-
-                                                    nextY =
-                                                        (next.startsAt.y + next.endsAt.y) / 2.0
-
-                                                    nextZ =
-                                                        (next.startsAt.z + next.endsAt.z) / 2.0
-
-                                                    focusX =
-                                                        (nextX + seg.endsAt.x) / 2.0
-
-                                                    focusY =
-                                                        (nextY + seg.endsAt.y) / 2.0
-
-                                                    focusZ =
-                                                        (nextZ + seg.endsAt.z) / 2.0
-                                                in
-                                                ( focusX, focusY, focusZ )
-
-                                            Nothing ->
-                                                ( seg.endsAt.x, seg.endsAt.y, seg.endsAt.z )
-                                in
-                                Just
-                                    { flying
-                                        | metresFromRouteStart = newDistance
-                                        , lastUpdated = newTime
-                                        , segment = seg
-                                        , cameraPosition = ( x, y, z )
-                                        , focusPoint = lookingAt
-                                    }
-                        }
-
-                    _ ->
-                        { model | flythrough = Just { flying | running = False } }
-
-            else
-                model
 
 
 resetFlythrough : Model -> Model
