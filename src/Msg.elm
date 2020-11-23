@@ -40,7 +40,7 @@ type Msg
     | ToggleMarker
     | MarkerForwardOne
     | MarkerBackOne
-    | SetMaxTurnPerSegment Float
+    | SetMaxTurnPerSegment Int
     | SetBumpinessFactor Float
     | SetFlythroughSpeed Float
     | RunFlythrough Bool

@@ -1,5 +1,6 @@
 module BendSmoother exposing (..)
 
+import Angle exposing (normalize)
 import Geometry101 as G exposing (..)
 import TrackPoint exposing (TrackPoint)
 
@@ -8,6 +9,9 @@ type alias SmoothedBend =
     { trackPoints : List TrackPoint
     , centre : ( Float, Float )
     , radius : Float
+    , turnAngle : Float
+    , firstTangentAngle : Float
+    , secondTangentAngle : Float
     }
 
 
@@ -28,8 +32,8 @@ toTrackPoint p =
     }
 
 
-bendIncircle : Float -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
-bendIncircle maxTurn pa pb pc pd =
+bendIncircle : Int -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
+bendIncircle numPoints pa pb pc pd =
     -- Given the actual road between two markers, this will
     -- return a suggested smoothed bend, if it exists.
     -- First argument here is the maximum angle between generated road segments.
@@ -40,35 +44,73 @@ bendIncircle maxTurn pa pb pc pd =
         maybeCircle : Maybe G.Circle
         maybeCircle =
             G.findIncircleFromTwoRoads (roadToGeometry pa pb) (roadToGeometry pc pd)
+
+        fromOrigin circ pt =
+            -- Express point as vector from circle centre, for finding angles.
+            { x = pt.x - circ.centre.x, y = pt.y - circ.centre.y }
+
+        det p1 p2 =
+            p1.x * p2.x + p1.y * p2.y
+
+        dot p1 p2 =
+            p1.x * p2.y - p1.y * p2.x
+
+        angle p1 p2 =
+            atan2 (det p1 p2) (dot p1 p2)
+
+        circleAngle circ p =
+            atan2 (p.y - circ.centre.y) (p.x - circ.centre.x)
+
+        pointOnCircle circ a =
+            { x = circ.centre.x + circ.radius * cos a
+            , y = circ.centre.y + circ.radius * sin a
+            }
     in
     case maybeCircle of
         Just circle ->
             let
-                entryPoint =
-                    G.findTangentPoint (roadToGeometry pa pb) circle
-
-                exitPoint =
-                    G.findTangentPoint (roadToGeometry pc pd) circle
-
+                ( entryPoint, exitPoint ) =
+                    ( G.findTangentPoint (roadToGeometry pa pb) circle
+                    , G.findTangentPoint (roadToGeometry pc pd) circle
+                    )
             in
             case ( entryPoint, exitPoint ) of
                 ( Just p1, Just p2 ) ->
                     let
-                        t1 =
-                            toTrackPoint p1
+                        ( t1, t2 ) =
+                            ( toTrackPoint p1, toTrackPoint p2 )
 
-                        t2 =
-                            toTrackPoint p2
+                        (firstTangentAngle, secondTangentAngle) =
+                            (circleAngle circle p1, circleAngle circle p2)
+
+                        totalAngle =
+                            secondTangentAngle - firstTangentAngle
+
+                        extraPoints =
+                            numPoints - 2
+
+                        turnPerPoint =
+                            totalAngle / ( toFloat numPoints + 3.0)
+
+                        newPoints =
+                            List.map (toTrackPoint << newPoint) <| List.range 1 extraPoints
+
+                        newPoint i =
+                            pointOnCircle circle <|
+                                firstTangentAngle
+                                    - turnPerPoint
+                                    * toFloat i
                     in
                     Just
                         { trackPoints =
-                            [ pa
-                            , { t1 | ele = pa.ele }
-                            , { t2 | ele = pc.ele }
-                            , pd
-                            ]
+                            [ pa, t1 ]
+                                ++ newPoints
+                                ++ [ t2, pd ]
                         , centre = ( circle.centre.x, circle.centre.y )
                         , radius = circle.radius
+                        , turnAngle = totalAngle
+                        , firstTangentAngle = firstTangentAngle
+                        , secondTangentAngle = secondTangentAngle
                         }
 
                 _ ->

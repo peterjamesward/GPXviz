@@ -449,19 +449,19 @@ makeVaryingVisualEntities context roads =
                     []
 
         suggestedBend =
-            --if context.viewingSubMode == ShowBendFixes then
+            if context.viewingSubMode == ShowBendFixes then
                 List.map bendElement context.smoothedBend
 
-            --else
-            --    []
+            else
+                []
 
         bendElement segment =
             let
                 kerbX =
-                    2.0 * cos segment.bearing * metresToClipSpace
+                    1.0 * cos segment.bearing * metresToClipSpace
 
                 kerbY =
-                    2.0 * sin segment.bearing * metresToClipSpace
+                    1.0 * sin segment.bearing * metresToClipSpace
 
                 floatHeight =
                     0.1 * metresToClipSpace
@@ -469,7 +469,7 @@ makeVaryingVisualEntities context roads =
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     preserve3Dspace segment
             in
-            Scene3d.quad (Material.color Color.white)
+            Scene3d.quad (Material.color Color.lightYellow)
                 (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))
                 (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + floatHeight))
                 (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + floatHeight))

@@ -104,7 +104,7 @@ type alias Model =
     , smoothedBend : Maybe SmoothedBend
     , smoothedNodes : List DrawingNode
     , smoothedRoads : List DrawingRoad
-    , maxTurnPerSegment : Float
+    , turnPointsToAdd : Int
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
     , flythrough : Maybe Flythrough
@@ -152,7 +152,7 @@ init _ =
       , zoomLevelFirstPerson = 1.0
       , zoomLevelThirdPerson = 2.0
       , zoomLevelProfile = 1.0
-      , zoomLevelPlan = 2.0
+      , zoomLevelPlan = 1.0
       , displayOptions = defaultDisplayOptions
       , abruptGradientChanges = []
       , abruptBearingChanges = []
@@ -166,7 +166,7 @@ init _ =
       , smoothedBend = Nothing
       , smoothedNodes = []
       , smoothedRoads = []
-      , maxTurnPerSegment = 20.0
+      , turnPointsToAdd = 3
       , bumpinessFactor = 0.0
       , flythrough = Nothing
       , flythroughSpeed = 1.0
@@ -277,7 +277,7 @@ update msg model =
 
         SetMaxTurnPerSegment turn ->
             ( { model
-                | maxTurnPerSegment = turn
+                | turnPointsToAdd = turn
               }
                 |> tryBendSmoother
                 |> deriveStaticVisualEntities
@@ -662,7 +662,7 @@ tryBendSmoother model =
                             )
 
                         newTrack =
-                            bendIncircle 10.0 pa pb pc pd
+                            bendIncircle model.turnPointsToAdd pa pb pc pd
                     in
                     case newTrack of
                         Just track ->
@@ -1395,16 +1395,16 @@ bendSmoothnessSlider : Model -> Element Msg
 bendSmoothnessSlider model =
     Input.slider
         commonShortHorizontalSliderStyles
-        { onChange = SetMaxTurnPerSegment
+        { onChange = (round >> SetMaxTurnPerSegment )
         , label =
             Input.labelBelow [] <|
                 text <|
-                    "Maximum turn per segment = "
-                        ++ String.fromFloat model.maxTurnPerSegment
-        , min = 10.0
-        , max = 30.0
+                    "Number of points = "
+                        ++ String.fromInt model.turnPointsToAdd
+        , min = 2.0
+        , max = 10.0
         , step = Just 1.0
-        , value = model.maxTurnPerSegment
+        , value = toFloat model.turnPointsToAdd
         , thumb = Input.defaultThumb
         }
 
@@ -1769,10 +1769,38 @@ viewPlanView scale model =
                     [ viewCurrentNodePlanView scale model node.startsAt
                     , positionControls model
                     ]
-                , column [ spacing 10, padding 10 ]
-                    [ viewSummaryStats model
+                , column [ spacing 10, padding 10, alignTop ]
+                    [ viewPlanViewSubpane model
                     ]
                 ]
+
+
+viewPlanViewSubpane : Model -> Element Msg
+viewPlanViewSubpane model =
+    column [ alignTop, padding 20, spacing 10 ]
+        [ Input.radioRow
+            [ Border.rounded 6
+            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+            ]
+            { onChange = SetThirdPersonSubmode
+            , selected = Just model.thirdPersonSubmode
+            , label =
+                Input.labelHidden "Choose mode"
+            , options =
+                [ Input.optionWith ShowData <| radioButton First "Location\ndata"
+                , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
+                ]
+            }
+        , case model.thirdPersonSubmode of
+            ShowData ->
+                viewSummaryStats model
+
+            ShowGradientFixes ->
+                viewGradientFixerPane model
+
+            ShowBendFixes ->
+                viewBendFixerPane model
+        ]
 
 
 viewProfileView : ScalingInfo -> Model -> Element Msg
@@ -1861,9 +1889,13 @@ showCircle hello =
                     sb.centre
             in
             column [ Border.width 1 ]
-                [ text <| String.fromFloat x
-                , text <| String.fromFloat y
-                , text <| String.fromFloat <| metresPerDegreeLatitude * sb.radius
+                [ text "Debugging information"
+                --, text <| showDecimal6 x
+                --, text <| showDecimal6 y
+                , text <| showDecimal6 <| metresPerDegreeLatitude * sb.radius
+                , text <| showDecimal6 sb.turnAngle
+                , text <| showDecimal6 sb.firstTangentAngle
+                , text <| showDecimal6 sb.secondTangentAngle
                 ]
 
         Nothing ->
