@@ -1,10 +1,4 @@
-module VisualEntities exposing
-    ( ThingsWeNeedForRendering
-    , deriveScalingInfo
-    , makeStatic3DEntities
-    , makeStaticProfileEntities
-    , makeVaryingVisualEntities
-    )
+module VisualEntities exposing (..)
 
 import Array exposing (Array)
 import Color
@@ -17,8 +11,9 @@ import List exposing (take)
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
 import Point3d
 import ScalingInfo exposing (ScalingInfo)
-import Scene3d exposing (Entity, cone, cylinder)
+import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
+import Sphere3d
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
@@ -254,12 +249,131 @@ makeStaticVisualEntities context roadMapper roads =
 
 
 makeStaticProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
-makeStaticProfileEntities context roads =
+makeStaticProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
-    makeStaticVisualEntities context
-        preserve3Dspace
-        (Array.fromList roads)
+    -- Decided to duplicate the function so we can have different shapes to suit the view.
+    let
+        seaLevelInClipSpace =
+            context.scaling.seaLevelInClipSpace
+
+        seaLevel =
+            Scene3d.quad (Material.color Color.darkGreen)
+                (Point3d.meters -1.2 -1.2 seaLevelInClipSpace)
+                (Point3d.meters 1.2 -1.2 seaLevelInClipSpace)
+                (Point3d.meters 1.2 1.2 seaLevelInClipSpace)
+                (Point3d.meters -1.2 1.2 seaLevelInClipSpace)
+
+        metresToClipSpace =
+            context.scaling.metresToClipSpace
+
+        -- Convert the points to a list of entities by providing a radius and
+        -- color for each point
+        brownPillar x y z =
+            cylinder (Material.color Color.brown) <|
+                Cylinder3d.startingAt
+                    (Point3d.meters x y (z - 0.2 * metresToClipSpace))
+                    negativeZ
+                    { radius = meters <| 0.1 * metresToClipSpace
+                    , length = meters <| z - 0.2 * metresToClipSpace - seaLevelInClipSpace
+                    }
+
+        pillars =
+            let
+                makeStartPillar road =
+                    let
+                        ( ( x1, y1, z1 ), _ ) =
+                            preserve3Dspace road
+                    in
+                    brownPillar x1 y1 z1
+
+                makeEndPillar road =
+                    let
+                        ( _, ( x2, y2, z2 ) ) =
+                            preserve3Dspace road
+                    in
+                    brownPillar x2 y2 z2
+            in
+            List.map makeStartPillar (List.take 1 roadList)
+                ++ List.map makeEndPillar roadList
+
+        trackpointmarker x y z =
+            sphere (Material.color Color.black) <|
+                Sphere3d.withRadius
+                    (meters <| 0.1 * metresToClipSpace)
+                    (Point3d.meters x y z)
+
+        trackpointMarkers =
+            let
+                makeStartCone road =
+                    let
+                        ( ( x1, y1, z1 ), _ ) =
+                            preserve3Dspace road
+                    in
+                    trackpointmarker x1 y1 z1
+
+                makeEndCone road =
+                    let
+                        ( _, ( x2, y2, z2 ) ) =
+                            preserve3Dspace road
+                    in
+                    trackpointmarker x2 y2 z2
+            in
+            List.map makeStartCone (List.take 1 roadList)
+                ++ List.map makeEndCone roadList
+
+        roadSurfaces =
+            List.concat <|
+                List.map roadSurface <|
+                    roadList
+
+        roadSurface segment =
+            []
+
+        curtains =
+            List.concat <|
+                List.map curtain <|
+                    roadList
+
+        curtainColour gradient =
+            case context.displayOptions.curtainStyle of
+                RainbowCurtain ->
+                    gradientColourVivid gradient
+
+                PastelCurtain ->
+                    gradientColourPastel gradient
+
+                PlainCurtain ->
+                    Color.rgb255 0 100 0
+
+                NoCurtain ->
+                    Color.rgb255 0 0 0
+
+        curtain segment =
+            let
+                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
+                    preserve3Dspace segment
+            in
+            [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
+                (Point3d.meters x1 y1 z1)
+                (Point3d.meters x2 y2 z2)
+                (Point3d.meters x2 y2 seaLevelInClipSpace)
+                (Point3d.meters x1 y1 seaLevelInClipSpace)
+            ]
+
+        optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
+        optionally test element =
+            if test then
+                element
+
+            else
+                []
+    in
+    seaLevel
+        :: optionally context.displayOptions.roadPillars pillars
+        ++ optionally context.displayOptions.roadCones trackpointMarkers
+        ++ optionally context.displayOptions.roadTrack roadSurfaces
+        ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
 
 makeVaryingVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
@@ -280,7 +394,21 @@ makeVaryingVisualEntities context roads =
                             (Point3d.meters x y z)
                             (segmentDirection road)
                             { radius = meters <| 10.0 * metresToClipSpace
-                            , length = meters <| 1.0 * metresToClipSpace
+                            , length = meters <| 0.3 * metresToClipSpace
+                            }
+                    ]
+
+                ( Just road, ProfileView ) ->
+                    let
+                        ( ( x, y, z ), _ ) =
+                            preserve3Dspace road
+                    in
+                    [ cylinder (Material.color Color.lightOrange) <|
+                        Cylinder3d.startingAt
+                            (Point3d.meters x y z)
+                            (segmentDirection road)
+                            { radius = meters <| 10.0 * metresToClipSpace
+                            , length = meters <| 0.3 * metresToClipSpace
                             }
                     ]
 
@@ -338,11 +466,12 @@ makeVaryingVisualEntities context roads =
         ++ suggestedBend
 
 
-makeProfileVaryingEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
-makeProfileVaryingEntities context roads =
+makeVaryingProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
+makeVaryingProfileEntities context roads =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
-    makeVaryingVisualEntities context <| Array.fromList roads
+    makeVaryingVisualEntities context
+        (Array.fromList roads)
 
 
 deriveScalingInfo : List TrackPoint -> ScalingInfo

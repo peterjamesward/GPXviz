@@ -22,6 +22,6 @@ defaultDisplayOptions =
     { roadPillars = True
     , roadCones = True
     , roadTrack = True
-    , curtainStyle = RainbowCurtain
+    , curtainStyle = PastelCurtain
     , problems = False
     }

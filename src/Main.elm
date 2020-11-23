@@ -88,6 +88,7 @@ type alias Model =
     , zoomLevelOverview : Float
     , zoomLevelFirstPerson : Float
     , zoomLevelThirdPerson : Float
+    , zoomLevelProfile : Float
     , displayOptions : DisplayOptions
     , abruptGradientChanges : List AbruptChange -- change in gradient exceeds user's threshold
     , abruptBearingChanges : List AbruptChange -- change in gradient exceeds user's threshold
@@ -147,7 +148,8 @@ init _ =
       , roadArray = Array.empty
       , zoomLevelOverview = 1.0
       , zoomLevelFirstPerson = 1.0
-      , zoomLevelThirdPerson = 1.0
+      , zoomLevelThirdPerson = 2.0
+      , zoomLevelProfile = 1.0
       , displayOptions = defaultDisplayOptions
       , abruptGradientChanges = []
       , abruptBearingChanges = []
@@ -211,17 +213,17 @@ update msg model =
                 |> deleteZeroLengthSegments
                 |> deriveNodesAndRoads
                 |> deriveProblems
+                |> resetViewSettings
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
-                |> resetViewSettings
             , Cmd.none
             )
 
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }
+                |> cancelFlythrough
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
-                |> cancelFlythrough
             , Cmd.none
             )
 
@@ -282,6 +284,7 @@ update msg model =
 
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -297,6 +300,11 @@ update msg model =
 
         ZoomLevelThirdPerson level ->
             ( { model | zoomLevelThirdPerson = level }
+            , Cmd.none
+            )
+
+        ZoomLevelProfile level ->
+            ( { model | zoomLevelProfile = level }
             , Cmd.none
             )
 
@@ -963,9 +971,10 @@ deriveNodesAndRoads model =
 resetViewSettings : Model -> Model
 resetViewSettings model =
     { model
-        | zoomLevelOverview = 1.0
-        , zoomLevelFirstPerson = 1.0
-        , zoomLevelThirdPerson = 1.0
+        | zoomLevelOverview = 2.0
+        , zoomLevelFirstPerson = 2.0
+        , zoomLevelThirdPerson = 2.0
+        , zoomLevelProfile = 1.5
         , azimuth = Angle.degrees 0.0
         , elevation = Angle.degrees 30.0
         , currentNode = Just 0
@@ -1070,8 +1079,8 @@ deriveStaticVisualEntities model =
             let
                 context =
                     { displayOptions = model.displayOptions
-                    , currentNode = Nothing
-                    , markedNode = Nothing
+                    , currentNode = lookupRoad model model.currentNode
+                    , markedNode = lookupRoad model model.markedNode
                     , scaling = scale
                     , viewingMode = model.viewingMode
                     , viewingSubMode = model.thirdPersonSubmode
@@ -1089,6 +1098,7 @@ deriveStaticVisualEntities model =
 
 deriveVaryingVisualEntities : Model -> Model
 deriveVaryingVisualEntities model =
+    -- Refers to the current and marked nodes.
     -- These need building each time the user changes current or marked nodes.
     let
         currentRoad =
@@ -1112,7 +1122,7 @@ deriveVaryingVisualEntities model =
             in
             { model
                 | varyingVisualEntities = makeVaryingVisualEntities context model.roadArray
-                , varyingProfileEntities = makeVaryingVisualEntities context model.roadArray
+                , varyingProfileEntities = makeVaryingProfileEntities context model.roadsForProfileView
             }
 
         Nothing ->
@@ -1773,24 +1783,7 @@ viewRoadSegment scale model road =
 viewThirdPerson : ScalingInfo -> Model -> Element Msg
 viewThirdPerson scale model =
     -- Let's the user spin around and zoom in on selected road point.
-    let
-        getNodeNum =
-            case model.currentNode of
-                Just n ->
-                    n
-
-                Nothing ->
-                    0
-
-        getNode =
-            case model.currentNode of
-                Just n ->
-                    Array.get n model.nodeArray
-
-                Nothing ->
-                    Nothing
-    in
-    case getNode of
+    case lookupRoad model model.currentNode of
         Nothing ->
             none
 
@@ -1799,7 +1792,7 @@ viewThirdPerson scale model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNode scale model node
+                    [ viewCurrentNode scale model node.startsAt
                     , positionControls model
                     ]
                 , viewThirdPersonSubpane model
@@ -2167,11 +2160,11 @@ viewRouteProfile scale model node =
                         , eyePoint = eyePoint
                         , upDirection = positiveZ
                         }
-                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (1.0 - model.zoomLevelThirdPerson)
+                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (1.0 - model.zoomLevelProfile)
                 }
     in
     row []
-        [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
+        [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
         , el
             []
           <|
