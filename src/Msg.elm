@@ -4,7 +4,7 @@ import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
 import Time
 import Utils exposing (Point)
-import ViewTypes exposing (ThirdPersonSubmode, ViewingMode)
+import ViewTypes exposing (ViewSubmode, ViewingMode)
 
 
 type Msg
@@ -36,7 +36,7 @@ type Msg
     | SetSmoothingEnd Int
     | SmoothGradient Int Int Float
     | SmoothBend
-    | SetThirdPersonSubmode ThirdPersonSubmode
+    | SetViewSubmode ViewSubmode
     | Undo
     | ToggleMarker
     | MarkerForwardOne

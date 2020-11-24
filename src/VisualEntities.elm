@@ -17,7 +17,7 @@ import Sphere3d
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
-import ViewTypes exposing (ThirdPersonSubmode(..), ViewingMode(..))
+import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
 
 
 type alias ThingsWeNeedForRendering =
@@ -26,7 +26,7 @@ type alias ThingsWeNeedForRendering =
     , markedNode : Maybe DrawingRoad
     , scaling : ScalingInfo
     , viewingMode : ViewingMode
-    , viewingSubMode : ThirdPersonSubmode
+    , viewingSubMode : ViewSubmode
     , smoothedBend : List DrawingRoad
     }
 

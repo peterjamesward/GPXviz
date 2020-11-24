@@ -78,6 +78,9 @@ asVector p1 p2 =
 distance p1 p2 =
     sqrt <| (p1.x - p2.x) ^ 2.0 + (p1.y - p2.y) ^ 2.0
 
+whatFraction : Point -> Point -> Point -> Float
+whatFraction p pa pb =
+    (distance pa p) / (distance pa pb)
 
 interpolateScalar fraction a b =
     b * fraction + a * (1.0 - fraction)

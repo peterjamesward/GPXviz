@@ -94,15 +94,17 @@ type alias Model =
     , displayOptions : DisplayOptions
     , abruptGradientChanges : List AbruptChange -- change in gradient exceeds user's threshold
     , abruptBearingChanges : List AbruptChange -- change in gradient exceeds user's threshold
-    , zeroLengths : List DrawingRoad
+    , zeroLengths : List DrawingRoad -- segments that should not be here.
     , gradientChangeThreshold : Float
     , bearingChangeThreshold : Int
     , hasBeenChanged : Bool
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
-    , thirdPersonSubmode : ThirdPersonSubmode
+    , thirdPersonSubmode : ViewSubmode
+    , planSubmode : ViewSubmode
+    , profileSubmode : ViewSubmode
     , smoothedBend : Maybe SmoothedBend
-    , smoothedNodes : List DrawingNode
+    , smoothedNodes : List DrawingNode -- These represent a suggested new bend.
     , smoothedRoads : List DrawingRoad
     , numLineSegmentsForBend : Int
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
@@ -163,6 +165,8 @@ init _ =
       , smoothingEndIndex = Nothing
       , undoStack = []
       , thirdPersonSubmode = ShowData
+      , planSubmode = ShowData
+      , profileSubmode = ShowData
       , smoothedBend = Nothing
       , smoothedNodes = []
       , smoothedRoads = []
@@ -429,8 +433,8 @@ update msg model =
             )
 
         SmoothBend ->
-            -- HERE BE WORK
             ( model
+                |> smoothBend
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
@@ -438,8 +442,19 @@ update msg model =
             , Cmd.none
             )
 
-        SetThirdPersonSubmode mode ->
-            ( { model | thirdPersonSubmode = mode }
+        SetViewSubmode mode ->
+            ( case model.viewingMode of
+                PlanView ->
+                    { model | planSubmode = mode }
+
+                ThirdPersonView ->
+                    { model | thirdPersonSubmode = mode }
+
+                ProfileView ->
+                    { model | profileSubmode = mode }
+
+                _ ->
+                    model
             , Cmd.none
             )
 
@@ -646,64 +661,77 @@ resetFlythrough model =
 
 
 tryBendSmoother : Model -> Model
-tryBendSmoother oldModel =
-    -- Cheeky way to ensure cleared first.
-    { oldModel | smoothedBend = Nothing }
-        |> (\model ->
-                case ( model.scaling, model.currentNode, model.markedNode ) of
-                    ( Just scale, Just c, Just m ) ->
+tryBendSmoother model =
+    case ( model.scaling, model.currentNode, model.markedNode ) of
+        ( Just scale, Just c, Just m ) ->
+            let
+                ( n1, n2 ) =
+                    ( min c m, max c m )
+
+                entrySegment =
+                    Array.get n1 model.roadArray
+
+                exitSegment =
+                    Array.get (n2 - 1) model.roadArray
+            in
+            if n2 >= n1 + 2 then
+                case ( entrySegment, exitSegment ) of
+                    ( Just road1, Just road2 ) ->
                         let
-                            ( n1, n2 ) =
-                                ( min c m, max c m )
+                            ( ( pa, pb ), ( pc, pd ) ) =
+                                ( ( road1.startsAt.trackPoint
+                                  , road1.endsAt.trackPoint
+                                  )
+                                , ( road2.startsAt.trackPoint
+                                  , road2.endsAt.trackPoint
+                                  )
+                                )
 
-                            entrySegment =
-                                Array.get n1 model.roadArray
-
-                            exitSegment =
-                                Array.get (n2 - 1) model.roadArray
+                            newTrack =
+                                bendIncircle model.numLineSegmentsForBend pa pb pc pd
                         in
-                        if n2 >= n1 + 2 then
-                            case ( entrySegment, exitSegment ) of
-                                ( Just road1, Just road2 ) ->
-                                    let
-                                        ( ( pa, pb ), ( pc, pd ) ) =
-                                            ( ( road1.startsAt.trackPoint
-                                              , road1.endsAt.trackPoint
-                                              )
-                                            , ( road2.startsAt.trackPoint
-                                              , road2.endsAt.trackPoint
-                                              )
-                                            )
+                        case newTrack of
+                            Just track ->
+                                let
+                                    newNodes =
+                                        deriveNodes scale track.trackPoints
 
-                                        newTrack =
-                                            bendIncircle model.numLineSegmentsForBend pa pb pc pd
-                                    in
-                                    case newTrack of
-                                        Just track ->
-                                            let
-                                                newNodes =
-                                                    deriveNodes scale track.trackPoints
+                                    newRoads =
+                                        deriveRoads newNodes
+                                in
+                                { model
+                                    | smoothedBend = newTrack
+                                    , smoothedNodes = newNodes
+                                    , smoothedRoads = newRoads
+                                }
 
-                                                newRoads =
-                                                    deriveRoads newNodes
-                                            in
-                                            { model
-                                                | smoothedBend = newTrack
-                                                , smoothedNodes = newNodes
-                                                , smoothedRoads = newRoads
-                                            }
+                            _ ->
+                                { model
+                                    | smoothedBend = Nothing
+                                    , smoothedNodes = []
+                                    , smoothedRoads = []
+                                }
 
-                                        _ ->
-                                            { model | smoothedBend = Nothing }
-
-                                _ ->
-                                    { model | smoothedBend = Nothing }
-
-                        else
-                            model
                     _ ->
-                        { model | smoothedBend = Nothing }
-           )
+                        { model
+                            | smoothedBend = Nothing
+                            , smoothedNodes = []
+                            , smoothedRoads = []
+                        }
+
+            else
+                { model
+                    | smoothedBend = Nothing
+                    , smoothedNodes = []
+                    , smoothedRoads = []
+                }
+
+        _ ->
+            { model
+                | smoothedBend = Nothing
+                , smoothedNodes = []
+                , smoothedRoads = []
+            }
 
 
 smoothGradient : Model -> Int -> Int -> Float -> Model
@@ -783,6 +811,41 @@ smoothGradient model start finish gradient =
                     , trackPoints = model.trackPoints
                     }
                         :: model.undoStack
+            }
+
+        Nothing ->
+            -- shouldn't happen
+            model
+
+
+smoothBend : Model -> Model
+smoothBend model =
+    -- The replacement bend is a pre-computed list of trackpoints,
+    -- so we need only splice them in.
+    let
+        undoMessage bend =
+            "bend smoothing from "
+                ++ String.fromInt bend.startIndex
+                ++ " to "
+                ++ String.fromInt bend.endIndex
+                ++ ", \nradius "
+                ++ showDecimal2 bend.radius
+                ++ " metres."
+    in
+    case model.smoothedBend of
+        Just bend ->
+            { model
+                | trackPoints =
+                    List.take (bend.startIndex - 1) model.trackPoints
+                        ++ bend.trackPoints
+                        ++ List.drop (bend.endIndex + 1) model.trackPoints
+                , undoStack =
+                    { label = undoMessage bend
+                    , trackPoints = model.trackPoints
+                    }
+                        :: model.undoStack
+                , smoothedBend = Nothing
+                , smoothedRoads = []
             }
 
         Nothing ->
@@ -931,14 +994,14 @@ deriveProblems model =
                 -- Filters out Nothings (nice)
                 List.map2 compareGradients
                     model.roads
-                    (Maybe.withDefault [] <| tail model.roads)
+                    (List.drop 1 model.roads)
 
         suddenBearingChanges =
             List.filterMap identity <|
                 -- Filters out Nothings (nice)
                 List.map2 compareBearings
                     model.roads
-                    (Maybe.withDefault [] <| tail model.roads)
+                    (List.drop 1 model.roads)
 
         zeroLengths =
             List.filterMap
@@ -1069,7 +1132,24 @@ deriveVaryingVisualEntities model =
                     , markedNode = markedRoad
                     , scaling = scale
                     , viewingMode = model.viewingMode
-                    , viewingSubMode = model.thirdPersonSubmode
+                    , viewingSubMode =
+                        -- Hack that should not be needed with proper view management.
+                        if
+                            (model.viewingMode
+                                == ThirdPersonView
+                                && model.thirdPersonSubmode
+                                == ShowBendFixes
+                            )
+                                || (model.viewingMode
+                                        == PlanView
+                                        && model.planSubmode
+                                        == ShowBendFixes
+                                   )
+                        then
+                            ShowBendFixes
+
+                        else
+                            ShowData
                     , smoothedBend = model.smoothedRoads
                     }
 
@@ -1592,7 +1672,7 @@ viewFirstPerson scale model =
         Just road ->
             row []
                 [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
-                , column []
+                , column [ alignTop, padding 20, spacing 10 ]
                     [ viewRoadSegment scale model road
                     , positionControls model
                     ]
@@ -1764,16 +1844,14 @@ viewThirdPerson scale model =
                     [ viewCurrentNode scale model node.startsAt
                     , positionControls model
                     ]
-                , column []
+                , column [ alignTop ]
                     [ viewThirdPersonSubpane model
-                    , flythroughControls model
                     ]
                 ]
 
 
 viewPlanView : ScalingInfo -> Model -> Element Msg
 viewPlanView scale model =
-    -- Let's the user spin around and zoom in on selected road point.
     case lookupRoad model model.currentNode of
         Nothing ->
             none
@@ -1799,8 +1877,8 @@ viewPlanViewSubpane model =
             [ Border.rounded 6
             , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
             ]
-            { onChange = SetThirdPersonSubmode
-            , selected = Just model.thirdPersonSubmode
+            { onChange = SetViewSubmode
+            , selected = Just model.planSubmode
             , label =
                 Input.labelHidden "Choose mode"
             , options =
@@ -1808,7 +1886,7 @@ viewPlanViewSubpane model =
                 , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
                 ]
             }
-        , case model.thirdPersonSubmode of
+        , case model.planSubmode of
             ShowData ->
                 viewSummaryStats model
 
@@ -1852,7 +1930,7 @@ viewProfileView scale model =
                     [ viewRouteProfile scale model road.startsAt
                     , positionControls model
                     ]
-                , viewThirdPersonSubpane model
+                , viewProfileSubpane model
                 ]
 
 
@@ -1863,18 +1941,48 @@ viewThirdPersonSubpane model =
             [ Border.rounded 6
             , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
             ]
-            { onChange = SetThirdPersonSubmode
+            { onChange = SetViewSubmode
             , selected = Just model.thirdPersonSubmode
             , label =
                 Input.labelHidden "Choose mode"
             , options =
                 [ Input.optionWith ShowData <| radioButton First "Location\ndata"
-                , Input.optionWith ShowGradientFixes <| radioButton Last "Gradient\nsmoother"
-
-                --, Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
+                , Input.optionWith ShowGradientFixes <| radioButton Mid "Gradient\nsmoother"
+                , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
                 ]
             }
         , case model.thirdPersonSubmode of
+            ShowData ->
+                column [ alignTop, spacing 10, padding 10 ]
+                    [ viewSummaryStats model
+                    , flythroughControls model
+                    ]
+
+            ShowGradientFixes ->
+                viewGradientFixerPane model
+
+            ShowBendFixes ->
+                viewBendFixerPane model
+        ]
+
+
+viewProfileSubpane : Model -> Element Msg
+viewProfileSubpane model =
+    column [ alignTop, padding 20, spacing 10 ]
+        [ Input.radioRow
+            [ Border.rounded 6
+            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
+            ]
+            { onChange = SetViewSubmode
+            , selected = Just model.profileSubmode
+            , label =
+                Input.labelHidden "Choose mode"
+            , options =
+                [ Input.optionWith ShowData <| radioButton First "Location\ndata"
+                , Input.optionWith ShowGradientFixes <| radioButton Last "Gradient\nsmoother"
+                ]
+            }
+        , case model.profileSubmode of
             ShowData ->
                 viewSummaryStats model
 
@@ -1899,11 +2007,11 @@ viewBendFixerPane model =
                             ++ showDecimal2 smooth.radius
                 }
     in
-    column [ spacing 10, padding 10 ]
+    column [ spacing 10, padding 10, alignTop ]
         [ markerButton model
         , case model.smoothedBend of
             Just smooth ->
-                column [ spacing 10, padding 10]
+                column [ spacing 10, padding 10, alignTop ]
                     [ fixBendButton smooth
                     , bendSmoothnessSlider model
                     ]
@@ -1911,6 +2019,7 @@ viewBendFixerPane model =
             Nothing ->
                 --radiusPointButton
                 none
+        , undoButton model
         , viewBearingChanges model
         ]
 
@@ -2205,33 +2314,32 @@ viewCurrentNode scale model node =
 viewCurrentNodePlanView : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView scale model node =
     let
-        ( x, y, z ) =
-            case model.markedNode of
-                Nothing ->
-                    ( node.x, node.y, node.z )
-
-                Just marked ->
-                    let
-                        intermediateNode =
-                            lookupRoad model
-                                (Just
-                                    ((node.trackPoint.idx + marked)
-                                        // 2
-                                    )
-                                )
-                    in
-                    case intermediateNode of
-                        Just n ->
-                            ( n.startsAt.x, n.startsAt.y, n.startsAt.z )
-
-                        Nothing ->
-                            ( node.x, node.y, node.z )
-
+        --( x, y, z ) =
+        --    case model.markedNode of
+        --        Nothing ->
+        --            ( node.x, node.y, node.z )
+        --
+        --        Just marked ->
+        --            let
+        --                intermediateNode =
+        --                    lookupRoad model
+        --                        (Just
+        --                            ((node.trackPoint.idx + marked)
+        --                                // 2
+        --                            )
+        --                        )
+        --            in
+        --            case intermediateNode of
+        --                Just n ->
+        --                    ( n.startsAt.x, n.startsAt.y, n.startsAt.z )
+        --
+        --                Nothing ->
+        --                    ( node.x, node.y, node.z )
         focus =
-            Point3d.meters x y 0.0
+            Point3d.meters node.x node.y 0.0
 
         eyePoint =
-            Point3d.meters x y 5.0
+            Point3d.meters node.x node.y 5.0
 
         camera =
             Camera3d.orthographic

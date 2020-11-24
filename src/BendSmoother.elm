@@ -9,12 +9,17 @@ import Polyline2d
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 
+
+
 --TODO: Interpolate elevations.
+
 
 type alias SmoothedBend =
     { trackPoints : List TrackPoint
     , centre : ( Float, Float )
     , radius : Float
+    , startIndex : Int -- First trackpoint to be replaced
+    , endIndex : Int -- and last
     }
 
 
@@ -33,6 +38,10 @@ toTrackPoint p =
     , ele = 0.0
     , idx = 0
     }
+
+
+toPoint tp =
+    { x = tp.lon, y = tp.lat }
 
 
 bendIncircle : Int -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
@@ -84,6 +93,34 @@ bendIncircle numSegments pa pb pc pd =
                                 (Point2d.meters p1.x p1.y)
                                 (Point2d.meters midArcPoint.x midArcPoint.y)
                                 (Point2d.meters p2.x p2.y)
+
+                        t1 =
+                            -- Elevations of tangent points are interpolations
+                            -- wthin the segments that contain them.
+                            { lat = p1.y
+                            , lon = p1.x
+                            , ele =
+                                interpolateScalar
+                                    (whatFraction p1 (toPoint pa) (toPoint pb))
+                                    pa.ele
+                                    pb.ele
+                            }
+
+                        t2 =
+                            -- Elevations of tangent points are interpolations
+                            -- wthin the segments that contain them.
+                            { lat = p2.y
+                            , lon = p2.x
+                            , ele =
+                                interpolateScalar
+                                    (whatFraction p2 (toPoint pc) (toPoint pd))
+                                    pc.ele
+                                    pd.ele
+                            , idx = 0
+                            }
+
+                        eleIncrement =
+                            (t2.ele - t1.ele) / 4.0
                     in
                     case maybeArc of
                         Just arc ->
@@ -94,29 +131,31 @@ bendIncircle numSegments pa pb pc pd =
                                     Arc2d.segments numSegments arc
                                         |> Polyline2d.segments
 
-                                startPoints =
-                                    List.map
-                                        (\seg ->
+                                newTrackPoints =
+                                    List.map2
+                                        (\seg i ->
                                             let
                                                 p0 =
                                                     LineSegment2d.startPoint seg
                                             in
-                                            { x = xCoordinate p0 |> Length.inMeters
-                                            , y = yCoordinate p0 |> Length.inMeters
+                                            { lon = xCoordinate p0 |> Length.inMeters
+                                            , lat = yCoordinate p0 |> Length.inMeters
+                                            , ele = t1.ele + toFloat i * eleIncrement
+                                            , idx = 0
                                             }
                                         )
                                         segments
-
-                                trackPoints =
-                                    List.map toTrackPoint startPoints
+                                        (List.range 0 numSegments)
                             in
                             Just
                                 { trackPoints =
                                     pa
-                                        :: trackPoints
-                                        ++ [ toTrackPoint p2, pd ]
+                                        :: newTrackPoints
+                                        ++ [ t2, pd ]
                                 , centre = ( circle.centre.x, circle.centre.y )
                                 , radius = circle.radius * metresPerDegreeLatitude
+                                , startIndex = pa.idx
+                                , endIndex = pd.idx
                                 }
 
                         Nothing ->

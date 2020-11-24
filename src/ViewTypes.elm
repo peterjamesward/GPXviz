@@ -11,7 +11,7 @@ type ViewingMode
     | PlanView
 
 
-type ThirdPersonSubmode
+type ViewSubmode
     = ShowData
     | ShowGradientFixes
     | ShowBendFixes
