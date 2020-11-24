@@ -75,6 +75,22 @@ asVector p1 p2 =
     { x = p2.x - p1.x, y = p2.y - p1.y }
 
 
+distance p1 p2 =
+    sqrt <| (p1.x - p2.x) ^ 2.0 + (p1.y - p2.y) ^ 2.0
+
+
+interpolateScalar fraction a b =
+    b * fraction + a * (1.0 - fraction)
+
+
+interpolateLine fraction p1 p2 =
+    -- Find p3 on p1-p2, such that |p1p3|/|p1p2| = fraction
+    -- Expecting fraction to be in [0,1]
+    { x = interpolateScalar fraction p1.x p2.x
+    , y = interpolateScalar fraction p1.y p2.y
+    }
+
+
 
 {-
    This is about helping to smooth a bend.
@@ -128,7 +144,6 @@ findIncircleFromTwoRoads r1 r2 =
         Just p ->
             Just <| findIncircle r1.startAt r2.endsAt p
 
-        --Just  { centre = { x = p.x, y = p.y }, radius = 0.05 }
         Nothing ->
             Nothing
 
@@ -191,26 +206,17 @@ findIncircle pA pB pC =
         perimeter =
             a + b + c
 
-        s =
+        semi =
             perimeter / 2.0
 
         r =
-            sqrt <| (s - a) * (s - b) * (s - c) / s
+            sqrt <| (semi - a) * (semi - b) * (semi - c) / semi
 
         x =
             (a * pA.x + b * pB.x + c * pC.x) / perimeter
 
         y =
             (a * pA.y + b * pB.y + c * pC.y) / perimeter
-
-        distance p1 p2 =
-            sqrt <|
-                ((p1.x - p2.x)
-                    * (p1.x - p2.x)
-                )
-                    + ((p1.y - p2.y)
-                        * (p1.y - p2.y)
-                      )
     in
     { centre = { x = x, y = y }
     , radius = r

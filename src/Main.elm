@@ -1893,9 +1893,6 @@ showCircle hello =
                 --, text <| showDecimal6 x
                 --, text <| showDecimal6 y
                 , text <| "Radius " ++ (showDecimal6 <| metresPerDegreeLatitude * sb.radius)
-                , text <| "Angle " ++  (showDecimal2 <| toDegrees sb.turnAngle)
-                , text <| "TangAB " ++ (showDecimal2 <| toDegrees sb.firstTangentAngle)
-                , text <| "TangCD " ++ (showDecimal2 <| toDegrees sb.secondTangentAngle)
                 ]
 
         Nothing ->
