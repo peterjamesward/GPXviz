@@ -35,6 +35,7 @@ type Msg
     | AdjustTimeZone Time.Zone
     | SetSmoothingEnd Int
     | SmoothGradient Int Int Float
+    | SmoothBend
     | SetThirdPersonSubmode ThirdPersonSubmode
     | Undo
     | ToggleMarker

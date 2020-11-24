@@ -6,8 +6,10 @@ import Length
 import LineSegment2d
 import Point2d exposing (xCoordinate, yCoordinate)
 import Polyline2d
+import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 
+--TODO: Interpolate elevations.
 
 type alias SmoothedBend =
     { trackPoints : List TrackPoint
@@ -110,19 +112,11 @@ bendIncircle numSegments pa pb pc pd =
                             in
                             Just
                                 { trackPoints =
-                                    [ pa
-
-                                    --, toTrackPoint p1
-                                    --, toTrackPoint circle.centre
-                                    --, toTrackPoint midArcPoint
-                                    --, toTrackPoint circle.centre
-                                    --, toTrackPoint p2
-                                    --, pd
-                                    ]
-                                        ++ trackPoints
+                                    pa
+                                        :: trackPoints
                                         ++ [ toTrackPoint p2, pd ]
                                 , centre = ( circle.centre.x, circle.centre.y )
-                                , radius = circle.radius
+                                , radius = circle.radius * metresPerDegreeLatitude
                                 }
 
                         Nothing ->

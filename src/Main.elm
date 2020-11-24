@@ -104,7 +104,7 @@ type alias Model =
     , smoothedBend : Maybe SmoothedBend
     , smoothedNodes : List DrawingNode
     , smoothedRoads : List DrawingRoad
-    , turnPointsToAdd : Int
+    , numLineSegmentsForBend : Int
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
     , flythrough : Maybe Flythrough
@@ -166,7 +166,7 @@ init _ =
       , smoothedBend = Nothing
       , smoothedNodes = []
       , smoothedRoads = []
-      , turnPointsToAdd = 3
+      , numLineSegmentsForBend = 3
       , bumpinessFactor = 0.0
       , flythrough = Nothing
       , flythroughSpeed = 1.0
@@ -277,7 +277,7 @@ update msg model =
 
         SetMaxTurnPerSegment turn ->
             ( { model
-                | turnPointsToAdd = turn
+                | numLineSegmentsForBend = turn
               }
                 |> tryBendSmoother
                 |> deriveStaticVisualEntities
@@ -421,6 +421,16 @@ update msg model =
 
         SmoothGradient s f g ->
             ( smoothGradient model s f g
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+                |> deriveProblems
+            , Cmd.none
+            )
+
+        SmoothBend ->
+            -- HERE BE WORK
+            ( model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
@@ -636,57 +646,64 @@ resetFlythrough model =
 
 
 tryBendSmoother : Model -> Model
-tryBendSmoother model =
-    case ( model.scaling, model.currentNode, model.markedNode ) of
-        ( Just scale, Just c, Just m ) ->
-            let
-                ( n1, n2 ) =
-                    ( min c m, max c m )
+tryBendSmoother oldModel =
+    -- Cheeky way to ensure cleared first.
+    { oldModel | smoothedBend = Nothing }
+        |> (\model ->
+                case ( model.scaling, model.currentNode, model.markedNode ) of
+                    ( Just scale, Just c, Just m ) ->
+                        let
+                            ( n1, n2 ) =
+                                ( min c m, max c m )
 
-                entrySegment =
-                    Array.get n1 model.roadArray
+                            entrySegment =
+                                Array.get n1 model.roadArray
 
-                exitSegment =
-                    Array.get (n2 - 1) model.roadArray
-            in
-            case ( entrySegment, exitSegment ) of
-                ( Just road1, Just road2 ) ->
-                    let
-                        ( ( pa, pb ), ( pc, pd ) ) =
-                            ( ( road1.startsAt.trackPoint
-                              , road1.endsAt.trackPoint
-                              )
-                            , ( road2.startsAt.trackPoint
-                              , road2.endsAt.trackPoint
-                              )
-                            )
+                            exitSegment =
+                                Array.get (n2 - 1) model.roadArray
+                        in
+                        if n2 >= n1 + 2 then
+                            case ( entrySegment, exitSegment ) of
+                                ( Just road1, Just road2 ) ->
+                                    let
+                                        ( ( pa, pb ), ( pc, pd ) ) =
+                                            ( ( road1.startsAt.trackPoint
+                                              , road1.endsAt.trackPoint
+                                              )
+                                            , ( road2.startsAt.trackPoint
+                                              , road2.endsAt.trackPoint
+                                              )
+                                            )
 
-                        newTrack =
-                            bendIncircle model.turnPointsToAdd pa pb pc pd
-                    in
-                    case newTrack of
-                        Just track ->
-                            let
-                                newNodes =
-                                    deriveNodes scale track.trackPoints
+                                        newTrack =
+                                            bendIncircle model.numLineSegmentsForBend pa pb pc pd
+                                    in
+                                    case newTrack of
+                                        Just track ->
+                                            let
+                                                newNodes =
+                                                    deriveNodes scale track.trackPoints
 
-                                newRoads =
-                                    deriveRoads newNodes
-                            in
-                            { model
-                                | smoothedBend = newTrack
-                                , smoothedNodes = newNodes
-                                , smoothedRoads = newRoads
-                            }
+                                                newRoads =
+                                                    deriveRoads newNodes
+                                            in
+                                            { model
+                                                | smoothedBend = newTrack
+                                                , smoothedNodes = newNodes
+                                                , smoothedRoads = newRoads
+                                            }
 
-                        _ ->
-                            { model | smoothedBend = Nothing }
+                                        _ ->
+                                            { model | smoothedBend = Nothing }
 
-                _ ->
-                    { model | smoothedBend = Nothing }
+                                _ ->
+                                    { model | smoothedBend = Nothing }
 
-        _ ->
-            { model | smoothedBend = Nothing }
+                        else
+                            model
+                    _ ->
+                        { model | smoothedBend = Nothing }
+           )
 
 
 smoothGradient : Model -> Int -> Int -> Float -> Model
@@ -1395,16 +1412,16 @@ bendSmoothnessSlider : Model -> Element Msg
 bendSmoothnessSlider model =
     Input.slider
         commonShortHorizontalSliderStyles
-        { onChange = (round >> SetMaxTurnPerSegment )
+        { onChange = round >> SetMaxTurnPerSegment
         , label =
             Input.labelBelow [] <|
                 text <|
-                    "Number of points = "
-                        ++ String.fromInt model.turnPointsToAdd
+                    "Road segments = "
+                        ++ String.fromInt model.numLineSegmentsForBend
         , min = 2.0
         , max = 10.0
         , step = Just 1.0
-        , value = toFloat model.turnPointsToAdd
+        , value = toFloat model.numLineSegmentsForBend
         , thumb = Input.defaultThumb
         }
 
@@ -1871,11 +1888,29 @@ viewThirdPersonSubpane model =
 
 viewBendFixerPane : Model -> Element Msg
 viewBendFixerPane model =
-    column []
-        [ text "Sorry, we can't fix the bends yet."
-        , markerButton model
-        , showCircle model.smoothedBend
-        , bendSmoothnessSlider model
+    let
+        fixBendButton smooth =
+            button
+                prettyButtonStyles
+                { onPress = Just SmoothBend
+                , label =
+                    text <|
+                        "Smooth between markers\nRadius "
+                            ++ showDecimal2 smooth.radius
+                }
+    in
+    column [ spacing 10, padding 10 ]
+        [ markerButton model
+        , case model.smoothedBend of
+            Just smooth ->
+                column [ spacing 10, padding 10]
+                    [ fixBendButton smooth
+                    , bendSmoothnessSlider model
+                    ]
+
+            Nothing ->
+                --radiusPointButton
+                none
         , viewBearingChanges model
         ]
 
@@ -1890,6 +1925,7 @@ showCircle hello =
             in
             column [ Border.width 1 ]
                 [ text "Debugging information"
+
                 --, text <| showDecimal6 x
                 --, text <| showDecimal6 y
                 , text <| "Radius " ++ (showDecimal6 <| metresPerDegreeLatitude * sb.radius)
