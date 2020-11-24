@@ -803,9 +803,10 @@ smoothGradient model start finish gradient =
             in
             { model
                 | trackPoints =
-                    List.take (start + 1) model.trackPoints
-                        ++ bumpyTrackPoints
-                        ++ List.drop finish model.trackPoints
+                    reindexTrackpoints <|
+                        List.take (start + 1) model.trackPoints
+                            ++ bumpyTrackPoints
+                            ++ List.drop finish model.trackPoints
                 , undoStack =
                     { label = undoMessage
                     , trackPoints = model.trackPoints
@@ -836,9 +837,10 @@ smoothBend model =
         Just bend ->
             { model
                 | trackPoints =
-                    List.take (bend.startIndex - 1) model.trackPoints
-                        ++ bend.trackPoints
-                        ++ List.drop (bend.endIndex + 1) model.trackPoints
+                    reindexTrackpoints <|
+                        List.take (bend.startIndex - 1) model.trackPoints
+                            ++ bend.trackPoints
+                            ++ List.drop (bend.endIndex + 1) model.trackPoints
                 , undoStack =
                     { label = undoMessage bend
                     , trackPoints = model.trackPoints
