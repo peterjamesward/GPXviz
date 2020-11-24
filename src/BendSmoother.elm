@@ -1,6 +1,5 @@
 module BendSmoother exposing (..)
 
-import Angle exposing (normalize)
 import Geometry101 as G exposing (..)
 import TrackPoint exposing (TrackPoint)
 
@@ -44,27 +43,6 @@ bendIncircle numPoints pa pb pc pd =
         maybeCircle : Maybe G.Circle
         maybeCircle =
             G.findIncircleFromTwoRoads (roadToGeometry pa pb) (roadToGeometry pc pd)
-
-        fromOrigin circ pt =
-            -- Express point as vector from circle centre, for finding angles.
-            { x = pt.x - circ.centre.x, y = pt.y - circ.centre.y }
-
-        det v1 v2 =
-            v1.x * v2.x + v1.y * v2.y
-
-        dot v1 v2 =
-            v1.x * v2.y - v1.y * v2.x
-
-        angle v1 v2 =
-            atan2 (det v1 v2) (dot v1 v2)
-
-        circleAngle circ p =
-            atan2 (p.y - circ.centre.y) (p.x - circ.centre.x)
-
-        pointOnCircle circ a =
-            { x = circ.centre.x + circ.radius * cos a
-            , y = circ.centre.y + circ.radius * sin a
-            }
     in
     case maybeCircle of
         Just circle ->
@@ -77,37 +55,42 @@ bendIncircle numPoints pa pb pc pd =
             case ( entryPoint, exitPoint ) of
                 ( Just p1, Just p2 ) ->
                     let
-                        ( t1, t2 ) =
-                            ( toTrackPoint p1, toTrackPoint p2 )
-
                         ( firstTangentAngle, secondTangentAngle ) =
                             ( circleAngle circle p1, circleAngle circle p2 )
 
+                        ( v1, v2 ) =
+                            ( asVector p1 circle.centre, asVector p2 circle.centre )
+
                         totalAngle =
-                            secondTangentAngle - firstTangentAngle
+                            --secondTangentAngle - firstTangentAngle
+                            angle v2 v1
 
-                        extraPoints =
-                            -- In addition to the known tangent points.
-                            numPoints - 2
+                        pointIndices =
+                            -- We have already the tangent points
+                            -- so here we need the intermediates
+                            -- e.g. for four points in all, here we want [1,2]
+                            List.range 1 (numPoints - 2)
 
-                        turnPerPoint =
-                            -- 5 points, 4 gaps.
-                            totalAngle / toFloat (numPoints - 1)
+                        pointsIn01 =
+                            -- [0.33, 0.66]. We're dividing by three because four points means three increments.
+                            pointIndices
+                                |> List.map
+                                    (\i -> toFloat i / (toFloat numPoints - 1.0))
 
-                        newPoints =
-                            List.map (toTrackPoint << newPoint) <| List.range 1 extraPoints
+                        angleInterpolate x =
+                            firstTangentAngle + totalAngle * x
 
-                        newPoint i =
-                            pointOnCircle circle <|
-                                firstTangentAngle
-                                    - turnPerPoint
-                                    * toFloat i
+                        ourPointAngles =
+                            List.map angleInterpolate pointsIn01
+
+                        ourPoints =
+                            List.map (pointOnCircle circle) ourPointAngles
+
+                        trackPoints =
+                            List.map toTrackPoint ourPoints
                     in
                     Just
-                        { trackPoints =
-                            [ pa, t1 ]
-                                ++ newPoints
-                                ++ [ t2, pd ]
+                        { trackPoints = [ pa, toTrackPoint p1 ] ++ trackPoints ++ [ toTrackPoint p2, pd ]
                         , centre = ( circle.centre.x, circle.centre.y )
                         , radius = circle.radius
                         , turnAngle = totalAngle

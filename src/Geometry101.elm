@@ -1,7 +1,7 @@
 module Geometry101 exposing (..)
 
-import List
 import Arc2d
+import List
 
 
 type alias Point =
@@ -47,6 +47,32 @@ type alias Row =
     { l : Float
     , r : Float
     }
+
+
+det v1 v2 =
+    v1.x * v2.x + v1.y * v2.y
+
+
+dot v1 v2 =
+    v1.x * v2.y - v1.y * v2.x
+
+
+angle v1 v2 =
+    atan2 (det v1 v2) (dot v1 v2)
+
+
+circleAngle circ p =
+    atan2 (p.x - circ.centre.x) (p.y - circ.centre.y)
+
+
+pointOnCircle circ a =
+    { x = circ.centre.x + circ.radius * sin a
+    , y = circ.centre.y + circ.radius * cos a
+    }
+
+
+asVector p1 p2 =
+    { x = p2.x - p1.x, y = p2.y - p1.y }
 
 
 
@@ -159,14 +185,8 @@ findIncircle pA pB pC =
          = 0.382
     -}
     let
-        a =
-            distance pB pC
-
-        b =
-            distance pA pC
-
-        c =
-            distance pA pB
+        ( a, b, c ) =
+            ( distance pB pC, distance pA pC, distance pA pB )
 
         perimeter =
             a + b + c
@@ -259,18 +279,18 @@ lineIntersection l1 l2 =
 matrixInverse : Matrix -> Maybe Matrix
 matrixInverse m =
     let
-        det =
+        determinant =
             m.tl * m.br - m.tr * m.bl
     in
-    if abs det < 10 ^ -20 then
+    if abs determinant < 10 ^ -20 then
         Nothing
 
     else
         Just
-            { tl = m.br / det
-            , tr = -1.0 * m.tr / det
-            , bl = -1.0 * m.bl / det
-            , br = m.tl / det
+            { tl = m.br / determinant
+            , tr = -1.0 * m.tr / determinant
+            , bl = -1.0 * m.bl / determinant
+            , br = m.tl / determinant
             }
 
 
@@ -312,4 +332,3 @@ lineEquationFromTwoPoints p1 p2 =
             p1.x * p2.y - p2.x * p1.y
     in
     { a = a, b = b, c = c }
-
