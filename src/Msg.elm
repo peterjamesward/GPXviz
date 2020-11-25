@@ -46,4 +46,4 @@ type Msg
     | SetFlythroughSpeed Float
     | RunFlythrough Bool
     | ResetFlythrough
-    | VerticalNodeSpilt Int
+    | VerticalNodeSplit Int

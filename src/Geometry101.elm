@@ -93,7 +93,27 @@ interpolateLine fraction p1 p2 =
     , y = interpolateScalar fraction p1.y p2.y
     }
 
-
+antiInterpolate : Point -> Point -> Point -> Float
+antiInterpolate p pa pb =
+    -- Supports testing for converging roads.
+    -- Express p as fraction along AB so at A is 0, at B is 1.
+    -- Assumes points are co-linear, meaningless otherwise.
+    let
+        aDist = distance p pa
+        bDist = distance p pb
+        ab = distance pa pb
+    in
+    if aDist + bDist <= ab then
+        -- Interior point
+        aDist / ab
+    else if aDist > bDist then
+        -- It's outboard on the B side
+        aDist / ab
+    else if bDist > aDist then
+        -1.0 * (aDist / ab)
+    else
+        -- No idea where it is
+        0.0
 
 {-
    This is about helping to smooth a bend.

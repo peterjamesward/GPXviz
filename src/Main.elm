@@ -509,7 +509,7 @@ update msg model =
             , Cmd.none
             )
 
-        VerticalNodeSpilt node ->
+        VerticalNodeSplit node ->
             ( verticalNodeSplit node model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
@@ -536,10 +536,10 @@ verticalNodeSplit n model =
                     0.5 * (after.gradient - before.gradient)
 
                 placeInFirstSegment =
-                    max (before.length - 1.0) (before.length / 2.0)
+                    max (before.length - 4.0) (before.length / 2.0)
 
                 placeInSecondSegment =
-                    min 1.0 (after.length / 2.0)
+                    min 4.0 (after.length / 2.0)
 
                 firstTP =
                     interpolateSegment
@@ -2131,7 +2131,7 @@ viewGradientFixerPane model =
                 ( Just c, Nothing ) ->
                     [ button
                         prettyButtonStyles
-                        { onPress = Just (VerticalNodeSpilt c)
+                        { onPress = Just (VerticalNodeSplit c)
                         , label = text "Smooth this transition by\nreplacing with two nodes"
                         }
                     ]
