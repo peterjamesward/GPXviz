@@ -379,6 +379,14 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleCentreLine _ ->
+            ( { model
+                | displayOptions = { options | centreLine = not options.centreLine }
+              }
+                |> deriveStaticVisualEntities
+            , Cmd.none
+            )
+
         SetCurtainStyle style ->
             ( { model
                 | displayOptions = { options | curtainStyle = style }
@@ -1437,6 +1445,12 @@ viewOptions model =
             , checked = model.displayOptions.roadCones
             , label = Input.labelRight [] (text "Trackpoint cones")
             }
+        , Input.checkbox [ Font.size 18 ]
+            { onChange = ToggleCentreLine
+            , icon = checkboxIcon
+            , checked = model.displayOptions.centreLine
+            , label = Input.labelRight [] (text "Centre line")
+            }
         , Input.radioRow
             [ Border.rounded 6
             , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
@@ -1966,7 +1980,6 @@ viewThirdPersonSubpane model =
             ShowBendFixes ->
                 viewBendFixerPane model
         ]
-
 
 viewProfileSubpane : Model -> Element Msg
 viewProfileSubpane model =

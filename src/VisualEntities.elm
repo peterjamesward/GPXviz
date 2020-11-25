@@ -202,6 +202,33 @@ makeStaticVisualEntities context roadMapper roads =
                 (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + edgeHeight))
             ]
 
+        subtleGradientLine segment =
+            let
+                halfX =
+                    -- Road is assumed to be 6 m wide.
+                    0.3 * cos segment.bearing * metresToClipSpace
+
+                halfY =
+                    0.3 * sin segment.bearing * metresToClipSpace
+
+                raised = 0.05 * metresToClipSpace
+
+                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
+                    roadMapper segment
+            in
+            [ --surface
+              Scene3d.quad (Material.color <| gradientColourPastel segment.gradient)
+                (Point3d.meters (x1 + halfX) (y1 - halfY) (z1 + raised))
+                (Point3d.meters (x2 + halfX) (y2 - halfY) (z2 + raised))
+                (Point3d.meters (x2 - halfX) (y2 + halfY) (z2 + raised))
+                (Point3d.meters (x1 - halfX) (y1 + halfY) (z1 + raised))
+            ]
+
+        centreLine =
+            List.concat <|
+                List.map subtleGradientLine <|
+                    roadList
+
         curtains =
             List.concat <|
                 List.map curtain <|
@@ -246,6 +273,7 @@ makeStaticVisualEntities context roadMapper roads =
         ++ optionally context.displayOptions.roadCones trackpointMarkers
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
+        ++ optionally context.displayOptions.centreLine centreLine
 
 
 makeStaticProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)

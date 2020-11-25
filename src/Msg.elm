@@ -26,6 +26,7 @@ type Msg
     | TogglePillars Bool
     | ToggleRoad Bool
     | ToggleCones Bool
+    | ToggleCentreLine Bool
     | SetCurtainStyle CurtainStyle
     | SetGradientChangeThreshold Float
     | SetBearingChangeThreshold Float

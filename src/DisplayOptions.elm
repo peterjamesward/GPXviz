@@ -14,6 +14,7 @@ type alias DisplayOptions =
     , roadTrack : Bool
     , curtainStyle : CurtainStyle
     , problems : Bool
+    , centreLine : Bool
     }
 
 
@@ -24,4 +25,5 @@ defaultDisplayOptions =
     , roadTrack = True
     , curtainStyle = PastelCurtain
     , problems = False
+    , centreLine = False
     }
