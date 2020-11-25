@@ -1,9 +1,6 @@
 module ToDo exposing (..)
 
 
---TODO: (2) On chamfers, allow more space for larger transitions, so user can recurse if needed.
--- or provide numSegs slider and try to fit a certain radius (vertical incircle, should be easy now).
-
 --TODO: (3) Some way to join the start and end of a loop (although MR does this). (Tim Sinclair)
 -- (Thinking: bracket points near the start and end, and have special button to create midpoint.
 -- Or, in 1st person mode, drop marker at/near start, move to/near end, have special Join button.
