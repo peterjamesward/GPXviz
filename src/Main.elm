@@ -930,6 +930,7 @@ parseGPXintoModel content model =
         , trackName = parseTrackName content
         , trackPoints = tps
         , hasBeenChanged = False
+        , undoStack = []
         , viewingMode =
             if model.trackPoints == [] then
                 InputErrorView

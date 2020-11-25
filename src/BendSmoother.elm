@@ -120,7 +120,7 @@ bendIncircle numSegments pa pb pc pd =
                             }
 
                         eleIncrement =
-                            (t2.ele - t1.ele) / 4.0
+                            (t2.ele - t1.ele) / toFloat numSegments
                     in
                     case maybeArc of
                         Just arc ->

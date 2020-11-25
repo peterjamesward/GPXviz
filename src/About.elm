@@ -7,7 +7,7 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-11-24_
+> _This text updated 2020-11-25_
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
@@ -23,11 +23,9 @@ aboutText =
 
 > To smooth a longer section of road, "Drop marker" to place a purple cone on the track; then move your current position (backwards or forwards) so that you 'bracket' a section of road. The big button will then let you 'smooth' this part of the road. You choose how bumpy you would like it: 0 is totally smooth, 1 is unchanged. You can experiment, and easily "Undo".
 
-**NEW: Plan** is like seeing the route drawn on a flat sheet. It's ideal for focusing on bend problems. That's why the _Bend Smoother_ is there (though it's also in the Third Person view).
+**Plan** is like seeing the route drawn on a flat sheet. It's ideal for focusing on bend problems. That's why the _Bend Smoother_ is there (though it's also in the Third Person view). You can see the gradients in this view by selecting the "Centre line" on the Overview panel.
 
-> To smooth a section of track (at least two road segments), position the Marker and Current node and, if possible, you will see a yellow line that is the suggested smoothed path. _Not all of these suggestions will be sensible._ You can vary the number of segments that are used (I don't know what Magic Roads would find ideal). Usual buttons to enact and Undo. It will also smooth the gradient.
-
-> Single node curving coming soon.
+> To smooth a bend (at least two road segments), position the Marker and Current node and, if possible, you will see a yellow line that is the suggested smoothed path. _Not all of these suggestions will be sensible._ You can vary the number of segments that are used (I don't know what Magic Roads would find ideal). Usual buttons to enact and Undo. It will also smooth the gradient.
 
 **About** -- that's this message.
 
