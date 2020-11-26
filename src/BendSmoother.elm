@@ -96,26 +96,26 @@ bendIncircle numSegments pa pb pc pd =
 
                         t1 =
                             -- Elevations of tangent points are interpolations
-                            -- wthin the segments that contain them.
+                            -- within the segments that contain them.
                             { lat = p1.y
                             , lon = p1.x
                             , ele =
                                 interpolateScalar
-                                    (whatFraction p1 (toPoint pa) (toPoint pb))
+                                    (min 1.0 (whatFraction p1 (toPoint pa) (toPoint pb)))
                                     pa.ele
                                     pb.ele
                             }
 
                         t2 =
                             -- Elevations of tangent points are interpolations
-                            -- wthin the segments that contain them.
+                            -- within the segments that contain them.
                             { lat = p2.y
                             , lon = p2.x
                             , ele =
                                 interpolateScalar
-                                    (whatFraction p2 (toPoint pc) (toPoint pd))
-                                    pc.ele
+                                    (min 1.0 (whatFraction p2 (toPoint pd) (toPoint pc)))
                                     pd.ele
+                                    pc.ele
                             , idx = 0
                             }
 

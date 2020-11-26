@@ -540,24 +540,24 @@ verticalNodeSplit n model =
     case ( Array.get (n - 1) model.roadArray, Array.get n model.roadArray ) of
         ( Just before, Just after ) ->
             let
-                newChange =
-                    0.5 * (after.gradient - before.gradient)
+                amountToStealFromFirstSegment =
+                    min 4.0 (before.length / 2.0)
 
-                placeInFirstSegment =
-                    max (before.length - 4.0) (before.length / 2.0)
-
-                placeInSecondSegment =
+                amountToStealFromSecondSegment =
                     min 4.0 (after.length / 2.0)
+
+                commonAmountToSteal =
+                    min amountToStealFromFirstSegment amountToStealFromSecondSegment
 
                 firstTP =
                     interpolateSegment
-                        (placeInFirstSegment / before.length)
-                        before.startsAt.trackPoint
+                        (commonAmountToSteal / before.length)
                         before.endsAt.trackPoint
+                        before.startsAt.trackPoint
 
                 secondTP =
                     interpolateSegment
-                        (placeInSecondSegment / after.length)
+                        (commonAmountToSteal / after.length)
                         after.startsAt.trackPoint
                         after.endsAt.trackPoint
 
@@ -1982,6 +1982,7 @@ viewThirdPersonSubpane model =
                 viewBendFixerPane model
         ]
 
+
 viewProfileSubpane : Model -> Element Msg
 viewProfileSubpane model =
     column [ alignTop, padding 20, spacing 10 ]
@@ -2268,31 +2269,7 @@ viewCurrentNode scale model node =
                     Point3d.meters x y z
 
                 Nothing ->
-                    case model.markedNode of
-                        Nothing ->
-                            -- No dropped marker, centre on current node, ish.
-                            let
-                                ( x, y, z ) =
-                                    meanPositionOfNearbyNodes node model
-                            in
-                            Point3d.meters x y z
-
-                        Just marked ->
-                            let
-                                intermediateNode =
-                                    lookupRoad model
-                                        (Just
-                                            ((node.trackPoint.idx + marked)
-                                                // 2
-                                            )
-                                        )
-                            in
-                            case intermediateNode of
-                                Just n ->
-                                    Point3d.meters n.startsAt.x n.startsAt.y n.startsAt.z
-
-                                Nothing ->
-                                    Point3d.meters node.x node.y node.z
+                    Point3d.meters node.x node.y node.z
 
         camera =
             Camera3d.perspective
@@ -2330,27 +2307,6 @@ viewCurrentNode scale model node =
 viewCurrentNodePlanView : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView scale model node =
     let
-        --( x, y, z ) =
-        --    case model.markedNode of
-        --        Nothing ->
-        --            ( node.x, node.y, node.z )
-        --
-        --        Just marked ->
-        --            let
-        --                intermediateNode =
-        --                    lookupRoad model
-        --                        (Just
-        --                            ((node.trackPoint.idx + marked)
-        --                                // 2
-        --                            )
-        --                        )
-        --            in
-        --            case intermediateNode of
-        --                Just n ->
-        --                    ( n.startsAt.x, n.startsAt.y, n.startsAt.z )
-        --
-        --                Nothing ->
-        --                    ( node.x, node.y, node.z )
         focus =
             Point3d.meters node.x node.y 0.0
 
@@ -2391,25 +2347,7 @@ viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewRouteProfile scale model node =
     let
         ( x, y, z ) =
-            case model.markedNode of
-                Nothing ->
-                    -- No dropped marker, centre on current node, ish.
-                    ( node.x, node.y, node.z )
-
-                Just marked ->
-                    let
-                        intermediate =
-                            (node.trackPoint.idx + marked) // 2
-
-                        focusNode =
-                            model.roadsForProfileView |> List.drop intermediate |> List.head
-                    in
-                    case focusNode of
-                        Just n ->
-                            ( n.startsAt.x, n.startsAt.y, n.startsAt.z )
-
-                        Nothing ->
-                            ( node.x, node.y, node.z )
+            ( node.x, node.y, node.z )
 
         focus =
             Point3d.meters 0.0 y z

@@ -1,13 +1,8 @@
 module ToDo exposing (..)
 
---TODO: "Bug" I think where bend section has steep gradient and extrapolation to tangent point leads to egregious elevation change around the bend. Should probably use A.ele and D.ele, not extrapolated.
+--TODO: Feat. Convert point to arc, user selects radius and #segments.
 
 --TODO: Bug. Yellow line disappears when changing view modes.
-
---TODO: Bug. Drop the concept of "nearby" nodes for centering views.
-
---TODO: Feat. Cater for parallel and divergent segments.
--- I started this but got all confused again, mostly about relative position of intersect point.
 
 --TODO: Feat. Some way to join the start and end of a loop (although MR does this). (Tim Sinclair)
 -- This can be a special action on the Overview page "Make a loop".
@@ -17,7 +12,12 @@ module ToDo exposing (..)
 
 --TODO: Debt. Tidy up view logic.
 
+--TODO: Debt. More modularisation.
+
 --TODO: Debt. Single Entity list, built for current view
 
 --TODO: Debt. Use elm-units and elm-geometry throughout!
+
+--DROP: Feat. Cater for parallel and divergent segments.
+-- Not required. User can apply brains and pick better points.
 
