@@ -2,8 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Feat. Convert point to arc, user selects radius and #segments.
 
---TODO: Feat. Do something reasonable with diverging segments.
-
 --TODO: Bug. Yellow line disappears when changing view modes.
 
 --TODO: Feat. Some way to join the start and end of a loop (although MR does this). (Tim Sinclair)

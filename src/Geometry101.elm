@@ -78,9 +78,23 @@ asVector p1 p2 =
 distance p1 p2 =
     sqrt <| (p1.x - p2.x) ^ 2.0 + (p1.y - p2.y) ^ 2.0
 
+
+pointAlongRoad : Road -> Float -> Point
+pointAlongRoad road distanceFromStart =
+    let
+        roadLength =
+            distance road.startAt road.endsAt
+    in
+    interpolateLine
+        (distanceFromStart / roadLength)
+        road.startAt
+        road.endsAt
+
+
 whatFraction : Point -> Point -> Point -> Float
 whatFraction p pa pb =
-    (distance pa p) / (distance pa pb)
+    distance pa p / distance pa pb
+
 
 interpolateScalar fraction a b =
     b * fraction + a * (1.0 - fraction)
@@ -88,10 +102,11 @@ interpolateScalar fraction a b =
 
 interpolateLine fraction p1 p2 =
     -- Find p3 on p1-p2, such that |p1p3|/|p1p2| = fraction
-    -- Expecting fraction to be in [0,1]
+    -- Expecting fraction to be in [0,1] but doesn't have to be.
     { x = interpolateScalar fraction p1.x p2.x
     , y = interpolateScalar fraction p1.y p2.y
     }
+
 
 antiInterpolate : Point -> Point -> Point -> Float
 antiInterpolate p pa pb =
@@ -99,21 +114,31 @@ antiInterpolate p pa pb =
     -- Express p as fraction along AB so at A is 0, at B is 1.
     -- Assumes points are co-linear, meaningless otherwise.
     let
-        aDist = distance p pa
-        bDist = distance p pb
-        ab = distance pa pb
+        aDist =
+            distance p pa
+
+        bDist =
+            distance p pb
+
+        ab =
+            distance pa pb
     in
     if aDist + bDist <= ab then
         -- Interior point
         aDist / ab
+
     else if aDist > bDist then
         -- It's outboard on the B side
         aDist / ab
+
     else if bDist > aDist then
         -1.0 * (aDist / ab)
+
     else
         -- No idea where it is
         0.0
+
+
 
 {-
    This is about helping to smooth a bend.
@@ -185,10 +210,7 @@ findTangentPoint road incircle =
             lineEquationFromTwoPoints road.startAt road.endsAt
 
         radiusLine =
-            { a = roadLine.b, b = -1.0 * roadLine.a, c = aybx }
-
-        aybx =
-            roadLine.a * incircle.centre.y - roadLine.b * incircle.centre.x
+            linePerpendicularTo roadLine incircle.centre
     in
     lineIntersection roadLine radiusLine
 
@@ -361,3 +383,13 @@ lineEquationFromTwoPoints p1 p2 =
             p1.x * p2.y - p2.x * p1.y
     in
     { a = a, b = b, c = c }
+
+
+linePerpendicularTo : LineEquation -> Point -> LineEquation
+linePerpendicularTo line p =
+    -- Perpendicular passing through point.
+    let
+        aybx =
+            line.a * p.y - line.b * p.x
+    in
+    { a = line.b, b = -1.0 * line.a, c = aybx }

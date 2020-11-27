@@ -190,8 +190,86 @@ makeSmoothBend numSegments pa pb pc pd arc =
 
 divergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters MyCoord)
 divergentRoadsArc p r1 r2 =
-    Nothing
+    -- In this case we prefer to find a semicircle that
+    -- joins ends B and C, preserving the length of the road segments.
+    -- (Simply because that's how I see this situation.)
+    -- We will be using the incircle of PBC, but only to give us the
+    -- bisector of angle BPC. The place where the normal from AB or DC
+    -- crosses this bisector (whichever is furthest from P) becomes our
+    -- circle centre. A point on the far side becomes our mid arc point.
+    let
+        ((pa, pb), (pc, pd)) =
+            ((r1.startAt, r1.endsAt), (r2.startAt, r2.endsAt))
 
+        (farthestEndPoint, dominantRoad, otherRoad) =
+            if distance p pb >= distance p pc then
+                (pb, r1, r2)
+            else
+                (pc, r2, r1)
+
+        maybeCircle =
+            G.findIncircleFromTwoRoads r1 r2
+    in
+    case maybeCircle of
+        Just circle ->
+            let
+                bisector =
+                    lineEquationFromTwoPoints p circle.centre
+
+                dominantRoadAsLine =
+                    lineEquationFromTwoPoints dominantRoad.startAt dominantRoad.endsAt
+
+                perpFromDominantRoad =
+                    linePerpendicularTo dominantRoadAsLine farthestEndPoint
+
+                maybeCentre =
+                    lineIntersection bisector perpFromDominantRoad
+            in
+            case maybeCentre of
+                Just centre ->
+                    let
+                        otherRoadAsLine =
+                            lineEquationFromTwoPoints otherRoad.startAt otherRoad.endsAt
+
+                        perpToOtherRoad =
+                            linePerpendicularTo otherRoadAsLine centre
+
+                        otherTangentPoint =
+                            lineIntersection perpToOtherRoad otherRoadAsLine
+
+                        radius =
+                            -- Need this to find the mid point
+                            distance centre farthestEndPoint
+
+                        bisectorAsRoad =
+                            { startAt = p, endsAt = centre }
+
+                        distanceToCentre =
+                            distance p centre
+
+                        midArcPoint =
+                            pointAlongRoad bisectorAsRoad (distanceToCentre + radius)
+
+                        (arcStart, arcFinish) =
+                            if dominantRoad == r1 then
+                                (Just r1.endsAt, otherTangentPoint)
+                            else
+                                (otherTangentPoint, Just r2.startAt)
+
+                    in
+                    case (arcStart, arcFinish) of
+                        (Just p1, Just p2) ->
+                            Arc2d.throughPoints
+                                (Point2d.meters p1.x p1.y)
+                                (Point2d.meters midArcPoint.x midArcPoint.y)
+                                (Point2d.meters p2.x p2.y)
+
+                        _ -> Nothing
+
+                Nothing -> Nothing
+
+        Nothing ->
+            Nothing
 
 parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters MyCoord)
 parallelFindSemicircle r1 r2 =
