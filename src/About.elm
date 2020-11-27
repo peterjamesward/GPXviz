@@ -7,9 +7,9 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-11-26_
+> _This text updated 2020-11-27_
 
-> *This release* contains minor bug fixes for bend and gradient smoothing.
+> *This release* makes a better guess at bends when the roads point outwards from the bend.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
