@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import About exposing (viewAboutText)
-import Angle exposing (Angle, inDegrees, normalize)
+import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import Browser
@@ -26,7 +26,7 @@ import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
 import Point3d
 import ScalingInfo exposing (ScalingInfo)
-import Scene3d exposing (Entity, cone, cylinder)
+import Scene3d exposing (Entity)
 import Task
 import Time
 import TrackPoint exposing (..)

@@ -1,9 +1,10 @@
 module BendSmoother exposing (..)
 
-import Arc2d exposing (throughPoints)
+import Arc2d exposing (Arc2d, throughPoints)
 import Geometry101 as G exposing (..)
-import Length
+import Length exposing (Meters, inMeters)
 import LineSegment2d
+import NodesAndRoads exposing (MyCoord)
 import Point2d exposing (xCoordinate, yCoordinate)
 import Polyline2d
 import Spherical exposing (metresPerDegreeLatitude)
@@ -44,125 +45,202 @@ toPoint tp =
     { x = tp.lon, y = tp.lat }
 
 
+
+{-
+   Attempting a re-org:
+
+      Seek the intercept, with three outcomes;
+      the roads converge
+          use the incircle of RBC
+       the roads diverge
+          use external circle
+      the roads are parallel
+          use circle tangent at B or C
+      (in each case, we want the two tangent points and the mid-arc point)
+      Assuming an arc is found:
+        derive line segments to tangent points
+        derive line segments approximating arc
+        interpolate elevation
+        return list of trackpoints, circle center and radius
+      otherwise
+        return nothing.
+-}
+
+
+isBefore : Road -> Point -> Bool
+isBefore r p =
+    antiInterpolate p r.startAt r.endsAt < 0.0
+
+
+isAfter : Road -> Point -> Bool
+isAfter r p =
+    antiInterpolate p r.startAt r.endsAt > 1.0
+
+
+
+--WIP
+
+
 bendIncircle : Int -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
 bendIncircle numSegments pa pb pc pd =
-    -- Given the actual road between two markers, this will
-    -- return a suggested smoothed bend, if it exists.
-    -- First argument here is the maximum angle between generated road segments.
-    -- Hence smaller values results in a closer approximation to the incircle.
-    -- ** Note that the road direction is important in selecting the circle arc. **
-    -- We can (and shall) use Arc2d, and the same module to interpolate for us!
     let
-        ( r1, r2 ) =
+        ( roadIn, roadOut ) =
             ( roadToGeometry pa pb, roadToGeometry pc pd )
 
-        maybeP =
-            findIntercept r1 r2
+        arcFinderGeneral p r1 r2 =
+            if isBefore r1 p && isAfter r2 p then
+                divergentRoadsArc p r1 r2
 
-        maybeCircle : Maybe G.Circle
+            else
+                convergentRoadsArc p r1 r2
+
+        arc =
+            case findIntercept roadIn roadOut of
+                Nothing ->
+                    parallelFindSemicircle roadIn roadOut
+
+                Just p ->
+                    arcFinderGeneral p roadIn roadOut
+    in
+    Maybe.map (makeSmoothBend numSegments pa pb pc pd) arc
+
+
+makeSmoothBend :
+    Int
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> Arc2d Meters MyCoord
+    -> SmoothedBend
+makeSmoothBend numSegments pa pb pc pd arc =
+    let
+        ( p1, p2 ) =
+            -- The first (last) tangent point is also the first (last) point on the arc
+            -- so we don't need to pass these as arguments.
+            ( Arc2d.startPoint arc |> Point2d.toRecord inMeters
+            , Arc2d.endPoint arc |> Point2d.toRecord inMeters
+            )
+
+        t1 =
+            -- Elevations of tangent points are interpolations
+            -- within the segments that contain them.
+            { lat = p1.y
+            , lon = p1.x
+            , ele =
+                interpolateScalar
+                    (min 1.0 (whatFraction p1 (toPoint pa) (toPoint pb)))
+                    pa.ele
+                    pb.ele
+            }
+
+        t2 =
+            -- Elevations of tangent points are interpolations
+            -- within the segments that contain them.
+            { lat = p2.y
+            , lon = p2.x
+            , ele =
+                interpolateScalar
+                    (min 1.0 (whatFraction p2 (toPoint pd) (toPoint pc)))
+                    pd.ele
+                    pc.ele
+            , idx = 0
+            }
+
+        eleIncrement =
+            (t2.ele - t1.ele) / toFloat numSegments
+
+        segments =
+            Arc2d.segments numSegments arc
+                |> Polyline2d.segments
+
+        newTrackPoints =
+            List.map2
+                (\seg i ->
+                    let
+                        p0 =
+                            LineSegment2d.startPoint seg
+                    in
+                    { lon = xCoordinate p0 |> Length.inMeters
+                    , lat = yCoordinate p0 |> Length.inMeters
+                    , ele = t1.ele + toFloat i * eleIncrement
+                    , idx = 0
+                    }
+                )
+                segments
+                (List.range 0 numSegments)
+
+        asPair p2d =
+            let
+                asRecord =
+                    Point2d.toRecord Length.inMeters p2d
+            in
+            ( asRecord.x, asRecord.y )
+    in
+    { trackPoints =
+        pa
+            :: newTrackPoints
+            ++ [ t2, pd ]
+    , centre = asPair <| Arc2d.centerPoint arc
+    , radius = metresPerDegreeLatitude * (inMeters <| Arc2d.radius arc)
+    , startIndex = pa.idx
+    , endIndex = pd.idx
+    }
+
+
+divergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters MyCoord)
+divergentRoadsArc p r1 r2 =
+    Nothing
+
+
+parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters MyCoord)
+parallelFindSemicircle r1 r2 =
+    Nothing
+
+
+convergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters MyCoord)
+convergentRoadsArc p r1 r2 =
+    let
         maybeCircle =
             G.findIncircleFromTwoRoads r1 r2
     in
-    case ( maybeCircle, maybeP ) of
-        ( Just circle, Just p ) ->
+    case maybeCircle of
+        Just circle ->
+            weHaveAnIncircle p r1 r2 circle
+
+        Nothing ->
+            Nothing
+
+
+weHaveAnIncircle : Point -> Road -> Road -> Circle -> Maybe (Arc2d Meters MyCoord)
+weHaveAnIncircle p r1 r2 circle =
+    let
+        ( entryPoint, exitPoint ) =
+            ( G.findTangentPoint r1 circle
+            , G.findTangentPoint r2 circle
+            )
+    in
+    case ( entryPoint, exitPoint ) of
+        ( Just p1, Just p2 ) ->
+            -- Solved the tangent points.
+            -- We'll use Arc2d to find our approximation.
+            -- First, we find an intermediate point on the circle,
+            -- intersecting with the line connecting the centre (known) to
+            -- the intersection of the tangents (p).
             let
-                ( entryPoint, exitPoint ) =
-                    ( G.findTangentPoint r1 circle
-                    , G.findTangentPoint r2 circle
-                    )
+                distCentreToP =
+                    distance circle.centre p
+
+                proportion =
+                    circle.radius / distCentreToP
+
+                midArcPoint =
+                    interpolateLine proportion circle.centre p
             in
-            case ( entryPoint, exitPoint ) of
-                ( Just p1, Just p2 ) ->
-                    -- Solved the tangent points.
-                    -- We'll use Arc2d to find our approximation.
-                    -- First, we find an intermediate point on the circle,
-                    -- intersecting with the line connecting the centre (known) to
-                    -- the intersection of the tangents (p).
-                    let
-                        distCentreToP =
-                            distance circle.centre p
-
-                        proportion =
-                            circle.radius / distCentreToP
-
-                        midArcPoint =
-                            interpolateLine proportion circle.centre p
-
-                        maybeArc =
-                            Arc2d.throughPoints
-                                (Point2d.meters p1.x p1.y)
-                                (Point2d.meters midArcPoint.x midArcPoint.y)
-                                (Point2d.meters p2.x p2.y)
-
-                        t1 =
-                            -- Elevations of tangent points are interpolations
-                            -- within the segments that contain them.
-                            { lat = p1.y
-                            , lon = p1.x
-                            , ele =
-                                interpolateScalar
-                                    (min 1.0 (whatFraction p1 (toPoint pa) (toPoint pb)))
-                                    pa.ele
-                                    pb.ele
-                            }
-
-                        t2 =
-                            -- Elevations of tangent points are interpolations
-                            -- within the segments that contain them.
-                            { lat = p2.y
-                            , lon = p2.x
-                            , ele =
-                                interpolateScalar
-                                    (min 1.0 (whatFraction p2 (toPoint pd) (toPoint pc)))
-                                    pd.ele
-                                    pc.ele
-                            , idx = 0
-                            }
-
-                        eleIncrement =
-                            (t2.ele - t1.ele) / toFloat numSegments
-                    in
-                    case maybeArc of
-                        Just arc ->
-                            -- Found the arc we're looking for.
-                            -- Now find approximation with line segments.
-                            let
-                                segments =
-                                    Arc2d.segments numSegments arc
-                                        |> Polyline2d.segments
-
-                                newTrackPoints =
-                                    List.map2
-                                        (\seg i ->
-                                            let
-                                                p0 =
-                                                    LineSegment2d.startPoint seg
-                                            in
-                                            { lon = xCoordinate p0 |> Length.inMeters
-                                            , lat = yCoordinate p0 |> Length.inMeters
-                                            , ele = t1.ele + toFloat i * eleIncrement
-                                            , idx = 0
-                                            }
-                                        )
-                                        segments
-                                        (List.range 0 numSegments)
-                            in
-                            Just
-                                { trackPoints =
-                                    pa
-                                        :: newTrackPoints
-                                        ++ [ t2, pd ]
-                                , centre = ( circle.centre.x, circle.centre.y )
-                                , radius = circle.radius * metresPerDegreeLatitude
-                                , startIndex = pa.idx
-                                , endIndex = pd.idx
-                                }
-
-                        Nothing ->
-                            Nothing
-
-                _ ->
-                    Nothing
+            Arc2d.throughPoints
+                (Point2d.meters p1.x p1.y)
+                (Point2d.meters midArcPoint.x midArcPoint.y)
+                (Point2d.meters p2.x p2.y)
 
         _ ->
             Nothing
