@@ -1,6 +1,7 @@
 module ToDo exposing (..)
 
---TODO: Feat. Convert point to arc, user selects radius and #segments.
+--TODO: Feat. Convert single node to arc, user selects radius and #segments.
+--(I keep flipping my mind on this.)
 
 --TODO: Bug. Yellow line disappears when changing view modes.
 
@@ -18,7 +19,8 @@ module ToDo exposing (..)
 
 --TODO: Debt. Single Entity list, built for current view
 
---TODO: Debt. Use elm-units and elm-geometry throughout!
+--TODO: Debt. Use elm-units and elm-geometry throughout, with proper units!
+--Just change the Model and use the compiler. Deep breath.
 
 --DROP: Feat. Cater for parallel and divergent segments.
 -- Not required. User can apply brains and pick better points.

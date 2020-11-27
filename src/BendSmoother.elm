@@ -11,10 +11,6 @@ import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 
 
-
---TODO: Interpolate elevations.
-
-
 type alias SmoothedBend =
     { trackPoints : List TrackPoint
     , centre : ( Float, Float )
@@ -45,28 +41,6 @@ toPoint tp =
     { x = tp.lon, y = tp.lat }
 
 
-
-{-
-   Attempting a re-org:
-
-      Seek the intercept, with three outcomes;
-      the roads converge
-          use the incircle of RBC
-       the roads diverge
-          use external circle
-      the roads are parallel
-          use circle tangent at B or C
-      (in each case, we want the two tangent points and the mid-arc point)
-      Assuming an arc is found:
-        derive line segments to tangent points
-        derive line segments approximating arc
-        interpolate elevation
-        return list of trackpoints, circle center and radius
-      otherwise
-        return nothing.
--}
-
-
 isBefore : Road -> Point -> Bool
 isBefore r p =
     antiInterpolate p r.startAt r.endsAt < 0.0
@@ -75,10 +49,6 @@ isBefore r p =
 isAfter : Road -> Point -> Bool
 isAfter r p =
     antiInterpolate p r.startAt r.endsAt > 1.0
-
-
-
---WIP
 
 
 bendIncircle : Int -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
@@ -190,7 +160,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
 
 divergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters MyCoord)
 divergentRoadsArc p r1 r2 =
-    -- In this case we prefer to find a semicircle that
+    -- In this case we prefer to find a more-than-semi-circle that
     -- joins ends B and C, preserving the length of the road segments.
     -- (Simply because that's how I see this situation.)
     -- We will be using the incircle of PBC, but only to give us the
@@ -198,14 +168,15 @@ divergentRoadsArc p r1 r2 =
     -- crosses this bisector (whichever is furthest from P) becomes our
     -- circle centre. A point on the far side becomes our mid arc point.
     let
-        ((pa, pb), (pc, pd)) =
-            ((r1.startAt, r1.endsAt), (r2.startAt, r2.endsAt))
+        ( ( pa, pb ), ( pc, pd ) ) =
+            ( ( r1.startAt, r1.endsAt ), ( r2.startAt, r2.endsAt ) )
 
-        (farthestEndPoint, dominantRoad, otherRoad) =
+        ( farthestEndPoint, dominantRoad, otherRoad ) =
             if distance p pb >= distance p pc then
-                (pb, r1, r2)
+                ( pb, r1, r2 )
+
             else
-                (pc, r2, r1)
+                ( pc, r2, r1 )
 
         maybeCircle =
             G.findIncircleFromTwoRoads r1 r2
@@ -250,26 +221,29 @@ divergentRoadsArc p r1 r2 =
                         midArcPoint =
                             pointAlongRoad bisectorAsRoad (distanceToCentre + radius)
 
-                        (arcStart, arcFinish) =
+                        ( arcStart, arcFinish ) =
                             if dominantRoad == r1 then
-                                (Just r1.endsAt, otherTangentPoint)
-                            else
-                                (otherTangentPoint, Just r2.startAt)
+                                ( Just r1.endsAt, otherTangentPoint )
 
+                            else
+                                ( otherTangentPoint, Just r2.startAt )
                     in
-                    case (arcStart, arcFinish) of
-                        (Just p1, Just p2) ->
+                    case ( arcStart, arcFinish ) of
+                        ( Just p1, Just p2 ) ->
                             Arc2d.throughPoints
                                 (Point2d.meters p1.x p1.y)
                                 (Point2d.meters midArcPoint.x midArcPoint.y)
                                 (Point2d.meters p2.x p2.y)
 
-                        _ -> Nothing
+                        _ ->
+                            Nothing
 
-                Nothing -> Nothing
+                Nothing ->
+                    Nothing
 
         Nothing ->
             Nothing
+
 
 parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters MyCoord)
 parallelFindSemicircle r1 r2 =
