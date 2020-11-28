@@ -10,25 +10,16 @@ import Length exposing (meters)
 import List exposing (take)
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
 import Point3d
+import RenderingContext exposing (RenderingContext)
 import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
 import Sphere3d
 import Spherical exposing (metresPerDegreeLatitude)
+import Terrain exposing (makeTerrain)
 import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
-
-
-type alias ThingsWeNeedForRendering =
-    { displayOptions : DisplayOptions
-    , currentNode : Maybe DrawingRoad
-    , markedNode : Maybe DrawingRoad
-    , scaling : ScalingInfo
-    , viewingMode : ViewingMode
-    , viewingSubMode : ViewSubmode
-    , smoothedBend : List DrawingRoad
-    }
 
 
 segmentDirection segment =
@@ -61,7 +52,7 @@ roadMapper road =
 
 
 makeStatic3DEntities :
-    ThingsWeNeedForRendering
+    RenderingContext
     -> Array DrawingRoad
     -> List (Entity MyCoord)
 makeStatic3DEntities context roads =
@@ -92,6 +83,9 @@ makeStatic3DEntities context roads =
                     { radius = meters <| 0.5 * metresToClipSpace
                     , length = meters <| z - 1.0 * metresToClipSpace - seaLevelInClipSpace
                     }
+
+        yerrain =
+            makeTerrain context roads
 
         pillars =
             let
@@ -256,7 +250,7 @@ makeStatic3DEntities context roads =
         ++ optionally context.displayOptions.centreLine centreLine
 
 
-makeStaticProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
+makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)
 makeStaticProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
@@ -384,7 +378,7 @@ makeStaticProfileEntities context roadList =
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
 
-makeVaryingVisualEntities : ThingsWeNeedForRendering -> Array DrawingRoad -> List (Entity MyCoord)
+makeVaryingVisualEntities : RenderingContext -> Array DrawingRoad -> List (Entity MyCoord)
 makeVaryingVisualEntities context roads =
     let
         metresToClipSpace =
@@ -488,7 +482,7 @@ makeVaryingVisualEntities context roads =
         ++ suggestedBend
 
 
-makeVaryingProfileEntities : ThingsWeNeedForRendering -> List DrawingRoad -> List (Entity MyCoord)
+makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)
 makeVaryingProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     let
