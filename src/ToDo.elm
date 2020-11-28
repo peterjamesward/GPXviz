@@ -1,13 +1,15 @@
 module ToDo exposing (..)
 
---TODO: Feat. Convert single node to arc, user selects radius and #segments.
---(I keep flipping my mind on this.)
-
---TODO: Feat. Improve terrain in presence of tight hairpins.
+--TODO: Bug. Flush Undo when file loaded.
 
 --TODO: 1st person view aims around the bend far too early on long segments.
 
---TODO: Bug. Yellow line disappears when changing view modes.
+--TODO: Feat. Improve terrain in presence of tight hairpins. Maybe more roadside points?
+
+--TODO: Feat? Convert single node to arc, user selects radius and #segments.
+--(I keep flipping my mind on this.)
+
+--TODO: Bug. Yellow smoothed bend line disappears when changing view modes.
 
 --TODO: Feat. Some way to join the start and end of a loop (although MR does this). (Tim Sinclair)
 -- This can be a special action on the Overview page "Make a loop".

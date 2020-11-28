@@ -27,7 +27,6 @@ type Msg
     | ToggleRoad Bool
     | ToggleCones Bool
     | ToggleCentreLine Bool
-    | ToggleTerrain Bool
     | SetCurtainStyle CurtainStyle
     | SetGradientChangeThreshold Float
     | SetBearingChangeThreshold Float
@@ -49,3 +48,5 @@ type Msg
     | RunFlythrough Bool
     | ResetFlythrough
     | VerticalNodeSplit Int
+    | MakeTerrain
+    | ClearTerrain

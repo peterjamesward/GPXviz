@@ -28,6 +28,7 @@ import Point3d
 import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity)
 import Task
+import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
 import Utils exposing (..)
@@ -79,6 +80,7 @@ type alias Model =
     , staticProfileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
     , varyingVisualEntities : List (Entity MyCoord) -- current position and marker node.
     , varyingProfileEntities : List (Entity MyCoord)
+    , terrainEntities : List (Entity MyCoord)
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
@@ -143,6 +145,7 @@ init _ =
       , varyingVisualEntities = []
       , staticProfileEntities = []
       , varyingProfileEntities = []
+      , terrainEntities = []
       , httpError = Nothing
       , currentNode = Nothing
       , markedNode = Nothing
@@ -223,6 +226,7 @@ update msg model =
                 |> resetViewSettings
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
+                |> clearTerrain
             , Cmd.none
             )
 
@@ -387,14 +391,6 @@ update msg model =
             , Cmd.none
             )
 
-        ToggleTerrain _ ->
-            ( { model
-                | displayOptions = { options | terrain = not options.terrain }
-              }
-                |> deriveStaticVisualEntities
-            , Cmd.none
-            )
-
         SetCurtainStyle style ->
             ( { model
                 | displayOptions = { options | curtainStyle = style }
@@ -445,6 +441,7 @@ update msg model =
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
+                |> clearTerrain
             , Cmd.none
             )
 
@@ -455,6 +452,7 @@ update msg model =
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
+                |> clearTerrain
             , Cmd.none
             )
 
@@ -485,6 +483,7 @@ update msg model =
                         |> deriveStaticVisualEntities
                         |> deriveVaryingVisualEntities
                         |> deriveProblems
+                        |> clearTerrain
 
                 _ ->
                     model
@@ -531,9 +530,25 @@ update msg model =
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
+                |> clearTerrain
                 |> (\m -> { m | currentNode = model.currentNode })
             , Cmd.none
             )
+
+        MakeTerrain ->
+            ( deriveTerrain model
+            , Cmd.none
+            )
+
+        ClearTerrain ->
+            ( clearTerrain model
+            , Cmd.none
+            )
+
+
+clearTerrain : Model -> Model
+clearTerrain model =
+    { model | terrainEntities = [] }
 
 
 verticalNodeSplit : Int -> Model -> Model
@@ -1117,6 +1132,30 @@ deriveStaticVisualEntities model =
             model
 
 
+deriveTerrain : Model -> Model
+deriveTerrain model =
+    -- Terrain building is O(n^2). Not to be undertaken lightly.
+    case model.scaling of
+        Just scale ->
+            let
+                context =
+                    { displayOptions = model.displayOptions
+                    , currentNode = lookupRoad model model.currentNode
+                    , markedNode = lookupRoad model model.markedNode
+                    , scaling = scale
+                    , viewingMode = model.viewingMode
+                    , viewingSubMode = model.thirdPersonSubmode
+                    , smoothedBend = model.smoothedRoads
+                    }
+            in
+            { model
+                | terrainEntities = makeTerrain context model.roadArray
+            }
+
+        Nothing ->
+            model
+
+
 deriveVaryingVisualEntities : Model -> Model
 deriveVaryingVisualEntities model =
     -- Refers to the current and marked nodes.
@@ -1470,9 +1509,22 @@ viewZeroLengthSegments model =
 
 viewOptions : Model -> Element Msg
 viewOptions model =
-    column [ padding 50, alignTop, spacing 10 ]
-        [ paragraph
-            [ padding 20
+    column [ padding 20, alignTop, spacing 10 ]
+        [ if model.terrainEntities == [] then
+            button prettyButtonStyles
+                { onPress = Just MakeTerrain
+                , label = text """Build terrain
+(I understand this may take several
+minutes and will be lost if I make changes)"""
+                }
+
+          else
+            button prettyButtonStyles
+                { onPress = Just ClearTerrain
+                , label = text "Remove the terrain."
+                }
+        , paragraph
+            [ padding 10
             , Font.size 24
             ]
           <|
@@ -1500,12 +1552,6 @@ viewOptions model =
             , icon = checkboxIcon
             , checked = model.displayOptions.centreLine
             , label = Input.labelRight [] (text "Centre line")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleTerrain
-            , icon = checkboxIcon
-            , checked = model.displayOptions.terrain
-            , label = Input.labelRight [] (text "Terrain")
             }
         , Input.radioRow
             [ Border.rounded 6
@@ -1605,7 +1651,10 @@ viewPointCloud scale model =
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
                     , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
-                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                    , entities =
+                        model.varyingVisualEntities
+                            ++ model.staticVisualEntities
+                            ++ model.terrainEntities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ
                     , shadows = True
@@ -1896,7 +1945,10 @@ viewRoadSegment scale model road =
                 , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.backgroundColor Color.lightBlue
                 , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
-                , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                , entities =
+                    model.varyingVisualEntities
+                        ++ model.staticVisualEntities
+                        ++ model.terrainEntities
                 , upDirection = positiveZ
                 , sunlightDirection = negativeZ
                 , shadows = True
@@ -2353,7 +2405,10 @@ viewCurrentNode scale model node =
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
                     , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
-                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                    , entities =
+                        model.varyingVisualEntities
+                            ++ model.staticVisualEntities
+                            ++ model.terrainEntities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ
                     , shadows = True

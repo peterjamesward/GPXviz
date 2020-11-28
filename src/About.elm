@@ -9,7 +9,7 @@ aboutText =
 
 > _This text updated 2020-11-28_
 
-> *This release* _highy experimental_ Terrain option. No goats.
+> This release offers **Terrain** on demand. This is OK on short routes, but can take a very long time (and may fail) on longer routes. Any Bend or Gradient or Undo operation that changes the route will remove the terrain. It's really only there as an option to make the fly-through look pretty.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
