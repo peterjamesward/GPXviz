@@ -1,9 +1,11 @@
 module ToDo exposing (..)
 
---TODO: Terrain! Possibly using DelaunayTriangulation2d
-
 --TODO: Feat. Convert single node to arc, user selects radius and #segments.
 --(I keep flipping my mind on this.)
+
+--TODO: Feat. Improve terrain in presence of tight hairpins.
+
+--TODO: 1st person view aims around the bend far too early on long segments.
 
 --TODO: Bug. Yellow line disappears when changing view modes.
 
@@ -23,7 +25,4 @@ module ToDo exposing (..)
 
 --TODO: Debt. Use elm-units and elm-geometry throughout, with proper units!
 --Just change the Model and use the compiler. Deep breath.
-
---DROP: Feat. Cater for parallel and divergent segments.
--- Not required. User can apply brains and pick better points.
 

@@ -156,7 +156,7 @@ makeStatic3DEntities context roads =
                     roadMapper segment
             in
             [ --surface
-              Scene3d.quad (Material.color Color.grey)
+              Scene3d.quad (Material.matte Color.grey)
                 (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
                 (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
                 (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
