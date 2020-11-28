@@ -27,6 +27,7 @@ type Msg
     | ToggleRoad Bool
     | ToggleCones Bool
     | ToggleCentreLine Bool
+    | ToggleTerrain Bool
     | SetCurtainStyle CurtainStyle
     | SetGradientChangeThreshold Float
     | SetBearingChangeThreshold Float

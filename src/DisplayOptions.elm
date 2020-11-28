@@ -15,6 +15,7 @@ type alias DisplayOptions =
     , curtainStyle : CurtainStyle
     , problems : Bool
     , centreLine : Bool
+    , terrain : Bool
     }
 
 
@@ -26,4 +27,5 @@ defaultDisplayOptions =
     , curtainStyle = PastelCurtain
     , problems = False
     , centreLine = False
+    , terrain = False
     }

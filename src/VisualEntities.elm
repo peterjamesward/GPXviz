@@ -248,7 +248,7 @@ makeStatic3DEntities context roads =
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ optionally context.displayOptions.centreLine centreLine
-        ++ terrain
+        ++ optionally context.displayOptions.terrain terrain
 
 
 makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)

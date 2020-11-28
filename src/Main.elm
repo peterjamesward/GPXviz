@@ -387,6 +387,14 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleTerrain _ ->
+            ( { model
+                | displayOptions = { options | terrain = not options.terrain }
+              }
+                |> deriveStaticVisualEntities
+            , Cmd.none
+            )
+
         SetCurtainStyle style ->
             ( { model
                 | displayOptions = { options | curtainStyle = style }
@@ -1492,6 +1500,12 @@ viewOptions model =
             , icon = checkboxIcon
             , checked = model.displayOptions.centreLine
             , label = Input.labelRight [] (text "Centre line")
+            }
+        , Input.checkbox [ Font.size 18 ]
+            { onChange = ToggleTerrain
+            , icon = checkboxIcon
+            , checked = model.displayOptions.terrain
+            , label = Input.labelRight [] (text "Terrain")
             }
         , Input.radioRow
             [ Border.rounded 6
