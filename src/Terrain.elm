@@ -34,13 +34,6 @@ makeTerrain :
     -> List (Entity MyCoord)
 makeTerrain context roads =
     let
-        convertTo2d p3d =
-            let
-                ( x, y, _ ) =
-                    Point3d.toTuple Length.inMeters p3d
-            in
-            Point2d.meters x y
-
         roadList =
             Array.toList roads ++ theEdgesOfOurWorld
 
@@ -75,47 +68,76 @@ makeTerrain context roads =
             let
                 kerbX =
                     -- Road is assumed to be 6 m wide.
-                    4.0 * cos road.bearing * context.scaling.metresToClipSpace
+                    3.0 * cos road.bearing * context.scaling.metresToClipSpace
 
                 kerbY =
-                    4.0 * sin road.bearing * context.scaling.metresToClipSpace
+                    3.0 * sin road.bearing * context.scaling.metresToClipSpace
 
-                thickness =
-                    0.6 * context.scaling.metresToClipSpace
+                depressLand =
+                    1.0 * context.scaling.metresToClipSpace
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
                     , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
                     )
             in
-            [ Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 - thickness)
-            , Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 - thickness)
-            , Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 - thickness)
-            , Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 - thickness)
+            [ Point3d.meters x1 y1 z1
+            , Point3d.meters x2 y2 z2
+            , Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 - depressLand)
+            , Point3d.meters ((x1 + x2) / 2.0 + kerbX) ((y1 + y2) / 2.0 - kerbY) ((z1 + z2) / 2.0 - depressLand)
+            , Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 - depressLand)
+            , Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 - depressLand)
+            , Point3d.meters ((x1 + x2) / 2.0 - kerbX) ((y1 + y2) / 2.0 + kerbY) ((z1 + z2) / 2.0 - depressLand)
+            , Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 - depressLand)
             ]
 
-        boundary =
+        borderLand =
             1000.0 / metresPerDegreeLatitude
+
+        pointsBetween maxPoint ( ax, ay, az ) ( bx, by, bz ) =
+            List.range 0 (maxPoint - 1)
+                |> List.map (\i -> toFloat i / toFloat maxPoint)
+                |> List.map
+                    (\x ->
+                        corner (ax * x + bx * (1.0 - x))
+                            (ay * x + by * (1.0 - x))
+                            (az * x + bz * (1.0 - x))
+                    )
+
+        sw =
+            ( context.scaling.mins.lat - borderLand
+            , context.scaling.mins.lon - borderLand
+            , context.scaling.mins.ele
+            )
+
+        nw =
+            ( context.scaling.maxs.lat + borderLand
+            , context.scaling.mins.lon - borderLand
+            , context.scaling.mins.ele
+            )
+
+        ne =
+            ( context.scaling.maxs.lat + borderLand
+            , context.scaling.maxs.lon + borderLand
+            , context.scaling.mins.ele
+            )
+
+        se =
+            ( context.scaling.mins.lat - borderLand
+            , context.scaling.maxs.lon + borderLand
+            , context.scaling.mins.ele
+            )
 
         externalTrackpoints =
             -- Not pretty, but heh.
             -- NB we return to the first corner because we're only using road starts!
-            [ corner (context.scaling.mins.lat - boundary)
-                (context.scaling.mins.lon - boundary)
-                context.scaling.mins.ele
-            , corner (context.scaling.mins.lat - boundary)
-                (context.scaling.maxs.lon + boundary)
-                context.scaling.mins.ele
-            , corner (context.scaling.maxs.lat + boundary)
-                (context.scaling.mins.lon - boundary)
-                context.scaling.mins.ele
-            , corner (context.scaling.maxs.lat + boundary)
-                (context.scaling.maxs.lon + boundary)
-                context.scaling.mins.ele
-            , corner (context.scaling.mins.lat - boundary)
-                (context.scaling.mins.lon - boundary)
-                context.scaling.mins.ele
-            ]
+            -- Let's try putting some along the edges, not only corners.
+            -- This seems to help, but not too many. (?)
+            []
+                ++ pointsBetween 1 sw nw
+                ++ pointsBetween 1 nw ne
+                ++ pointsBetween 1 ne se
+                ++ pointsBetween 1 se sw
 
         theEdgesOfOurWorld =
             deriveNodes context.scaling externalTrackpoints
