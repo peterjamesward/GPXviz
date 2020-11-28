@@ -3,11 +3,9 @@ module Terrain exposing (makeTerrain)
 import Array exposing (Array)
 import Color
 import DelaunayTriangulation2d exposing (DelaunayTriangulation2d, Error, faces, fromVerticesBy)
-import Length exposing (Meters)
-import List exposing (take)
+import List
 import NodesAndRoads exposing (DrawingRoad, MyCoord, deriveNodes, deriveRoads)
-import Point2d exposing (Point2d)
-import Point3d exposing (Point3d)
+import Point3d
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
 import Scene3d.Material as Material
@@ -157,7 +155,9 @@ makeTerrain context roads =
                             -- Would be obviated by using geometry consistently!
                             face.vertices
                     in
-                    Scene3d.triangle (Material.color Color.darkGreen) <|
+                    Scene3d.facet
+                        (Material.matte <| Color.darkGreen)
+                    <|
                         Triangle3d.from v1 v2 v3
             in
             List.map drawFace (faces triangulation)
