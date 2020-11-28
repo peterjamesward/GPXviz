@@ -54,17 +54,7 @@ segmentDirection segment =
             positiveZ
 
 
-type alias NodeMapping =
-    -- This turned out to be superfluous, but let's keep it in case.
-    DrawingNode -> ( Float, Float, Float )
-
-
-type alias RoadMapping =
-    DrawingRoad -> ( ( Float, Float, Float ), ( Float, Float, Float ) )
-
-
-preserve3Dspace : RoadMapping
-preserve3Dspace road =
+roadMapper road =
     ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
     , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
     )
@@ -75,17 +65,6 @@ makeStatic3DEntities :
     -> Array DrawingRoad
     -> List (Entity MyCoord)
 makeStatic3DEntities context roads =
-    makeStaticVisualEntities context
-        preserve3Dspace
-        roads
-
-
-makeStaticVisualEntities :
-    ThingsWeNeedForRendering
-    -> RoadMapping
-    -> Array DrawingRoad
-    -> List (Entity MyCoord)
-makeStaticVisualEntities context roadMapper roads =
     let
         roadList =
             Array.toList roads
@@ -211,7 +190,8 @@ makeStaticVisualEntities context roadMapper roads =
                 halfY =
                     0.3 * sin segment.bearing * metresToClipSpace
 
-                raised = 0.05 * metresToClipSpace
+                raised =
+                    0.05 * metresToClipSpace
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     roadMapper segment
@@ -311,14 +291,14 @@ makeStaticProfileEntities context roadList =
                 makeStartPillar road =
                     let
                         ( ( x1, y1, z1 ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     brownPillar x1 y1 z1
 
                 makeEndPillar road =
                     let
                         ( _, ( x2, y2, z2 ) ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     brownPillar x2 y2 z2
             in
@@ -336,14 +316,14 @@ makeStaticProfileEntities context roadList =
                 makeStartCone road =
                     let
                         ( ( x1, y1, z1 ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     trackpointmarker x1 y1 z1
 
                 makeEndCone road =
                     let
                         ( _, ( x2, y2, z2 ) ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     trackpointmarker x2 y2 z2
             in
@@ -380,7 +360,7 @@ makeStaticProfileEntities context roadList =
         curtain segment =
             let
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    preserve3Dspace segment
+                    roadMapper segment
             in
             [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
                 (Point3d.meters x1 y1 z1)
@@ -415,7 +395,7 @@ makeVaryingVisualEntities context roads =
                 ( Just road, ThirdPersonView ) ->
                     let
                         ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
@@ -429,7 +409,7 @@ makeVaryingVisualEntities context roads =
                 ( Just road, PlanView ) ->
                     let
                         ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
@@ -448,7 +428,7 @@ makeVaryingVisualEntities context roads =
                 ( Just road, ThirdPersonView ) ->
                     let
                         ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
@@ -462,7 +442,7 @@ makeVaryingVisualEntities context roads =
                 ( Just road, PlanView ) ->
                     let
                         ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
@@ -495,7 +475,7 @@ makeVaryingVisualEntities context roads =
                     0.1 * metresToClipSpace
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    preserve3Dspace segment
+                    roadMapper segment
             in
             Scene3d.quad (Material.color Color.lightYellow)
                 (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))
@@ -520,7 +500,7 @@ makeVaryingProfileEntities context roadList =
                 ( Just road, ProfileView ) ->
                     let
                         ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
@@ -539,7 +519,7 @@ makeVaryingProfileEntities context roadList =
                 ( Just road, ProfileView ) ->
                     let
                         ( ( x, y, z ), _ ) =
-                            preserve3Dspace road
+                            roadMapper road
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
@@ -572,7 +552,7 @@ makeVaryingProfileEntities context roadList =
                     0.1 * metresToClipSpace
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    preserve3Dspace segment
+                    roadMapper segment
             in
             Scene3d.quad (Material.color Color.white)
                 (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))

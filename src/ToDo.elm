@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Terrain! Possibly using DelaunayTriangulation2d
+
 --TODO: Feat. Convert single node to arc, user selects radius and #segments.
 --(I keep flipping my mind on this.)
 

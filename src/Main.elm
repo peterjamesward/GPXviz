@@ -1225,6 +1225,43 @@ viewGenericNew model =
     }
 
 
+viewContentSelector : ViewingMode -> ( ScalingInfo -> Model -> Element Msg, Model -> Element Msg )
+viewContentSelector mode =
+    --TODO: Intent is that outer generic view uses these pairs of pane painting functions,
+    --making the top level layout independent of content, and vice versa.
+    let
+        dummyPane _ =
+            none
+
+        ignore2Args pane _ _ =
+            pane
+
+        ignore1Arg pane _ =
+            pane
+    in
+    case mode of
+        OverviewView ->
+            ( viewPointCloud, overviewSummary )
+
+        FirstPersonView ->
+            ( viewFirstPerson, dummyPane )
+
+        ThirdPersonView ->
+            ( viewThirdPerson, dummyPane )
+
+        ProfileView ->
+            ( viewProfileView, dummyPane )
+
+        AboutView ->
+            ( ignore2Args viewAboutText, dummyPane )
+
+        InputErrorView ->
+            ( ignore1Arg viewInputError, dummyPane )
+
+        PlanView ->
+            ( viewPlanView, dummyPane )
+
+
 saveButtonIfChanged : Model -> Element Msg
 saveButtonIfChanged model =
     case model.undoStack of
@@ -1258,6 +1295,10 @@ viewModeChoices model =
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
+
+
+
+-- Each of these view is really just a left pane and a right pane.
 
 
 view3D : ScalingInfo -> Model -> Element Msg
@@ -1470,6 +1511,7 @@ viewOptions model =
         ]
 
 
+gradientChangeThresholdSlider : Model -> Element Msg
 gradientChangeThresholdSlider model =
     Input.slider
         commonShortHorizontalSliderStyles
@@ -1537,33 +1579,6 @@ viewPointCloud scale model =
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
-
-        showSummary =
-            case model.summary of
-                Just summary ->
-                    row [ padding 20 ]
-                        [ column [ spacing 10 ]
-                            [ text "Highest point "
-                            , text "Lowest point "
-                            , text "Track length "
-                            , text "Climbing distance "
-                            , text "Elevation gain "
-                            , text "Descending distance "
-                            , text "Elevation loss "
-                            ]
-                        , column [ spacing 10 ]
-                            [ text <| showDecimal2 summary.highestMetres
-                            , text <| showDecimal2 summary.lowestMetres
-                            , text <| showDecimal2 summary.trackLength
-                            , text <| showDecimal2 summary.climbingDistance
-                            , text <| showDecimal2 summary.totalClimbing
-                            , text <| showDecimal2 summary.descendingDistance
-                            , text <| showDecimal2 summary.totalDescending
-                            ]
-                        ]
-
-                _ ->
-                    none
     in
     row []
         [ zoomSlider model.zoomLevelOverview ZoomLevelOverview
@@ -1582,10 +1597,38 @@ viewPointCloud scale model =
                     , shadows = True
                     }
         , column []
-            [ showSummary
+            [ overviewSummary model
             , viewOptions model
             ]
         ]
+
+
+overviewSummary model =
+    case model.summary of
+        Just summary ->
+            row [ padding 20 ]
+                [ column [ spacing 10 ]
+                    [ text "Highest point "
+                    , text "Lowest point "
+                    , text "Track length "
+                    , text "Climbing distance "
+                    , text "Elevation gain "
+                    , text "Descending distance "
+                    , text "Elevation loss "
+                    ]
+                , column [ spacing 10 ]
+                    [ text <| showDecimal2 summary.highestMetres
+                    , text <| showDecimal2 summary.lowestMetres
+                    , text <| showDecimal2 summary.trackLength
+                    , text <| showDecimal2 summary.climbingDistance
+                    , text <| showDecimal2 summary.totalClimbing
+                    , text <| showDecimal2 summary.descendingDistance
+                    , text <| showDecimal2 summary.totalDescending
+                    ]
+                ]
+
+        _ ->
+            none
 
 
 positionControls model =
