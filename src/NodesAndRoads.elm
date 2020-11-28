@@ -44,6 +44,7 @@ type alias SummaryData =
     }
 
 
+
 deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
 deriveNodes scale tps =
     let

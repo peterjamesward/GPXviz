@@ -4,13 +4,13 @@ import Array exposing (Array)
 import Color
 import DelaunayTriangulation2d exposing (DelaunayTriangulation2d, Error, faces, fromVerticesBy)
 import Length exposing (Meters)
-import NodesAndRoads exposing (DrawingRoad, MyCoord)
+import NodesAndRoads exposing (DrawingRoad, MyCoord, deriveNodes, deriveRoads)
 import Point2d exposing (Point2d)
 import Point3d
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
 import Scene3d.Material as Material
-import TrackPoint exposing (TrackPoint)
+import Spherical exposing (metresPerDegreeLatitude)
 import Triangle3d
 
 
@@ -18,18 +18,10 @@ import Triangle3d
 {-
    The idea here is to make a mesh using Delaunay Triangulation,
    included in the elm-geometry package.
-   There are two complications:
+   There is one complications remaining:
    1.  We shall need to work from the road edges rather than centres, so
        we will need the road segment corner coordinates. Ideally we would
        compute these once.
-   2.  The package implementation works in 2d, which is fine, but we will
-       need to correlate the resulting triangles with our nodes so
-       that we interpolate height.
-
-   First step is to ignore (1) and do a quick (as possible) experiment.
-   If the result is rubbish, no point pursuing.
-
-   Quick assessment is that (2) is wrong, as we get our original vertex back (TBC).
 -}
 
 
@@ -48,7 +40,45 @@ makeTerrain context roads =
             -- we ignore that we ignore the last trackpoint. (Experiment, right?)
             fromVerticesBy
                 pointFromRoad
-                roads
+                withCorners
+
+        corner lat lon ele =
+            -- Make a trackpoint to locate each of our corners.
+            { lat = lat
+            , lon = lon
+            , ele = ele
+            , idx = 0
+            }
+
+        boundary =
+            1000.0 / metresPerDegreeLatitude
+
+        cornerTrackpoints =
+            -- Not pretty, but heh.
+            -- NB we return to the first corner because we're only using road starts!
+            [ corner (context.scaling.mins.lat - boundary)
+                (context.scaling.mins.lon - boundary)
+                context.scaling.mins.ele
+            , corner (context.scaling.mins.lat - boundary)
+                (context.scaling.maxs.lon + boundary)
+                context.scaling.mins.ele
+            , corner (context.scaling.maxs.lat + boundary)
+                (context.scaling.mins.lon - boundary)
+                context.scaling.mins.ele
+            , corner (context.scaling.maxs.lat + boundary)
+                (context.scaling.maxs.lon + boundary)
+                context.scaling.mins.ele
+            , corner (context.scaling.mins.lat - boundary)
+                (context.scaling.mins.lon - boundary)
+                context.scaling.mins.ele
+            ]
+
+        cornerRoads =
+            deriveNodes context.scaling cornerTrackpoints
+                |> deriveRoads
+
+        withCorners =
+            Array.append roads <| Array.fromList cornerRoads
     in
     case maybeTriangulation of
         Err _ ->
@@ -64,7 +94,7 @@ makeTerrain context roads =
                             -- Would be obviated by using geometry consistently!
                             face.vertices
                     in
-                    Scene3d.triangle (Material.color Color.grey) <|
+                    Scene3d.triangle (Material.color Color.darkGreen) <|
                         Triangle3d.from
                             (Point3d.meters v1.startsAt.x v1.startsAt.y v1.startsAt.z)
                             (Point3d.meters v2.startsAt.x v2.startsAt.y v2.startsAt.z)

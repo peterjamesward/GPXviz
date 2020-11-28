@@ -564,16 +564,16 @@ deriveScalingInfo : List TrackPoint -> ScalingInfo
 deriveScalingInfo tps =
     let
         lowerBounds tp =
-            { lat = Maybe.withDefault 0.0 <| List.minimum <| List.map .lat tp
-            , lon = Maybe.withDefault 0.0 <| List.minimum <| List.map .lon tp
-            , ele = Maybe.withDefault 0.0 <| List.minimum <| List.map .ele tp
+            { lat = List.foldl min 90.0 <| List.map .lat tp
+            , lon = List.foldl min 180.0 <| List.map .lon tp
+            , ele = List.foldl min 10000.0 <| List.map .ele tp
             , idx = 0
             }
 
         upperBounds tp =
-            { lat = Maybe.withDefault 0.0 <| List.maximum <| List.map .lat tp
-            , lon = Maybe.withDefault 0.0 <| List.maximum <| List.map .lon tp
-            , ele = Maybe.withDefault 0.0 <| List.maximum <| List.map .ele tp
+            { lat = List.foldl max -90.0 <| List.map .lat tp
+            , lon = List.foldl max -180.0 <| List.map .lon tp
+            , ele = List.foldl max -10000.0 <| List.map .ele tp
             , idx = 0
             }
 
@@ -591,7 +591,8 @@ deriveScalingInfo tps =
             }
 
         scalingFactor =
-            max (maxs.lat - mins.lat) (maxs.lon - mins.lon)
+            max (abs (maxs.lat - mins.lat))
+                (abs (maxs.lon - mins.lon))
 
         metresToClipSpace =
             1 / (0.5 * scalingFactor * metresPerDegreeLatitude)
