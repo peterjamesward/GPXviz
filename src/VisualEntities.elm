@@ -84,7 +84,7 @@ makeStatic3DEntities context roads =
                     , length = meters <| z - 1.0 * metresToClipSpace - seaLevelInClipSpace
                     }
 
-        yerrain =
+        terrain =
             makeTerrain context roads
 
         pillars =
@@ -248,6 +248,7 @@ makeStatic3DEntities context roads =
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ optionally context.displayOptions.centreLine centreLine
+        ++ terrain
 
 
 makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)
