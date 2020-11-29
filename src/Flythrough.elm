@@ -62,6 +62,13 @@ flythrough newTime flying speed roads =
                     segFraction =
                         segInsetMetres / seg.length
 
+                    segRemaining =
+                        seg.length - segInsetMetres
+
+                    headTurnFraction =
+                        -- Allow for POV rotation as we near segment end.
+                        clamp 0.0 1.0 (10.0 - segRemaining) / 10.0
+
                     ( cameraX, cameraY, cameraZ ) =
                         -- New location of rider
                         ( segFraction * seg.endsAt.x + (1 - segFraction) * seg.startsAt.x
@@ -81,10 +88,10 @@ flythrough newTime flying speed roads =
                                         )
 
                                     ( focusX, focusY, focusZ ) =
-                                        ( (nextX + seg.endsAt.x) / 2.0
-                                        , (nextY + seg.endsAt.y) / 2.0
-                                        , (nextZ + seg.endsAt.z) / 2.0
-                                        )
+                                            ( nextX * headTurnFraction + (1.0 - headTurnFraction) * seg.endsAt.x
+                                            , nextY * headTurnFraction + (1.0 - headTurnFraction) * seg.endsAt.y
+                                            , nextZ * headTurnFraction + (1.0 - headTurnFraction) * seg.endsAt.z
+                                            )
                                 in
                                 ( focusX, focusY, focusZ )
 
