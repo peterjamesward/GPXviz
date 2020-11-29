@@ -1,7 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Bug. Flush Undo when file loaded.
-
 --TODO: 1st person view aims around the bend far too early on long segments.
 
 --TODO: Feat. Improve terrain in presence of tight hairpins. Maybe more roadside points?

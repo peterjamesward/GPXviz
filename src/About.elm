@@ -7,7 +7,7 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-11-28_
+> _This text updated 2020-11-29_
 
 > This release offers **Terrain** on demand. This is OK on short routes, but can take a very long time (and may fail) on longer routes. Any Bend or Gradient or Undo operation that changes the route will remove the terrain. It's really only there as an option to make the fly-through look pretty.
 

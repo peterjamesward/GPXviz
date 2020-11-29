@@ -657,7 +657,6 @@ advanceFlythrough newTime model =
                             newTime
                             flying
                             model.flythroughSpeed
-                            scale
                             model.roads
             }
 

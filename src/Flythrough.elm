@@ -20,10 +20,9 @@ flythrough :
     Time.Posix
     -> Flythrough
     -> Float
-    -> ScalingInfo
     -> List DrawingRoad
     -> Flythrough
-flythrough newTime flying speed scale roads =
+flythrough newTime flying speed roads =
     let
         findRoadByDistance d rs =
             case rs of
