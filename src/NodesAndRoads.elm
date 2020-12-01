@@ -1,12 +1,15 @@
 module NodesAndRoads exposing (..)
 
+import Geometry101 exposing (LineEquation, Point, lineEquationFromTwoPoints)
+import Length
+import Point3d exposing (Point3d)
 import ScalingInfo exposing (ScalingInfo)
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 
 
-type MyCoord
-    = SomeCoord
+type GroundCoords
+    = GroundCoords
 
 
 type alias DrawingNode =
@@ -42,7 +45,6 @@ type alias SummaryData =
     , totalClimbing : Float
     , totalDescending : Float
     }
-
 
 
 deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
@@ -211,3 +213,27 @@ roadsForProfileView roads =
             { road | startsAt = newStartNode, endsAt = newEndNode, bearing = 0.0 }
     in
     unrolledRoads
+
+
+interpolateRoad : DrawingRoad -> Float -> Point3d Length.Meters GroundCoords
+interpolateRoad road fraction =
+    let
+        ( x, y, z ) =
+            ( (fraction * road.endsAt.x) + (1.0 - fraction) * road.startsAt.x
+            , (fraction * road.endsAt.y) + (1.0 - fraction) * road.startsAt.y
+            , (fraction * road.endsAt.z) + (1.0 - fraction) * road.startsAt.z
+            )
+    in
+    Point3d.meters x y z
+
+
+roadAsVector : DrawingRoad -> Point
+roadAsVector road =
+    vectorFromTwoNodes road.startsAt road.endsAt
+
+
+vectorFromTwoNodes : DrawingNode -> DrawingNode -> Point
+vectorFromTwoNodes fromHere toHere =
+    { x = toHere.x - fromHere.x
+    , y = toHere.y - fromHere.y
+    }

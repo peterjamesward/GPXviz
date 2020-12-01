@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Color
 import DelaunayTriangulation2d exposing (DelaunayTriangulation2d, Error, faces, fromVerticesBy)
 import List
-import NodesAndRoads exposing (DrawingRoad, MyCoord, deriveNodes, deriveRoads)
+import NodesAndRoads exposing (DrawingRoad, GroundCoords, deriveNodes, deriveRoads)
 import Point3d
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
@@ -29,7 +29,7 @@ import Triangle3d
 makeTerrain :
     RenderingContext
     -> Array DrawingRoad
-    -> List (Entity MyCoord)
+    -> List (Entity GroundCoords)
 makeTerrain context roads =
     let
         roadList =

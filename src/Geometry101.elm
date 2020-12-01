@@ -57,7 +57,8 @@ dot v1 v2 =
     v1.x * v2.y - v1.y * v2.x
 
 
-angle v1 v2 =
+angleBetweenVectors v1 v2 =
+    -- Angle between two vectors.
     atan2 (det v1 v2) (dot v1 v2)
 
 
@@ -350,7 +351,6 @@ matrixMultiplyColumn m c =
     { t = m.tl * c.t + m.tr * c.b
     , b = m.bl * c.t + m.br * c.b
     }
-
 
 lineEquationFromTwoPoints : Point -> Point -> LineEquation
 lineEquationFromTwoPoints p1 p2 =

@@ -1,6 +1,8 @@
 module ToDo exposing (..)
 
---TODO: Feat. Improve terrain in presence of tight hairpins. Maybe more roadside points?
+--TODO: Terrain not using Delaunay tri'n.
+
+--TODO: Floating Options box (must float above webgl).
 
 --TODO: Feat? Convert single node to arc, user selects radius and #segments.
 --(I keep flipping my mind on this.)

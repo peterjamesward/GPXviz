@@ -76,11 +76,11 @@ type alias Model =
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
-    , staticVisualEntities : List (Entity MyCoord) -- our 3D world
-    , staticProfileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
-    , varyingVisualEntities : List (Entity MyCoord) -- current position and marker node.
-    , varyingProfileEntities : List (Entity MyCoord)
-    , terrainEntities : List (Entity MyCoord)
+    , staticVisualEntities : List (Entity GroundCoords) -- our 3D world
+    , staticProfileEntities : List (Entity GroundCoords) -- an unrolled 3D world for the profile view.
+    , varyingVisualEntities : List (Entity GroundCoords) -- current position and marker node.
+    , varyingProfileEntities : List (Entity GroundCoords)
+    , terrainEntities : List (Entity GroundCoords)
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int

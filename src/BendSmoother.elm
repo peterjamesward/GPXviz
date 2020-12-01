@@ -4,7 +4,7 @@ import Arc2d exposing (Arc2d, throughPoints)
 import Geometry101 as G exposing (..)
 import Length exposing (Meters, inMeters)
 import LineSegment2d
-import NodesAndRoads exposing (MyCoord)
+import NodesAndRoads exposing (GroundCoords)
 import Point2d exposing (xCoordinate, yCoordinate)
 import Polyline2d
 import Spherical exposing (metresPerDegreeLatitude)
@@ -81,7 +81,7 @@ makeSmoothBend :
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
-    -> Arc2d Meters MyCoord
+    -> Arc2d Meters GroundCoords
     -> SmoothedBend
 makeSmoothBend numSegments pa pb pc pd arc =
     let
@@ -158,7 +158,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
     }
 
 
-divergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters MyCoord)
+divergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters GroundCoords)
 divergentRoadsArc p r1 r2 =
     -- In this case we prefer to find a more-than-semi-circle that
     -- joins ends B and C, preserving the length of the road segments.
@@ -245,12 +245,12 @@ divergentRoadsArc p r1 r2 =
             Nothing
 
 
-parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters MyCoord)
+parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters GroundCoords)
 parallelFindSemicircle r1 r2 =
     Nothing
 
 
-convergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters MyCoord)
+convergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters GroundCoords)
 convergentRoadsArc p r1 r2 =
     let
         maybeCircle =
@@ -264,7 +264,7 @@ convergentRoadsArc p r1 r2 =
             Nothing
 
 
-weHaveAnIncircle : Point -> Road -> Road -> Circle -> Maybe (Arc2d Meters MyCoord)
+weHaveAnIncircle : Point -> Road -> Road -> Circle -> Maybe (Arc2d Meters GroundCoords)
 weHaveAnIncircle p r1 r2 circle =
     let
         ( entryPoint, exitPoint ) =
