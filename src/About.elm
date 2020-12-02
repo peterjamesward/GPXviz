@@ -7,13 +7,13 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-11-29_
+> _This text updated 2020-12-02_
 
-> This release offers **Terrain** on demand. This is OK on short routes, but can take a very long time (and may fail) on longer routes. Any Bend or Gradient or Undo operation that changes the route will remove the terrain. It's really only there as an option to make the fly-through look pretty.
+> Terrain creation is more likely to work, even on tight bends and in the presence of loops. I recommend to turn off everything other than the road surface and centre-line. It will be slow; I have successfully created Terrain for a 140km ride but it took several minutes and pretty much kills my laptop!
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
-**First person** positions the viewpoint above a track _road segment_, sighted along the track. The zoom control will move your viewpoint back and forth a bit. The bottom slider and arrows move between track segments. Information about the current segment is shown. **Fly-through** controls on the right hand pane: Reset, Play/Pause, Speed. Works on Third person view also.
+**First person** positions the viewpoint above a track _road segment_, sighted along the track. The zoom control will zoom in on the road in front. The bottom slider and arrows move between track segments. Information about the current segment is shown. **Fly-through** controls on the right hand pane: Reset, Play/Pause, Speed. Works on Third person view also.
 
 **Third person** focuses on track _points_ and lets you fly around the current point.  An orange cone  indicates your position on the track. The slider and arrows move to other track points. Information about the current track point is shown. On the right hand side, you can click "Gradient smoother" to smooth dodgy gradients (see below).
 

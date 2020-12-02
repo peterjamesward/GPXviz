@@ -3,9 +3,12 @@ module Terrain exposing (makeTerrain)
 import Array exposing (Array)
 import Color
 import DelaunayTriangulation2d exposing (DelaunayTriangulation2d, Error, faces, fromVerticesBy)
+import Dict
+import Length exposing (Meters)
+import LineSegment3d
 import List
 import NodesAndRoads exposing (DrawingRoad, MyCoord, deriveNodes, deriveRoads)
-import Point3d
+import Point3d exposing (Point3d)
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
 import Scene3d.Material as Material
@@ -26,6 +29,16 @@ import Triangle3d
 -}
 
 
+pointToComparable : Point3d Meters MyCoord -> ( ( Float, Float ), Point3d Meters MyCoord )
+pointToComparable p3d =
+    -- So we can use a Dict to de-dupe points in 2D.
+    ( ( Length.inMeters <| Point3d.xCoordinate p3d
+      , Length.inMeters <| Point3d.yCoordinate p3d
+      )
+    , p3d
+    )
+
+
 makeTerrain :
     RenderingContext
     -> Array DrawingRoad
@@ -39,14 +52,21 @@ makeTerrain context roads =
             List.concatMap entryEdges (List.take 1 roadList)
                 ++ List.concatMap exitEdges roadList
 
+        uniqueVertices =
+            roadVertices
+                |> List.map pointToComparable
+                |> Dict.fromList
+                |> Dict.values
+
         maybeTriangulation =
             -- This looks like the perfect constructor for us, if
             -- we ignore that we ignore the last trackpoint. (Experiment, right?)
             fromVerticesBy
                 (Point3d.projectInto SketchPlane3d.xy)
             <|
-                Array.fromList roadVertices
+                Array.fromList uniqueVertices
 
+        --roadVertices
         corner lat lon ele =
             -- Make a trackpoint to locate each of our corners of the world.
             { lat = lat
@@ -56,6 +76,7 @@ makeTerrain context roads =
             }
 
         entryEdges road =
+            -- Totally forget why these are here but they seem to be essential.
             List.take 2 <| roadCorners road
 
         exitEdges road =
@@ -75,18 +96,48 @@ makeTerrain context roads =
                     1.0 * context.scaling.metresToClipSpace
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
-                    , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
+                    ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z - depressLand )
+                    , ( road.endsAt.x, road.endsAt.y, road.endsAt.z - depressLand )
                     )
+
+                roadAsSegment =
+                    LineSegment3d.from
+                        (Point3d.meters x1 y1 z1)
+                        (Point3d.meters x2 y2 z2)
+
+                perpendicular =
+                    LineSegment3d.perpendicularDirection roadAsSegment
+
+                leftKerb =
+                    LineSegment3d.from
+                        (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
+                        (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
+
+                leftHalfway =
+                    LineSegment3d.from
+                        (Point3d.meters (x1 - 0.5 * kerbX) (y1 + 0.5 * kerbY) z1)
+                        (Point3d.meters (x2 - 0.5 * kerbX) (y2 + 0.5 * kerbY) z2)
+
+                rightKerb =
+                    LineSegment3d.from
+                        (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
+                        (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
+
+                rightHalfway =
+                    LineSegment3d.from
+                        (Point3d.meters (x1 + 0.5 * kerbX) (y1 - 0.5 * kerbY) z1)
+                        (Point3d.meters (x2 + 0.5 * kerbX) (y2 - 0.5 * kerbY) z2)
             in
-            [ Point3d.meters x1 y1 z1
-            , Point3d.meters x2 y2 z2
-            , Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 - depressLand)
-            , Point3d.meters ((x1 + x2) / 2.0 + kerbX) ((y1 + y2) / 2.0 - kerbY) ((z1 + z2) / 2.0 - depressLand)
-            , Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 - depressLand)
-            , Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 - depressLand)
-            , Point3d.meters ((x1 + x2) / 2.0 - kerbX) ((y1 + y2) / 2.0 + kerbY) ((z1 + z2) / 2.0 - depressLand)
-            , Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 - depressLand)
+            [ LineSegment3d.interpolate roadAsSegment 0.1
+            , LineSegment3d.interpolate roadAsSegment 0.9
+            , LineSegment3d.interpolate leftKerb 0.0
+            , LineSegment3d.interpolate leftKerb 1.0
+            , LineSegment3d.interpolate leftHalfway 0.1
+            , LineSegment3d.interpolate leftHalfway 0.9
+            , LineSegment3d.interpolate rightHalfway 0.1
+            , LineSegment3d.interpolate rightHalfway 0.9
+            , LineSegment3d.interpolate rightKerb 0.0
+            , LineSegment3d.interpolate rightKerb 1.0
             ]
 
         borderLand =
