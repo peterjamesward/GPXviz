@@ -1148,7 +1148,7 @@ deriveTerrain model =
                     }
             in
             { model
-                | terrainEntities = makeTerrain context model.roadArray
+                | terrainEntities = makeTerrain context model.roadArray model.nodeArray
             }
 
         Nothing ->
