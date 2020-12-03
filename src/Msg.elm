@@ -50,6 +50,7 @@ type Msg
     | VerticalNodeSplit Int NodeSplitDirection
     | MakeTerrain
     | ClearTerrain
+    | CloseTheLoop
 
 type NodeSplitDirection
     = InsertNodeBefore

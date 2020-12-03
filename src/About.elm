@@ -7,7 +7,10 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-03_
+> _This text updated 2020-12-03 (tea time)_
+
+> Thanks to Tim Sinclair, when you load a GPX file, if the end is within a hundred metres of the start,
+there will be a button on the Overview panel that will make a tidy loop. If the end is with a meter, it will just move the end; further than that it will add a new track segment.
 
 > Thanks to Falk Levien's suggestion, when you split a node into two to smooth an abrupt transition, you can choose to have the new node in front or behind you. Falk also made me realise that this is useful as a simple bend operation, so it's now also available in the Bend Fixer pane.
 

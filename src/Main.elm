@@ -27,6 +27,7 @@ import Pixels exposing (Pixels)
 import Point3d
 import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity)
+import Spherical
 import Task
 import Terrain exposing (makeTerrain)
 import Time
@@ -60,6 +61,12 @@ type alias UndoEntry =
     { label : String
     , trackPoints : List TrackPoint
     }
+
+
+type Loopiness
+    = NotALoop
+    | IsALoop
+    | AlmostLoop Float -- if, say, less than 200m back to start.
 
 
 type alias Model =
@@ -113,6 +120,7 @@ type alias Model =
     , flythroughSpeed : Float
     , flythrough : Maybe Flythrough
     , roadsForProfileView : List DrawingRoad -- yes, cheating somewhat.
+    , loopiness : Loopiness
     }
 
 
@@ -178,6 +186,7 @@ init _ =
       , flythrough = Nothing
       , flythroughSpeed = 1.0
       , roadsForProfileView = []
+      , loopiness = NotALoop
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -247,7 +256,7 @@ update msg model =
 
         PositionForwardOne ->
             ( { model
-                | currentNode = incrementMaybeModulo (List.length model.roads - 1) model.currentNode
+                | currentNode = incrementMaybeModulo (List.length model.roads) model.currentNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -257,7 +266,7 @@ update msg model =
 
         PositionBackOne ->
             ( { model
-                | currentNode = decrementMaybeModulo (List.length model.roads - 1) model.currentNode
+                | currentNode = decrementMaybeModulo (List.length model.roads) model.currentNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -267,7 +276,7 @@ update msg model =
 
         MarkerForwardOne ->
             ( { model
-                | markedNode = incrementMaybeModulo (List.length model.roads - 1) model.markedNode
+                | markedNode = incrementMaybeModulo (List.length model.roads) model.markedNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -276,7 +285,7 @@ update msg model =
 
         MarkerBackOne ->
             ( { model
-                | markedNode = decrementMaybeModulo (List.length model.roads - 1) model.markedNode
+                | markedNode = decrementMaybeModulo (List.length model.roads) model.markedNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -554,6 +563,45 @@ update msg model =
             ( clearTerrain model
             , Cmd.none
             )
+
+        CloseTheLoop ->
+            ( closeTheLoop model
+                |> clearTerrain
+                |> deriveNodesAndRoads
+                |> deriveProblems
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+            , Cmd.none
+            )
+
+
+closeTheLoop : Model -> Model
+closeTheLoop model =
+    let
+        newTrack gap =
+            if gap < 1.0 then
+                -- replace last trackpoint with the first
+                List.reverse <|
+                    List.take 1 model.trackPoints
+                        ++ (List.drop 1 <| List.reverse model.trackPoints)
+
+            else
+                -- add another trackpoint
+                model.trackPoints ++ List.take 1 model.trackPoints
+    in
+    case model.loopiness of
+        AlmostLoop gap ->
+            { model
+                | trackPoints = reindexTrackpoints (newTrack gap)
+                , undoStack =
+                    { label = "complete loop"
+                    , trackPoints = model.trackPoints
+                    }
+                        :: model.undoStack
+            }
+
+        _ ->
+            model
 
 
 clearTerrain : Model -> Model
@@ -1107,13 +1155,48 @@ deriveProblems model =
 
             else
                 Nothing
+
+        loopy =
+            let
+                maybeGap =
+                    trackPointGap
+                        (List.head model.trackPoints)
+                        (List.head <| List.reverse model.trackPoints)
+            in
+            case maybeGap of
+                Just ( gap, heightDiff ) ->
+                    if gap < 0.5 && heightDiff < 0.5 then
+                        IsALoop
+
+                    else if gap < 1000.0 then
+                        AlmostLoop gap
+
+                    else
+                        NotALoop
+
+                _ ->
+                    NotALoop
     in
     { model
         | abruptGradientChanges = suddenGradientChanges
         , abruptBearingChanges = suddenBearingChanges
         , zeroLengths = zeroLengths
         , smoothingEndIndex = Nothing
+        , loopiness = loopy
     }
+
+
+trackPointGap : Maybe TrackPoint -> Maybe TrackPoint -> Maybe ( Float, Float )
+trackPointGap t1 t2 =
+    case ( t1, t2 ) of
+        ( Just tp1, Just tp2 ) ->
+            Just
+                ( Spherical.range ( tp1.lon, tp1.lat ) ( tp2.lon, tp2.lat )
+                , abs (tp1.ele - tp2.ele)
+                )
+
+        _ ->
+            Nothing
 
 
 deriveStaticVisualEntities : Model -> Model
@@ -1670,6 +1753,7 @@ viewPointCloud scale model =
                     }
         , column []
             [ overviewSummary model
+            , viewLoopiness model
             , viewOptions model
             ]
         ]
@@ -1701,6 +1785,23 @@ overviewSummary model =
 
         _ ->
             none
+
+
+viewLoopiness : Model -> Element Msg
+viewLoopiness model =
+    el [ spacing 10, padding 20 ] <|
+        case model.loopiness of
+            AlmostLoop gap ->
+                button
+                    prettyButtonStyles
+                    { onPress = Just CloseTheLoop
+                    , label =
+                        text <|
+                            "Make the track into a loop"
+                    }
+
+            _ ->
+                none
 
 
 positionControls model =
