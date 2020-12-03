@@ -47,6 +47,10 @@ type Msg
     | SetFlythroughSpeed Float
     | RunFlythrough Bool
     | ResetFlythrough
-    | VerticalNodeSplit Int
+    | VerticalNodeSplit Int NodeSplitDirection
     | MakeTerrain
     | ClearTerrain
+
+type NodeSplitDirection
+    = InsertNodeBefore
+    | InsertNodeAfter

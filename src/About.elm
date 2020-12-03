@@ -7,9 +7,9 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-02_
+> _This text updated 2020-12-03_
 
-> Terrain creation is more likely to work, even on tight bends and in the presence of loops. I recommend to turn off everything other than the road surface and centre-line. It will be slow; I have successfully created Terrain for a 140km ride but it took several minutes and pretty much kills my laptop!
+> Thanks to Falk Levien's suggestion, when you split a node into two to smooth an abrupt transition, you can choose to have the new node in front or behind you. Falk also made me realise that this is useful as a simple bend operation, so it's now also available in the Bend Fixer pane.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 

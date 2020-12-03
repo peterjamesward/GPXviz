@@ -524,14 +524,24 @@ update msg model =
             , Cmd.none
             )
 
-        VerticalNodeSplit node ->
+        VerticalNodeSplit node direction ->
             ( verticalNodeSplit node model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-                |> (\m -> { m | currentNode = model.currentNode })
+                |> (\m ->
+                        { m
+                            | currentNode =
+                                case direction of
+                                    InsertNodeAfter ->
+                                        model.currentNode
+
+                                    InsertNodeBefore ->
+                                        Maybe.map (\n -> n + 1) model.currentNode
+                        }
+                   )
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -558,7 +568,7 @@ verticalNodeSplit n model =
     -- Lat and Lon to be linear interpolation.
     let
         undoMessage =
-            "Vertical chamfer at " ++ String.fromInt n
+            "Chamfer at " ++ String.fromInt n
     in
     case ( Array.get (n - 1) model.roadArray, Array.get n model.roadArray ) of
         ( Just before, Just after ) ->
@@ -2134,15 +2144,17 @@ viewBendFixerPane model =
     in
     column [ spacing 10, padding 10, alignTop ]
         [ markerButton model
-        , case model.smoothedBend of
-            Just smooth ->
+        , case ( model.currentNode, model.smoothedBend ) of
+            ( Just _, Just smooth ) ->
                 column [ spacing 10, padding 10, alignTop ]
                     [ fixBendButton smooth
                     , bendSmoothnessSlider model
                     ]
 
-            Nothing ->
-                --radiusPointButton
+            ( Just c, _ ) ->
+                insertNodeOptionsBox c
+
+            _ ->
                 none
         , undoButton model
         , viewBearingChanges model
@@ -2196,7 +2208,7 @@ markerButton model =
                 ]
 
             Nothing ->
-                [ makeButton "Drop marker" ]
+                [ makeButton "Drop marker to select a range" ]
 
 
 undoButton model =
@@ -2237,37 +2249,57 @@ viewGradientFixerPane model =
                     in
                     case avg of
                         Just gradient ->
-                            [ button
-                                prettyButtonStyles
-                                { onPress = Just <| SmoothGradient start finish gradient
-                                , label =
-                                    text <|
-                                        "Smooth between markers\nAverage gradient "
-                                            ++ showDecimal2 gradient
-                                }
-                            , smoothnessSlider model
-                            ]
+                            column [ Border.width 1, spacing 5, padding 5 ]
+                                [ button
+                                    prettyButtonStyles
+                                    { onPress = Just <| SmoothGradient start finish gradient
+                                    , label =
+                                        text <|
+                                            "Smooth between markers\nAverage gradient "
+                                                ++ showDecimal2 gradient
+                                    }
+                                , smoothnessSlider model
+                                ]
 
                         _ ->
-                            []
+                            none
 
                 ( Just c, Nothing ) ->
-                    [ button
-                        prettyButtonStyles
-                        { onPress = Just (VerticalNodeSplit c)
-                        , label = text "Smooth this transition by\nreplacing with two nodes"
-                        }
-                    ]
+                    insertNodeOptionsBox c
 
                 _ ->
-                    []
+                    none
     in
     column [ spacing 10 ] <|
-        [ markerButton model ]
-            ++ gradientSmoothControls
+        []
+            ++ [ markerButton model ]
+            ++ [ gradientSmoothControls ]
             ++ [ undoButton model
                , viewGradientChanges model
                ]
+
+
+insertNodeOptionsBox c =
+    column
+        [ Border.width 1
+        , Border.color <| rgb255 114 159 207
+        , spacing 10
+        , padding 5
+        ]
+        [ paragraph [] [ text "Replace current node with two nodes\nto smooth this transition." ]
+        , row [ padding 5, spacing 5 ]
+            [ button
+                prettyButtonStyles
+                { onPress = Just (VerticalNodeSplit c InsertNodeAfter)
+                , label = text "Insert a node\nafter this one"
+                }
+            , button
+                prettyButtonStyles
+                { onPress = Just (VerticalNodeSplit c InsertNodeBefore)
+                , label = text "Insert a node\nbefore this one"
+                }
+            ]
+        ]
 
 
 smoothnessSlider : Model -> Element Msg

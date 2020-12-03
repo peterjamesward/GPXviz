@@ -1,11 +1,14 @@
 module ToDo exposing (..)
 
---TODO: Feat. Improve terrain in presence of tight hairpins. Maybe more roadside points?
+--TODO: Find out Magic Roads filename rules.
 
---TODO: Feat? Convert single node to arc, user selects radius and #segments.
---(I keep flipping my mind on this.)
+--TODO: Allow to enter file name
 
---TODO: Bug. Yellow smoothed bend line disappears when changing view modes.
+--TODO: Feat. Option to quick fix long tail of issues
+
+--TODO: Debt. Gather all colours and styles together.
+
+--TODO: ? Undo restores then-current node positions?
 
 --TODO: Feat. Some way to join the start and end of a loop (although MR does this). (Tim Sinclair)
 -- This can be a special action on the Overview page "Make a loop".
