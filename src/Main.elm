@@ -616,8 +616,8 @@ closeTheLoop model =
                 -- the existing start, and then join the current last trackpoint to
                 -- this new one. Existing tools can then be used to smooth as required.
                 model.trackPoints
-                    ++ List.take 1 model.trackPoints
                     ++ [ backOneMeter segment1 ]
+                    ++ List.take 1 model.trackPoints
     in
     case ( model.loopiness, maybeFirstSegment ) of
         ( AlmostLoop gap, Just segment1 ) ->
