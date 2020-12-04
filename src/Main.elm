@@ -20,12 +20,10 @@ import File.Select as Select
 import Flythrough exposing (flythrough)
 import Iso8601
 import Length exposing (meters)
-import LineSegment2d
 import List exposing (drop, tail, take)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
-import Point2d exposing (Point2d)
 import Point3d
 import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity)
@@ -580,31 +578,7 @@ update msg model =
 closeTheLoop : Model -> Model
 closeTheLoop model =
     let
-        maybeFirstSegment =
-            List.head model.roads
-
-        backOneMeter : DrawingRoad -> TrackPoint
-        backOneMeter segment =
-            let
-                newLatLon : Point2d Length.Meters MyCoord
-                newLatLon =
-                    Point2d.interpolateFrom
-                        (Point2d.meters segment.startsAt.trackPoint.lon segment.startsAt.trackPoint.lat)
-                        (Point2d.meters segment.endsAt.trackPoint.lon segment.endsAt.trackPoint.lat)
-                        backAmount
-
-                backAmount =
-                    -- Set back new point equivalent to 1 meter, but we're working in lat & lon.
-                    -- The fraction should be valid.
-                    -1.0 / segment.length
-            in
-            { lat = Length.inMeters <| Point2d.yCoordinate newLatLon
-            , lon = Length.inMeters <| Point2d.xCoordinate newLatLon
-            , ele = segment.startsAt.trackPoint.ele
-            , idx = 0
-            }
-
-        newTrack gap segment1 =
+        newTrack gap =
             if gap < 1.0 then
                 -- replace last trackpoint with the first
                 List.reverse <|
@@ -612,17 +586,13 @@ closeTheLoop model =
                         ++ (List.drop 1 <| List.reverse model.trackPoints)
 
             else
-                -- A nicer solution here is to put a new trackpoint slightly "behing"
-                -- the existing start, and then join the current last trackpoint to
-                -- this new one. Existing tools can then be used to smooth as required.
-                model.trackPoints
-                    ++ [ backOneMeter segment1 ]
-                    ++ List.take 1 model.trackPoints
+                -- add another trackpoint
+                model.trackPoints ++ List.take 1 model.trackPoints
     in
-    case ( model.loopiness, maybeFirstSegment ) of
-        ( AlmostLoop gap, Just segment1 ) ->
+    case model.loopiness of
+        AlmostLoop gap ->
             { model
-                | trackPoints = reindexTrackpoints (newTrack gap segment1)
+                | trackPoints = reindexTrackpoints (newTrack gap)
                 , undoStack =
                     { label = "complete loop"
                     , trackPoints = model.trackPoints
