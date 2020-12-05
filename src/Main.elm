@@ -956,9 +956,33 @@ smoothBend model =
                 ++ ", \nradius "
                 ++ showDecimal2 bend.radius
                 ++ " metres."
+
+        ( current, marker ) =
+            ( model.currentNode, model.markedNode )
     in
-    case model.smoothedBend of
-        Just bend ->
+    case ( model.smoothedBend, current, marker ) of
+        ( Just bend, Just curr, Just mark ) ->
+            let
+                numCurrentPoints =
+                    abs (curr - mark)
+
+                numNewPoints =
+                    List.length bend.trackPoints
+
+                newCurrent =
+                    if curr > bend.startIndex then
+                        curr - numCurrentPoints + numNewPoints
+
+                    else
+                        curr
+
+                newMark =
+                    if mark > bend.startIndex then
+                        mark - numCurrentPoints + numNewPoints
+
+                    else
+                        mark
+            in
             addToUndoStack (undoMessage bend) model
                 |> (\m ->
                         { m
@@ -969,10 +993,12 @@ smoothBend model =
                                         ++ List.drop (bend.endIndex + 1) m.trackPoints
                             , smoothedBend = Nothing
                             , smoothedRoads = []
+                            , currentNode = Just newCurrent
+                            , markedNode = Just newMark
                         }
                    )
 
-        Nothing ->
+        _ ->
             -- shouldn't happen
             model
 
