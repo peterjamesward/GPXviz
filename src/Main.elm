@@ -17,7 +17,7 @@ import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import Flythrough exposing (flythrough)
+import Flythrough exposing (Flythrough, flythrough)
 import Iso8601
 import Length exposing (meters)
 import List exposing (drop, tail, take)
@@ -124,16 +124,6 @@ type alias Model =
     , flythrough : Maybe Flythrough
     , roadsForProfileView : List DrawingRoad -- yes, cheating somewhat.
     , loopiness : Loopiness
-    }
-
-
-type alias Flythrough =
-    { cameraPosition : ( Float, Float, Float )
-    , focusPoint : ( Float, Float, Float )
-    , metresFromRouteStart : Float
-    , lastUpdated : Time.Posix
-    , running : Bool
-    , segment : DrawingRoad
     }
 
 
