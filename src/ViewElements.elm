@@ -33,7 +33,8 @@ displayName n =
 
 distanceFromZoom : ScalingInfo -> Float -> Float
 distanceFromZoom scale zoomLevel =
-    1.0 * scale.metresToClipSpace * 10 ^ (5.0 - zoomLevel)
+    --1.0 * scale.metresToClipSpace *
+        10.0 ^ (5.0 - zoomLevel)
 
 
 type ButtonPosition

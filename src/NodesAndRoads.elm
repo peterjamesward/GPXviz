@@ -48,8 +48,8 @@ type alias SummaryData =
 deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
 deriveNodes scale tps =
     let
-        elevationToClipSpace e =
-            (e - findCentres.ele) * scale.metresToClipSpace
+        elevationToClipSpace e = e
+            --(e - findCentres.ele) --* scale.metresToClipSpace
 
         findCentres =
             scale.centres
@@ -62,8 +62,8 @@ deriveNodes scale tps =
             , northOffset = (tp.lat - mins.lat) * metresPerDegreeLatitude
             , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLatitude * cos tp.lat
             , vertOffset = tp.ele - mins.ele
-            , x = (tp.lon - findCentres.lon) / (0.5 * scale.largestDimension)
-            , y = (tp.lat - findCentres.lat) / (0.5 * scale.largestDimension)
+            , x = (tp.lon - findCentres.lon) * metresPerDegreeLatitude --* scale.metresToClipSpace
+            , y = (tp.lat - findCentres.lat) * metresPerDegreeLatitude --* scale.metresToClipSpace
             , z = elevationToClipSpace tp.ele
             }
     in
@@ -198,13 +198,13 @@ roadsForProfileView roads =
 
                 newStartNode =
                     { startNode
-                        | y = 2.0 * road.startDistance / totalLength - 1.0
+                        | y = 2.0 * road.startDistance / 10.0
                         , x = 0.0
                     }
 
                 newEndNode =
                     { endNode
-                        | y = 2.0 * road.endDistance / totalLength - 1.0
+                        | y = 2.0 * road.endDistance / 10.0
                         , x = 0.0
                     }
             in

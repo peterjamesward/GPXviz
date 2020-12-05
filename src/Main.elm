@@ -11,7 +11,7 @@ import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
 import Element.Background as Background
-import Element.Border as Border exposing (color)
+import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (button)
 import File exposing (File)
@@ -19,8 +19,8 @@ import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, flythrough)
 import Iso8601
-import Length exposing (meters)
-import List exposing (drop, tail, take)
+import Length
+import List exposing (drop, take)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -36,7 +36,7 @@ import TrackPoint exposing (..)
 import Utils exposing (..)
 import ViewElements exposing (..)
 import ViewTypes exposing (..)
-import Viewpoint3d exposing (lookAt)
+import Viewpoint3d
 import VisualEntities exposing (..)
 import WriteGPX exposing (writeGPX)
 
@@ -382,7 +382,7 @@ update msg model =
             , Cmd.none
             )
 
-        TogglePillars style ->
+        TogglePillars _ ->
             ( { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
               }
@@ -735,7 +735,7 @@ pauseFlythrough model =
 advanceFlythrough : Time.Posix -> Model -> Model
 advanceFlythrough newTime model =
     case ( model.flythrough, model.scaling ) of
-        ( Just flying, Just scale ) ->
+        ( Just flying, Just _ ) ->
             { model
                 | flythrough =
                     Just <|
@@ -1792,7 +1792,7 @@ viewPointCloud scale model =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                    , clipDepth = Length.meters (1.0)-- * scale.metresToClipSpace)
                     , entities =
                         model.varyingVisualEntities
                             ++ model.staticVisualEntities
@@ -2044,7 +2044,7 @@ viewRoadSegment scale model road =
     let
         eyeHeight =
             -- Helps to be higher up.
-            2.0 * scale.metresToClipSpace
+            2.0
 
         eyePoint =
             case model.flythrough of
@@ -2104,7 +2104,7 @@ viewRoadSegment scale model road =
                 { camera = camera
                 , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.backgroundColor Color.lightBlue
-                , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                , clipDepth = Length.meters 1.0
                 , entities =
                     model.varyingVisualEntities
                         ++ model.staticVisualEntities
@@ -2586,7 +2586,7 @@ viewCurrentNode scale model node =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                    , clipDepth = Length.meters 1.0
                     , entities =
                         model.varyingVisualEntities
                             ++ model.staticVisualEntities
@@ -2605,7 +2605,7 @@ viewCurrentNodePlanView scale model node =
             Point3d.meters node.x node.y 0.0
 
         eyePoint =
-            Point3d.meters node.x node.y 5.0
+            Point3d.meters node.x node.y 5000.0
 
         camera =
             Camera3d.orthographic
@@ -2615,7 +2615,7 @@ viewCurrentNodePlanView scale model node =
                         , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
-                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (1.0 - model.zoomLevelPlan)
+                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
                 }
     in
     row []
@@ -2627,8 +2627,8 @@ viewCurrentNodePlanView scale model node =
                 Scene3d.sunny
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                    , background = Scene3d.backgroundColor Color.darkGreen
+                    , clipDepth = Length.meters 1.0
                     , entities = model.varyingVisualEntities ++ model.staticVisualEntities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ
@@ -2647,7 +2647,7 @@ viewRouteProfile scale model node =
             Point3d.meters 0.0 y z
 
         eyePoint =
-            Point3d.meters 0.5 y z
+            Point3d.meters 100.0 y z
 
         camera =
             Camera3d.orthographic
@@ -2657,7 +2657,7 @@ viewRouteProfile scale model node =
                         , eyePoint = eyePoint
                         , upDirection = positiveZ
                         }
-                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (1.0 - model.zoomLevelProfile)
+                , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (5.0 - model.zoomLevelProfile)
                 }
     in
     row []
@@ -2670,7 +2670,7 @@ viewRouteProfile scale model node =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightCharcoal
-                    , clipDepth = Length.meters (1.0 * scale.metresToClipSpace)
+                    , clipDepth = Length.meters 1.0
                     , entities = model.varyingProfileEntities ++ model.staticProfileEntities
                     , upDirection = positiveZ
                     , sunlightDirection = negativeZ

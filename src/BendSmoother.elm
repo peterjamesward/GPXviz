@@ -1,6 +1,6 @@
 module BendSmoother exposing (..)
 
-import Arc2d exposing (Arc2d, throughPoints)
+import Arc2d exposing (Arc2d)
 import Geometry101 as G exposing (..)
 import Length exposing (Meters, inMeters)
 import LineSegment2d
@@ -24,16 +24,6 @@ roadToGeometry : TrackPoint -> TrackPoint -> G.Road
 roadToGeometry startsAt endsAt =
     { startAt = { x = startsAt.lon, y = startsAt.lat }
     , endsAt = { x = endsAt.lon, y = endsAt.lat }
-    }
-
-
-toTrackPoint : Point -> TrackPoint
-toTrackPoint p =
-    -- NOTE caller has to fix up the missing fields!
-    { lat = p.y
-    , lon = p.x
-    , ele = 0.0
-    , idx = 0
     }
 
 

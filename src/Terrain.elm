@@ -87,13 +87,13 @@ makeTerrain context roads =
             let
                 kerbX =
                     -- Road is assumed to be 6 m wide.
-                    3.0 * cos road.bearing * context.scaling.metresToClipSpace
+                    3.0 * cos road.bearing
 
                 kerbY =
-                    3.0 * sin road.bearing * context.scaling.metresToClipSpace
+                    3.0 * sin road.bearing
 
                 depressLand =
-                    1.0 * context.scaling.metresToClipSpace
+                    0.5
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z - depressLand )

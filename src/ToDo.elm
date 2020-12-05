@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Rid of scaling factor. Need to fix bounding box.
+
 --TODO: Having sequence of model actions after each change is fragile.
 
 --TODO: Debt. Gather all colours and styles together.

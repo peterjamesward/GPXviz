@@ -1,14 +1,16 @@
 module VisualEntities exposing (..)
 
 import Array exposing (Array)
+import BoundingBox2d
+import BoundingBox3d
 import Color
 import Cone3d
 import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
-import List exposing (take)
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
+import Point2d
 import Point3d
 import RenderingContext exposing (RenderingContext)
 import ScalingInfo exposing (ScalingInfo)
@@ -16,33 +18,11 @@ import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
 import Sphere3d
 import Spherical exposing (metresPerDegreeLatitude)
-import Terrain exposing (makeTerrain)
 import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
 
 
-segmentDirection segment =
-    let
-        maybe =
-            Direction3d.from
-                (Point3d.meters
-                    segment.startsAt.x
-                    segment.startsAt.y
-                    segment.startsAt.z
-                )
-                (Point3d.meters
-                    segment.endsAt.x
-                    segment.endsAt.y
-                    segment.endsAt.z
-                )
-    in
-    case maybe of
-        Just dir ->
-            dir
-
-        Nothing ->
-            positiveZ
 
 
 roadMapper road =
@@ -60,28 +40,45 @@ makeStatic3DEntities context roads =
         roadList =
             Array.toList roads
 
-        seaLevelInClipSpace =
-            context.scaling.seaLevelInClipSpace
+        pointList =
+            List.map
+                (\r -> Point2d.meters r.startsAt.x r.startsAt.y)
+                roadList
+
+        maybeBoundingBox =
+            BoundingBox2d.hullN pointList
 
         seaLevel =
-            Scene3d.quad (Material.color Color.darkGreen)
-                (Point3d.meters -1.2 -1.2 seaLevelInClipSpace)
-                (Point3d.meters 1.2 -1.2 seaLevelInClipSpace)
-                (Point3d.meters 1.2 1.2 seaLevelInClipSpace)
-                (Point3d.meters -1.2 1.2 seaLevelInClipSpace)
+            case maybeBoundingBox of
+                Just box ->
+                    let
+                        bigger =
+                            BoundingBox2d.expandBy (Length.meters 1000.0) box
+                        { minX, maxX, minY, maxY } =
+                             BoundingBox2d.extrema bigger
+                    in
+                    Scene3d.quad (Material.color Color.darkGreen)
+                        (Point3d.xyz minX minY (Length.meters 0.0))
+                        (Point3d.xyz minX maxY (Length.meters 0.0))
+                        (Point3d.xyz maxX maxY (Length.meters 0.0))
+                        (Point3d.xyz maxX minY (Length.meters 0.0))
+                Nothing ->
+                    Scene3d.quad (Material.color Color.darkGreen)
+                        (Point3d.meters 0.0 0.0 0.0)
+                        (Point3d.meters 0.0 0.0 0.0)
+                        (Point3d.meters 0.0 0.0 0.0)
+                        (Point3d.meters 0.0 0.0 0.0)
 
-        metresToClipSpace =
-            context.scaling.metresToClipSpace
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
         brownPillar x y z =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
-                    (Point3d.meters x y (z - 1.0 * metresToClipSpace))
+                    (Point3d.meters x y (z - 1.0 ))
                     negativeZ
-                    { radius = meters <| 0.5 * metresToClipSpace
-                    , length = meters <| z - 1.0 * metresToClipSpace - seaLevelInClipSpace
+                    { radius = meters <| 0.5
+                    , length = meters <| z - 1.0
                     }
 
         pillars =
@@ -106,10 +103,10 @@ makeStatic3DEntities context roads =
         trackpointmarker x y z =
             cone (Material.color Color.black) <|
                 Cone3d.startingAt
-                    (Point3d.meters x y (z - 1.0 * metresToClipSpace))
+                    (Point3d.meters x y (z - 1.0 ))
                     positiveZ
-                    { radius = meters <| 0.6 * metresToClipSpace
-                    , length = meters <| 1.0 * metresToClipSpace
+                    { radius = meters <| 0.6
+                    , length = meters <| 1.0
                     }
 
         trackpointMarkers =
@@ -140,14 +137,14 @@ makeStatic3DEntities context roads =
             let
                 kerbX =
                     -- Road is assumed to be 6 m wide.
-                    3.0 * cos segment.bearing * metresToClipSpace
+                    3.0 * cos segment.bearing
 
                 kerbY =
-                    3.0 * sin segment.bearing * metresToClipSpace
+                    3.0 * sin segment.bearing
 
                 edgeHeight =
                     -- Let's try a low wall at the road's edges.
-                    0.3 * metresToClipSpace
+                    0.3
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     roadMapper segment
@@ -176,13 +173,13 @@ makeStatic3DEntities context roads =
             let
                 halfX =
                     -- Road is assumed to be 6 m wide.
-                    0.3 * cos segment.bearing * metresToClipSpace
+                    0.3 * cos segment.bearing
 
                 halfY =
-                    0.3 * sin segment.bearing * metresToClipSpace
+                    0.3 * sin segment.bearing
 
                 raised =
-                    0.05 * metresToClipSpace
+                    0.05
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     roadMapper segment
@@ -227,8 +224,8 @@ makeStatic3DEntities context roads =
             [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
                 (Point3d.meters x1 y1 z1)
                 (Point3d.meters x2 y2 z2)
-                (Point3d.meters x2 y2 seaLevelInClipSpace)
-                (Point3d.meters x1 y1 seaLevelInClipSpace)
+                (Point3d.meters x2 y2 0.0)
+                (Point3d.meters x1 y1 0.0)
             ]
 
         optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
@@ -253,28 +250,24 @@ makeStaticProfileEntities context roadList =
     -- We manipulate the context to get the scaling right.
     -- Decided to duplicate the function so we can have different shapes to suit the view.
     let
-        seaLevelInClipSpace =
-            context.scaling.seaLevelInClipSpace
+        seaLevelInClipSpace = 0.0
 
         seaLevel =
             Scene3d.quad (Material.color Color.darkGreen)
-                (Point3d.meters -1.2 -1.2 seaLevelInClipSpace)
-                (Point3d.meters 1.2 -1.2 seaLevelInClipSpace)
-                (Point3d.meters 1.2 1.2 seaLevelInClipSpace)
-                (Point3d.meters -1.2 1.2 seaLevelInClipSpace)
-
-        metresToClipSpace =
-            context.scaling.metresToClipSpace
+                (Point3d.meters 0.0 0.0 seaLevelInClipSpace)
+                (Point3d.meters 0.0 1000.0 seaLevelInClipSpace)
+                (Point3d.meters -1.0 1000.0 seaLevelInClipSpace)
+                (Point3d.meters -1.0 0.0 seaLevelInClipSpace)
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
         brownPillar x y z =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
-                    (Point3d.meters x y (z - 0.2 * metresToClipSpace))
+                    (Point3d.meters x y (z - 0.2))
                     negativeZ
-                    { radius = meters <| 0.1 * metresToClipSpace
-                    , length = meters <| z - 0.2 * metresToClipSpace - seaLevelInClipSpace
+                    { radius = meters <| 0.1
+                    , length = meters <| z - 0.2  - seaLevelInClipSpace
                     }
 
         pillars =
@@ -299,7 +292,7 @@ makeStaticProfileEntities context roadList =
         trackpointmarker x y z =
             sphere (Material.color Color.black) <|
                 Sphere3d.withRadius
-                    (meters <| 0.1 * metresToClipSpace)
+                    (meters <| 0.1 )
                     (Point3d.meters x y z)
 
         trackpointMarkers =
@@ -326,7 +319,7 @@ makeStaticProfileEntities context roadList =
                 List.map roadSurface <|
                     roadList
 
-        roadSurface segment =
+        roadSurface _ =
             []
 
         curtains =
@@ -376,10 +369,8 @@ makeStaticProfileEntities context roadList =
 
 
 makeVaryingVisualEntities : RenderingContext -> Array DrawingRoad -> List (Entity MyCoord)
-makeVaryingVisualEntities context roads =
+makeVaryingVisualEntities context _ =
     let
-        metresToClipSpace =
-            context.scaling.metresToClipSpace
 
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
@@ -390,10 +381,10 @@ makeVaryingVisualEntities context roads =
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 * metresToClipSpace))
+                            (Point3d.meters x y (z + 10.1 ))
                             negativeZ
-                            { radius = meters <| 3.0 * metresToClipSpace
-                            , length = meters <| 10.0 * metresToClipSpace
+                            { radius = meters <| 3.0
+                            , length = meters <| 10.0
                             }
                     ]
 
@@ -404,10 +395,10 @@ makeVaryingVisualEntities context roads =
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 * metresToClipSpace))
+                            (Point3d.meters x y (z + 10.1 ))
                             negativeZ
-                            { radius = meters <| 1.5 * metresToClipSpace
-                            , length = meters <| 10.0 * metresToClipSpace
+                            { radius = meters <| 1.5
+                            , length = meters <| 10.0
                             }
                     ]
 
@@ -423,10 +414,10 @@ makeVaryingVisualEntities context roads =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 * metresToClipSpace))
+                            (Point3d.meters x y (z + 10.1 ))
                             negativeZ
-                            { radius = meters <| 3.5 * metresToClipSpace
-                            , length = meters <| 8.0 * metresToClipSpace
+                            { radius = meters <| 3.5
+                            , length = meters <| 8.0
                             }
                     ]
 
@@ -437,10 +428,10 @@ makeVaryingVisualEntities context roads =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 * metresToClipSpace))
+                            (Point3d.meters x y (z + 10.1 ))
                             negativeZ
-                            { radius = meters <| 1.6 * metresToClipSpace
-                            , length = meters <| 8.0 * metresToClipSpace
+                            { radius = meters <| 1.6
+                            , length = meters <| 8.0
                             }
                     ]
 
@@ -457,13 +448,13 @@ makeVaryingVisualEntities context roads =
         bendElement segment =
             let
                 kerbX =
-                    1.0 * cos segment.bearing * metresToClipSpace
+                    1.0 * cos segment.bearing
 
                 kerbY =
-                    1.0 * sin segment.bearing * metresToClipSpace
+                    1.0 * sin segment.bearing
 
                 floatHeight =
-                    0.1 * metresToClipSpace
+                    0.1
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     roadMapper segment
@@ -480,12 +471,9 @@ makeVaryingVisualEntities context roads =
 
 
 makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)
-makeVaryingProfileEntities context roadList =
+makeVaryingProfileEntities context _ =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     let
-        metresToClipSpace =
-            context.scaling.metresToClipSpace
-
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
                 ( Just road, ProfileView ) ->
@@ -495,10 +483,10 @@ makeVaryingProfileEntities context roadList =
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 2.0 * metresToClipSpace))
+                            (Point3d.meters x y (z + 2.0))
                             negativeZ
-                            { radius = meters <| 0.3 * metresToClipSpace
-                            , length = meters <| 1.9 * metresToClipSpace
+                            { radius = meters 0.3
+                            , length = meters 1.9
                             }
                     ]
 
@@ -514,10 +502,10 @@ makeVaryingProfileEntities context roadList =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 2.0 * metresToClipSpace))
+                            (Point3d.meters x y (z + 2.0 ))
                             negativeZ
-                            { radius = meters <| 0.3 * metresToClipSpace
-                            , length = meters <| 1.9 * metresToClipSpace
+                            { radius = meters 0.3
+                            , length = meters 1.9
                             }
                     ]
 
@@ -534,13 +522,13 @@ makeVaryingProfileEntities context roadList =
         bendElement segment =
             let
                 kerbX =
-                    2.0 * cos segment.bearing * metresToClipSpace
+                    2.0 * cos segment.bearing
 
                 kerbY =
-                    2.0 * sin segment.bearing * metresToClipSpace
+                    2.0 * sin segment.bearing
 
                 floatHeight =
-                    0.1 * metresToClipSpace
+                    0.1
 
                 ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
                     roadMapper segment
@@ -599,7 +587,4 @@ deriveScalingInfo tps =
     { mins = mins
     , maxs = maxs
     , centres = findCentres
-    , largestDimension = scalingFactor
-    , metresToClipSpace = metresToClipSpace
-    , seaLevelInClipSpace = elevationToClipSpace 0.0
     }
