@@ -7,9 +7,11 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-04 (tea time)_
+> _This text updated 2020-12-05_
 
 > The act of closing a new loop is slightly better. If there is at least a one meter gap, the program will put a new track point one meter "behind" the start, then join the last trackpoint in the route onto this new one. This allows you to then apply existing gradient and bend smoothing tools up to the end. Sorry, but the smoothing tools will **not** work across start/finish line.
+
+> **Bug fix** - applying bend smoothing to a large region was causing a crash.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
