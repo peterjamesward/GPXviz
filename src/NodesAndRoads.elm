@@ -10,18 +10,20 @@ type MyCoord
 
 
 type alias DrawingNode =
-    -- We will draw in a rectangular space using metre units. Probably.
+    -- We draw in a rectangular space using metre units.
+    --TODO: Convert to Point3d Meters
     { trackPoint : TrackPoint
     , northOffset : Float -- metres from bottom edge of bounding box
     , eastOffset : Float -- metres from left edge of bounding box
     , vertOffset : Float -- metres from base of bounding box
-    , x : Float -- east offset convrted to [-1, +1] system
+    , x : Float -- east offset converted
     , y : Float -- north, ditto
     , z : Float -- vert, ditto
     }
 
 
 type alias DrawingRoad =
+    --TODO: Use LineSegment3d ??
     { startsAt : DrawingNode
     , endsAt : DrawingNode
     , length : Float
@@ -44,13 +46,9 @@ type alias SummaryData =
     }
 
 
-
 deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
 deriveNodes scale tps =
     let
-        elevationToClipSpace e = e
-            --(e - findCentres.ele) --* scale.metresToClipSpace
-
         findCentres =
             scale.centres
 
@@ -62,9 +60,9 @@ deriveNodes scale tps =
             , northOffset = (tp.lat - mins.lat) * metresPerDegreeLatitude
             , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLatitude * cos tp.lat
             , vertOffset = tp.ele - mins.ele
-            , x = (tp.lon - findCentres.lon) * metresPerDegreeLatitude --* scale.metresToClipSpace
-            , y = (tp.lat - findCentres.lat) * metresPerDegreeLatitude --* scale.metresToClipSpace
-            , z = elevationToClipSpace tp.ele
+            , x = (tp.lon - findCentres.lon) * metresPerDegreeLatitude
+            , y = (tp.lat - findCentres.lat) * metresPerDegreeLatitude
+            , z = tp.ele
             }
     in
     List.map prepareDrawingNode tps
@@ -178,11 +176,6 @@ roadsForProfileView : List DrawingRoad -> List DrawingRoad
 roadsForProfileView roads =
     -- Don't try to be clever. Be pragmatic.
     let
-        totalLength =
-            Maybe.withDefault 1.0 <|
-                List.maximum <|
-                    List.map .endDistance roads
-
         unrolledRoads : List DrawingRoad
         unrolledRoads =
             List.map unrollRoad roads
@@ -198,13 +191,13 @@ roadsForProfileView roads =
 
                 newStartNode =
                     { startNode
-                        | y = 2.0 * road.startDistance / 10.0
+                        | y = 2.0 * road.startDistance / 10.0 -- compress horizontal scale.
                         , x = 0.0
                     }
 
                 newEndNode =
                     { endNode
-                        | y = 2.0 * road.endDistance / 10.0
+                        | y = 2.0 * road.endDistance / 10.0 -- compress horizontal scale.
                         , x = 0.0
                     }
             in

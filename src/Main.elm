@@ -1792,7 +1792,7 @@ viewPointCloud scale model =
                     { camera = camera
                     , dimensions = ( Pixels.int 800, Pixels.int 500 )
                     , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters (1.0)-- * scale.metresToClipSpace)
+                    , clipDepth = Length.meters 1.0 -- * scale.metresToClipSpace)
                     , entities =
                         model.varyingVisualEntities
                             ++ model.staticVisualEntities

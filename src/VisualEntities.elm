@@ -2,7 +2,6 @@ module VisualEntities exposing (..)
 
 import Array exposing (Array)
 import BoundingBox2d
-import BoundingBox3d
 import Color
 import Cone3d
 import Cylinder3d
@@ -21,8 +20,6 @@ import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
-
-
 
 
 roadMapper road =
@@ -46,6 +43,7 @@ makeStatic3DEntities context roads =
                 roadList
 
         maybeBoundingBox =
+            -- TODO: This should live in ScalingInfo.
             BoundingBox2d.hullN pointList
 
         seaLevel =
@@ -54,14 +52,16 @@ makeStatic3DEntities context roads =
                     let
                         bigger =
                             BoundingBox2d.expandBy (Length.meters 1000.0) box
+
                         { minX, maxX, minY, maxY } =
-                             BoundingBox2d.extrema bigger
+                            BoundingBox2d.extrema bigger
                     in
                     Scene3d.quad (Material.color Color.darkGreen)
                         (Point3d.xyz minX minY (Length.meters 0.0))
                         (Point3d.xyz minX maxY (Length.meters 0.0))
                         (Point3d.xyz maxX maxY (Length.meters 0.0))
                         (Point3d.xyz maxX minY (Length.meters 0.0))
+
                 Nothing ->
                     Scene3d.quad (Material.color Color.darkGreen)
                         (Point3d.meters 0.0 0.0 0.0)
@@ -69,13 +69,12 @@ makeStatic3DEntities context roads =
                         (Point3d.meters 0.0 0.0 0.0)
                         (Point3d.meters 0.0 0.0 0.0)
 
-
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
         brownPillar x y z =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
-                    (Point3d.meters x y (z - 1.0 ))
+                    (Point3d.meters x y (z - 1.0))
                     negativeZ
                     { radius = meters <| 0.5
                     , length = meters <| z - 1.0
@@ -103,7 +102,7 @@ makeStatic3DEntities context roads =
         trackpointmarker x y z =
             cone (Material.color Color.black) <|
                 Cone3d.startingAt
-                    (Point3d.meters x y (z - 1.0 ))
+                    (Point3d.meters x y (z - 1.0))
                     positiveZ
                     { radius = meters <| 0.6
                     , length = meters <| 1.0
@@ -250,14 +249,8 @@ makeStaticProfileEntities context roadList =
     -- We manipulate the context to get the scaling right.
     -- Decided to duplicate the function so we can have different shapes to suit the view.
     let
-        seaLevelInClipSpace = 0.0
-
-        seaLevel =
-            Scene3d.quad (Material.color Color.darkGreen)
-                (Point3d.meters 0.0 0.0 seaLevelInClipSpace)
-                (Point3d.meters 0.0 1000.0 seaLevelInClipSpace)
-                (Point3d.meters -1.0 1000.0 seaLevelInClipSpace)
-                (Point3d.meters -1.0 0.0 seaLevelInClipSpace)
+        seaLevelInClipSpace =
+            0.0
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
@@ -267,7 +260,7 @@ makeStaticProfileEntities context roadList =
                     (Point3d.meters x y (z - 0.2))
                     negativeZ
                     { radius = meters <| 0.1
-                    , length = meters <| z - 0.2  - seaLevelInClipSpace
+                    , length = meters <| z - 0.2 - seaLevelInClipSpace
                     }
 
         pillars =
@@ -292,7 +285,7 @@ makeStaticProfileEntities context roadList =
         trackpointmarker x y z =
             sphere (Material.color Color.black) <|
                 Sphere3d.withRadius
-                    (meters <| 0.1 )
+                    (meters <| 0.1)
                     (Point3d.meters x y z)
 
         trackpointMarkers =
@@ -361,8 +354,7 @@ makeStaticProfileEntities context roadList =
             else
                 []
     in
-    seaLevel
-        :: optionally context.displayOptions.roadPillars pillars
+    optionally context.displayOptions.roadPillars pillars
         ++ optionally context.displayOptions.roadCones trackpointMarkers
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
@@ -371,7 +363,6 @@ makeStaticProfileEntities context roadList =
 makeVaryingVisualEntities : RenderingContext -> Array DrawingRoad -> List (Entity MyCoord)
 makeVaryingVisualEntities context _ =
     let
-
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
                 ( Just road, ThirdPersonView ) ->
@@ -381,7 +372,7 @@ makeVaryingVisualEntities context _ =
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 ))
+                            (Point3d.meters x y (z + 10.1))
                             negativeZ
                             { radius = meters <| 3.0
                             , length = meters <| 10.0
@@ -395,7 +386,7 @@ makeVaryingVisualEntities context _ =
                     in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 ))
+                            (Point3d.meters x y (z + 10.1))
                             negativeZ
                             { radius = meters <| 1.5
                             , length = meters <| 10.0
@@ -414,7 +405,7 @@ makeVaryingVisualEntities context _ =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 ))
+                            (Point3d.meters x y (z + 10.1))
                             negativeZ
                             { radius = meters <| 3.5
                             , length = meters <| 8.0
@@ -428,7 +419,7 @@ makeVaryingVisualEntities context _ =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1 ))
+                            (Point3d.meters x y (z + 10.1))
                             negativeZ
                             { radius = meters <| 1.6
                             , length = meters <| 8.0
@@ -502,7 +493,7 @@ makeVaryingProfileEntities context _ =
                     in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 2.0 ))
+                            (Point3d.meters x y (z + 2.0))
                             negativeZ
                             { radius = meters 0.3
                             , length = meters 1.9
