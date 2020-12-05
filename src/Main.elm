@@ -608,8 +608,10 @@ closeTheLoop model =
     in
     case model.loopiness of
         AlmostLoop gap ->
-            { model | trackPoints = reindexTrackpoints (newTrack gap) }
-                |> addToUndoStack "complete loop"
+            addToUndoStack "complete loop" model
+                |> (\m ->
+                        { m | trackPoints = reindexTrackpoints (newTrack gap) }
+                   )
 
         _ ->
             model
@@ -664,8 +666,10 @@ verticalNodeSplit n model =
                         ++ [ firstTP, secondTP ]
                         ++ remainingTPs
             in
-            { model | trackPoints = reindexTrackpoints newTPs }
-                |> addToUndoStack undoMessage
+            addToUndoStack undoMessage model
+                |> (\m ->
+                        { m | trackPoints = reindexTrackpoints newTPs }
+                   )
 
         _ ->
             model
@@ -894,14 +898,16 @@ smoothGradient model start finish gradient =
                                 * newTP.ele
                     }
             in
-            { model
-                | trackPoints =
-                    reindexTrackpoints <|
-                        List.take (start + 1) model.trackPoints
-                            ++ bumpyTrackPoints
-                            ++ List.drop finish model.trackPoints
-            }
-                |> addToUndoStack undoMessage
+            addToUndoStack undoMessage model
+                |> (\m ->
+                        { m
+                            | trackPoints =
+                                reindexTrackpoints <|
+                                    List.take (start + 1) m.trackPoints
+                                        ++ bumpyTrackPoints
+                                        ++ List.drop finish m.trackPoints
+                        }
+                   )
 
         Nothing ->
             -- shouldn't happen
@@ -924,16 +930,18 @@ smoothBend model =
     in
     case model.smoothedBend of
         Just bend ->
-            { model
-                | trackPoints =
-                    reindexTrackpoints <|
-                        List.take (bend.startIndex - 1) model.trackPoints
-                            ++ bend.trackPoints
-                            ++ List.drop (bend.endIndex + 1) model.trackPoints
-                , smoothedBend = Nothing
-                , smoothedRoads = []
-            }
-                |> addToUndoStack (undoMessage bend)
+            addToUndoStack (undoMessage bend) model
+                |> (\m ->
+                        { m
+                            | trackPoints =
+                                reindexTrackpoints <|
+                                    List.take (bend.startIndex - 1) m.trackPoints
+                                        ++ bend.trackPoints
+                                        ++ List.drop (bend.endIndex + 1) m.trackPoints
+                            , smoothedBend = Nothing
+                            , smoothedRoads = []
+                        }
+                   )
 
         Nothing ->
             -- shouldn't happen
