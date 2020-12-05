@@ -60,6 +60,8 @@ type alias AbruptChange =
 type alias UndoEntry =
     { label : String
     , trackPoints : List TrackPoint
+    , currentNode : Maybe Int
+    , markedNode : Maybe Int
     }
 
 
@@ -202,6 +204,8 @@ addToUndoStack label model =
         | undoStack =
             { label = label
             , trackPoints = model.trackPoints
+            , currentNode = model.currentNode
+            , markedNode = model.markedNode
             }
                 :: model.undoStack
     }
@@ -498,6 +502,8 @@ update msg model =
                     { model
                         | trackPoints = action.trackPoints
                         , undoStack = undos
+                        , currentNode = action.currentNode
+                        , markedNode = action.markedNode
                     }
                         |> deriveNodesAndRoads
                         |> deriveStaticVisualEntities

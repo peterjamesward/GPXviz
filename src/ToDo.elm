@@ -1,9 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Push onto undo stack needs to be a function for consistency.
-
---TODO: Bug?  Undo should restore then-current node/marker positions?
-
 --TODO: Having sequence of model actions after each change is fragile.
 
 --TODO: Debt. Gather all colours and styles together.
