@@ -196,6 +196,17 @@ metresPerDegreeLatitude =
     78846.81
 
 
+addToUndoStack : String -> Model -> Model
+addToUndoStack label model =
+    { model
+        | undoStack =
+            { label = label
+            , trackPoints = model.trackPoints
+            }
+                :: model.undoStack
+    }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -591,14 +602,8 @@ closeTheLoop model =
     in
     case model.loopiness of
         AlmostLoop gap ->
-            { model
-                | trackPoints = reindexTrackpoints (newTrack gap)
-                , undoStack =
-                    { label = "complete loop"
-                    , trackPoints = model.trackPoints
-                    }
-                        :: model.undoStack
-            }
+            { model | trackPoints = reindexTrackpoints (newTrack gap) }
+                |> addToUndoStack "complete loop"
 
         _ ->
             model
@@ -653,14 +658,8 @@ verticalNodeSplit n model =
                         ++ [ firstTP, secondTP ]
                         ++ remainingTPs
             in
-            { model
-                | trackPoints = reindexTrackpoints newTPs
-                , undoStack =
-                    { label = undoMessage
-                    , trackPoints = model.trackPoints
-                    }
-                        :: model.undoStack
-            }
+            { model | trackPoints = reindexTrackpoints newTPs }
+                |> addToUndoStack undoMessage
 
         _ ->
             model
@@ -895,12 +894,8 @@ smoothGradient model start finish gradient =
                         List.take (start + 1) model.trackPoints
                             ++ bumpyTrackPoints
                             ++ List.drop finish model.trackPoints
-                , undoStack =
-                    { label = undoMessage
-                    , trackPoints = model.trackPoints
-                    }
-                        :: model.undoStack
             }
+                |> addToUndoStack undoMessage
 
         Nothing ->
             -- shouldn't happen
@@ -929,14 +924,10 @@ smoothBend model =
                         List.take (bend.startIndex - 1) model.trackPoints
                             ++ bend.trackPoints
                             ++ List.drop (bend.endIndex + 1) model.trackPoints
-                , undoStack =
-                    { label = undoMessage bend
-                    , trackPoints = model.trackPoints
-                    }
-                        :: model.undoStack
                 , smoothedBend = Nothing
                 , smoothedRoads = []
             }
+                |> addToUndoStack (undoMessage bend)
 
         Nothing ->
             -- shouldn't happen

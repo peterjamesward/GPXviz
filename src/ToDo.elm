@@ -1,10 +1,12 @@
 module ToDo exposing (..)
 
---TODO: Allow to enter file name, with 50 char limit.
+--TODO: Push onto undo stack needs to be a function for consistency.
+
+--TODO: Bug?  Undo should restore then-current node/marker positions?
+
+--TODO: Having sequence of model actions after each change is fragile.
 
 --TODO: Debt. Gather all colours and styles together.
-
---TODO: Bug?  Undo should restore then-current node positions?
 
 --TODO: Debt. Use Node/Road, not index, in model.
 
@@ -16,4 +18,3 @@ module ToDo exposing (..)
 
 --TODO: Debt. Use elm-units and elm-geometry throughout, with proper units!
 --Just change the Model and use the compiler. Deep breath.
-
