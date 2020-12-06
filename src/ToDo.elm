@@ -4,11 +4,7 @@ module ToDo exposing (..)
 
 --TODO: Feat. Say if filename is too long for Magic Roads.
 
---TODO: Debt. Having sequence of model actions after each change is fragile.
-
 --TODO: Debt. Gather all colours and styles together.
-
---TODO: Debt. Use Node/Road, not index, in model.
 
 --TODO: Debt. Improve removal of zero lengths so we don't have to repeat ourselves!
 
