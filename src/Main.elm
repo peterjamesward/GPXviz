@@ -4,6 +4,7 @@ import About exposing (viewAboutText)
 import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
+import BoundingBox3d exposing (BoundingBox3d)
 import Browser
 import Camera3d
 import Color
@@ -24,6 +25,7 @@ import List exposing (drop, take)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
+import Plane3d
 import Point2d exposing (Point2d)
 import Point3d
 import ScalingInfo exposing (ScalingInfo)
@@ -34,6 +36,7 @@ import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
 import Utils exposing (..)
+import Vector3d
 import ViewElements exposing (..)
 import ViewTypes exposing (..)
 import Viewpoint3d
@@ -761,8 +764,8 @@ resetFlythrough model =
                             Just
                                 { metresFromRouteStart = road.startDistance
                                 , running = False
-                                , cameraPosition = ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
-                                , focusPoint = ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
+                                , cameraPosition = road.startsAt.location
+                                , focusPoint = road.endsAt.location
                                 , lastUpdated = model.time
                                 , segment = road
                                 }
@@ -1266,7 +1269,7 @@ deriveStaticVisualEntities model =
                     }
             in
             { model
-                | staticVisualEntities = makeStatic3DEntities context model.roadArray
+                | staticVisualEntities = makeStatic3DEntities context model.roads
                 , staticProfileEntities = makeStaticProfileEntities context model.roadsForProfileView
             }
 
@@ -1291,7 +1294,7 @@ deriveTerrain model =
                     }
             in
             { model
-                | terrainEntities = makeTerrain context model.roadArray
+                | terrainEntities = makeTerrain context model.roads
             }
 
         Nothing ->
@@ -2049,20 +2052,12 @@ viewRoadSegment scale model road =
         eyePoint =
             case model.flythrough of
                 Nothing ->
-                    Point3d.meters
-                        road.startsAt.x
-                        road.startsAt.y
-                        (road.startsAt.z + eyeHeight)
+                    Point3d.translateBy
+                        (Vector3d.meters 0.0 0.0 eyeHeight)
+                        road.startsAt.location
 
                 Just flying ->
-                    let
-                        ( x, y, z ) =
-                            flying.cameraPosition
-                    in
-                    Point3d.meters
-                        x
-                        y
-                        (z + eyeHeight)
+                    flying.cameraPosition
 
         cameraViewpoint =
             case model.flythrough of
@@ -2070,25 +2065,16 @@ viewRoadSegment scale model road =
                     Viewpoint3d.lookAt
                         { eyePoint = eyePoint
                         , focalPoint =
-                            Point3d.meters
-                                road.endsAt.x
-                                road.endsAt.y
-                                (road.endsAt.z + eyeHeight)
+                            Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 eyeHeight)
+                                road.endsAt.location
                         , upDirection = Direction3d.positiveZ
                         }
 
                 Just flying ->
-                    let
-                        r =
-                            flying.segment
-
-                        ( focusX, focusY, focusZ ) =
-                            flying.focusPoint
-                    in
                     Viewpoint3d.lookAt
                         { eyePoint = eyePoint
-                        , focalPoint =
-                            Point3d.meters focusX focusY (focusZ + eyeHeight)
+                        , focalPoint = flying.focusPoint
                         , upDirection = Direction3d.positiveZ
                         }
 
@@ -2516,51 +2502,16 @@ viewSummaryStats model =
             none
 
 
-meanPositionOfNearbyNodes : DrawingNode -> Model -> ( Float, Float, Float )
-meanPositionOfNearbyNodes node model =
-    -- Probably should not do this in the View.
-    let
-        eachSide =
-            1
-
-        nearbyNodes =
-            model.nodes |> drop (node.trackPoint.idx - eachSide) |> take (1 + 2 * eachSide)
-
-        acc =
-            { count = 0.0, x = 0.0, y = 0.0, z = 0.0 }
-
-        accumulated =
-            List.foldl adder acc nearbyNodes
-
-        adder a b =
-            { b
-                | count = b.count + 1.0
-                , x = b.x + a.x
-                , y = b.y + a.y
-                , z = b.z + a.z
-            }
-    in
-    ( accumulated.x / accumulated.count
-    , accumulated.y / accumulated.count
-    , accumulated.z / accumulated.count
-    )
-
-
 viewCurrentNode : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNode scale model node =
     let
         focus =
             case model.flythrough of
                 Just fly ->
-                    -- During flythrough, centre on current position
-                    let
-                        ( x, y, z ) =
-                            fly.cameraPosition
-                    in
-                    Point3d.meters x y z
+                    fly.cameraPosition
 
                 Nothing ->
-                    Point3d.meters node.x node.y node.z
+                    node.location
 
         camera =
             Camera3d.perspective
@@ -2602,10 +2553,13 @@ viewCurrentNodePlanView : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView scale model node =
     let
         focus =
-            Point3d.meters node.x node.y 0.0
+            Point3d.projectOnto Plane3d.zx
+                node.location
 
         eyePoint =
-            Point3d.meters node.x node.y 5000.0
+            Point3d.translateBy
+                (Vector3d.meters 0.0 0.0 5000.0)
+                node.location
 
         camera =
             Camera3d.orthographic
@@ -2640,14 +2594,15 @@ viewCurrentNodePlanView scale model node =
 viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
 viewRouteProfile scale model node =
     let
-        ( x, y, z ) =
-            ( node.x, node.y, node.z )
-
         focus =
-            Point3d.meters 0.0 y z
+            Point3d.projectOnto
+                Plane3d.yz
+                node.location
 
         eyePoint =
-            Point3d.meters 100.0 y z
+            Point3d.translateBy
+                (Vector3d.meters 100.0 0.0 0.0)
+                node.location
 
         camera =
             Camera3d.orthographic

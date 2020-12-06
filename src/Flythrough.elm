@@ -1,14 +1,14 @@
 module Flythrough exposing (..)
 
-import Array
-import NodesAndRoads exposing (DrawingRoad)
-import ScalingInfo exposing (ScalingInfo)
+import Length
+import NodesAndRoads exposing (DrawingRoad, MyCoord)
+import Point3d exposing (Point3d)
 import Time
 
 
 type alias Flythrough =
-    { cameraPosition : ( Float, Float, Float )
-    , focusPoint : ( Float, Float, Float )
+    { cameraPosition : Point3d Length.Meters MyCoord
+    , focusPoint : Point3d Length.Meters MyCoord
     , metresFromRouteStart : Float
     , lastUpdated : Time.Posix
     , running : Bool
@@ -69,40 +69,35 @@ flythrough newTime flying speed roads =
                         -- Allow for POV rotation as we near segment end.
                         clamp 0.0 1.0 (10.0 - segRemaining) / 10.0
 
-                    ( cameraX, cameraY, cameraZ ) =
-                        -- New location of rider
-                        ( segFraction * seg.endsAt.x + (1 - segFraction) * seg.startsAt.x
-                        , segFraction * seg.endsAt.y + (1 - segFraction) * seg.startsAt.y
-                        , segFraction * seg.endsAt.z + (1 - segFraction) * seg.startsAt.z
-                        )
+                    camera3d =
+                        Point3d.interpolateFrom
+                            seg.startsAt.location
+                            seg.endsAt.location
+                            segFraction
 
                     lookingAt =
                         case nextSeg of
                             Just next ->
                                 let
-                                    ( nextX, nextY, nextZ ) =
-                                        -- Near the end, start looking at the next segment.
-                                        ( (next.startsAt.x + next.endsAt.x) / 2.0
-                                        , (next.startsAt.y + next.endsAt.y) / 2.0
-                                        , (next.startsAt.z + next.endsAt.z) / 2.0
-                                        )
-
-                                    ( focusX, focusY, focusZ ) =
-                                            ( nextX * headTurnFraction + (1.0 - headTurnFraction) * seg.endsAt.x
-                                            , nextY * headTurnFraction + (1.0 - headTurnFraction) * seg.endsAt.y
-                                            , nextZ * headTurnFraction + (1.0 - headTurnFraction) * seg.endsAt.z
-                                            )
+                                    next3d =
+                                        Point3d.interpolateFrom
+                                            next.startsAt.location
+                                            next.endsAt.location
+                                            0.5
                                 in
-                                ( focusX, focusY, focusZ )
+                                Point3d.interpolateFrom
+                                    seg.endsAt.location
+                                    next3d
+                                    headTurnFraction
 
                             Nothing ->
-                                ( seg.endsAt.x, seg.endsAt.y, seg.endsAt.z )
+                                seg.endsAt.location
                 in
                 { flying
                     | metresFromRouteStart = newDistance
                     , lastUpdated = newTime
                     , segment = seg
-                    , cameraPosition = ( cameraX, cameraY, cameraZ )
+                    , cameraPosition = camera3d
                     , focusPoint = lookingAt
                 }
 

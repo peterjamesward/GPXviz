@@ -1,10 +1,10 @@
 module ScalingInfo exposing (..)
 
-import TrackPoint exposing (TrackPoint)
+import BoundingBox3d exposing (BoundingBox3d)
+import Length
 
+type GPXCoord = GPXCoord
 
 type alias ScalingInfo =
-    { mins : TrackPoint
-    , maxs : TrackPoint
-    , centres : TrackPoint
+    { box : BoundingBox3d Length.Meters GPXCoord -- This is bounding box of TrackPoints, not Nodes!!
     }

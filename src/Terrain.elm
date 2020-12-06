@@ -1,6 +1,7 @@
 module Terrain exposing (makeTerrain)
 
 import Array exposing (Array)
+import BoundingBox3d
 import Color
 import DelaunayTriangulation2d exposing (DelaunayTriangulation2d, Error, faces, fromVerticesBy)
 import Dict
@@ -15,6 +16,7 @@ import Scene3d.Material as Material
 import SketchPlane3d
 import Spherical exposing (metresPerDegreeLatitude)
 import Triangle3d
+import Vector3d
 
 
 
@@ -41,13 +43,10 @@ pointToComparable p3d =
 
 makeTerrain :
     RenderingContext
-    -> Array DrawingRoad
+    -> List DrawingRoad
     -> List (Entity MyCoord)
-makeTerrain context roads =
+makeTerrain context roadList =
     let
-        roadList =
-            Array.toList roads ++ theEdgesOfOurWorld
-
         roadVertices =
             List.concatMap entryEdges (List.take 1 roadList)
                 ++ List.concatMap exitEdges roadList
@@ -66,17 +65,9 @@ makeTerrain context roads =
             <|
                 Array.fromList uniqueVertices
 
-        --roadVertices
-        corner lat lon ele =
-            -- Make a trackpoint to locate each of our corners of the world.
-            { lat = lat
-            , lon = lon
-            , ele = ele
-            , idx = 0
-            }
-
         entryEdges road =
             -- Totally forget why these are here but they seem to be essential.
+            --TODO: See if this is still true now we filter out duplicate points.
             List.take 2 <| roadCorners road
 
         exitEdges road =
@@ -85,48 +76,38 @@ makeTerrain context roads =
         roadCorners road =
             -- Duplicated from VisualEntities with no apology.
             let
-                kerbX =
+                ( kerbX, kerbY ) =
                     -- Road is assumed to be 6 m wide.
-                    3.0 * cos road.bearing
-
-                kerbY =
-                    3.0 * sin road.bearing
-
-                depressLand =
-                    0.5
-
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z - depressLand )
-                    , ( road.endsAt.x, road.endsAt.y, road.endsAt.z - depressLand )
+                    ( 3.0 * cos road.bearing
+                    , 3.0 * sin road.bearing
                     )
 
                 roadAsSegment =
-                    LineSegment3d.from
-                        (Point3d.meters x1 y1 z1)
-                        (Point3d.meters x2 y2 z2)
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
-                perpendicular =
-                    LineSegment3d.perpendicularDirection roadAsSegment
+                leftKerbVector =
+                    Vector3d.meters
+                        (-1.0 * kerbX)
+                        kerbY
+                        0.0
 
-                leftKerb =
-                    LineSegment3d.from
-                        (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
-                        (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
+                rightKerbVector =
+                    Vector3d.reverse leftKerbVector
 
-                leftHalfway =
-                    LineSegment3d.from
-                        (Point3d.meters (x1 - 0.5 * kerbX) (y1 + 0.5 * kerbY) z1)
-                        (Point3d.meters (x2 - 0.5 * kerbX) (y2 + 0.5 * kerbY) z2)
+                ( leftKerb, rightKerb ) =
+                    ( LineSegment3d.translateBy leftKerbVector roadAsSegment
+                    , LineSegment3d.translateBy rightKerbVector roadAsSegment
+                    )
 
-                rightKerb =
-                    LineSegment3d.from
-                        (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
-                        (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
+                ( leftHalfwayVector, rightHalfwayVector ) =
+                    ( Vector3d.half leftKerbVector
+                    , Vector3d.half rightKerbVector
+                    )
 
-                rightHalfway =
-                    LineSegment3d.from
-                        (Point3d.meters (x1 + 0.5 * kerbX) (y1 - 0.5 * kerbY) z1)
-                        (Point3d.meters (x2 + 0.5 * kerbX) (y2 - 0.5 * kerbY) z2)
+                ( leftHalfway, rightHalfway ) =
+                    ( LineSegment3d.translateBy leftHalfwayVector roadAsSegment
+                    , LineSegment3d.translateBy rightHalfwayVector roadAsSegment
+                    )
             in
             [ LineSegment3d.interpolate roadAsSegment 0.1
             , LineSegment3d.interpolate roadAsSegment 0.9
@@ -141,56 +122,51 @@ makeTerrain context roads =
             ]
 
         borderLand =
-            1000.0 / metresPerDegreeLatitude
+            Length.meters <| 1000.0 / metresPerDegreeLatitude
 
-        pointsBetween maxPoint ( ax, ay, az ) ( bx, by, bz ) =
-            List.range 0 (maxPoint - 1)
-                |> List.map (\i -> toFloat i / toFloat maxPoint)
-                |> List.map
-                    (\x ->
-                        corner (ax * x + bx * (1.0 - x))
-                            (ay * x + by * (1.0 - x))
-                            (az * x + bz * (1.0 - x))
-                    )
+        expandedBox =
+            -- Tedious bit where we establish our periphery.
+            BoundingBox3d.expandBy borderLand context.scaling.box
 
-        sw =
-            ( context.scaling.mins.lat - borderLand
-            , context.scaling.mins.lon - borderLand
-            , context.scaling.mins.ele
-            )
+        { minX, maxX, minY, maxY, minZ, maxZ } =
+            BoundingBox3d.extrema expandedBox
 
-        nw =
-            ( context.scaling.maxs.lat + borderLand
-            , context.scaling.mins.lon - borderLand
-            , context.scaling.mins.ele
-            )
+        { midX, midY, midZ } =
+            { midX = BoundingBox3d.midX expandedBox
+            , midY = BoundingBox3d.midY expandedBox
+            , midZ = BoundingBox3d.midZ expandedBox
+            }
 
-        ne =
-            ( context.scaling.maxs.lat + borderLand
-            , context.scaling.maxs.lon + borderLand
-            , context.scaling.mins.ele
-            )
+        { n, s, e, w } =
+            { n = Point3d.xyz midX maxY midZ
+            , s = Point3d.xyz midX minY midZ
+            , e = Point3d.xyz midY maxX midZ
+            , w = Point3d.xyz midY minX midZ
+            }
 
-        se =
-            ( context.scaling.mins.lat - borderLand
-            , context.scaling.maxs.lon + borderLand
-            , context.scaling.mins.ele
-            )
-
-        externalTrackpoints =
-            -- Not pretty, but heh.
-            -- NB we return to the first corner because we're only using road starts!
-            -- Let's try putting some along the edges, not only corners.
-            -- This seems to help, but not too many. (?)
-            []
-                ++ pointsBetween 1 sw nw
-                ++ pointsBetween 1 nw ne
-                ++ pointsBetween 1 ne se
-                ++ pointsBetween 1 se sw
+        { sw, nw, ne, se } =
+            { sw = Point3d.xyz minX minY minZ
+            , nw = Point3d.xyz minX maxY minZ
+            , ne = Point3d.xyz maxX maxY minZ
+            , se = Point3d.xyz maxX minY minZ
+            }
 
         theEdgesOfOurWorld =
-            deriveNodes context.scaling externalTrackpoints
-                |> deriveRoads
+            List.map fakeRoad
+                [ ( n, ne )
+                , ( ne, e )
+                , ( e, se )
+                , ( se, s )
+                , ( s, sw )
+                , ( sw, w )
+                , ( w, nw )
+                , ( nw, n )
+                ]
+
+        fakeRoad p1 p2 =
+            { startsAt = { location = p1 }
+            , endsAt = { location = p2 }
+            }
     in
     case maybeTriangulation of
         Err _ ->

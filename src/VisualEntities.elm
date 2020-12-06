@@ -1,16 +1,18 @@
 module VisualEntities exposing (..)
 
 import Array exposing (Array)
-import BoundingBox2d
+import BoundingBox3d
 import Color
 import Cone3d
 import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
+import LineSegment3d
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
-import Point2d
+import Plane3d
 import Point3d
+import Quantity
 import RenderingContext exposing (RenderingContext)
 import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity, cone, cylinder, sphere)
@@ -19,6 +21,7 @@ import Sphere3d
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
+import Vector3d
 import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
 
 
@@ -30,79 +33,53 @@ roadMapper road =
 
 makeStatic3DEntities :
     RenderingContext
-    -> Array DrawingRoad
+    -> List DrawingRoad
     -> List (Entity MyCoord)
-makeStatic3DEntities context roads =
+makeStatic3DEntities context roadList =
     let
-        roadList =
-            Array.toList roads
-
-        pointList =
-            List.map
-                (\r -> Point2d.meters r.startsAt.x r.startsAt.y)
-                roadList
-
-        maybeBoundingBox =
-            -- TODO: This should live in ScalingInfo.
-            BoundingBox2d.hullN pointList
-
         seaLevel =
-            case maybeBoundingBox of
-                Just box ->
-                    let
-                        bigger =
-                            BoundingBox2d.expandBy (Length.meters 1000.0) box
+            let
+                bigger =
+                    BoundingBox3d.expandBy (Length.meters 1000.0) context.scaling.box
 
-                        { minX, maxX, minY, maxY } =
-                            BoundingBox2d.extrema bigger
-                    in
-                    Scene3d.quad (Material.color Color.darkGreen)
-                        (Point3d.xyz minX minY (Length.meters 0.0))
-                        (Point3d.xyz minX maxY (Length.meters 0.0))
-                        (Point3d.xyz maxX maxY (Length.meters 0.0))
-                        (Point3d.xyz maxX minY (Length.meters 0.0))
-
-                Nothing ->
-                    Scene3d.quad (Material.color Color.darkGreen)
-                        (Point3d.meters 0.0 0.0 0.0)
-                        (Point3d.meters 0.0 0.0 0.0)
-                        (Point3d.meters 0.0 0.0 0.0)
-                        (Point3d.meters 0.0 0.0 0.0)
+                { minX, maxX, minY, maxY, minZ, maxZ } =
+                    BoundingBox3d.extrema bigger
+            in
+            Scene3d.quad (Material.color Color.darkGreen)
+                (Point3d.xyz minX minY (Length.meters 0.0))
+                (Point3d.xyz minX maxY (Length.meters 0.0))
+                (Point3d.xyz maxX maxY (Length.meters 0.0))
+                (Point3d.xyz maxX minY (Length.meters 0.0))
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
-        brownPillar x y z =
+        brownPillar loc =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
-                    (Point3d.meters x y (z - 1.0))
+                    (Point3d.translateBy
+                        (Vector3d.meters 0.0 0.0 -1.0)
+                        loc
+                    )
                     negativeZ
-                    { radius = meters <| 0.5
-                    , length = meters <| z - 1.0
+                    { radius = meters 0.5
+                    , length = Quantity.minus (Point3d.zCoordinate loc) (Length.meters 1.0)
                     }
 
         pillars =
-            let
-                makeStartPillar road =
-                    let
-                        ( _, ( x2, y2, z2 ) ) =
-                            roadMapper road
-                    in
-                    brownPillar x2 y2 z2
+            List.map
+                (\r -> brownPillar r.startsAt.location)
+                (List.take 1 roadList)
+                ++ List.map
+                    (\r -> brownPillar r.endsAt.location)
+                    roadList
 
-                makeEndPillar road =
-                    let
-                        ( _, ( x2, y2, z2 ) ) =
-                            roadMapper road
-                    in
-                    brownPillar x2 y2 z2
-            in
-            List.map makeStartPillar (List.take 1 roadList)
-                ++ List.map makeEndPillar roadList
-
-        trackpointmarker x y z =
+        trackpointmarker loc =
             cone (Material.color Color.black) <|
                 Cone3d.startingAt
-                    (Point3d.meters x y (z - 1.0))
+                    (Point3d.translateBy
+                        (Vector3d.meters 0.0 0.0 -1.0)
+                        loc
+                    )
                     positiveZ
                     { radius = meters <| 0.6
                     , length = meters <| 1.0
@@ -111,18 +88,10 @@ makeStatic3DEntities context roads =
         trackpointMarkers =
             let
                 makeStartCone road =
-                    let
-                        ( ( x1, y1, z1 ), _ ) =
-                            roadMapper road
-                    in
-                    trackpointmarker x1 y1 z1
+                    trackpointmarker road.startsAt.location
 
                 makeEndCone road =
-                    let
-                        ( _, ( x2, y2, z2 ) ) =
-                            roadMapper road
-                    in
-                    trackpointmarker x2 y2 z2
+                    trackpointmarker road.endsAt.location
             in
             List.map makeStartCone (List.take 1 roadList)
                 ++ List.map makeEndCone roadList
@@ -132,63 +101,85 @@ makeStatic3DEntities context roads =
                 List.map roadSurface <|
                     roadList
 
-        roadSurface segment =
+        roadSurface road =
             let
-                kerbX =
-                    -- Road is assumed to be 6 m wide.
-                    3.0 * cos segment.bearing
-
-                kerbY =
-                    3.0 * sin segment.bearing
-
                 edgeHeight =
                     -- Let's try a low wall at the road's edges.
                     0.3
 
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadMapper segment
-            in
-            [ --surface
-              Scene3d.quad (Material.matte Color.grey)
-                (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
-                (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
-                (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
-                (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
+                ( kerbX, kerbY ) =
+                    -- Road is assumed to be 6 m wide.
+                    ( 3.0 * cos road.bearing
+                    , 3.0 * sin road.bearing
+                    )
 
-            -- kerb walls
-            , Scene3d.quad (Material.color Color.darkGrey)
-                (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
-                (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
-                (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + edgeHeight))
-                (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + edgeHeight))
-            , Scene3d.quad (Material.color Color.darkGrey)
-                (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
-                (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
-                (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + edgeHeight))
-                (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + edgeHeight))
+                roadAsSegment =
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+
+                leftKerbVector =
+                    Vector3d.meters
+                        (-1.0 * kerbX)
+                        kerbY
+                        0.0
+
+                rightKerbVector =
+                    Vector3d.reverse leftKerbVector
+
+                ( leftKerb, rightKerb ) =
+                    ( LineSegment3d.translateBy leftKerbVector roadAsSegment
+                    , LineSegment3d.translateBy rightKerbVector roadAsSegment
+                    )
+
+                ---- kerb walls
+                --, Scene3d.quad (Material.color Color.darkGrey)
+                --    (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
+                --    (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
+                --    (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + edgeHeight))
+                --    (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + edgeHeight))
+                --, Scene3d.quad (Material.color Color.darkGrey)
+                --    (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
+                --    (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
+                --    (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + edgeHeight))
+                --    (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + edgeHeight))
+            in
+            [ Scene3d.quad (Material.matte Color.grey)
+                (LineSegment3d.startPoint leftKerb)
+                (LineSegment3d.endPoint leftKerb)
+                (LineSegment3d.endPoint rightKerb)
+                (LineSegment3d.startPoint rightKerb)
             ]
 
-        subtleGradientLine segment =
+        subtleGradientLine road =
             let
-                halfX =
-                    -- Road is assumed to be 6 m wide.
-                    0.3 * cos segment.bearing
+                ( halfX, halfY ) =
+                    -- Width of the centre line.
+                    ( 0.3 * cos road.bearing
+                    , 0.3 * sin road.bearing
+                    )
 
-                halfY =
-                    0.3 * sin segment.bearing
+                roadAsSegment =
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
-                raised =
-                    0.05
+                leftVector =
+                    Vector3d.meters
+                        (-1.0 * halfX)
+                        halfY
+                        0.05
 
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadMapper segment
+                rightVector =
+                    Vector3d.reverse leftVector
+
+                ( leftEdge, rightEdge ) =
+                    ( LineSegment3d.translateBy leftVector roadAsSegment
+                    , LineSegment3d.translateBy rightVector roadAsSegment
+                    )
             in
             [ --surface
-              Scene3d.quad (Material.color <| gradientColourPastel segment.gradient)
-                (Point3d.meters (x1 + halfX) (y1 - halfY) (z1 + raised))
-                (Point3d.meters (x2 + halfX) (y2 - halfY) (z2 + raised))
-                (Point3d.meters (x2 - halfX) (y2 + halfY) (z2 + raised))
-                (Point3d.meters (x1 - halfX) (y1 + halfY) (z1 + raised))
+              Scene3d.quad (Material.color <| gradientColourPastel road.gradient)
+                (LineSegment3d.startPoint leftEdge)
+                (LineSegment3d.endPoint leftEdge)
+                (LineSegment3d.endPoint rightEdge)
+                (LineSegment3d.startPoint rightEdge)
             ]
 
         centreLine =
@@ -215,16 +206,12 @@ makeStatic3DEntities context roads =
                 NoCurtain ->
                     Color.rgb255 0 0 0
 
-        curtain segment =
-            let
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadMapper segment
-            in
-            [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
-                (Point3d.meters x1 y1 z1)
-                (Point3d.meters x2 y2 z2)
-                (Point3d.meters x2 y2 0.0)
-                (Point3d.meters x1 y1 0.0)
+        curtain road =
+            [ Scene3d.quad (Material.color <| curtainColour road.gradient)
+                road.startsAt.location
+                road.endsAt.location
+                (Point3d.projectOnto Plane3d.xy road.endsAt.location)
+                (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
 
         optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
@@ -249,63 +236,39 @@ makeStaticProfileEntities context roadList =
     -- We manipulate the context to get the scaling right.
     -- Decided to duplicate the function so we can have different shapes to suit the view.
     let
-        seaLevelInClipSpace =
-            0.0
-
-        -- Convert the points to a list of entities by providing a radius and
-        -- color for each point
-        brownPillar x y z =
+        brownPillar loc =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
-                    (Point3d.meters x y (z - 0.2))
+                    (Point3d.translateBy
+                        (Vector3d.meters 0.0 0.0 -1.0)
+                        loc
+                    )
                     negativeZ
-                    { radius = meters <| 0.1
-                    , length = meters <| z - 0.2 - seaLevelInClipSpace
+                    { radius = meters 0.5
+                    , length = Quantity.minus (Point3d.zCoordinate loc) (Length.meters 1.0)
                     }
 
         pillars =
-            let
-                makeStartPillar road =
-                    let
-                        ( ( x1, y1, z1 ), _ ) =
-                            roadMapper road
-                    in
-                    brownPillar x1 y1 z1
+            List.map
+                (\r -> brownPillar r.startsAt.location)
+                (List.take 1 roadList)
+                ++ List.map
+                    (\r -> brownPillar r.endsAt.location)
+                    roadList
 
-                makeEndPillar road =
-                    let
-                        ( _, ( x2, y2, z2 ) ) =
-                            roadMapper road
-                    in
-                    brownPillar x2 y2 z2
-            in
-            List.map makeStartPillar (List.take 1 roadList)
-                ++ List.map makeEndPillar roadList
-
-        trackpointmarker x y z =
+        trackpointmarker loc =
             sphere (Material.color Color.black) <|
                 Sphere3d.withRadius
                     (meters <| 0.1)
-                    (Point3d.meters x y z)
+                    loc
 
         trackpointMarkers =
-            let
-                makeStartCone road =
-                    let
-                        ( ( x1, y1, z1 ), _ ) =
-                            roadMapper road
-                    in
-                    trackpointmarker x1 y1 z1
-
-                makeEndCone road =
-                    let
-                        ( _, ( x2, y2, z2 ) ) =
-                            roadMapper road
-                    in
-                    trackpointmarker x2 y2 z2
-            in
-            List.map makeStartCone (List.take 1 roadList)
-                ++ List.map makeEndCone roadList
+            List.map
+                (\r -> trackpointmarker r.startsAt.location)
+                (List.take 1 roadList)
+                ++ List.map
+                    (\r -> trackpointmarker r.endsAt.location)
+                    roadList
 
         roadSurfaces =
             List.concat <|
@@ -334,16 +297,12 @@ makeStaticProfileEntities context roadList =
                 NoCurtain ->
                     Color.rgb255 0 0 0
 
-        curtain segment =
-            let
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadMapper segment
-            in
-            [ Scene3d.quad (Material.color <| curtainColour segment.gradient)
-                (Point3d.meters x1 y1 z1)
-                (Point3d.meters x2 y2 z2)
-                (Point3d.meters x2 y2 seaLevelInClipSpace)
-                (Point3d.meters x1 y1 seaLevelInClipSpace)
+        curtain road =
+            [ Scene3d.quad (Material.color <| curtainColour road.gradient)
+                road.startsAt.location
+                road.endsAt.location
+                (Point3d.projectOnto Plane3d.xy road.endsAt.location)
+                (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
 
         optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
@@ -366,13 +325,12 @@ makeVaryingVisualEntities context _ =
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
                 ( Just road, ThirdPersonView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            roadMapper road
-                    in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1))
+                            (Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 10.1)
+                                road.startsAt.location
+                            )
                             negativeZ
                             { radius = meters <| 3.0
                             , length = meters <| 10.0
@@ -380,13 +338,12 @@ makeVaryingVisualEntities context _ =
                     ]
 
                 ( Just road, PlanView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            roadMapper road
-                    in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1))
+                            (Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 10.1)
+                                road.startsAt.location
+                            )
                             negativeZ
                             { radius = meters <| 1.5
                             , length = meters <| 10.0
@@ -399,13 +356,12 @@ makeVaryingVisualEntities context _ =
         markedNode =
             case ( context.markedNode, context.viewingMode ) of
                 ( Just road, ThirdPersonView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            roadMapper road
-                    in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1))
+                            (Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 10.1)
+                                road.startsAt.location
+                            )
                             negativeZ
                             { radius = meters <| 3.5
                             , length = meters <| 8.0
@@ -413,13 +369,12 @@ makeVaryingVisualEntities context _ =
                     ]
 
                 ( Just road, PlanView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            roadMapper road
-                    in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 10.1))
+                            (Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 10.1)
+                                road.startsAt.location
+                            )
                             negativeZ
                             { radius = meters <| 1.6
                             , length = meters <| 8.0
@@ -436,25 +391,36 @@ makeVaryingVisualEntities context _ =
             else
                 []
 
-        bendElement segment =
+        bendElement road =
             let
-                kerbX =
-                    1.0 * cos segment.bearing
+                ( halfX, halfY ) =
+                    -- Width of the line.
+                    ( 1.0 * cos road.bearing
+                    , 1.0 * sin road.bearing
+                    )
 
-                kerbY =
-                    1.0 * sin segment.bearing
+                roadAsSegment =
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
-                floatHeight =
-                    0.1
+                leftVector =
+                    Vector3d.meters
+                        (-1.0 * halfX)
+                        halfY
+                        0.05
 
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadMapper segment
+                rightVector =
+                    Vector3d.reverse leftVector
+
+                ( leftEdge, rightEdge ) =
+                    ( LineSegment3d.translateBy leftVector roadAsSegment
+                    , LineSegment3d.translateBy rightVector roadAsSegment
+                    )
             in
             Scene3d.quad (Material.color Color.lightYellow)
-                (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))
-                (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + floatHeight))
-                (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + floatHeight))
-                (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + floatHeight))
+                (LineSegment3d.startPoint leftEdge)
+                (LineSegment3d.endPoint leftEdge)
+                (LineSegment3d.endPoint rightEdge)
+                (LineSegment3d.startPoint rightEdge)
     in
     currentPositionDisc
         ++ markedNode
@@ -468,13 +434,12 @@ makeVaryingProfileEntities context _ =
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
                 ( Just road, ProfileView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            roadMapper road
-                    in
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 2.0))
+                            (Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 2.0)
+                                road.startsAt.location
+                            )
                             negativeZ
                             { radius = meters 0.3
                             , length = meters 1.9
@@ -487,13 +452,12 @@ makeVaryingProfileEntities context _ =
         markedNode =
             case ( context.markedNode, context.viewingMode ) of
                 ( Just road, ProfileView ) ->
-                    let
-                        ( ( x, y, z ), _ ) =
-                            roadMapper road
-                    in
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
-                            (Point3d.meters x y (z + 2.0))
+                            (Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 10.1)
+                                road.startsAt.location
+                            )
                             negativeZ
                             { radius = meters 0.3
                             , length = meters 1.9
@@ -502,80 +466,23 @@ makeVaryingProfileEntities context _ =
 
                 _ ->
                     []
-
-        suggestedBend =
-            if context.viewingSubMode == ShowBendFixes then
-                List.map bendElement context.smoothedBend
-
-            else
-                []
-
-        bendElement segment =
-            let
-                kerbX =
-                    2.0 * cos segment.bearing
-
-                kerbY =
-                    2.0 * sin segment.bearing
-
-                floatHeight =
-                    0.1
-
-                ( ( x1, y1, z1 ), ( x2, y2, z2 ) ) =
-                    roadMapper segment
-            in
-            Scene3d.quad (Material.color Color.white)
-                (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + floatHeight))
-                (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + floatHeight))
-                (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + floatHeight))
-                (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + floatHeight))
     in
     currentPositionDisc
         ++ markedNode
-        ++ suggestedBend
 
 
 deriveScalingInfo : List TrackPoint -> ScalingInfo
 deriveScalingInfo tps =
     let
-        lowerBounds tp =
-            { lat = List.foldl min 90.0 <| List.map .lat tp
-            , lon = List.foldl min 180.0 <| List.map .lon tp
-            , ele = List.foldl min 10000.0 <| List.map .ele tp
-            , idx = 0
-            }
-
-        upperBounds tp =
-            { lat = List.foldl max -90.0 <| List.map .lat tp
-            , lon = List.foldl max -180.0 <| List.map .lon tp
-            , ele = List.foldl max -10000.0 <| List.map .ele tp
-            , idx = 0
-            }
-
-        mins =
-            lowerBounds tps
-
-        maxs =
-            upperBounds tps
-
-        findCentres =
-            { lat = (mins.lat + maxs.lat) / 2.0
-            , lon = (mins.lon + maxs.lon) / 2.0
-            , ele = (mins.ele + maxs.ele) / 2.0
-            , idx = 0
-            }
-
-        scalingFactor =
-            max (abs (maxs.lat - mins.lat))
-                (abs (maxs.lon - mins.lon))
-
-        metresToClipSpace =
-            1 / (0.5 * scalingFactor * metresPerDegreeLatitude)
-
-        elevationToClipSpace e =
-            (e - findCentres.ele) * metresToClipSpace
+        box =
+            BoundingBox3d.hullN <|
+                List.map (\tp -> Point3d.meters tp.lon tp.lat tp.ele)
+                    tps
     in
-    { mins = mins
-    , maxs = maxs
-    , centres = findCentres
+    { box =
+        Maybe.withDefault
+            (BoundingBox3d.singleton <|
+                Point3d.meters 0.0 0.0 0.0
+            )
+            box
     }

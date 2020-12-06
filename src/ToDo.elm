@@ -1,8 +1,9 @@
 module ToDo exposing (..)
 
---TODO: Rid of scaling factor. Need to fix bounding box.
+--TODO: Debt. Use elm-units and elm-geometry throughout, with proper units!
+--Just change the Model and use the compiler. Deep breath.
 
---TODO: Having sequence of model actions after each change is fragile.
+--TODO: Debt. Having sequence of model actions after each change is fragile.
 
 --TODO: Debt. Gather all colours and styles together.
 
@@ -12,7 +13,5 @@ module ToDo exposing (..)
 
 --TODO: Debt. Tidy up view logic. (left pane, right pane).
 
---TODO: Debt. More modularisation.
+--TODO: Debt. More modularisation. Chop up the types and model.
 
---TODO: Debt. Use elm-units and elm-geometry throughout, with proper units!
---Just change the Model and use the compiler. Deep breath.

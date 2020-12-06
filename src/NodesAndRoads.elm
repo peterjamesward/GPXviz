@@ -1,5 +1,9 @@
 module NodesAndRoads exposing (..)
 
+import BoundingBox3d exposing (BoundingBox3d)
+import Length
+import Point3d exposing (Point3d)
+--import ScalingInfo exposing (ScalingInfo)
 import ScalingInfo exposing (ScalingInfo)
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
@@ -13,12 +17,13 @@ type alias DrawingNode =
     -- We draw in a rectangular space using metre units.
     --TODO: Convert to Point3d Meters
     { trackPoint : TrackPoint
-    , northOffset : Float -- metres from bottom edge of bounding box
-    , eastOffset : Float -- metres from left edge of bounding box
-    , vertOffset : Float -- metres from base of bounding box
-    , x : Float -- east offset converted
-    , y : Float -- north, ditto
-    , z : Float -- vert, ditto
+    , location : Point3d Length.Meters MyCoord
+    --, northOffset : Float -- metres from bottom edge of bounding box
+    --, eastOffset : Float -- metres from left edge of bounding box
+    --, vertOffset : Float -- metres from base of bounding box
+    --, x : Float -- east offset converted (may not be needed at all)
+    --, y : Float -- north, ditto
+    --, z : Float -- vert, ditto
     }
 
 
@@ -49,20 +54,15 @@ type alias SummaryData =
 deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
 deriveNodes scale tps =
     let
-        findCentres =
-            scale.centres
-
-        mins =
-            scale.mins
+        (midX, midY, midZ) =
+            Point3d.toTuple Length.inMeters <| BoundingBox3d.centerPoint scale.box
 
         prepareDrawingNode tp =
             { trackPoint = tp
-            , northOffset = (tp.lat - mins.lat) * metresPerDegreeLatitude
-            , eastOffset = (tp.lon - mins.lon) * metresPerDegreeLatitude * cos tp.lat
-            , vertOffset = tp.ele - mins.ele
-            , x = (tp.lon - findCentres.lon) * metresPerDegreeLatitude
-            , y = (tp.lat - findCentres.lat) * metresPerDegreeLatitude
-            , z = tp.ele
+            , location = Point3d.meters
+                ((tp.lat - midY) * metresPerDegreeLatitude)
+                ((tp.lon - midX) * metresPerDegreeLatitude * cos tp.lat)
+                (tp.ele - midZ)
             }
     in
     List.map prepareDrawingNode tps
@@ -191,14 +191,18 @@ roadsForProfileView roads =
 
                 newStartNode =
                     { startNode
-                        | y = 2.0 * road.startDistance / 10.0 -- compress horizontal scale.
-                        , x = 0.0
+                        | location = Point3d.xyz
+                            (Length.meters 0.0)
+                            (Length.meters <| road.startDistance / 5.0)
+                            (Point3d.zCoordinate startNode.location)
                     }
 
                 newEndNode =
                     { endNode
-                        | y = 2.0 * road.endDistance / 10.0 -- compress horizontal scale.
-                        , x = 0.0
+                        | location = Point3d.xyz
+                            (Length.meters 0.0)
+                            (Length.meters <| road.endDistance / 5.0)
+                            (Point3d.zCoordinate endNode.location)
                     }
             in
             { road | startsAt = newStartNode, endsAt = newEndNode, bearing = 0.0 }
