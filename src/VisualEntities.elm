@@ -261,14 +261,6 @@ makeStaticProfileEntities context roadList =
                     (\r -> trackpointmarker r.endsAt.location)
                     roadList
 
-        roadSurfaces =
-            List.concat <|
-                List.map roadSurface <|
-                    roadList
-
-        roadSurface _ =
-            []
-
         curtains =
             List.concat <|
                 List.map curtain <|
@@ -304,9 +296,9 @@ makeStaticProfileEntities context roadList =
             else
                 []
     in
-    optionally context.displayOptions.roadPillars pillars
+    []
+        ++ optionally context.displayOptions.roadPillars pillars
         ++ optionally context.displayOptions.roadCones trackpointMarkers
-        ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
 
