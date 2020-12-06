@@ -31,8 +31,8 @@ displayName n =
             none
 
 
-distanceFromZoom : ScalingInfo -> Float -> Float
-distanceFromZoom scale zoomLevel =
+distanceFromZoom :  Float -> Float
+distanceFromZoom  zoomLevel =
     10.0 ^ (5.0 - zoomLevel)
 
 

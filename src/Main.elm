@@ -81,18 +81,19 @@ type alias Model =
     , zone : Time.Zone
     , gpxUrl : String
     , trackPoints : List TrackPoint
-    , scaling : Maybe ScalingInfo
+    , trackPointBox : Maybe (BoundingBox3d Length.Meters GPXCoords)
+    , nodeBox : Maybe (BoundingBox3d Length.Meters LocalCoords)
     , nodes : List DrawingNode
     , roads : List DrawingRoad
     , trackName : Maybe String
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
-    , staticVisualEntities : List (Entity MyCoord) -- our 3D world
-    , staticProfileEntities : List (Entity MyCoord) -- an unrolled 3D world for the profile view.
-    , varyingVisualEntities : List (Entity MyCoord) -- current position and marker node.
-    , varyingProfileEntities : List (Entity MyCoord)
-    , terrainEntities : List (Entity MyCoord)
+    , staticVisualEntities : List (Entity LocalCoords) -- our 3D world
+    , staticProfileEntities : List (Entity LocalCoords) -- an unrolled 3D world for the profile view.
+    , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
+    , varyingProfileEntities : List (Entity LocalCoords)
+    , terrainEntities : List (Entity LocalCoords)
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
@@ -136,7 +137,8 @@ init _ =
       , zone = Time.utc
       , gpxUrl = ""
       , trackPoints = []
-      , scaling = Nothing
+      , trackPointBox = Nothing
+      , nodeBox = Nothing
       , nodes = []
       , roads = []
       , trackName = Nothing
@@ -238,9 +240,9 @@ update msg model =
                 |> deleteZeroLengthSegments
                 |> deriveNodesAndRoads
                 |> deriveProblems
-                |> resetViewSettings
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
+                |> resetViewSettings
                 |> clearTerrain
             , Cmd.none
             )
@@ -592,7 +594,7 @@ closeTheLoop model =
         backOneMeter : DrawingRoad -> TrackPoint
         backOneMeter segment =
             let
-                newLatLon : Point2d Length.Meters MyCoord
+                newLatLon : Point2d Length.Meters LocalCoords
                 newLatLon =
                     Point2d.interpolateFrom
                         (Point2d.meters segment.startsAt.trackPoint.lon segment.startsAt.trackPoint.lat)
@@ -734,8 +736,8 @@ pauseFlythrough model =
 
 advanceFlythrough : Time.Posix -> Model -> Model
 advanceFlythrough newTime model =
-    case ( model.flythrough, model.scaling ) of
-        ( Just flying, Just _ ) ->
+    case model.flythrough of
+        Just flying ->
             { model
                 | flythrough =
                     Just <|
@@ -746,7 +748,7 @@ advanceFlythrough newTime model =
                             model.roads
             }
 
-        _ ->
+        Nothing ->
             model
 
 
@@ -815,23 +817,27 @@ tryBendSmoother model =
                 case ( entrySegment, exitSegment ) of
                     ( Just road1, Just road2 ) ->
                         let
-                            ( ( pa, pb ), ( pc, pd ) ) =
-                                ( ( road1.startsAt.trackPoint
-                                  , road1.endsAt.trackPoint
-                                  )
-                                , ( road2.startsAt.trackPoint
-                                  , road2.endsAt.trackPoint
-                                  )
+                            ( pa, pb ) =
+                                ( road1.startsAt.trackPoint
+                                , road1.endsAt.trackPoint
+                                )
+
+                            ( pc, pd ) =
+                                ( road2.startsAt.trackPoint
+                                , road2.endsAt.trackPoint
                                 )
 
                             newTrack =
                                 bendIncircle model.numLineSegmentsForBend pa pb pc pd
                         in
-                        case newTrack of
-                            Just track ->
+                        case ( newTrack, model.trackPointBox ) of
+                            ( Just track, Just box ) ->
                                 { model
                                     | smoothedBend = newTrack
-                                    , smoothedRoads = deriveRoads <| deriveNodes <| track.trackPoints
+                                    , smoothedRoads =
+                                        deriveRoads <|
+                                            deriveNodes box <|
+                                                track.trackPoints
                                 }
 
                             _ ->
@@ -1067,11 +1073,25 @@ parseGPXintoModel content model =
 deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     let
-        withNodes m =
-            { m | nodes = deriveNodes m.trackPoints }
+        trackPointAsPoint tp =
+            Point3d.meters
+                tp.lon
+                tp.lat
+                tp.ele
 
-        withScaling m =
-            { m | scaling = deriveScalingBox m.nodes }
+        withNodes m =
+            case m.trackPointBox of
+                Just box ->
+                    { m | nodes = deriveNodes box m.trackPoints }
+
+                Nothing ->
+                    m
+
+        withTrackPointScaling m =
+            { m | trackPointBox = BoundingBox3d.hullN <| List.map trackPointAsPoint m.trackPoints }
+
+        withNodeScaling m =
+            { m | nodeBox = BoundingBox3d.hullN <| List.map .location m.nodes }
 
         withRoads m =
             let
@@ -1093,8 +1113,9 @@ deriveNodesAndRoads model =
             }
     in
     model
+        |> withTrackPointScaling
         |> withNodes
-        |> withScaling
+        |> withNodeScaling
         |> withRoads
         |> withSummary
         |> withArrays
@@ -1102,11 +1123,27 @@ deriveNodesAndRoads model =
 
 resetViewSettings : Model -> Model
 resetViewSettings model =
+    let
+        routeSize =
+            Maybe.map BoundingBox3d.dimensions model.nodeBox
+
+        zoomLevel =
+            case routeSize of
+                Just ( x, y, _ ) ->
+                    -- Empirical!
+                    clamp 1.0 4.0 <|
+                        5.0
+                            - logBase 10 (max (Length.inMeters x) (Length.inMeters y))
+
+                Nothing ->
+                    1.0
+    in
     { model
-        | zoomLevelOverview = 2.0
-        , zoomLevelFirstPerson = 2.0
-        , zoomLevelThirdPerson = 2.0
-        , zoomLevelProfile = 1.5
+        | zoomLevelOverview = zoomLevel
+        , zoomLevelFirstPerson = zoomLevel
+        , zoomLevelThirdPerson = zoomLevel
+        , zoomLevelProfile = zoomLevel
+        , zoomLevelPlan = zoomLevel
         , azimuth = Angle.degrees 0.0
         , elevation = Angle.degrees 30.0
         , currentNode = Just 0
@@ -1241,14 +1278,14 @@ trackPointGap t1 t2 =
 deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
-    case model.scaling of
+    case model.nodeBox of
         Just scale ->
             let
                 context =
                     { displayOptions = model.displayOptions
                     , currentNode = lookupRoad model model.currentNode
                     , markedNode = lookupRoad model model.markedNode
-                    , scaling = scale
+                    , nodeBox = scale
                     , viewingMode = model.viewingMode
                     , viewingSubMode = model.thirdPersonSubmode
                     , smoothedBend = model.smoothedRoads
@@ -1266,14 +1303,14 @@ deriveStaticVisualEntities model =
 deriveTerrain : Model -> Model
 deriveTerrain model =
     -- Terrain building is O(n^2). Not to be undertaken lightly.
-    case model.scaling of
+    case model.nodeBox of
         Just scale ->
             let
                 context =
                     { displayOptions = model.displayOptions
                     , currentNode = lookupRoad model model.currentNode
                     , markedNode = lookupRoad model model.markedNode
-                    , scaling = scale
+                    , nodeBox = scale
                     , viewingMode = model.viewingMode
                     , viewingSubMode = model.thirdPersonSubmode
                     , smoothedBend = model.smoothedRoads
@@ -1312,14 +1349,14 @@ deriveVaryingVisualEntities model =
                 Nothing ->
                     Nothing
     in
-    case model.scaling of
+    case model.nodeBox of
         Just scale ->
             let
                 context =
                     { displayOptions = model.displayOptions
                     , currentNode = currentRoad
                     , markedNode = markedRoad
-                    , scaling = scale
+                    , nodeBox = scale
                     , viewingMode = model.viewingMode
                     , viewingSubMode =
                         -- Hack that should not be needed with proper view management.
@@ -1391,7 +1428,7 @@ viewGenericNew model =
                 , row []
                     [ viewModeChoices model
                     ]
-                , case model.scaling of
+                , case model.nodeBox of
                     Just scale ->
                         row []
                             [ view3D scale model ]
@@ -1442,7 +1479,7 @@ viewModeChoices model =
 -- Each of these view is really just a left pane and a right pane.
 
 
-view3D : ScalingInfo -> Model -> Element Msg
+view3D : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 view3D scale model =
     case model.viewingMode of
         OverviewView ->
@@ -1719,7 +1756,7 @@ bendSmoothnessSlider model =
         }
 
 
-viewPointCloud : ScalingInfo -> Model -> Element Msg
+viewPointCloud : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 viewPointCloud scale model =
     let
         camera =
@@ -1729,7 +1766,7 @@ viewPointCloud scale model =
                         { focalPoint = Point3d.meters 0.0 0.0 0.0
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom scale model.zoomLevelOverview
+                        , distance = Length.meters <| distanceFromZoom model.zoomLevelOverview
                         }
                 , verticalFieldOfView = Angle.degrees 30
                 }
@@ -1991,8 +2028,8 @@ flythroughControls model =
         ]
 
 
-viewRoadSegment : ScalingInfo -> Model -> DrawingRoad -> Element Msg
-viewRoadSegment scale model road =
+viewRoadSegment : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingRoad -> Element Msg
+viewRoadSegment _ model road =
     let
         eyeHeight =
             -- Helps to be higher up.
@@ -2050,7 +2087,7 @@ viewRoadSegment scale model road =
                 }
 
 
-viewThirdPerson : ScalingInfo -> Model -> Element Msg
+viewThirdPerson : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 viewThirdPerson scale model =
     -- Let's the user spin around and zoom in on selected road point.
     case lookupRoad model model.currentNode of
@@ -2071,7 +2108,7 @@ viewThirdPerson scale model =
                 ]
 
 
-viewPlanView : ScalingInfo -> Model -> Element Msg
+viewPlanView : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 viewPlanView scale model =
     case lookupRoad model model.currentNode of
         Nothing ->
@@ -2451,7 +2488,7 @@ viewSummaryStats model =
             none
 
 
-viewCurrentNode : ScalingInfo -> Model -> DrawingNode -> Element Msg
+viewCurrentNode : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg
 viewCurrentNode scale model node =
     let
         focus =
@@ -2471,7 +2508,7 @@ viewCurrentNode scale model node =
                         , elevation = model.elevation
                         , distance =
                             Length.meters <|
-                                distanceFromZoom scale model.zoomLevelThirdPerson
+                                distanceFromZoom model.zoomLevelThirdPerson
                         }
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
                 }
@@ -2498,11 +2535,11 @@ viewCurrentNode scale model node =
         ]
 
 
-viewCurrentNodePlanView : ScalingInfo -> Model -> DrawingNode -> Element Msg
+viewCurrentNodePlanView : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView scale model node =
     let
         focus =
-            Point3d.projectOnto Plane3d.zx
+            Point3d.projectOnto Plane3d.xy
                 node.location
 
         eyePoint =

@@ -1,15 +1,15 @@
 module Flythrough exposing (..)
 
 import Length
-import NodesAndRoads exposing (DrawingRoad, MyCoord)
+import NodesAndRoads exposing (DrawingRoad, LocalCoords)
 import Point3d exposing (Point3d)
 import Time
 import Vector3d
 
 
 type alias Flythrough =
-    { cameraPosition : Point3d Length.Meters MyCoord
-    , focusPoint : Point3d Length.Meters MyCoord
+    { cameraPosition : Point3d Length.Meters LocalCoords
+    , focusPoint : Point3d Length.Meters LocalCoords
     , metresFromRouteStart : Float
     , lastUpdated : Time.Posix
     , running : Bool

@@ -9,7 +9,7 @@ import Direction3d exposing (negativeZ, positiveZ)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import LineSegment3d
-import NodesAndRoads exposing (DrawingNode, DrawingRoad, MyCoord)
+import NodesAndRoads exposing (DrawingNode, DrawingRoad, LocalCoords)
 import Plane3d
 import Point3d
 import Quantity
@@ -25,13 +25,13 @@ import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
 makeStatic3DEntities :
     RenderingContext
     -> List DrawingRoad
-    -> List (Entity MyCoord)
+    -> List (Entity LocalCoords)
 makeStatic3DEntities context roadList =
     let
         seaLevel =
             let
                 bigger =
-                    BoundingBox3d.expandBy (Length.meters 1000.0) context.scaling.nodeBox
+                    BoundingBox3d.expandBy (Length.meters 1000.0) context.nodeBox
 
                 { minX, maxX, minY, maxY, minZ, maxZ } =
                     BoundingBox3d.extrema bigger
@@ -205,7 +205,7 @@ makeStatic3DEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
 
-        optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
+        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
         optionally test element =
             if test then
                 element
@@ -221,7 +221,7 @@ makeStatic3DEntities context roadList =
         ++ optionally context.displayOptions.centreLine centreLine
 
 
-makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)
+makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
 makeStaticProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
@@ -288,7 +288,7 @@ makeStaticProfileEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
 
-        optionally : Bool -> List (Entity MyCoord) -> List (Entity MyCoord)
+        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
         optionally test element =
             if test then
                 element
@@ -302,7 +302,7 @@ makeStaticProfileEntities context roadList =
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
 
 
-makeVaryingVisualEntities : RenderingContext -> Array DrawingRoad -> List (Entity MyCoord)
+makeVaryingVisualEntities : RenderingContext -> Array DrawingRoad -> List (Entity LocalCoords)
 makeVaryingVisualEntities context _ =
     let
         currentPositionDisc =
@@ -410,7 +410,7 @@ makeVaryingVisualEntities context _ =
         ++ suggestedBend
 
 
-makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity MyCoord)
+makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
 makeVaryingProfileEntities context _ =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     let

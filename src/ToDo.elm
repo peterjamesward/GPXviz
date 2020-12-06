@@ -1,7 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Feat. Auto-set zoom level on file load.
-
 --TODO: Feat. Say if filename is too long for Magic Roads.
 
 --TODO: Debt. Gather all colours and styles together.

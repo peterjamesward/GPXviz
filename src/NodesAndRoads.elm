@@ -9,19 +9,24 @@ import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (TrackPoint)
 
 
-type MyCoord
-    = SomeCoord
+type LocalCoords
+    = LocalCoords
+
+
+type GPXCoords
+    = GPXCoords
 
 
 type alias ScalingInfo =
-    { nodeBox : BoundingBox3d Length.Meters MyCoord
+    { nodeBox : BoundingBox3d Length.Meters LocalCoords
+    , trackPointBox : BoundingBox3d Length.Meters GPXCoords
     }
 
 
 type alias DrawingNode =
     -- We draw in a rectangular space using metre units.
     { trackPoint : TrackPoint
-    , location : Point3d Length.Meters MyCoord
+    , location : Point3d Length.Meters LocalCoords
     }
 
 
@@ -48,7 +53,7 @@ type alias SummaryData =
     }
 
 
-deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters MyCoord
+deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters LocalCoords
 deriveTrackPointBox tps =
     Maybe.withDefault
         (BoundingBox3d.singleton <| Point3d.meters 0.0 0.0 0.0)
@@ -58,37 +63,24 @@ deriveTrackPointBox tps =
                 tps
 
 
-deriveNodes : List TrackPoint -> List DrawingNode
-deriveNodes tps =
+deriveNodes : BoundingBox3d Length.Meters GPXCoords -> List TrackPoint -> List DrawingNode
+deriveNodes box tps =
     let
         ( midX, midY, _ ) =
             Point3d.toTuple Length.inMeters <|
-                BoundingBox3d.centerPoint (deriveTrackPointBox tps)
+                BoundingBox3d.centerPoint box
 
         prepareDrawingNode tp =
             { trackPoint = tp
             , location =
                 Point3d.meters
-                    ((tp.lon - midX) * metresPerDegree) -- * cos tp.lat)
+                    ((tp.lon - midX) * metresPerDegree)
+                    -- * cos tp.lat)
                     ((tp.lat - midY) * metresPerDegree)
                     tp.ele
             }
     in
     List.map prepareDrawingNode tps
-
-
-deriveScalingBox : List DrawingNode -> Maybe ScalingInfo
-deriveScalingBox nodes =
-    let
-        box =
-            BoundingBox3d.hullN <| List.map .location nodes
-    in
-    case box of
-        Just bbox ->
-            Just { nodeBox = bbox }
-
-        Nothing ->
-            Nothing
 
 
 deriveRoads : List DrawingNode -> List DrawingRoad

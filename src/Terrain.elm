@@ -8,7 +8,7 @@ import Dict
 import Length exposing (Meters)
 import LineSegment3d
 import List
-import NodesAndRoads exposing (DrawingRoad, MyCoord, deriveNodes, deriveRoads)
+import NodesAndRoads exposing (DrawingRoad, LocalCoords, deriveNodes, deriveRoads)
 import Point3d exposing (Point3d)
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
@@ -30,7 +30,7 @@ import Vector3d
 -}
 
 
-pointToComparable : Point3d Meters MyCoord -> ( ( Float, Float ), Point3d Meters MyCoord )
+pointToComparable : Point3d Meters LocalCoords -> ( ( Float, Float ), Point3d Meters LocalCoords )
 pointToComparable p3d =
     -- So we can use a Dict to de-dupe points in 2D.
     ( ( Length.inMeters <| Point3d.xCoordinate p3d
@@ -43,7 +43,7 @@ pointToComparable p3d =
 makeTerrain :
     RenderingContext
     -> List DrawingRoad
-    -> List (Entity MyCoord)
+    -> List (Entity LocalCoords)
 makeTerrain context roadList =
     let
         roadVertices =
@@ -128,7 +128,7 @@ makeTerrain context roadList =
 
         expandedBox =
             -- Tedious bit where we establish our periphery.
-            BoundingBox3d.expandBy (Length.meters 1000.0) context.scaling.nodeBox
+            BoundingBox3d.expandBy (Length.meters 1000.0) context.nodeBox
 
         { minX, maxX, minY, maxY, minZ, maxZ } =
             BoundingBox3d.extrema expandedBox
