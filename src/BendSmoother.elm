@@ -7,7 +7,7 @@ import LineSegment2d
 import NodesAndRoads exposing (MyCoord)
 import Point2d exposing (xCoordinate, yCoordinate)
 import Polyline2d
-import Spherical exposing (metresPerDegreeLatitude)
+import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (TrackPoint)
 
 
@@ -142,7 +142,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
             :: newTrackPoints
             ++ [ t2, pd ]
     , centre = asPair <| Arc2d.centerPoint arc
-    , radius = metresPerDegreeLatitude * (inMeters <| Arc2d.radius arc)
+    , radius = metresPerDegree * (inMeters <| Arc2d.radius arc)
     , startIndex = pa.idx
     , endIndex = pd.idx
     }

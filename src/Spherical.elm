@@ -5,7 +5,7 @@ module Spherical exposing (..)
 
 meanRadius = 6371000
 
-metresPerDegreeLatitude = 78846.81
+metresPerDegree = 78846.81
 
 
 -- Equirectangular approximation

@@ -5,7 +5,7 @@ module NodesAndRoads exposing (..)
 import BoundingBox3d exposing (BoundingBox3d)
 import Length
 import Point3d exposing (Point3d)
-import Spherical exposing (metresPerDegreeLatitude)
+import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (TrackPoint)
 
 
@@ -48,8 +48,8 @@ type alias SummaryData =
     }
 
 
-deriveTrackPointScalingInfo : List TrackPoint -> BoundingBox3d Length.Meters MyCoord
-deriveTrackPointScalingInfo tps =
+deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters MyCoord
+deriveTrackPointBox tps =
     Maybe.withDefault
         (BoundingBox3d.singleton <| Point3d.meters 0.0 0.0 0.0)
     <|
@@ -61,18 +61,16 @@ deriveTrackPointScalingInfo tps =
 deriveNodes : List TrackPoint -> List DrawingNode
 deriveNodes tps =
     let
-        scale =
-            deriveTrackPointScalingInfo tps
-
         ( midX, midY, _ ) =
-            Point3d.toTuple Length.inMeters <| BoundingBox3d.centerPoint scale
+            Point3d.toTuple Length.inMeters <|
+                BoundingBox3d.centerPoint (deriveTrackPointBox tps)
 
         prepareDrawingNode tp =
             { trackPoint = tp
             , location =
                 Point3d.meters
-                    ((tp.lat - midY) * metresPerDegreeLatitude)
-                    ((tp.lon - midX) * metresPerDegreeLatitude * cos tp.lat)
+                    ((tp.lon - midX) * metresPerDegree) -- * cos tp.lat)
+                    ((tp.lat - midY) * metresPerDegree)
                     tp.ele
             }
     in

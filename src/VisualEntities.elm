@@ -231,12 +231,12 @@ makeStaticProfileEntities context roadList =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
                     (Point3d.translateBy
-                        (Vector3d.meters 0.0 0.0 -1.0)
+                        (Vector3d.meters 0.0 0.0 -0.2)
                         loc
                     )
                     negativeZ
-                    { radius = meters 0.5
-                    , length = Quantity.minus (Point3d.zCoordinate loc) (Length.meters 1.0)
+                    { radius = meters 0.1
+                    , length = Quantity.minus (Point3d.zCoordinate loc) (Length.meters 0.2)
                     }
 
         pillars =
@@ -250,7 +250,7 @@ makeStaticProfileEntities context roadList =
         trackpointmarker loc =
             sphere (Material.color Color.black) <|
                 Sphere3d.withRadius
-                    (meters <| 0.1)
+                    (meters 0.2)
                     loc
 
         trackpointMarkers =

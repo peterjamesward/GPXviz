@@ -4,6 +4,7 @@ import Length
 import NodesAndRoads exposing (DrawingRoad, MyCoord)
 import Point3d exposing (Point3d)
 import Time
+import Vector3d
 
 
 type alias Flythrough =
@@ -70,10 +71,13 @@ flythrough newTime flying speed roads =
                         clamp 0.0 1.0 (10.0 - segRemaining) / 10.0
 
                     camera3d =
-                        Point3d.interpolateFrom
-                            seg.startsAt.location
-                            seg.endsAt.location
-                            segFraction
+                        Point3d.translateBy
+                            (Vector3d.meters 0.0 0.0 1.5)
+                        <|
+                            Point3d.interpolateFrom
+                                seg.startsAt.location
+                                seg.endsAt.location
+                                segFraction
 
                     lookingAt =
                         case nextSeg of
@@ -85,13 +89,18 @@ flythrough newTime flying speed roads =
                                             next.endsAt.location
                                             0.5
                                 in
-                                Point3d.interpolateFrom
-                                    seg.endsAt.location
-                                    next3d
-                                    headTurnFraction
+                                Point3d.translateBy
+                                    (Vector3d.meters 0.0 0.0 1.5)
+                                <|
+                                    Point3d.interpolateFrom
+                                        seg.endsAt.location
+                                        next3d
+                                        headTurnFraction
 
                             Nothing ->
-                                seg.endsAt.location
+                                Point3d.translateBy
+                                    (Vector3d.meters 0.0 0.0 1.5)
+                                    seg.endsAt.location
                 in
                 { flying
                     | metresFromRouteStart = newDistance

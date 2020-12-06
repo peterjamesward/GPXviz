@@ -14,7 +14,7 @@ import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
 import Scene3d.Material as Material
 import SketchPlane3d
-import Spherical exposing (metresPerDegreeLatitude)
+import Spherical exposing (metresPerDegree)
 import Triangle3d
 import Vector3d
 
@@ -122,7 +122,7 @@ makeTerrain context roadList =
             ]
 
         borderLand =
-            Length.meters <| 1000.0 / metresPerDegreeLatitude
+            Length.meters <| 1000.0 / metresPerDegree
 
         expandedBox =
             -- Tedious bit where we establish our periphery.
