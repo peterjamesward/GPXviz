@@ -14,7 +14,6 @@ import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
 import Scene3d.Material as Material
 import SketchPlane3d
-import Spherical exposing (metresPerDegree)
 import Triangle3d
 import Vector3d
 
@@ -48,11 +47,11 @@ makeTerrain :
 makeTerrain context roadList =
     let
         roadVertices =
-            List.concatMap entryEdges (List.take 1 roadList)
-                ++ List.concatMap exitEdges roadList
+            List.concatMap roadCorners (List.take 1 roadList)
+                ++ List.concatMap roadCorners roadList
 
         uniqueVertices =
-            roadVertices
+            (roadVertices ++ externalVertices)
                 |> List.map pointToComparable
                 |> Dict.fromList
                 |> Dict.values
@@ -68,10 +67,12 @@ makeTerrain context roadList =
         entryEdges road =
             -- Totally forget why these are here but they seem to be essential.
             --TODO: See if this is still true now we filter out duplicate points.
-            List.take 2 <| roadCorners road
+            --List.take 2 <|
+            roadCorners road
 
         exitEdges road =
-            List.drop 2 <| roadCorners road
+            --List.drop 2 <|
+            roadCorners road
 
         roadCorners road =
             -- Duplicated from VisualEntities with no apology.
@@ -83,7 +84,11 @@ makeTerrain context roadList =
                     )
 
                 roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                    -- Put the terrain underneath the road, by a foot or so.
+                    LineSegment3d.translateBy
+                        (Vector3d.meters 0.0 0.0 -0.3)
+                    <|
+                        LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
                 leftKerbVector =
                     Vector3d.meters
@@ -121,12 +126,9 @@ makeTerrain context roadList =
             , LineSegment3d.interpolate rightKerb 1.0
             ]
 
-        borderLand =
-            Length.meters <| 1000.0 / metresPerDegree
-
         expandedBox =
             -- Tedious bit where we establish our periphery.
-            BoundingBox3d.expandBy borderLand context.scaling.nodeBox
+            BoundingBox3d.expandBy (Length.meters 1000.0) context.scaling.nodeBox
 
         { minX, maxX, minY, maxY, minZ, maxZ } =
             BoundingBox3d.extrema expandedBox
@@ -140,33 +142,19 @@ makeTerrain context roadList =
         { n, s, e, w } =
             { n = Point3d.xyz midX maxY midZ
             , s = Point3d.xyz midX minY midZ
-            , e = Point3d.xyz midY maxX midZ
-            , w = Point3d.xyz midY minX midZ
+            , e = Point3d.xyz maxY midY midZ
+            , w = Point3d.xyz minX midY midZ
             }
 
         { sw, nw, ne, se } =
-            { sw = Point3d.xyz minX minY minZ
-            , nw = Point3d.xyz minX maxY minZ
-            , ne = Point3d.xyz maxX maxY minZ
-            , se = Point3d.xyz maxX minY minZ
+            { sw = Point3d.xyz minX minY midZ
+            , nw = Point3d.xyz minX maxY midZ
+            , ne = Point3d.xyz maxX maxY midZ
+            , se = Point3d.xyz maxX minY midZ
             }
 
-        theEdgesOfOurWorld =
-            List.map fakeRoad
-                [ ( n, ne )
-                , ( ne, e )
-                , ( e, se )
-                , ( se, s )
-                , ( s, sw )
-                , ( sw, w )
-                , ( w, nw )
-                , ( nw, n )
-                ]
-
-        fakeRoad p1 p2 =
-            { startsAt = { location = p1 }
-            , endsAt = { location = p2 }
-            }
+        externalVertices =
+            [ n, e, s, w, ne, nw, se, sw ]
     in
     case maybeTriangulation of
         Err _ ->
@@ -179,7 +167,7 @@ makeTerrain context roadList =
                 drawFace face =
                     let
                         ( v1, v2, v3 ) =
-                            -- Would be obviated by using geometry consistently!
+                            -- Note we're using the original 3D vertices here!
                             face.vertices
                     in
                     Scene3d.facet
