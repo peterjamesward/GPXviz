@@ -1,7 +1,8 @@
 module ToDo exposing (..)
 
---TODO: Debt. Use elm-units and elm-geometry throughout, with proper units!
---Just change the Model and use the compiler. Deep breath.
+--TODO: Feat. Auto-set zoom level on file load.
+
+--TODO: Feat. Say if filename is too long for Magic Roads.
 
 --TODO: Debt. Having sequence of model actions after each change is fragile.
 
