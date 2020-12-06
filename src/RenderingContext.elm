@@ -1,8 +1,7 @@
 module RenderingContext exposing (..)
 
 import DisplayOptions exposing (DisplayOptions)
-import NodesAndRoads exposing (DrawingRoad)
-import ScalingInfo exposing (ScalingInfo)
+import NodesAndRoads exposing (DrawingRoad, ScalingInfo)
 import ViewTypes exposing (ViewSubmode, ViewingMode)
 
 

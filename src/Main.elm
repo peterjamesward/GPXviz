@@ -28,7 +28,6 @@ import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
 import Point3d
-import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity)
 import Spherical
 import Task
@@ -813,7 +812,7 @@ tryBendSmoother model =
                             Just track ->
                                 let
                                     newNodes =
-                                        deriveNodes scale track.trackPoints
+                                        deriveNodes track.trackPoints
 
                                     newRoads =
                                         deriveRoads newNodes
@@ -1076,16 +1075,11 @@ parseGPXintoModel content model =
 deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     let
-        withScaling m =
-            { m | scaling = Just <| deriveScalingInfo m.trackPoints }
-
         withNodes m =
-            case m.scaling of
-                Just scale ->
-                    { m | nodes = deriveNodes scale m.trackPoints }
+            { m | nodes = deriveNodes m.trackPoints }
 
-                Nothing ->
-                    m
+        withScaling m =
+            { m | scaling = deriveScalingBox m.nodes }
 
         withRoads m =
             let
@@ -1107,8 +1101,8 @@ deriveNodesAndRoads model =
             }
     in
     model
-        |> withScaling
         |> withNodes
+        |> withScaling
         |> withRoads
         |> withSummary
         |> withArrays
@@ -1417,43 +1411,6 @@ viewGenericNew model =
     }
 
 
-viewContentSelector : ViewingMode -> ( ScalingInfo -> Model -> Element Msg, Model -> Element Msg )
-viewContentSelector mode =
-    --TODO: Intent is that outer generic view uses these pairs of pane painting functions,
-    --making the top level layout independent of content, and vice versa.
-    let
-        dummyPane _ =
-            none
-
-        ignore2Args pane _ _ =
-            pane
-
-        ignore1Arg pane _ =
-            pane
-    in
-    case mode of
-        OverviewView ->
-            ( viewPointCloud, overviewSummary )
-
-        FirstPersonView ->
-            ( viewFirstPerson, dummyPane )
-
-        ThirdPersonView ->
-            ( viewThirdPerson, dummyPane )
-
-        ProfileView ->
-            ( viewProfileView, dummyPane )
-
-        AboutView ->
-            ( ignore2Args viewAboutText, dummyPane )
-
-        InputErrorView ->
-            ( ignore1Arg viewInputError, dummyPane )
-
-        PlanView ->
-            ( viewPlanView, dummyPane )
-
-
 saveButtonIfChanged : Model -> Element Msg
 saveButtonIfChanged model =
     case model.undoStack of
@@ -1506,7 +1463,7 @@ view3D scale model =
             viewThirdPerson scale model
 
         ProfileView ->
-            viewProfileView scale model
+            viewProfileView model
 
         AboutView ->
             viewAboutText
@@ -2170,8 +2127,8 @@ viewPlanViewSubpane model =
         ]
 
 
-viewProfileView : ScalingInfo -> Model -> Element Msg
-viewProfileView scale model =
+viewProfileView : Model -> Element Msg
+viewProfileView model =
     -- Let's the user spin around and zoom in on selected road point.
     let
         getNodeNum =
@@ -2199,7 +2156,7 @@ viewProfileView scale model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewRouteProfile scale model road.startsAt
+                    [ viewRouteProfile model road.startsAt
                     , positionControls model
                     ]
                 , viewProfileSubpane model
@@ -2591,8 +2548,8 @@ viewCurrentNodePlanView scale model node =
         ]
 
 
-viewRouteProfile : ScalingInfo -> Model -> DrawingNode -> Element Msg
-viewRouteProfile scale model node =
+viewRouteProfile : Model -> DrawingNode -> Element Msg
+viewRouteProfile model node =
     let
         focus =
             Point3d.projectOnto

@@ -1,10 +1,10 @@
 module NodesAndRoads exposing (..)
 
+--import ScalingInfo exposing (ScalingInfo)
+
 import BoundingBox3d exposing (BoundingBox3d)
 import Length
 import Point3d exposing (Point3d)
---import ScalingInfo exposing (ScalingInfo)
-import ScalingInfo exposing (ScalingInfo)
 import Spherical exposing (metresPerDegreeLatitude)
 import TrackPoint exposing (TrackPoint)
 
@@ -13,27 +13,24 @@ type MyCoord
     = SomeCoord
 
 
+type alias ScalingInfo =
+    { nodeBox : BoundingBox3d Length.Meters MyCoord
+    }
+
+
 type alias DrawingNode =
     -- We draw in a rectangular space using metre units.
-    --TODO: Convert to Point3d Meters
     { trackPoint : TrackPoint
     , location : Point3d Length.Meters MyCoord
-    --, northOffset : Float -- metres from bottom edge of bounding box
-    --, eastOffset : Float -- metres from left edge of bounding box
-    --, vertOffset : Float -- metres from base of bounding box
-    --, x : Float -- east offset converted (may not be needed at all)
-    --, y : Float -- north, ditto
-    --, z : Float -- vert, ditto
     }
 
 
 type alias DrawingRoad =
-    --TODO: Use LineSegment3d ??
     { startsAt : DrawingNode
     , endsAt : DrawingNode
     , length : Float
     , bearing : Float
-    , gradient : Float -- radians
+    , gradient : Float -- percent
     , startDistance : Float
     , endDistance : Float
     , index : Int
@@ -51,21 +48,49 @@ type alias SummaryData =
     }
 
 
-deriveNodes : ScalingInfo -> List TrackPoint -> List DrawingNode
-deriveNodes scale tps =
+deriveTrackPointScalingInfo : List TrackPoint -> BoundingBox3d Length.Meters MyCoord
+deriveTrackPointScalingInfo tps =
+    Maybe.withDefault
+        (BoundingBox3d.singleton <| Point3d.meters 0.0 0.0 0.0)
+    <|
+        BoundingBox3d.hullN <|
+            List.map (\tp -> Point3d.meters tp.lon tp.lat tp.ele)
+                tps
+
+
+deriveNodes : List TrackPoint -> List DrawingNode
+deriveNodes tps =
     let
-        (midX, midY, midZ) =
-            Point3d.toTuple Length.inMeters <| BoundingBox3d.centerPoint scale.box
+        scale =
+            deriveTrackPointScalingInfo tps
+
+        ( midX, midY, _ ) =
+            Point3d.toTuple Length.inMeters <| BoundingBox3d.centerPoint scale
 
         prepareDrawingNode tp =
             { trackPoint = tp
-            , location = Point3d.meters
-                ((tp.lat - midY) * metresPerDegreeLatitude)
-                ((tp.lon - midX) * metresPerDegreeLatitude * cos tp.lat)
-                (tp.ele - midZ)
+            , location =
+                Point3d.meters
+                    ((tp.lat - midY) * metresPerDegreeLatitude)
+                    ((tp.lon - midX) * metresPerDegreeLatitude * cos tp.lat)
+                    tp.ele
             }
     in
     List.map prepareDrawingNode tps
+
+
+deriveScalingBox : List DrawingNode -> Maybe ScalingInfo
+deriveScalingBox nodes =
+    let
+        box =
+            BoundingBox3d.hullN <| List.map .location nodes
+    in
+    case box of
+        Just bbox ->
+            Just { nodeBox = bbox }
+
+        Nothing ->
+            Nothing
 
 
 deriveRoads : List DrawingNode -> List DrawingRoad
@@ -78,7 +103,8 @@ deriveRoads drawingNodes =
 
                 earthDistance =
                     -- Great circle distance (!) ignoring elevation difference
-                    Spherical.range ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
+                    Spherical.range
+                        ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
                         ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
             in
             { startsAt = node1
@@ -191,18 +217,20 @@ roadsForProfileView roads =
 
                 newStartNode =
                     { startNode
-                        | location = Point3d.xyz
-                            (Length.meters 0.0)
-                            (Length.meters <| road.startDistance / 5.0)
-                            (Point3d.zCoordinate startNode.location)
+                        | location =
+                            Point3d.xyz
+                                (Length.meters 0.0)
+                                (Length.meters <| road.startDistance / 5.0)
+                                (Point3d.zCoordinate startNode.location)
                     }
 
                 newEndNode =
                     { endNode
-                        | location = Point3d.xyz
-                            (Length.meters 0.0)
-                            (Length.meters <| road.endDistance / 5.0)
-                            (Point3d.zCoordinate endNode.location)
+                        | location =
+                            Point3d.xyz
+                                (Length.meters 0.0)
+                                (Length.meters <| road.endDistance / 5.0)
+                                (Point3d.zCoordinate endNode.location)
                     }
             in
             { road | startsAt = newStartNode, endsAt = newEndNode, bearing = 0.0 }

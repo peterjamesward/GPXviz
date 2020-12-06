@@ -3,7 +3,6 @@ module TrackPoint exposing (..)
 import Element exposing (..)
 import Msg exposing (..)
 import Regex
-import Spherical exposing (metresPerDegreeLatitude)
 import Utils exposing (asRegex)
 
 
@@ -13,14 +12,6 @@ type alias TrackPoint =
     , lon : Float
     , ele : Float
     , idx : Int
-    }
-
-
-dummyTrackPoint =
-    { lat = 0.0
-    , lon = 0.0
-    , ele = 0.0
-    , idx = 0
     }
 
 

@@ -126,7 +126,7 @@ makeTerrain context roadList =
 
         expandedBox =
             -- Tedious bit where we establish our periphery.
-            BoundingBox3d.expandBy borderLand context.scaling.box
+            BoundingBox3d.expandBy borderLand context.scaling.nodeBox
 
         { minX, maxX, minY, maxY, minZ, maxZ } =
             BoundingBox3d.extrema expandedBox

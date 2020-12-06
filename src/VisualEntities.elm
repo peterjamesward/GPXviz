@@ -14,21 +14,12 @@ import Plane3d
 import Point3d
 import Quantity
 import RenderingContext exposing (RenderingContext)
-import ScalingInfo exposing (ScalingInfo)
 import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
 import Sphere3d
-import Spherical exposing (metresPerDegreeLatitude)
-import TrackPoint exposing (TrackPoint)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
 import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
-
-
-roadMapper road =
-    ( ( road.startsAt.x, road.startsAt.y, road.startsAt.z )
-    , ( road.endsAt.x, road.endsAt.y, road.endsAt.z )
-    )
 
 
 makeStatic3DEntities :
@@ -40,7 +31,7 @@ makeStatic3DEntities context roadList =
         seaLevel =
             let
                 bigger =
-                    BoundingBox3d.expandBy (Length.meters 1000.0) context.scaling.box
+                    BoundingBox3d.expandBy (Length.meters 1000.0) context.scaling.nodeBox
 
                 { minX, maxX, minY, maxY, minZ, maxZ } =
                     BoundingBox3d.extrema bigger
@@ -469,20 +460,3 @@ makeVaryingProfileEntities context _ =
     in
     currentPositionDisc
         ++ markedNode
-
-
-deriveScalingInfo : List TrackPoint -> ScalingInfo
-deriveScalingInfo tps =
-    let
-        box =
-            BoundingBox3d.hullN <|
-                List.map (\tp -> Point3d.meters tp.lon tp.lat tp.ele)
-                    tps
-    in
-    { box =
-        Maybe.withDefault
-            (BoundingBox3d.singleton <|
-                Point3d.meters 0.0 0.0 0.0
-            )
-            box
-    }

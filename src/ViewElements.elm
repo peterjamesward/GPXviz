@@ -8,7 +8,7 @@ import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Msg exposing (Msg(..))
-import ScalingInfo exposing (ScalingInfo)
+import NodesAndRoads exposing (ScalingInfo)
 
 
 withMouseCapture =
@@ -33,8 +33,7 @@ displayName n =
 
 distanceFromZoom : ScalingInfo -> Float -> Float
 distanceFromZoom scale zoomLevel =
-    --1.0 * scale.metresToClipSpace *
-        10.0 ^ (5.0 - zoomLevel)
+    10.0 ^ (5.0 - zoomLevel)
 
 
 type ButtonPosition
