@@ -117,9 +117,8 @@ type alias Model =
     , thirdPersonSubmode : ViewSubmode
     , planSubmode : ViewSubmode
     , profileSubmode : ViewSubmode
-    , smoothedBend : Maybe SmoothedBend
-    , smoothedNodes : List DrawingNode -- These represent a suggested new bend.
-    , smoothedRoads : List DrawingRoad
+    , smoothedBend : Maybe SmoothedBend -- computed track points
+    , smoothedRoads : List DrawingRoad -- derived road from above,
     , numLineSegmentsForBend : Int
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
@@ -174,7 +173,6 @@ init _ =
       , planSubmode = ShowData
       , profileSubmode = ShowData
       , smoothedBend = Nothing
-      , smoothedNodes = []
       , smoothedRoads = []
       , numLineSegmentsForBend = 3
       , bumpinessFactor = 0.0
@@ -786,8 +784,23 @@ resetFlythrough model =
 
 tryBendSmoother : Model -> Model
 tryBendSmoother model =
-    case ( model.scaling, model.currentNode, model.markedNode ) of
-        ( Just scale, Just c, Just m ) ->
+    -- Note we work here in trackpoint space, not node/road space.
+    -- This because we will need to create GPX entries, so better to start there IMHO.
+    let
+        failed =
+            { model
+                | smoothedBend = Nothing
+                , smoothedRoads = []
+            }
+    in
+    case ( model.currentNode, model.markedNode ) of
+        ( Nothing, _ ) ->
+            failed
+
+        ( _, Nothing ) ->
+            failed
+
+        ( Just c, Just m ) ->
             let
                 ( n1, n2 ) =
                     ( min c m, max c m )
@@ -816,46 +829,19 @@ tryBendSmoother model =
                         in
                         case newTrack of
                             Just track ->
-                                let
-                                    newNodes =
-                                        deriveNodes track.trackPoints
-
-                                    newRoads =
-                                        deriveRoads newNodes
-                                in
                                 { model
                                     | smoothedBend = newTrack
-                                    , smoothedNodes = newNodes
-                                    , smoothedRoads = newRoads
+                                    , smoothedRoads = deriveRoads <| deriveNodes <| track.trackPoints
                                 }
 
                             _ ->
-                                { model
-                                    | smoothedBend = Nothing
-                                    , smoothedNodes = []
-                                    , smoothedRoads = []
-                                }
+                                failed
 
                     _ ->
-                        { model
-                            | smoothedBend = Nothing
-                            , smoothedNodes = []
-                            , smoothedRoads = []
-                        }
+                        failed
 
             else
-                { model
-                    | smoothedBend = Nothing
-                    , smoothedNodes = []
-                    , smoothedRoads = []
-                }
-
-        _ ->
-            { model
-                | smoothedBend = Nothing
-                , smoothedNodes = []
-                , smoothedRoads = []
-            }
+                failed
 
 
 smoothGradient : Model -> Int -> Int -> Float -> Model
