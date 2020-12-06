@@ -763,8 +763,14 @@ resetFlythrough model =
                             Just
                                 { metresFromRouteStart = road.startDistance
                                 , running = False
-                                , cameraPosition = road.startsAt.location
-                                , focusPoint = road.endsAt.location
+                                , cameraPosition =
+                                    Point3d.translateBy
+                                        (Vector3d.meters 0.0 0.0 1.5)
+                                        road.startsAt.location
+                                , focusPoint =
+                                    Point3d.translateBy
+                                        (Vector3d.meters 0.0 0.0 1.5)
+                                        road.endsAt.location
                                 , lastUpdated = model.time
                                 , segment = road
                                 }
