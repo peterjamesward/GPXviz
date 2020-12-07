@@ -1,5 +1,6 @@
 module BendSmoother exposing (..)
 
+import Angle
 import Arc2d exposing (Arc2d)
 import Geometry101 as G exposing (..)
 import Length exposing (Meters, inMeters)
@@ -75,6 +76,12 @@ makeSmoothBend :
     -> SmoothedBend
 makeSmoothBend numSegments pa pb pc pd arc =
     let
+        limitSegments =
+            -- Avoid many segments if angular change is small.
+            -- Arbitrarily 10 degrees per trackpoint, say.
+            min numSegments
+                (truncate (abs (Angle.inDegrees (Arc2d.sweptAngle arc)) / 10.0))
+
         ( p1, p2 ) =
             -- The first (last) tangent point is also the first (last) point on the arc
             -- so we don't need to pass these as arguments.
@@ -111,7 +118,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
             (t2.ele - t1.ele) / toFloat numSegments
 
         segments =
-            Arc2d.segments numSegments arc
+            Arc2d.segments limitSegments arc
                 |> Polyline2d.segments
 
         newTrackPoints =

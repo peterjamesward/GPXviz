@@ -2603,7 +2603,7 @@ viewRouteProfile model node =
                         , eyePoint = eyePoint
                         , upDirection = positiveZ
                         }
-                , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (5.0 - model.zoomLevelProfile)
+                , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
                 }
     in
     row []

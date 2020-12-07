@@ -11,7 +11,13 @@ aboutText =
 
 > Today's release is purely technical. I have tided up the way that locations are stored. This should make the code more robust and maintainable (less embarrassing). Please contact me if I have messed anything up.
 
+> **Bug fix**: Repeatedly adding many very small road segments when the change of direction is small was leading to anomalous gradient changes. I have applied a restriction on how many segments are added; for small course changes this may be fewer than you asked for. Such is life.
+
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
+
+From here you can also make the route into a **Loop**, if the end is near the start. If there's space, this will insert a new GPX trackpoint "behind" the start, then join the end point to this new one. You can then use Gradient and Bend smoothing near the end to tidy up. If the start and end are really close (less than a metre), it just moves the last trackpoint to be the same as the start.
+
+You can also add **Terrain**, to get a feel for how the road looks (particularly useful in Flythroughs). _Be aware_, on a route with many trackpoints, this will take minutes to complete and will slow down everything you do. Magic Roads, it is not.
 
 **First person** positions the viewpoint above a track _road segment_, sighted along the track. The zoom control will zoom in on the road in front. The bottom slider and arrows move between track segments. Information about the current segment is shown. **Fly-through** controls on the right hand pane: Reset, Play/Pause, Speed. Works on Third person view also.
 

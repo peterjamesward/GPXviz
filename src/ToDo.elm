@@ -1,7 +1,9 @@
 module ToDo exposing (..)
 
---TODO: Debt. Divide Model into sections - rendering, selection, whatever.
--- ... reduce the number of Maybe checks throughout code.
+--TODO: BUG. Edit bend near start, loose the start node.
+
+--TODO: BUG. Prevent bend smoothing adding tiny segments when roads are nearly staight.
+-- e.g. cutoff the rate of bearing change at (say) 10 degrees.
 
 --TODO: Feat. Say if filename is too long for Magic Roads.
 
