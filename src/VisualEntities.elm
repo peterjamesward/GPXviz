@@ -438,12 +438,12 @@ makeVaryingProfileEntities context _ =
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
-                                (Vector3d.meters 0.0 0.0 10.1)
+                                (Vector3d.meters 0.0 0.0 2.1)
                                 road.startsAt.location
                             )
                             negativeZ
-                            { radius = meters 0.3
-                            , length = meters 1.9
+                            { radius = meters 0.25
+                            , length = meters 2.0
                             }
                     ]
 

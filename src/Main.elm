@@ -1074,10 +1074,7 @@ deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     let
         trackPointAsPoint tp =
-            Point3d.meters
-                tp.lon
-                tp.lat
-                tp.ele
+            Point3d.meters tp.lon tp.lat tp.ele
 
         withNodes m =
             case m.trackPointBox of
@@ -1088,10 +1085,18 @@ deriveNodesAndRoads model =
                     m
 
         withTrackPointScaling m =
-            { m | trackPointBox = BoundingBox3d.hullN <| List.map trackPointAsPoint m.trackPoints }
+            { m
+                | trackPointBox =
+                    BoundingBox3d.hullN <|
+                        List.map trackPointAsPoint m.trackPoints
+            }
 
         withNodeScaling m =
-            { m | nodeBox = BoundingBox3d.hullN <| List.map .location m.nodes }
+            { m
+                | nodeBox =
+                    BoundingBox3d.hullN <|
+                        List.map .location m.nodes
+            }
 
         withRoads m =
             let
