@@ -8,6 +8,7 @@ import BoundingBox3d exposing (BoundingBox3d)
 import Browser
 import Camera3d
 import Color
+import Direction2d
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
@@ -30,12 +31,13 @@ import Plane3d
 import Point2d exposing (Point2d)
 import Point3d
 import Scene3d exposing (Entity)
-import Spherical
+import Spherical exposing (metresPerDegree)
 import Task
 import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
 import Utils exposing (..)
+import Vector2d
 import Vector3d
 import ViewElements exposing (..)
 import ViewTypes exposing (..)
@@ -127,6 +129,8 @@ type alias Model =
     , flythrough : Maybe Flythrough
     , roadsForProfileView : List DrawingRoad -- yes, cheating somewhat.
     , loopiness : Loopiness
+    , nudgeValue : Float
+    , nudgedNodeRoads : List DrawingRoad -- actually only two but this is consistent with smoothedRoads.
     }
 
 
@@ -183,6 +187,8 @@ init _ =
       , flythroughSpeed = 1.0
       , roadsForProfileView = []
       , loopiness = NotALoop
+      , nudgeValue = 0.0
+      , nudgedNodeRoads = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -306,7 +312,7 @@ update msg model =
                 | numLineSegmentsForBend = turn
               }
                 |> tryBendSmoother
-                |> deriveStaticVisualEntities
+                --|> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
             , Cmd.none
             )
@@ -595,6 +601,122 @@ update msg model =
             , Cmd.none
             )
 
+        SetNudgeFactor current factor ->
+            ( simulateNudgeNode model current factor
+                |> deriveVaryingVisualEntities
+            , Cmd.none
+            )
+
+        NudgeNode node factor ->
+            ( nudgeNode model node factor
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+                |> deriveProblems
+                |> clearTerrain
+            , Cmd.none
+            )
+
+
+nudgeTrackPoint : TrackPoint -> Float -> Float -> TrackPoint
+nudgeTrackPoint baseTP roadBearing nudgeFactor =
+    let
+        roadVector =
+            -- The negation because, no idea.
+            Vector2d.rTheta (Length.meters 1.0)
+                (Angle.radians <| -1.0 * roadBearing)
+                |> Vector2d.rotateClockwise
+
+        nudgeVector =
+            Vector2d.perpendicularTo roadVector
+                |> Vector2d.scaleBy (nudgeFactor * 10.0 / metresPerDegree)
+
+        trackPoint2d =
+            Point2d.meters baseTP.lon baseTP.lat
+
+        nudgedTrackPoint2d =
+            Point2d.translateBy nudgeVector trackPoint2d
+    in
+    { baseTP
+        | lat = Length.inMeters <| Point2d.yCoordinate nudgedTrackPoint2d
+        , lon = Length.inMeters <| Point2d.xCoordinate nudgedTrackPoint2d
+    }
+
+
+simulateNudgeNode : Model -> Int -> Float -> Model
+simulateNudgeNode model nodeNum nudgeFactor =
+    let
+        targetRoad =
+            Array.get nodeNum model.roadArray
+
+        prevNode =
+            Array.get (nodeNum - 1) model.roadArray
+    in
+    case targetRoad of
+        Nothing ->
+            model
+
+        Just road ->
+            let
+                nudgedTrackPoint =
+                    nudgeTrackPoint road.startsAt.trackPoint road.bearing model.nudgeValue
+
+                nudgedListForVisuals =
+                    (case prevNode of
+                        Nothing ->
+                            []
+
+                        Just prev ->
+                            [ prev.startsAt.trackPoint ]
+                    )
+                        ++ [ nudgedTrackPoint
+                           , road.endsAt.trackPoint
+                           ]
+            in
+            case model.trackPointBox of
+                Just box ->
+                    { model
+                        | nudgeValue = nudgeFactor
+                        , nudgedNodeRoads =
+                            deriveRoads <|
+                                deriveNodes box <|
+                                    nudgedListForVisuals
+                    }
+
+                _ ->
+                    { model | nudgedNodeRoads = [] }
+
+
+nudgeNode : Model -> Int -> Float -> Model
+nudgeNode model node factor =
+    -- Apply the nudge factor permanently.
+    let
+        targetRoad =
+            Array.get node model.roadArray
+
+        undoMessage =
+            "Nudge at " ++ String.fromInt node
+    in
+    case targetRoad of
+        Nothing ->
+            model
+
+        Just road ->
+            let
+                nudgedTrackPoint =
+                    nudgeTrackPoint road.startsAt.trackPoint road.bearing model.nudgeValue
+            in
+            addToUndoStack undoMessage model
+                |> (\m ->
+                        { m
+                            | trackPoints =
+                                List.take node model.trackPoints
+                                    ++ [ nudgedTrackPoint ]
+                                    ++ List.drop (node + 1) model.trackPoints
+                            , nudgedNodeRoads = []
+                        }
+                   )
+
 
 closeTheLoop : Model -> Model
 closeTheLoop model =
@@ -871,6 +993,8 @@ tryBendSmoother model =
             { model
                 | smoothedBend = Nothing
                 , smoothedRoads = []
+                , nudgedNodeRoads = []
+                , nudgeValue = 0.0
             }
     in
     case ( model.currentNode, model.markedNode ) of
@@ -916,6 +1040,8 @@ tryBendSmoother model =
                                         deriveRoads <|
                                             deriveNodes box <|
                                                 track.trackPoints
+                                    , nudgedNodeRoads = []
+                                    , nudgeValue = 0.0
                                 }
 
                             _ ->
@@ -1442,7 +1568,7 @@ deriveVaryingVisualEntities model =
                     , nodeBox = scale
                     , viewingMode = model.viewingMode
                     , viewingSubMode =
-                        -- Hack that should not be needed with proper view management.
+                        --TODO: Hack that should not be needed with proper view management.
                         if
                             (model.viewingMode
                                 == ThirdPersonView
@@ -1454,12 +1580,17 @@ deriveVaryingVisualEntities model =
                                         && model.planSubmode
                                         == ShowBendFixes
                                    )
+                                || (model.viewingMode
+                                        == PlanView
+                                        && model.planSubmode
+                                        == ShowNodeTools
+                                   )
                         then
                             ShowBendFixes
 
                         else
                             ShowData
-                    , smoothedBend = model.smoothedRoads
+                    , smoothedBend = model.smoothedRoads ++ model.nudgedNodeRoads --TODO: Cheeky. Not clever.
                     }
 
                 profileContext =
@@ -2389,6 +2520,31 @@ viewNodeTools model =
                     text <|
                         "Straighten between markers"
                 }
+
+        nudgeButton c value =
+            button
+                prettyButtonStyles
+                { onPress = Just (NudgeNode c value)
+                , label =
+                    text <|
+                        "Apply nudge"
+                }
+
+        nudgeSlider c value =
+            Input.slider
+                commonShortHorizontalSliderStyles
+                { onChange = SetNudgeFactor c
+                , label =
+                    Input.labelBelow [] <|
+                        text <|
+                            "Nudge value = "
+                                ++ showDecimal2 value
+                , min = -1.0
+                , max = 1.0
+                , step = Nothing
+                , value = value
+                , thumb = Input.defaultThumb
+                }
     in
     column [ spacing 10, padding 10, alignTop ]
         [ markerButton model
@@ -2398,12 +2554,14 @@ viewNodeTools model =
 
             ( Just c, Nothing ) ->
                 -- Put nudger here
-                none
+                column [ padding 5, spacing 5 ]
+                    [ nudgeSlider c model.nudgeValue
+                    , nudgeButton c model.nudgeValue
+                    ]
 
             _ ->
                 none
         , undoButton model
-        , viewBearingChanges model
         ]
 
 

@@ -52,6 +52,8 @@ type Msg
     | ClearTerrain
     | CloseTheLoop
     | StraightenStraight Int Int
+    | SetNudgeFactor Int Float
+    | NudgeNode Int Float
 
 type NodeSplitDirection
     = InsertNodeBefore
