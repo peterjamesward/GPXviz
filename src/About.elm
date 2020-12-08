@@ -9,9 +9,7 @@ aboutText =
 
 > _This text updated 2020-12-08_
 
-> Today's release is purely technical. I have tided up the way that locations are stored. This should make the code more robust and maintainable (less embarrassing). Please contact me if I have messed anything up.
-
-> **Bug fix** There was an arithmetical error in which bend smoothing messed up the elevation changes around the bend. This was worse with more segments added. It's better now.
+> **New tool alert** Under the Plan View is a sub-panel "On the straight". Details way down below.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
@@ -34,6 +32,14 @@ You can also add **Terrain**, to get a feel for how the road looks (particularly
 **Plan** is like seeing the route drawn on a flat sheet. It's ideal for focusing on bend problems. That's why the _Bend Smoother_ is there (though it's also in the Third Person view). You can see the gradients in this view by selecting the "Centre line" on the Overview panel.
 
 > To smooth a bend (at least two road segments), position the Marker and Current node and, if possible, you will see a yellow line that is the suggested smoothed path. _Not all of these suggestions will be sensible._ You can vary the number of segments that are used (I don't know what Magic Roads would find ideal). Usual buttons to enact and Undo. It will also smooth the gradient.
+
+> There are further tools under **On the straight**.
+
+>  1.  When there is no dropped marker, you can **nudge** the current node left or right of the centreline by about ten metres, using the _Nudge value_ slider. It will show a preview of the new road in yellow, and this will take effect when you click **Apply nudge**. A possible usage is when you want to take a wider approach to a bend.
+
+>  2.  Also when there is no dropped marker, you can divide the road segment immediately in front into two smaller road segments with **Divide this segment into two**. It may appear nothing has happened, because the new node is in the middle of the road and correctly interpolates between start and end.
+
+>  3. When there _is_ a dropped marker, and you have more than one section of track bracketed, the **Straighten between markers** button appears. I wonder what is does? Yes, it makes the road completely straight. Be warned, it preserves all the nodes and their elevations, so all the gradients will be amplified, and you'll likely want to use the Gradient Smoother afterwards.
 
 **About** -- that's this message.
 
