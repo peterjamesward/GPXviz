@@ -384,6 +384,7 @@ makeVaryingVisualEntities context _ =
 
                 roadAsSegment =
                     LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                        |> LineSegment3d.translateBy (Vector3d.meters 0.0 0.0 0.1)
 
                 leftVector =
                     Vector3d.meters
