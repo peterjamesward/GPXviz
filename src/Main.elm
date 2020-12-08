@@ -1205,17 +1205,17 @@ smoothBend model =
 
                 newCurrent =
                     if curr > bend.startIndex then
-                        curr - numCurrentPoints + numNewPoints
+                        curr - numCurrentPoints + numNewPoints - 2
 
                     else
-                        curr
+                        curr - 1
 
                 newMark =
                     if mark > bend.startIndex then
-                        mark - numCurrentPoints + numNewPoints
+                        mark - numCurrentPoints + numNewPoints - 2
 
                     else
-                        mark
+                        mark - 1 -- Why?
             in
             addToUndoStack (undoMessage bend) model
                 |> (\m ->

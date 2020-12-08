@@ -2,8 +2,6 @@ module ToDo exposing (..)
 
 --TODO: BUG. Bend smoothing still messing gradients. (Not steep enough in bend - see Sa Calobra).
 
---TODO: BUG. Current node jumps forward too far after bend smoothing.
-
 --TODO: Feat. Say if filename is too long for Magic Roads.
 
 --TODO: Debt. Tidy up view logic. (left pane, right pane).
