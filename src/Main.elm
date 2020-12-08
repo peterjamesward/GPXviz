@@ -1005,11 +1005,11 @@ resetFlythrough model =
                                 , running = False
                                 , cameraPosition =
                                     Point3d.translateBy
-                                        (Vector3d.meters 0.0 0.0 1.5)
+                                        (Vector3d.meters 0.0 0.0 eyeHeight)
                                         road.startsAt.location
                                 , focusPoint =
                                     Point3d.translateBy
-                                        (Vector3d.meters 0.0 0.0 1.5)
+                                        (Vector3d.meters 0.0 0.0 eyeHeight)
                                         road.endsAt.location
                                 , lastUpdated = model.time
                                 , segment = road
