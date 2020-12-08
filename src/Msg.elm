@@ -51,6 +51,7 @@ type Msg
     | MakeTerrain
     | ClearTerrain
     | CloseTheLoop
+    | StraightenStraight Int Int
 
 type NodeSplitDirection
     = InsertNodeBefore

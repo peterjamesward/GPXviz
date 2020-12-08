@@ -19,6 +19,7 @@ import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, flythrough)
+import Geometry101 exposing (interpolateScalar)
 import Iso8601
 import Length
 import List exposing (drop, take)
@@ -584,6 +585,16 @@ update msg model =
             , Cmd.none
             )
 
+        StraightenStraight c m ->
+            ( straightenStraight c m model
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+                |> deriveProblems
+                |> clearTerrain
+            , Cmd.none
+            )
+
 
 closeTheLoop : Model -> Model
 closeTheLoop model =
@@ -690,6 +701,73 @@ verticalNodeSplit n model =
             addToUndoStack undoMessage model
                 |> (\m ->
                         { m | trackPoints = reindexTrackpoints newTPs }
+                   )
+
+        _ ->
+            model
+
+
+straightenStraight : Int -> Int -> Model -> Model
+straightenStraight c m model =
+    let
+        ( n1, n2 ) =
+            ( min c m, max c m )
+
+        ( firstSeg, lastSeg ) =
+            ( Array.get n1 model.roadArray
+            , Array.get n2 model.roadArray
+            )
+
+        undoMessage =
+            "straighten from "
+                ++ String.fromInt n1
+                ++ " to "
+                ++ String.fromInt (n2 + 1)
+                ++ "."
+    in
+    case ( firstSeg, lastSeg ) of
+        ( Just firstRoad, Just lastRoad ) ->
+            let
+                -- Preserve proportionate lengths
+                affected =
+                    model.roads |> List.take (n2 + 1) |> List.drop (n1 + 1)
+
+                affectedTPs =
+                    List.map (.startsAt >> .trackPoint) affected
+
+                affectedLength =
+                    List.sum <| List.map .length affected
+
+                ( _, cumulativeLengths ) =
+                    List.foldl
+                        (\r ( running, acc ) -> ( r.length + running, (r.length + running) :: acc ))
+                        ( 0.0, [] )
+                        affected
+
+                startTP =
+                    firstRoad.startsAt.trackPoint
+
+                endTP =
+                    lastRoad.startsAt.trackPoint
+
+                newTPs =
+                    List.map2 newTP (List.reverse cumulativeLengths) affectedTPs
+
+                newTP newRange original =
+                    { lat = interpolateScalar (newRange / affectedLength) startTP.lat endTP.lat
+                    , lon = interpolateScalar (newRange / affectedLength) startTP.lon endTP.lon
+                    , ele = original.ele
+                    , idx = 0
+                    }
+
+                splicedTPs =
+                    List.take (n1 + 1) model.trackPoints
+                        ++ newTPs
+                        ++ List.drop n2 model.trackPoints
+            in
+            addToUndoStack undoMessage model
+                |> (\mdl ->
+                        { mdl | trackPoints = reindexTrackpoints splicedTPs }
                    )
 
         _ ->
@@ -2146,7 +2224,8 @@ viewPlanViewSubpane model =
                 Input.labelHidden "Choose mode"
             , options =
                 [ Input.optionWith ShowData <| radioButton First "Location\ndata"
-                , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
+                , Input.optionWith ShowBendFixes <| radioButton Mid "Bend\nsmoother"
+                , Input.optionWith ShowNodeTools <| radioButton Last "Dire\nstraights"
                 ]
             }
         , case model.planSubmode of
@@ -2158,6 +2237,9 @@ viewPlanViewSubpane model =
 
             ShowBendFixes ->
                 viewBendFixerPane model
+
+            ShowNodeTools ->
+                viewNodeTools model
         ]
 
 
@@ -2226,6 +2308,9 @@ viewThirdPersonSubpane model =
 
             ShowBendFixes ->
                 viewBendFixerPane model
+
+            ShowNodeTools ->
+                none
         ]
 
 
@@ -2254,6 +2339,9 @@ viewProfileSubpane model =
 
             ShowBendFixes ->
                 viewBendFixerPane model
+
+            ShowNodeTools ->
+                viewSummaryStats model
         ]
 
 
@@ -2281,6 +2369,36 @@ viewBendFixerPane model =
 
             ( Just c, _ ) ->
                 insertNodeOptionsBox c
+
+            _ ->
+                none
+        , undoButton model
+        , viewBearingChanges model
+        ]
+
+
+viewNodeTools : Model -> Element Msg
+viewNodeTools model =
+    --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
+    let
+        straightenButton c m =
+            button
+                prettyButtonStyles
+                { onPress = Just (StraightenStraight c m)
+                , label =
+                    text <|
+                        "Straighten between markers"
+                }
+    in
+    column [ spacing 10, padding 10, alignTop ]
+        [ markerButton model
+        , case ( model.currentNode, model.markedNode ) of
+            ( Just c, Just m ) ->
+                straightenButton c m
+
+            ( Just c, Nothing ) ->
+                -- Put nudger here
+                none
 
             _ ->
                 none

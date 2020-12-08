@@ -15,4 +15,5 @@ type ViewSubmode
     = ShowData
     | ShowGradientFixes
     | ShowBendFixes
+    | ShowNodeTools
 
