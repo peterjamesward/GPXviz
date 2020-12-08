@@ -1,6 +1,7 @@
 module ToDo exposing (..)
 
---TODO: BUG. Bend smoothing still messing gradients. (Not steep enough in bend - see Sa Calobra).
+
+--TODO: ????. Bend smoothing still messing gradients. (Not steep enough in bend - see Sa Calobra).
 
 --TODO: Feat. Say if filename is too long for Magic Roads.
 
