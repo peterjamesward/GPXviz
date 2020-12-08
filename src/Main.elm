@@ -19,7 +19,7 @@ import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import Flythrough exposing (Flythrough, flythrough)
+import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101 exposing (interpolateScalar)
 import Iso8601
 import Length
@@ -2285,10 +2285,6 @@ flythroughControls model =
 viewRoadSegment : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingRoad -> Element Msg
 viewRoadSegment _ model road =
     let
-        eyeHeight =
-            -- Helps to be higher up.
-            2.0
-
         eyePoint =
             case model.flythrough of
                 Nothing ->

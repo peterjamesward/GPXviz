@@ -17,6 +17,10 @@ type alias Flythrough =
     }
 
 
+eyeHeight =
+    2.0
+
+
 flythrough :
     Time.Posix
     -> Flythrough
@@ -72,7 +76,7 @@ flythrough newTime flying speed roads =
 
                     camera3d =
                         Point3d.translateBy
-                            (Vector3d.meters 0.0 0.0 1.5)
+                            (Vector3d.meters 0.0 0.0 eyeHeight)
                         <|
                             Point3d.interpolateFrom
                                 seg.startsAt.location
@@ -90,7 +94,7 @@ flythrough newTime flying speed roads =
                                             0.5
                                 in
                                 Point3d.translateBy
-                                    (Vector3d.meters 0.0 0.0 1.5)
+                                    (Vector3d.meters 0.0 0.0 eyeHeight)
                                 <|
                                     Point3d.interpolateFrom
                                         seg.endsAt.location
@@ -99,7 +103,7 @@ flythrough newTime flying speed roads =
 
                             Nothing ->
                                 Point3d.translateBy
-                                    (Vector3d.meters 0.0 0.0 1.5)
+                                    (Vector3d.meters 0.0 0.0 eyeHeight)
                                     seg.endsAt.location
                 in
                 { flying
