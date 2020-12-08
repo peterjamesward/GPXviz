@@ -7,11 +7,11 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-07_
+> _This text updated 2020-12-08_
 
 > Today's release is purely technical. I have tided up the way that locations are stored. This should make the code more robust and maintainable (less embarrassing). Please contact me if I have messed anything up.
 
-> **Bug fix**: Repeatedly adding many very small road segments when the change of direction is small was leading to anomalous gradient changes. I have applied a restriction on how many segments are added; for small course changes this may be fewer than you asked for. Such is life.
+> **Bug fix** There was an arithmetical error in which bend smoothing messed up the elevation changes around the bend. This was worse with more segments added. It's better now.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
