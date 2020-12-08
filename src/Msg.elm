@@ -54,6 +54,7 @@ type Msg
     | StraightenStraight Int Int
     | SetNudgeFactor Int Float
     | NudgeNode Int Float
+    | SplitRoad Int
 
 type NodeSplitDirection
     = InsertNodeBefore

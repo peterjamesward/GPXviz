@@ -1,9 +1,5 @@
 module ToDo exposing (..)
 
---TODO: BUG. Edit bend near start, loose the start node?
-
---TODO: Feat. Segment splitter.
-
 --TODO: Feat. Say if filename is too long for Magic Roads.
 
 --TODO: Debt. Tidy up view logic. (left pane, right pane).

@@ -617,6 +617,16 @@ update msg model =
             , Cmd.none
             )
 
+        SplitRoad node ->
+            ( splitRoad model node
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+                |> deriveProblems
+                |> clearTerrain
+            , Cmd.none
+            )
+
 
 nudgeTrackPoint : TrackPoint -> Float -> Float -> TrackPoint
 nudgeTrackPoint baseTP roadBearing nudgeFactor =
@@ -714,6 +724,36 @@ nudgeNode model node factor =
                                     ++ [ nudgedTrackPoint ]
                                     ++ List.drop (node + 1) model.trackPoints
                             , nudgedNodeRoads = []
+                        }
+                   )
+
+
+splitRoad : Model -> Int -> Model
+splitRoad model node =
+    let
+        targetRoad =
+            Array.get node model.roadArray
+
+        undoMessage =
+            "Split at " ++ String.fromInt node
+    in
+    case targetRoad of
+        Nothing ->
+            model
+
+        Just road ->
+            let
+                insertTrackPoint =
+                    interpolateSegment 0.5 road.startsAt.trackPoint road.endsAt.trackPoint
+            in
+            addToUndoStack undoMessage model
+                |> (\m ->
+                        { m
+                            | trackPoints =
+                                reindexTrackpoints <|
+                                    List.take (node + 1) model.trackPoints
+                                        ++ [ insertTrackPoint ]
+                                        ++ List.drop (node + 1) model.trackPoints
                         }
                    )
 
@@ -2356,7 +2396,7 @@ viewPlanViewSubpane model =
             , options =
                 [ Input.optionWith ShowData <| radioButton First "Location\ndata"
                 , Input.optionWith ShowBendFixes <| radioButton Mid "Bend\nsmoother"
-                , Input.optionWith ShowNodeTools <| radioButton Last "Dire\nstraights"
+                , Input.optionWith ShowNodeTools <| radioButton Last "On the\nstraight"
                 ]
             }
         , case model.planSubmode of
@@ -2530,6 +2570,15 @@ viewNodeTools model =
                         "Apply nudge"
                 }
 
+        splitButton c =
+            button
+                prettyButtonStyles
+                { onPress = Just (SplitRoad c)
+                , label =
+                    text <|
+                        "Divide this segment\ninto two"
+                }
+
         nudgeSlider c value =
             Input.slider
                 commonShortHorizontalSliderStyles
@@ -2553,10 +2602,10 @@ viewNodeTools model =
                 straightenButton c m
 
             ( Just c, Nothing ) ->
-                -- Put nudger here
-                column [ padding 5, spacing 5 ]
+                column [ padding 5, spacing 10 ]
                     [ nudgeSlider c model.nudgeValue
                     , nudgeButton c model.nudgeValue
+                    , splitButton c
                     ]
 
             _ ->
