@@ -1,6 +1,6 @@
 module ToDo exposing (..)
 
---TODO: BUG. Edit bend near start, loose the start node.
+--TODO: BUG. Edit bend near start, loose the start node?
 
 --TODO: BUG. Prevent bend smoothing adding tiny segments when roads are nearly staight.
 -- e.g. cutoff the rate of bearing change at (say) 10 degrees.

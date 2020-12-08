@@ -89,6 +89,13 @@ makeSmoothBend numSegments pa pb pc pd arc =
             , Arc2d.endPoint arc |> Point2d.toRecord inMeters
             )
 
+        netElevationChange =
+            -- Spread the elevation change uniformly by road length.
+            pd.ele - pa.ele
+
+        ( distancePaP1, distanceP2Pd ) =
+            ( G.distance (toPoint pa) p1, G.distance p2 (toPoint pd) )
+
         t1 =
             -- Elevations of tangent points are interpolations
             -- within the segments that contain them.
@@ -96,9 +103,10 @@ makeSmoothBend numSegments pa pb pc pd arc =
             , lon = p1.x
             , ele =
                 interpolateScalar
-                    (min 1.0 (whatFraction p1 (toPoint pa) (toPoint pb)))
+                    (distancePaP1 / newLength)
                     pa.ele
-                    pb.ele
+                    pd.ele
+            , idx = 0
             }
 
         t2 =
@@ -108,34 +116,41 @@ makeSmoothBend numSegments pa pb pc pd arc =
             , lon = p2.x
             , ele =
                 interpolateScalar
-                    (min 1.0 (whatFraction p2 (toPoint pd) (toPoint pc)))
+                    ((distancePaP1 + arcLength) / newLength)
+                    pa.ele
                     pd.ele
-                    pc.ele
             , idx = 0
             }
-
-        eleIncrement =
-            (t2.ele - t1.ele) / toFloat numSegments
 
         segments =
             Arc2d.segments limitSegments arc
                 |> Polyline2d.segments
 
+        arcLength =
+            List.sum <| List.map (LineSegment2d.length >> Length.inMeters) segments
+
+        newLength =
+            distancePaP1 + arcLength + distanceP2Pd
+
+        eleIncrement =
+            (t2.ele - t1.ele) / toFloat numSegments
+
         newTrackPoints =
-            List.map2
-                (\seg i ->
-                    let
-                        p0 =
-                            LineSegment2d.startPoint seg
-                    in
-                    { lon = xCoordinate p0 |> Length.inMeters
-                    , lat = yCoordinate p0 |> Length.inMeters
-                    , ele = t1.ele + toFloat i * eleIncrement
-                    , idx = 0
-                    }
-                )
-                segments
-                (List.range 0 numSegments)
+            List.drop 1 <|
+                List.map2
+                    (\seg i ->
+                        let
+                            p0 =
+                                LineSegment2d.startPoint seg
+                        in
+                        { lon = xCoordinate p0 |> Length.inMeters
+                        , lat = yCoordinate p0 |> Length.inMeters
+                        , ele = t1.ele + toFloat i * eleIncrement
+                        , idx = 0
+                        }
+                    )
+                    segments
+                    (List.range 0 numSegments)
 
         asPair p2d =
             let
@@ -145,8 +160,8 @@ makeSmoothBend numSegments pa pb pc pd arc =
             ( asRecord.x, asRecord.y )
     in
     { trackPoints =
-        pa
-            :: newTrackPoints
+        [ pa ]
+            ++ newTrackPoints
             ++ [ t2, pd ]
     , centre = asPair <| Arc2d.centerPoint arc
     , radius = metresPerDegree * (inMeters <| Arc2d.radius arc)
