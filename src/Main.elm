@@ -884,46 +884,57 @@ straightenStraight c m model =
             "straighten from "
                 ++ String.fromInt n1
                 ++ " to "
-                ++ String.fromInt (n2 + 1)
+                ++ String.fromInt n2
                 ++ "."
     in
     case ( firstSeg, lastSeg ) of
         ( Just firstRoad, Just lastRoad ) ->
             let
-                -- Preserve proportionate lengths
-                affected =
-                    model.roads |> List.take (n2 + 1) |> List.drop (n1 + 1)
+                startPoint =
+                    Point2d.meters
+                        firstRoad.startsAt.trackPoint.lon
+                        firstRoad.startsAt.trackPoint.lat
 
-                affectedTPs =
-                    List.map (.startsAt >> .trackPoint) affected
+                endPoint =
+                    Point2d.meters
+                        lastRoad.startsAt.trackPoint.lon
+                        lastRoad.startsAt.trackPoint.lat
+
+                trackPointsToMove =
+                    -- Note, include startTP and it will move by zero,
+                    model.trackPoints |> List.take n2 |> List.drop n1
+
+                affectedRoads =
+                    model.roads |> List.take n2 |> List.drop n1
 
                 affectedLength =
-                    List.sum <| List.map .length affected
+                    List.sum <| List.map .length affectedRoads
 
-                ( _, cumulativeLengths ) =
+                ( _, cumulativeLengthsReversed ) =
                     List.foldl
-                        (\r ( running, acc ) -> ( r.length + running, (r.length + running) :: acc ))
+                        (\r ( running, acc ) -> ( r.length + running, running :: acc ))
                         ( 0.0, [] )
-                        affected
-
-                startTP =
-                    firstRoad.startsAt.trackPoint
-
-                endTP =
-                    lastRoad.startsAt.trackPoint
+                        affectedRoads
 
                 newTPs =
-                    List.map2 newTP (List.reverse cumulativeLengths) affectedTPs
+                    List.map2
+                        interpolateTrackPoint
+                        trackPointsToMove
+                        (List.reverse cumulativeLengthsReversed)
 
-                newTP newRange original =
-                    { lat = interpolateScalar (newRange / affectedLength) startTP.lat endTP.lat
-                    , lon = interpolateScalar (newRange / affectedLength) startTP.lon endTP.lon
+                interpolateTrackPoint original fraction =
+                    let
+                        interpolatedPoint =
+                            Point2d.interpolateFrom startPoint endPoint (fraction / affectedLength)
+                    in
+                    { lat = Length.inMeters <| Point2d.yCoordinate interpolatedPoint
+                    , lon = Length.inMeters <| Point2d.xCoordinate interpolatedPoint
                     , ele = original.ele
                     , idx = 0
                     }
 
                 splicedTPs =
-                    List.take (n1 + 1) model.trackPoints
+                    List.take n1 model.trackPoints
                         ++ newTPs
                         ++ List.drop n2 model.trackPoints
             in
@@ -1215,7 +1226,9 @@ smoothBend model =
                         mark - numCurrentPoints + numNewPoints - 2
 
                     else
-                        mark - 1 -- Why?
+                        mark - 1
+
+                -- Why?
             in
             addToUndoStack (undoMessage bend) model
                 |> (\m ->

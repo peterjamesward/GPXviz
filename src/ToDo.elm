@@ -1,6 +1,8 @@
 module ToDo exposing (..)
 
 
+--TODO: Feat. Now there are many tools, can we organise them better?
+
 --TODO: ????. Bend smoothing still messing gradients. (Not steep enough in bend - see Sa Calobra).
 
 --TODO: Feat. Say if filename is too long for Magic Roads.
