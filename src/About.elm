@@ -7,7 +7,7 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-08_
+> _This text updated 2020-12-09_
 
 > **New tool alert** Under the Plan View is a sub-panel "On the straight". Details way down below.
 
