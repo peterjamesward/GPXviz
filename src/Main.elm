@@ -194,10 +194,6 @@ init _ =
     )
 
 
-metresPerDegreeLatitude =
-    78846.81
-
-
 addToUndoStack : String -> Model -> Model
 addToUndoStack label model =
     { model
@@ -2636,7 +2632,7 @@ showCircle hello =
 
                 --, text <| showDecimal6 x
                 --, text <| showDecimal6 y
-                , text <| "Radius " ++ (showDecimal6 <| metresPerDegreeLatitude * sb.radius)
+                , text <| "Radius " ++ (showDecimal6 <| metresPerDegree * sb.radius)
                 ]
 
         Nothing ->
