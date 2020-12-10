@@ -7,9 +7,9 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-09_
+> _This text updated 2020-12-10_
 
-> **New tool alert** Under the Plan View is a sub-panel "On the straight". Details way down below.
+> **New tool alert** Nudge vertically and horizontally in Third Person, Plan, Elevation views.
 
 **Overview** shows a route overview and summary statistics. The view is fixed on the centre of the area and there is no pan capability. You can change the presentation style using the options on the right.
 
