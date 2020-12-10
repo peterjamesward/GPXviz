@@ -33,6 +33,8 @@ type alias DrawingNode =
 type alias DrawingRoad =
     { startsAt : DrawingNode
     , endsAt : DrawingNode
+    , profileStartsAt : DrawingNode -- x coord is metres from track start.
+    , profileEndsAt : DrawingNode
     , length : Float
     , bearing : Float
     , gradient : Float -- percent
@@ -113,6 +115,8 @@ deriveRoads drawingNodes =
             , startDistance = 0.0
             , endDistance = 0.0
             , index = 0
+            , profileStartsAt = node1
+            , profileEndsAt = node2 -- These will be replaced.
             }
 
         roadSegments =
@@ -123,12 +127,40 @@ deriveRoads drawingNodes =
         ( _, _, withAccumulations ) =
             List.foldl
                 (\road ( idx, dist, done ) ->
+                    let
+                        startNode =
+                            road.startsAt
+
+                        endNode =
+                            road.endsAt
+
+                        profileStartAt =
+                            { startNode
+                                | location =
+                                    Point3d.xyz
+                                        (Length.meters 0.0)
+                                        (Length.meters <| dist / 5.0)
+                                        (Point3d.zCoordinate startNode.location)
+                            }
+
+                        profileEndAt =
+                            { endNode
+                                | location =
+                                    --TODO: The divide by 5.0 should not be happening here.
+                                    Point3d.xyz
+                                        (Length.meters 0.0)
+                                        (Length.meters <| (dist + road.length) / 5.0)
+                                        (Point3d.zCoordinate endNode.location)
+                            }
+                    in
                     ( idx + 1
                     , dist + road.length
                     , { road
                         | startDistance = dist
                         , endDistance = dist + road.length
                         , index = idx
+                        , profileStartsAt = profileStartAt
+                        , profileEndsAt = profileEndAt
                       }
                         :: done
                     )
@@ -186,43 +218,3 @@ deriveSummary roadSegments =
         , totalDescending = 0.0
         }
         roadSegments
-
-
-roadsForProfileView : List DrawingRoad -> List DrawingRoad
-roadsForProfileView roads =
-    -- Don't try to be clever. Be pragmatic.
-    let
-        unrolledRoads : List DrawingRoad
-        unrolledRoads =
-            List.map unrollRoad roads
-
-        unrollRoad : DrawingRoad -> DrawingRoad
-        unrollRoad road =
-            let
-                startNode =
-                    road.startsAt
-
-                endNode =
-                    road.endsAt
-
-                newStartNode =
-                    { startNode
-                        | location =
-                            Point3d.xyz
-                                (Length.meters 0.0)
-                                (Length.meters <| road.startDistance / 5.0)
-                                (Point3d.zCoordinate startNode.location)
-                    }
-
-                newEndNode =
-                    { endNode
-                        | location =
-                            Point3d.xyz
-                                (Length.meters 0.0)
-                                (Length.meters <| road.endDistance / 5.0)
-                                (Point3d.zCoordinate endNode.location)
-                    }
-            in
-            { road | startsAt = newStartNode, endsAt = newEndNode, bearing = 0.0 }
-    in
-    unrolledRoads

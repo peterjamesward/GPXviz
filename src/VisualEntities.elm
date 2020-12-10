@@ -17,6 +17,7 @@ import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
 import Sphere3d
+import Triangle3d
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
 import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
@@ -241,10 +242,10 @@ makeStaticProfileEntities context roadList =
 
         pillars =
             List.map
-                (\r -> brownPillar r.startsAt.location)
+                (\r -> brownPillar r.profileStartsAt.location)
                 (List.take 1 roadList)
                 ++ List.map
-                    (\r -> brownPillar r.endsAt.location)
+                    (\r -> brownPillar r.profileEndsAt.location)
                     roadList
 
         trackpointmarker loc =
@@ -255,10 +256,10 @@ makeStaticProfileEntities context roadList =
 
         trackpointMarkers =
             List.map
-                (\r -> trackpointmarker r.startsAt.location)
+                (\r -> trackpointmarker r.profileStartsAt.location)
                 (List.take 1 roadList)
                 ++ List.map
-                    (\r -> trackpointmarker r.endsAt.location)
+                    (\r -> trackpointmarker r.profileEndsAt.location)
                     roadList
 
         curtains =
@@ -282,10 +283,10 @@ makeStaticProfileEntities context roadList =
 
         curtain road =
             [ Scene3d.quad (Material.color <| curtainColour road.gradient)
-                road.startsAt.location
-                road.endsAt.location
-                (Point3d.projectOnto Plane3d.xy road.endsAt.location)
-                (Point3d.projectOnto Plane3d.xy road.startsAt.location)
+                road.profileStartsAt.location
+                road.profileEndsAt.location
+                (Point3d.projectOnto Plane3d.xy road.profileEndsAt.location)
+                (Point3d.projectOnto Plane3d.xy road.profileStartsAt.location)
             ]
 
         optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
@@ -368,11 +369,12 @@ makeVaryingVisualEntities context _ =
                     []
 
         suggestedBend =
-            if context.viewingSubMode == ShowBendFixes then
-                List.map bendElement context.smoothedBend
+            case context.viewingSubMode of
+                ShowBendFixes ->
+                    List.map bendElement context.smoothedBend
 
-            else
-                []
+                _ ->
+                    []
 
         bendElement road =
             let
@@ -412,8 +414,9 @@ makeVaryingVisualEntities context _ =
 
 
 makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
-makeVaryingProfileEntities context _ =
+makeVaryingProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
+    -- We might draw things differently to suit the projection.
     let
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
@@ -422,7 +425,7 @@ makeVaryingProfileEntities context _ =
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 2.0)
-                                road.startsAt.location
+                                road.profileStartsAt.location
                             )
                             negativeZ
                             { radius = meters 0.3
@@ -440,7 +443,7 @@ makeVaryingProfileEntities context _ =
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 2.1)
-                                road.startsAt.location
+                                road.profileStartsAt.location
                             )
                             negativeZ
                             { radius = meters 0.25
@@ -450,6 +453,51 @@ makeVaryingProfileEntities context _ =
 
                 _ ->
                     []
+
+        nudgedNode current =
+            -- Has the current node been nudged vertically?
+            if context.verticalNudge /= 0.0 then
+                case current of
+                    Just road ->
+                        let
+                            prevNode =
+                                -- Fugly way to get neighbouring nodes, but hey hp.
+                                List.head <| List.drop (road.index - 1) roadList
+
+                            nudgedHeight =
+                                Point3d.translateBy
+                                    (Vector3d.meters 0.0 0.0 context.verticalNudge)
+                                    road.profileStartsAt.location
+                        in
+                        (Scene3d.triangle (Material.color Color.lightYellow) <|
+                            Triangle3d.from
+                                road.profileStartsAt.location
+                                road.profileEndsAt.location
+                                nudgedHeight
+                        )
+                            :: (case prevNode of
+                                    Just prev ->
+                                        [ Scene3d.triangle (Material.color Color.lightYellow) <|
+                                            Triangle3d.from
+                                                road.profileStartsAt.location
+                                                nudgedHeight
+                                                prev.profileStartsAt.location
+                                        ]
+
+                                    Nothing ->
+                                        []
+                               )
+
+                    Nothing ->
+                        []
+
+            else
+                []
     in
     currentPositionDisc
         ++ markedNode
+        ++ nudgedNode context.currentNode
+
+
+
+-- i.e. nudge preview.

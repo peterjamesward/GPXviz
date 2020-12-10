@@ -1,7 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Feat. Elevation Nudge.
-
 --TODO: Feat. Clicking & Dragging on Plan & Elevation views.
 --Ian MacKenzie (himself) says Camera3d.ray will be useful here!
 

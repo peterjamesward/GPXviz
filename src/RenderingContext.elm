@@ -15,4 +15,6 @@ type alias RenderingContext =
     , viewingMode : ViewingMode
     , viewingSubMode : ViewSubmode
     , smoothedBend : List DrawingRoad
+    , verticalNudge : Float
+    , horizontalNudge : Float
     }

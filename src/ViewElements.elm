@@ -8,7 +8,7 @@ import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
 import Msg exposing (Msg(..))
-import NodesAndRoads exposing (ScalingInfo)
+import Utils exposing (showDecimal2)
 
 
 withMouseCapture =
@@ -177,3 +177,62 @@ commonShortHorizontalSliderStyles =
             ]
             Element.none
     ]
+
+straightenButton c m =
+    button
+        prettyButtonStyles
+        { onPress = Just (StraightenStraight c m)
+        , label =
+            text <|
+                "Straighten between markers"
+        }
+
+nudgeButton c horizontalValue verticalValue =
+    button
+        prettyButtonStyles
+        { onPress = Just (NudgeNode c horizontalValue verticalValue)
+        , label =
+            text <|
+                "Apply nudge"
+        }
+
+splitButton c =
+    button
+        prettyButtonStyles
+        { onPress = Just (SplitRoad c)
+        , label =
+            text <|
+                "Divide this segment\ninto two"
+        }
+
+horizontalNudgeSlider c value =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetHorizontalNudgeFactor c
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Nudge value = "
+                        ++ showDecimal2 value ++ "m"
+        , min = -5.0
+        , max = 5.0
+        , step = Nothing
+        , value = value
+        , thumb = Input.defaultThumb
+        }
+
+verticalNudgeSlider c value =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetVerticalNudgeFactor c
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Nudge value = "
+                        ++ showDecimal2 value ++ "m"
+        , min = -5.0
+        , max = 5.0
+        , step = Nothing
+        , value = value
+        , thumb = Input.defaultThumb
+        }
