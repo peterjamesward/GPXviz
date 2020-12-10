@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import About exposing (viewAboutText)
+import Accordion exposing (AccordionEntry, AccordionMessage, AccordionState(..), accordionActiveItem, accordionToggle, accordionView)
 import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
@@ -8,7 +9,6 @@ import BoundingBox3d exposing (BoundingBox3d)
 import Browser
 import Camera3d
 import Color
-import Direction2d
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
@@ -20,7 +20,6 @@ import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
-import Geometry101 exposing (interpolateScalar)
 import Iso8601
 import Length
 import List exposing (drop, take)
@@ -118,6 +117,7 @@ type alias Model =
     , hasBeenChanged : Bool
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
+    , redoStack : List UndoEntry
     , thirdPersonSubmode : ViewSubmode
     , planSubmode : ViewSubmode
     , profileSubmode : ViewSubmode
@@ -131,6 +131,7 @@ type alias Model =
     , nudgeValue : Float
     , nudgedNodeRoads : List DrawingRoad -- actually only two but this is consistent with smoothedRoads.
     , verticalNudgeValue : Float
+    , accordion : List (AccordionEntry Msg)
     }
 
 
@@ -176,6 +177,7 @@ init _ =
       , hasBeenChanged = False
       , smoothingEndIndex = Nothing
       , undoStack = []
+      , redoStack = []
       , thirdPersonSubmode = ShowData
       , planSubmode = ShowData
       , profileSubmode = ShowData
@@ -189,9 +191,76 @@ init _ =
       , nudgeValue = 0.0
       , nudgedNodeRoads = []
       , verticalNudgeValue = 0.0
+      , accordion = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
+
+
+genericAccordion model =
+    [ { label = "File"
+      , state = Contracted
+      , content = viewSummaryStats model
+      }
+    , { label = "Track information"
+      , state = Contracted
+      , content = viewSummaryStats model
+      }
+    , { label = "Visual styles"
+      , state = Contracted
+      , content = viewOptions model
+      }
+    , { label = "Loop maker"
+      , state = Contracted
+      , content = viewLoopiness model
+      }
+    , { label = "Node data"
+      , state = Contracted
+      , content = viewSummaryStats model
+      }
+    , { label = "Road data"
+      , state = Contracted
+      , content = summaryData (lookupRoad model model.currentNode)
+      }
+    , { label = "Fly-through"
+      , state = Contracted
+      , content = flythroughControls model
+      }
+    , { label = "Smooth gradient"
+      , state = Contracted
+      , content = viewGradientFixerPane model
+      }
+    , { label = "Nudge node"
+      , state = Contracted
+      , content = viewNodeTools model
+      }
+    , { label = "Smooth bend"
+      , state = Contracted
+      , content = viewBendFixerPane model
+      }
+    , { label = "Straighten"
+      , state = Contracted
+      , content = viewNodeTools model
+      }
+    , { label = "Add Trackpoint"
+      , state = Contracted
+      , content = viewNodeTools model
+      }
+    , { label = "Gradient problems"
+      , state = Contracted
+      , content = viewNodeTools model
+      }
+    , { label = "Bend problems"
+      , state = Contracted
+      , content = viewNodeTools model
+      }
+    ]
+
+
+initialiseAccordion model =
+    { model
+        | accordion = genericAccordion model
+    }
 
 
 addToUndoStack : String -> Model -> Model
@@ -216,6 +285,11 @@ update msg model =
     case msg of
         Tick newTime ->
             ( { model | time = newTime } |> advanceFlythrough newTime
+            , Cmd.none
+            )
+
+        AccordionMessage entry ->
+            ( { model | accordion = accordionToggle model.accordion entry }
             , Cmd.none
             )
 
@@ -247,6 +321,7 @@ update msg model =
                 |> deriveVaryingVisualEntities
                 |> resetViewSettings
                 |> clearTerrain
+                |> initialiseAccordion
             , Cmd.none
             )
 
@@ -1701,7 +1776,9 @@ viewGenericNew model =
                 , case model.nodeBox of
                     Just scale ->
                         row []
-                            [ view3D scale model ]
+                            [ view3D scale model
+                            , accordionView (updatedAccordion model) AccordionMessage
+                            ]
 
                     Nothing ->
                         viewAboutText
@@ -2041,7 +2118,7 @@ viewPointCloud scale model =
                 , verticalFieldOfView = Angle.degrees 30
                 }
     in
-    row []
+    row [ alignTop, width fill ]
         [ zoomSlider model.zoomLevelOverview ZoomLevelOverview
         , el
             withMouseCapture
@@ -2060,12 +2137,18 @@ viewPointCloud scale model =
                     , sunlightDirection = negativeZ
                     , shadows = True
                     }
-        , column []
-            [ overviewSummary model
-            , viewLoopiness model
-            , viewOptions model
-            ]
         ]
+
+
+updatedAccordion model =
+    let
+        blendAccordionStatus currentAccordionState refreshedContent =
+            { currentAccordionState | content = refreshedContent.content }
+    in
+    List.map2
+        blendAccordionStatus
+        model.accordion
+        (genericAccordion model)
 
 
 overviewSummary model =
@@ -2174,38 +2257,6 @@ viewFirstPerson scale model =
 
                 _ ->
                     Nothing
-
-        summaryData road =
-            row [ padding 20 ]
-                [ column [ spacing 10 ]
-                    [ text "Start point index "
-                    , text "Start latitude "
-                    , text "Start longitude "
-                    , text "Start elevation "
-                    , text "Start distance "
-                    , text "End latitude "
-                    , text "End longitude "
-                    , text "End elevation "
-                    , text "End distance "
-                    , text "Length "
-                    , text "Gradient "
-                    , text "Bearing "
-                    ]
-                , column [ spacing 10 ]
-                    [ text <| String.fromInt <| Maybe.withDefault 1 model.currentNode
-                    , text <| showDecimal6 road.startsAt.trackPoint.lat
-                    , text <| showDecimal6 road.startsAt.trackPoint.lon
-                    , text <| showDecimal2 road.startsAt.trackPoint.ele
-                    , text <| showDecimal2 road.startDistance
-                    , text <| showDecimal6 road.endsAt.trackPoint.lat
-                    , text <| showDecimal6 road.endsAt.trackPoint.lon
-                    , text <| showDecimal2 road.endsAt.trackPoint.ele
-                    , text <| showDecimal2 road.endDistance
-                    , text <| showDecimal2 road.length
-                    , text <| showDecimal2 road.gradient
-                    , text <| bearingToDisplayDegrees road.bearing
-                    ]
-                ]
     in
     case getRoad of
         Nothing ->
@@ -2217,10 +2268,6 @@ viewFirstPerson scale model =
                 , column [ alignTop, padding 20, spacing 10 ]
                     [ viewRoadSegment scale model road
                     , positionControls model
-                    ]
-                , column [ alignTop, padding 20, spacing 10 ]
-                    [ summaryData road
-                    , flythroughControls model
                     ]
                 ]
 

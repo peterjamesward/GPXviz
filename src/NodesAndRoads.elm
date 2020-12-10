@@ -3,10 +3,12 @@ module NodesAndRoads exposing (..)
 --import ScalingInfo exposing (ScalingInfo)
 
 import BoundingBox3d exposing (BoundingBox3d)
+import Element exposing (column, none, padding, row, spacing, text)
 import Length
 import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (TrackPoint)
+import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
 
 
 type LocalCoords
@@ -218,3 +220,41 @@ deriveSummary roadSegments =
         , totalDescending = 0.0
         }
         roadSegments
+
+
+summaryData maybeRoad =
+    case maybeRoad of
+        Just road ->
+            row [ padding 20 ]
+                [ column [ spacing 10 ]
+                    [ text "Start point index "
+                    , text "Start latitude "
+                    , text "Start longitude "
+                    , text "Start elevation "
+                    , text "Start distance "
+                    , text "End latitude "
+                    , text "End longitude "
+                    , text "End elevation "
+                    , text "End distance "
+                    , text "Length "
+                    , text "Gradient "
+                    , text "Bearing "
+                    ]
+                , column [ spacing 10 ]
+                    [ text <| String.fromInt road.index
+                    , text <| showDecimal6 road.startsAt.trackPoint.lat
+                    , text <| showDecimal6 road.startsAt.trackPoint.lon
+                    , text <| showDecimal2 road.startsAt.trackPoint.ele
+                    , text <| showDecimal2 road.startDistance
+                    , text <| showDecimal6 road.endsAt.trackPoint.lat
+                    , text <| showDecimal6 road.endsAt.trackPoint.lon
+                    , text <| showDecimal2 road.endsAt.trackPoint.ele
+                    , text <| showDecimal2 road.endDistance
+                    , text <| showDecimal2 road.length
+                    , text <| showDecimal2 road.gradient
+                    , text <| bearingToDisplayDegrees road.bearing
+                    ]
+                ]
+
+        Nothing ->
+            none

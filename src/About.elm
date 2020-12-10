@@ -1,9 +1,10 @@
 module About exposing (..)
 
-
 import Element exposing (..)
 import Markdown
 import Msg exposing (Msg)
+
+
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 

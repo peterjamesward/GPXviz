@@ -1,9 +1,9 @@
 module ToDo exposing (..)
 
+--TODO: Feat. Redo button.
+
 --TODO: Feat. Clicking & Dragging on Plan & Elevation views.
 --Ian MacKenzie (himself) says Camera3d.ray will be useful here!
-
---TODO: Feat. Redo button.
 
 --TODO: Feat. Now there are many tools, can we organise them better?
 --TODO: Debt. Tidy up view logic. (left pane, right pane).

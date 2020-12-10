@@ -1,5 +1,6 @@
 module Msg exposing (..)
 
+import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
 import Time
@@ -56,6 +57,7 @@ type Msg
     | SetVerticalNudgeFactor Int Float
     | NudgeNode Int Float Float -- Horizontal, Vertical
     | SplitRoad Int
+    | AccordionMessage (AccordionEntry Msg)
 
 
 type NodeSplitDirection
