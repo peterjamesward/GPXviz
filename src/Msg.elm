@@ -57,6 +57,7 @@ type Msg
     | NudgeNode Int Float Float -- Horizontal, Vertical
     | SplitRoad Int
     | AccordionMessage (AccordionEntry Msg)
+    | DeleteCurrentPoint Int
 
 
 type NodeSplitDirection

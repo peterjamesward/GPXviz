@@ -235,6 +235,15 @@ splitButton c =
                 "Divide this segment\ninto two"
         }
 
+deleteNodeButton c =
+    button
+        prettyButtonStyles
+        { onPress = Just (DeleteCurrentPoint c)
+        , label =
+            text <|
+                "Delete current TrackPoint"
+        }
+
 
 horizontalNudgeSlider c value =
     Input.slider

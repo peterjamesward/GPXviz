@@ -614,6 +614,16 @@ update msg model =
             , Cmd.none
             )
 
+        DeleteCurrentPoint c ->
+            ( deleteTrackPoint c model
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveProblems
+                |> clearTerrain
+                |> deriveVaryingVisualEntities
+            , Cmd.none
+            )
+
         MakeTerrain ->
             ( deriveTerrain model
             , Cmd.none
@@ -924,6 +934,31 @@ insertTrackPoint n model =
 
         _ ->
             model
+
+
+deleteTrackPoint : Int -> Model -> Model
+deleteTrackPoint n model =
+    let
+        undoMessage =
+            "Delete track point " ++ String.fromInt n
+    in
+    let
+        precedingTPs =
+            model.trackPoints |> List.take n
+
+        remainingTPs =
+            model.trackPoints |> List.drop (n + 1)
+
+        newTPs =
+            precedingTPs ++ remainingTPs
+    in
+    addToUndoStack undoMessage model
+        |> (\m ->
+                { m
+                    | trackPoints = reindexTrackpoints newTPs
+                    , currentNode = Just <| min n (List.length newTPs - 2)
+                }
+           )
 
 
 straightenStraight : Int -> Int -> Model -> Model
@@ -2382,26 +2417,30 @@ viewBendFixerPane model =
         ]
 
 
-viewNodeTools : Model -> Element Msg
-viewNodeTools model =
-    --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
-    column [ spacing 10, padding 10, alignTop ]
-        [ markerButton model
-        , case ( model.currentNode, model.markedNode ) of
-            ( Just c, Just m ) ->
-                straightenButton c m
 
-            ( Just c, Nothing ) ->
-                column [ padding 5, spacing 10 ]
-                    [ horizontalNudgeSlider c model.nudgeValue
-                    , nudgeButton c model.nudgeValue model.verticalNudgeValue
-                    , splitButton c
-                    ]
+{-
 
-            _ ->
-                none
-        , undoButton model
-        ]
+   viewNodeTools : Model -> Element Msg
+   viewNodeTools model =
+       --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
+       column [ spacing 10, padding 10, alignTop ]
+           [ markerButton model
+           , case ( model.currentNode, model.markedNode ) of
+               ( Just c, Just m ) ->
+                   straightenButton c m
+
+               ( Just c, Nothing ) ->
+                   column [ padding 5, spacing 10 ]
+                       [ horizontalNudgeSlider c model.nudgeValue
+                       , nudgeButton c model.nudgeValue model.verticalNudgeValue
+                       , splitButton c
+                       ]
+
+               _ ->
+                   none
+           , undoButton model
+           ]
+-}
 
 
 viewStraightenTools : Model -> Element Msg
@@ -2538,6 +2577,7 @@ viewTrackPointTools model =
             column [ spacing 10 ] <|
                 [ insertNodeOptionsBox c
                 , splitButton c
+                , deleteNodeButton c
                 , undoButton model
                 ]
 
@@ -2547,13 +2587,10 @@ viewTrackPointTools model =
 
 insertNodeOptionsBox c =
     column
-        [ Border.width 1
-        , Border.color <| rgb255 114 159 207
-        , spacing 10
+        [ spacing 10
         , padding 5
         ]
-        [ paragraph [] [ text "Replace current node with two nodes\nto smooth this transition." ]
-        , row [ padding 5, spacing 5 ]
+        [ row [ spacing 10 ]
             [ button
                 prettyButtonStyles
                 { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
