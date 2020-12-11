@@ -1278,14 +1278,14 @@ smoothBend model =
                         curr - numCurrentPoints + numNewPoints - 2
 
                     else
-                        curr - 1
+                        curr
 
                 newMark =
                     if mark > bend.startIndex then
                         mark - numCurrentPoints + numNewPoints - 2
 
                     else
-                        mark - 1
+                        mark
 
                 -- Why?
             in
