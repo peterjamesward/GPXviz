@@ -15,10 +15,6 @@ type AccordionState
     | Disabled
 
 
-type AccordionMessage
-    = AccordionMessage
-
-
 type alias AccordionEntry msg =
     { label : String
     , state : AccordionState
@@ -99,7 +95,12 @@ accordionView entries message =
         [ wrappedRow accordionMenuStyles (List.map entryButton entries)
         , case accordionActiveItem entries of
             Just entry ->
-                entry.content
+                el
+                    [ Background.color <| rgb255 220 220 250
+                    , width fill
+                    , centerX
+                    ]
+                    entry.content
 
             Nothing ->
                 none
@@ -109,21 +110,3 @@ accordionView entries message =
 accordionActiveItem : List (AccordionEntry msg) -> Maybe (AccordionEntry msg)
 accordionActiveItem entries =
     List.head <| List.filter (\e -> e.state == Expanded) entries
-
-
-accordionSelectEntry : List (AccordionEntry msg) -> Maybe (AccordionEntry msg) -> List (AccordionEntry msg)
-accordionSelectEntry entries maybeEntry =
-    let
-        expandMatching entry e =
-            if e.label == entry.label then
-                { e | state = Expanded }
-
-            else
-                { e | state = Contracted }
-    in
-    case maybeEntry of
-        Just entry ->
-            List.map (expandMatching entry) entries
-
-        Nothing ->
-            entries

@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import About exposing (viewAboutText)
-import Accordion exposing (AccordionEntry, AccordionMessage, AccordionState(..), accordionActiveItem, accordionSelectEntry, accordionToggle, accordionView)
+import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
@@ -1376,7 +1376,7 @@ smoothBend model =
                             , smoothedBend = Nothing
                             , smoothedRoads = []
                             , currentNode = Just newCurrent
-                            , markedNode = Just newMark
+                            , markedNode = Nothing
                         }
                    )
 
@@ -1925,7 +1925,7 @@ viewGradientChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20 ]
+    column [ spacing 10, padding 20, centerX ]
         [ gradientChangeThresholdSlider model
         , wrappedRow [ width <| px 300 ] <|
             List.map linkButton model.abruptGradientChanges
@@ -1944,7 +1944,7 @@ viewBearingChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20 ]
+    column [ spacing 10, padding 20, centerX ]
         [ bearingChangeThresholdSlider model
         , wrappedRow [ width <| px 300 ] <|
             List.map linkButton model.abruptBearingChanges
@@ -1966,6 +1966,7 @@ viewOptions model =
         [ paddingEach { left = 10, right = 10, top = 10, bottom = 0 }
         , alignTop
         , spacing 10
+        , centerX
         ]
         [ if model.terrainEntities == [] then
             button prettyButtonStyles
@@ -2134,7 +2135,7 @@ updatedAccordion model =
 overviewSummary model =
     case model.summary of
         Just summary ->
-            row [ padding 20 ]
+            row [ padding 20, centerX ]
                 [ column [ spacing 10 ]
                     [ text "Highest point "
                     , text "Lowest point "
@@ -2161,7 +2162,7 @@ overviewSummary model =
 
 viewLoopTools : Model -> Element Msg
 viewLoopTools model =
-    el [ spacing 10, padding 20 ] <|
+    el [ spacing 10, padding 20, centerX ] <|
         case ( model.loopiness, model.currentNode ) of
             ( AlmostLoop gap, _ ) ->
                 button
@@ -2310,7 +2311,7 @@ flythroughControls model =
                     else
                         playButton
     in
-    row [ padding 10, spacing 10 ]
+    row [ padding 10, spacing 10, centerX ]
         [ resetButton
         , playPauseButton
         , flythroughSpeedSlider
@@ -2452,7 +2453,7 @@ viewBendFixerPane model =
                             ++ showDecimal2 smooth.radius
                 }
     in
-    column [ spacing 10, padding 10, alignTop ]
+    column [ spacing 10, padding 10, alignTop, centerX ]
         [ markerButton model
         , case ( model.currentNode, model.smoothedBend ) of
             ( Just _, Just smooth ) ->
@@ -2495,7 +2496,7 @@ viewBendFixerPane model =
 
 viewStraightenTools : Model -> Element Msg
 viewStraightenTools model =
-    column [ spacing 10, padding 10, alignTop ]
+    column [ spacing 10, padding 10, alignTop, centerX ]
         [ markerButton model
         , case ( model.currentNode, model.markedNode ) of
             ( Just c, Just m ) ->
@@ -2512,7 +2513,7 @@ viewNudgeTools model =
     --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
     case model.currentNode of
         Just c ->
-            column [ padding 5, spacing 10 ]
+            column [ padding 5, spacing 10, centerX ]
                 [ row [ spacing 10, centerX ]
                     [ verticalNudgeSlider c model.verticalNudgeValue
                     , horizontalNudgeSlider c model.nudgeValue
@@ -2614,7 +2615,7 @@ viewGradientFixerPane model =
                 _ ->
                     none
     in
-    column [ spacing 10 ] <|
+    column [ spacing 10, centerX ] <|
         [ markerButton model
         , gradientSmoothControls
         , undoButton model
@@ -2624,7 +2625,7 @@ viewGradientFixerPane model =
 viewTrackPointTools model =
     case model.currentNode of
         Just c ->
-            column [ spacing 10 ] <|
+            column [ spacing 10, centerX ] <|
                 [ insertNodeOptionsBox c
                 , splitButton c
                 , deleteNodeButton c

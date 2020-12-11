@@ -3,7 +3,7 @@ module NodesAndRoads exposing (..)
 --import ScalingInfo exposing (ScalingInfo)
 
 import BoundingBox3d exposing (BoundingBox3d)
-import Element exposing (column, none, padding, row, spacing, text)
+import Element exposing (centerX, column, none, padding, row, spacing, text)
 import Length
 import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
@@ -225,7 +225,7 @@ deriveSummary roadSegments =
 summaryData maybeRoad =
     case maybeRoad of
         Just road ->
-            row [ padding 20 ]
+            row [ padding 20, centerX ]
                 [ column [ spacing 10 ]
                     [ text "Start point index "
                     , text "Start latitude "
