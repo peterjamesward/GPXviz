@@ -187,6 +187,25 @@ commonShortHorizontalSliderStyles =
     ]
 
 
+commonShortVerticalSliderStyles =
+    [ height <| px 200
+    , width <| px 30
+    , centerY
+    , centerX
+    , behindContent <|
+        -- Slider track
+        el
+            [ width <| px 30
+            , height <| px 200
+            , centerY
+            , centerX
+            , Background.color <| rgb255 114 159 207
+            , Border.rounded 6
+            ]
+            Element.none
+    ]
+
+
 straightenButton c m =
     button
         prettyButtonStyles
@@ -224,7 +243,7 @@ horizontalNudgeSlider c value =
         , label =
             Input.labelBelow [] <|
                 text <|
-                    "Nudge value = "
+                    "Offset = "
                         ++ showDecimal2 value
                         ++ "m"
         , min = -5.0
@@ -236,18 +255,19 @@ horizontalNudgeSlider c value =
 
 
 verticalNudgeSlider c value =
-    Input.slider
-        commonShortHorizontalSliderStyles
-        { onChange = SetVerticalNudgeFactor c
-        , label =
-            Input.labelBelow [] <|
-                text <|
-                    "Nudge value = "
-                        ++ showDecimal2 value
-                        ++ "m"
-        , min = -5.0
-        , max = 5.0
-        , step = Nothing
-        , value = value
-        , thumb = Input.defaultThumb
-        }
+    el [ width <| px 100, centerX ] <|
+        Input.slider
+            commonShortVerticalSliderStyles
+            { onChange = SetVerticalNudgeFactor c
+            , label =
+                Input.labelBelow [ centerX ] <|
+                    text <|
+                        "Height = "
+                            ++ showDecimal2 value
+                            ++ "m"
+            , min = -5.0
+            , max = 5.0
+            , step = Nothing
+            , value = value
+            , thumb = Input.defaultThumb
+            }

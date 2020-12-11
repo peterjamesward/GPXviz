@@ -218,7 +218,7 @@ genericAccordion model =
       }
     , { label = "Nudge node"
       , state = Contracted
-      , content = viewNodeTools model
+      , content = viewNudgeTools model
       }
     , { label = "Smooth bend"
       , state = Contracted
@@ -2411,6 +2411,24 @@ viewNodeTools model =
                 none
         , undoButton model
         ]
+
+
+viewNudgeTools : Model -> Element Msg
+viewNudgeTools model =
+    --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
+    case model.currentNode of
+        Just c ->
+            column [ padding 5, spacing 10 ]
+                [ row [ spacing 10, centerX ]
+                    [ verticalNudgeSlider c model.verticalNudgeValue
+                    , horizontalNudgeSlider c model.nudgeValue
+                    ]
+                , nudgeButton c model.nudgeValue model.verticalNudgeValue
+                , undoButton model
+                ]
+
+        Nothing ->
+            none
 
 
 markerButton model =
