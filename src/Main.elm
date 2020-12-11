@@ -228,9 +228,9 @@ genericAccordion model =
       , state = Contracted
       , content = viewStraightenTools model
       }
-    , { label = "Add Trackpoint"
+    , { label = "Trackpoints"
       , state = Contracted
-      , content = viewNodeTools model
+      , content = viewTrackPointTools model
       }
     , { label = "Gradient problems"
       , state = Contracted
@@ -593,8 +593,8 @@ update msg model =
             , Cmd.none
             )
 
-        VerticalNodeSplit node direction ->
-            ( verticalNodeSplit node model
+        InsertBeforeOrAfter node direction ->
+            ( insertTrackPoint node model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveProblems
@@ -800,7 +800,7 @@ splitRoad model node =
 
         Just road ->
             let
-                insertTrackPoint =
+                insertedTrackPoint =
                     interpolateSegment 0.5 road.startsAt.trackPoint road.endsAt.trackPoint
             in
             addToUndoStack undoMessage model
@@ -809,7 +809,7 @@ splitRoad model node =
                             | trackPoints =
                                 reindexTrackpoints <|
                                     List.take (node + 1) model.trackPoints
-                                        ++ [ insertTrackPoint ]
+                                        ++ [ insertedTrackPoint ]
                                         ++ List.drop (node + 1) model.trackPoints
                         }
                    )
@@ -873,14 +873,14 @@ clearTerrain model =
     { model | terrainEntities = [] }
 
 
-verticalNodeSplit : Int -> Model -> Model
-verticalNodeSplit n model =
+insertTrackPoint : Int -> Model -> Model
+insertTrackPoint n model =
     -- Replace the current node with two close nodes that each have half the gradient change.
     -- 'Close' being perhaps the lesser of one metre and a third segment length.
     -- Lat and Lon to be linear interpolation.
     let
         undoMessage =
-            "Chamfer at " ++ String.fromInt n
+            "Insert at " ++ String.fromInt n
     in
     case ( Array.get (n - 1) model.roadArray, Array.get n model.roadArray ) of
         ( Just before, Just after ) ->
@@ -2526,10 +2526,23 @@ viewGradientFixerPane model =
                     none
     in
     column [ spacing 10 ] <|
-        []
-            ++ [ markerButton model ]
-            ++ [ gradientSmoothControls ]
-            ++ [ undoButton model ]
+        [ markerButton model
+        , gradientSmoothControls
+        , undoButton model
+        ]
+
+
+viewTrackPointTools model =
+    case model.currentNode of
+        Just c ->
+            column [ spacing 10 ] <|
+                [ insertNodeOptionsBox c
+                , splitButton c
+                , undoButton model
+                ]
+
+        Nothing ->
+            text "Odd. There's no current node."
 
 
 insertNodeOptionsBox c =
@@ -2543,12 +2556,12 @@ insertNodeOptionsBox c =
         , row [ padding 5, spacing 5 ]
             [ button
                 prettyButtonStyles
-                { onPress = Just (VerticalNodeSplit c InsertNodeAfter)
+                { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
                 , label = text "Insert a node\nafter this one"
                 }
             , button
                 prettyButtonStyles
-                { onPress = Just (VerticalNodeSplit c InsertNodeBefore)
+                { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
                 , label = text "Insert a node\nbefore this one"
                 }
             ]
