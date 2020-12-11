@@ -195,7 +195,7 @@ init _ =
 
 genericAccordion model =
     [ { label = "File"
-      , state = Contracted
+      , state = Expanded
       , content = overviewSummary model
       }
     , { label = "Road data"
@@ -306,11 +306,11 @@ update msg model =
                 |> deleteZeroLengthSegments
                 |> deriveNodesAndRoads
                 |> deriveProblems
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
                 |> resetViewSettings
                 |> clearTerrain
                 |> initialiseAccordion
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -1546,7 +1546,6 @@ resetViewSettings model =
         , markedNode = Nothing
         , viewingMode = ThirdPersonView
         , flythrough = Nothing
-        , accordion = accordionSelectEntry model.accordion (List.head model.accordion) --TODO: Not working!
     }
 
 
