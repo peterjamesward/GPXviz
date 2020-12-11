@@ -20,7 +20,7 @@ import Sphere3d
 import Triangle3d
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
-import ViewTypes exposing (ViewSubmode(..), ViewingMode(..))
+import ViewTypes exposing (ViewingMode(..))
 
 
 makeStatic3DEntities :
@@ -121,18 +121,6 @@ makeStatic3DEntities context roadList =
                     ( LineSegment3d.translateBy leftKerbVector roadAsSegment
                     , LineSegment3d.translateBy rightKerbVector roadAsSegment
                     )
-
-                ---- kerb walls
-                --, Scene3d.quad (Material.color Color.darkGrey)
-                --    (Point3d.meters (x1 + kerbX) (y1 - kerbY) z1)
-                --    (Point3d.meters (x2 + kerbX) (y2 - kerbY) z2)
-                --    (Point3d.meters (x2 + kerbX) (y2 - kerbY) (z2 + edgeHeight))
-                --    (Point3d.meters (x1 + kerbX) (y1 - kerbY) (z1 + edgeHeight))
-                --, Scene3d.quad (Material.color Color.darkGrey)
-                --    (Point3d.meters (x1 - kerbX) (y1 + kerbY) z1)
-                --    (Point3d.meters (x2 - kerbX) (y2 + kerbY) z2)
-                --    (Point3d.meters (x2 - kerbX) (y2 + kerbY) (z2 + edgeHeight))
-                --    (Point3d.meters (x1 - kerbX) (y1 + kerbY) (z1 + edgeHeight))
             in
             [ Scene3d.quad (Material.matte Color.grey)
                 (LineSegment3d.startPoint leftKerb)
@@ -369,12 +357,7 @@ makeVaryingVisualEntities context _ =
                     []
 
         suggestedBend =
-            case context.viewingSubMode of
-                ShowBendFixes ->
-                    List.map bendElement context.smoothedBend
-
-                _ ->
-                    []
+            List.map bendElement context.smoothedBend
 
         bendElement road =
             let

@@ -4,7 +4,7 @@ import BoundingBox3d exposing (BoundingBox3d)
 import DisplayOptions exposing (DisplayOptions)
 import Length
 import NodesAndRoads exposing (DrawingRoad, LocalCoords, ScalingInfo)
-import ViewTypes exposing (ViewSubmode, ViewingMode)
+import ViewTypes exposing (ViewingMode)
 
 
 type alias RenderingContext =
@@ -13,7 +13,6 @@ type alias RenderingContext =
     , markedNode : Maybe DrawingRoad
     , nodeBox : BoundingBox3d Length.Meters LocalCoords
     , viewingMode : ViewingMode
-    , viewingSubMode : ViewSubmode
     , smoothedBend : List DrawingRoad
     , verticalNudge : Float
     , horizontalNudge : Float

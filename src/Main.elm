@@ -118,9 +118,6 @@ type alias Model =
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
     , redoStack : List UndoEntry
-    , thirdPersonSubmode : ViewSubmode
-    , planSubmode : ViewSubmode
-    , profileSubmode : ViewSubmode
     , smoothedBend : Maybe SmoothedBend -- computed track points
     , smoothedRoads : List DrawingRoad -- derived road from above,
     , numLineSegmentsForBend : Int
@@ -178,9 +175,6 @@ init _ =
       , smoothingEndIndex = Nothing
       , undoStack = []
       , redoStack = []
-      , thirdPersonSubmode = ShowData
-      , planSubmode = ShowData
-      , profileSubmode = ShowData
       , smoothedBend = Nothing
       , smoothedRoads = []
       , numLineSegmentsForBend = 3
@@ -200,11 +194,11 @@ init _ =
 genericAccordion model =
     [ { label = "File"
       , state = Contracted
-      , content = viewSummaryStats model
+      , content = overviewSummary model
       }
-    , { label = "Track information"
+    , { label = "Road data"
       , state = Contracted
-      , content = viewSummaryStats model
+      , content = summaryData (lookupRoad model model.currentNode)
       }
     , { label = "Visual styles"
       , state = Contracted
@@ -213,14 +207,6 @@ genericAccordion model =
     , { label = "Loop maker"
       , state = Contracted
       , content = viewLoopiness model
-      }
-    , { label = "Node data"
-      , state = Contracted
-      , content = viewSummaryStats model
-      }
-    , { label = "Road data"
-      , state = Contracted
-      , content = summaryData (lookupRoad model model.currentNode)
       }
     , { label = "Fly-through"
       , state = Contracted
@@ -248,11 +234,11 @@ genericAccordion model =
       }
     , { label = "Gradient problems"
       , state = Contracted
-      , content = viewNodeTools model
+      , content = viewGradientChanges model
       }
     , { label = "Bend problems"
       , state = Contracted
-      , content = viewNodeTools model
+      , content = viewBearingChanges model
       }
     ]
 
@@ -550,22 +536,6 @@ update msg model =
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-            , Cmd.none
-            )
-
-        SetViewSubmode mode ->
-            ( case model.viewingMode of
-                PlanView ->
-                    { model | planSubmode = mode }
-
-                ThirdPersonView ->
-                    { model | thirdPersonSubmode = mode }
-
-                ProfileView ->
-                    { model | profileSubmode = mode }
-
-                _ ->
-                    model
             , Cmd.none
             )
 
@@ -1498,7 +1468,7 @@ resetViewSettings model =
         , elevation = Angle.degrees 30.0
         , currentNode = Just 0
         , markedNode = Nothing
-        , viewingMode = OverviewView
+        , viewingMode = ThirdPersonView
         , flythrough = Nothing
     }
 
@@ -1637,7 +1607,6 @@ deriveStaticVisualEntities model =
                     , markedNode = lookupRoad model model.markedNode
                     , nodeBox = scale
                     , viewingMode = model.viewingMode
-                    , viewingSubMode = model.thirdPersonSubmode
                     , smoothedBend = model.smoothedRoads
                     , horizontalNudge = model.nudgeValue
                     , verticalNudge = model.verticalNudgeValue
@@ -1664,7 +1633,6 @@ deriveTerrain model =
                     , markedNode = lookupRoad model model.markedNode
                     , nodeBox = scale
                     , viewingMode = model.viewingMode
-                    , viewingSubMode = model.thirdPersonSubmode
                     , smoothedBend = model.smoothedRoads
                     , horizontalNudge = model.nudgeValue
                     , verticalNudge = model.verticalNudgeValue
@@ -1698,30 +1666,6 @@ deriveVaryingVisualEntities model =
                     , markedNode = markedRoad
                     , nodeBox = scale
                     , viewingMode = model.viewingMode
-                    , viewingSubMode = ShowBendFixes
-
-                    ----TODO: Hack that should not be needed with proper view management.
-                    --if
-                    --    (model.viewingMode
-                    --        == ThirdPersonView
-                    --        && model.thirdPersonSubmode
-                    --        == ShowBendFixes
-                    --    )
-                    --        || (model.viewingMode
-                    --                == PlanView
-                    --                && model.planSubmode
-                    --                == ShowBendFixes
-                    --           )
-                    --        || (model.viewingMode
-                    --                == PlanView
-                    --                && model.planSubmode
-                    --                == ShowNodeTools
-                    --           )
-                    --then
-                    --    ShowBendFixes
-                    --
-                    --else
-                    --    ShowData
                     , smoothedBend =
                         --TODO: Cheeky. Not clever way to make nudge visible.
                         model.smoothedRoads
@@ -1756,8 +1700,8 @@ viewGenericNew model =
             ]
           <|
             column
-                [ spacing 10 ]
-                [ row [ centerX, spaceEvenly, spacing 20 ]
+                [ ]
+                [ row [ centerX, spaceEvenly, spacing 20, padding 10 ]
                     [ loadButton
                     , case model.filename of
                         Just name ->
@@ -1770,12 +1714,12 @@ viewGenericNew model =
                             none
                     , saveButtonIfChanged model
                     ]
-                , row []
+                , row [ alignLeft, moveRight 100 ]
                     [ viewModeChoices model
                     ]
                 , case model.nodeBox of
                     Just scale ->
-                        row []
+                        row [ alignLeft, alignTop ]
                             [ view3D scale model
                             , accordionView (updatedAccordion model) AccordionMessage
                             ]
@@ -1812,9 +1756,8 @@ viewModeChoices model =
         , label =
             Input.labelHidden "Choose view"
         , options =
-            [ Input.optionWith OverviewView <| radioButton First "Overview"
+            [ Input.optionWith ThirdPersonView <| radioButton First "Third person"
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
-            , Input.optionWith ThirdPersonView <| radioButton Mid "Third person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith AboutView <| radioButton Last "About"
@@ -1822,16 +1765,10 @@ viewModeChoices model =
         }
 
 
-
--- Each of these view is really just a left pane and a right pane.
-
-
 view3D : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 view3D scale model =
+    -- The only differences are (should be) which zoom slider and which projection to use.
     case model.viewingMode of
-        OverviewView ->
-            viewPointCloud scale model
-
         FirstPersonView ->
             viewFirstPerson scale model
 
@@ -1845,6 +1782,7 @@ view3D scale model =
             viewAboutText
 
         InputErrorView ->
+            --TODO: Some errors would be nice.
             viewInputError model
 
         PlanView ->
@@ -1946,48 +1884,13 @@ buttonHighlightCurrent index model =
         [ Background.color <| rgb255 0xFF 0xFF 0xFF, alignRight ]
 
 
-buttonSmoothingEnd : Int -> Model -> List (Attribute msg)
-buttonSmoothingEnd index model =
-    if Just index == model.smoothingEndIndex then
-        [ Background.color <| rgb255 114 159 207, alignRight ]
-
-    else
-        [ Background.color <| rgb255 0xFF 0xFF 0xFF, alignRight ]
-
-
-viewZeroLengthSegments : Model -> Element Msg
-viewZeroLengthSegments model =
-    el [ spacing 10, padding 20 ] <|
-        if List.length model.zeroLengths > 0 then
-            column [ spacing 10 ]
-                [ table [ width fill, centerX, spacing 10 ]
-                    { data = model.zeroLengths
-                    , columns =
-                        [ { header = text "Track point\n(Click to pick)"
-                          , width = fill
-                          , view =
-                                \z ->
-                                    button (buttonHighlightCurrent z.index model)
-                                        { onPress = Just (UserMovedNodeSlider z.index)
-                                        , label = text <| String.fromInt z.index
-                                        }
-                          }
-                        ]
-                    }
-                , button
-                    prettyButtonStyles
-                    { onPress = Just DeleteZeroLengthSegments
-                    , label = text "Delete these segments"
-                    }
-                ]
-
-        else
-            text "There are no zero-length segments to see here."
-
-
 viewOptions : Model -> Element Msg
 viewOptions model =
-    column [ padding 20, alignTop, spacing 10 ]
+    column
+        [ paddingEach { left = 10, right = 10, top = 10, bottom = 0 }
+        , alignTop
+        , spacing 10
+        ]
         [ if model.terrainEntities == [] then
             button prettyButtonStyles
                 { onPress = Just MakeTerrain
@@ -2247,25 +2150,15 @@ positionSlider model =
 
 
 viewFirstPerson scale model =
-    let
-        getRoad : Maybe DrawingRoad
-        getRoad =
-            -- N.B. will fail on last node.
-            case model.currentNode of
-                Just n ->
-                    Array.get n model.roadArray
-
-                _ ->
-                    Nothing
-    in
-    case getRoad of
+    case lookupRoad model model.currentNode of
         Nothing ->
-            none
+            text "We don't seem to have a current position. That's weird."
 
         Just road ->
-            row []
-                [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
-                , column [ alignTop, padding 20, spacing 10 ]
+            row [ alignTop ]
+                [ column
+                    [ alignTop
+                    ]
                     [ viewRoadSegment scale model road
                     , positionControls model
                     ]
@@ -2327,21 +2220,11 @@ flythroughControls model =
 
                     else
                         playButton
-
-        flythroughPosition =
-            case model.flythrough of
-                Just fly ->
-                    text <| showDecimal2 fly.metresFromRouteStart
-
-                Nothing ->
-                    none
     in
     row [ padding 10, spacing 10 ]
         [ resetButton
         , playPauseButton
         , flythroughSpeedSlider
-
-        --, flythroughPosition
         ]
 
 
@@ -2383,21 +2266,26 @@ viewRoadSegment _ model road =
                 , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
                 }
     in
-    el [] <|
-        html <|
-            Scene3d.sunny
-                { camera = camera
-                , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                , background = Scene3d.backgroundColor Color.lightBlue
-                , clipDepth = Length.meters 1.0
-                , entities =
-                    model.varyingVisualEntities
-                        ++ model.staticVisualEntities
-                        ++ model.terrainEntities
-                , upDirection = positiveZ
-                , sunlightDirection = negativeZ
-                , shadows = True
-                }
+    row []
+        [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
+        , el
+            withMouseCapture
+          <|
+            html <|
+                Scene3d.sunny
+                    { camera = camera
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.backgroundColor Color.lightBlue
+                    , clipDepth = Length.meters 1.0
+                    , entities =
+                        model.varyingVisualEntities
+                            ++ model.staticVisualEntities
+                            ++ model.terrainEntities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
+                    }
+        ]
 
 
 viewThirdPerson : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
@@ -2414,9 +2302,6 @@ viewThirdPerson scale model =
                     ]
                     [ viewCurrentNode scale model node.startsAt
                     , positionControls model
-                    ]
-                , column [ alignTop ]
-                    [ viewThirdPersonSubpane model
                     ]
                 ]
 
@@ -2435,56 +2320,13 @@ viewPlanView scale model =
                     [ viewCurrentNodePlanView scale model node.startsAt
                     , positionControls model
                     ]
-                , column [ spacing 10, padding 10, alignTop ]
-                    [ viewPlanViewSubpane model
-                    ]
                 ]
-
-
-viewPlanViewSubpane : Model -> Element Msg
-viewPlanViewSubpane model =
-    column [ alignTop, padding 20, spacing 10 ]
-        [ Input.radioRow
-            [ Border.rounded 6
-            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
-            ]
-            { onChange = SetViewSubmode
-            , selected = Just model.planSubmode
-            , label =
-                Input.labelHidden "Choose mode"
-            , options =
-                [ Input.optionWith ShowData <| radioButton First "Location\ndata"
-                , Input.optionWith ShowBendFixes <| radioButton Mid "Bend\nsmoother"
-                , Input.optionWith ShowNodeTools <| radioButton Last "On the\nstraight"
-                ]
-            }
-        , case model.planSubmode of
-            ShowData ->
-                viewSummaryStats model
-
-            ShowGradientFixes ->
-                viewGradientFixerPane model
-
-            ShowBendFixes ->
-                viewBendFixerPane model
-
-            ShowNodeTools ->
-                viewNodeTools model
-        ]
 
 
 viewProfileView : Model -> Element Msg
 viewProfileView model =
     -- Let's the user spin around and zoom in on selected road point.
     let
-        getNodeNum =
-            case model.currentNode of
-                Just n ->
-                    n
-
-                Nothing ->
-                    0
-
         getRoad =
             case model.currentNode of
                 Just n ->
@@ -2505,74 +2347,7 @@ viewProfileView model =
                     [ viewRouteProfile model road
                     , positionControls model
                     ]
-                , viewProfileSubpane model
                 ]
-
-
-viewThirdPersonSubpane : Model -> Element Msg
-viewThirdPersonSubpane model =
-    column [ alignTop, padding 20, spacing 10 ]
-        [ Input.radioRow
-            [ Border.rounded 6
-            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
-            ]
-            { onChange = SetViewSubmode
-            , selected = Just model.thirdPersonSubmode
-            , label =
-                Input.labelHidden "Choose mode"
-            , options =
-                [ Input.optionWith ShowData <| radioButton First "Location\ndata"
-                , Input.optionWith ShowGradientFixes <| radioButton Mid "Gradient\nsmoother"
-                , Input.optionWith ShowBendFixes <| radioButton Last "Bend\nsmoother"
-                ]
-            }
-        , case model.thirdPersonSubmode of
-            ShowData ->
-                column [ alignTop, spacing 10, padding 10 ]
-                    [ viewSummaryStats model
-                    , flythroughControls model
-                    ]
-
-            ShowGradientFixes ->
-                viewGradientFixerPane model
-
-            ShowBendFixes ->
-                viewBendFixerPane model
-
-            ShowNodeTools ->
-                none
-        ]
-
-
-viewProfileSubpane : Model -> Element Msg
-viewProfileSubpane model =
-    column [ alignTop, padding 20, spacing 10 ]
-        [ Input.radioRow
-            [ Border.rounded 6
-            , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
-            ]
-            { onChange = SetViewSubmode
-            , selected = Just model.profileSubmode
-            , label =
-                Input.labelHidden "Choose mode"
-            , options =
-                [ Input.optionWith ShowData <| radioButton First "Location\ndata"
-                , Input.optionWith ShowGradientFixes <| radioButton Last "Gradient\nsmoother"
-                ]
-            }
-        , case model.profileSubmode of
-            ShowData ->
-                viewSummaryStats model
-
-            ShowGradientFixes ->
-                viewGradientFixerPane model
-
-            ShowBendFixes ->
-                viewBendFixerPane model
-
-            ShowNodeTools ->
-                viewSummaryStats model
-        ]
 
 
 viewBendFixerPane : Model -> Element Msg
@@ -2787,39 +2562,6 @@ lookupRoad model idx =
         _ ->
             Nothing
 
-
-viewSummaryStats : Model -> Element Msg
-viewSummaryStats model =
-    let
-        getNodeNum =
-            case model.currentNode of
-                Just n ->
-                    n
-
-                Nothing ->
-                    0
-    in
-    case Array.get getNodeNum model.nodeArray of
-        Just node ->
-            column [ padding 20, spacing 20 ]
-                [ row [ padding 20 ]
-                    [ column [ spacing 10 ]
-                        [ text "Index "
-                        , text "Latitude "
-                        , text "Longitude "
-                        , text "Elevation "
-                        ]
-                    , column [ spacing 10 ]
-                        [ text <| String.fromInt <| getNodeNum
-                        , text <| showDecimal6 node.trackPoint.lat
-                        , text <| showDecimal6 node.trackPoint.lon
-                        , text <| showDecimal2 node.trackPoint.ele
-                        ]
-                    ]
-                ]
-
-        Nothing ->
-            none
 
 
 viewCurrentNode : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg

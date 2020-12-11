@@ -33,13 +33,24 @@ accordionMenuStyles =
     ]
 
 
-accordionRowStyles =
+accordionRowStyles state =
     [ padding 10
+    , spacing 2
     , Border.widthEach { left = 2, right = 2, top = 2, bottom = 0 }
-    , Border.roundEach { topLeft = 6, bottomLeft = 0, topRight = 6, bottomRight = 0 }
-    , Border.color <| rgb255 100 100 100
+    , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
+    , Border.color <|
+            if state == Expanded then
+                rgb255 150 200 50
+
+            else
+                rgb255 255 255 255
     , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
-    , Background.color <| rgb255 50 150 50
+        , Background.color <|
+            if state == Expanded then
+                rgb255 50 150 50
+
+            else
+                rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
     ]
 
@@ -57,11 +68,15 @@ accordionToggle entries entry =
             if e.label == entry.label then
                 { e
                     | state =
-                        if e.state == Expanded then
+                    case e.state of
+                        Expanded ->
                             Contracted
 
-                        else
+                        Contracted ->
                             Expanded
+
+                        Disabled ->
+                            Disabled
                 }
 
             else
@@ -78,7 +93,7 @@ accordionView entries message =
     let
         entryButton : AccordionEntry msg -> Element msg
         entryButton entry =
-            button accordionRowStyles
+            button (accordionRowStyles entry.state)
                 { onPress = Just (message entry)
                 , label = text entry.label
                 }

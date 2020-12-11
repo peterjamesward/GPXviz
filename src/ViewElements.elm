@@ -24,15 +24,15 @@ withMouseCapture =
 displayName n =
     case n of
         Just s ->
-            el [ Font.size 32, padding 8 ]
+            el [ Font.size 24, padding 8 ]
                 (text s)
 
         _ ->
             none
 
 
-distanceFromZoom :  Float -> Float
-distanceFromZoom  zoomLevel =
+distanceFromZoom : Float -> Float
+distanceFromZoom zoomLevel =
     10.0 ^ (5.0 - zoomLevel)
 
 
@@ -67,16 +67,24 @@ radioButton position label state =
                     { topLeft = 0, bottomLeft = 0, topRight = 6, bottomRight = 6 }
     in
     el
-        [ paddingEach { left = 20, right = 20, top = 10, bottom = 10 }
-        , Border.roundEach corners
-        , Border.widthEach borders
-        , Border.color <| rgb255 0xC0 0xC0 0xC0
+        [ padding 10
+        , spacing 2
+        , Border.widthEach { left = 2, right = 2, top = 2, bottom = 0 }
+        , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
+        , Border.color <|
+            if state == Input.Selected then
+                rgb255 150 200 50
+
+            else
+                rgb255 255 255 255
+        , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
         , Background.color <|
             if state == Input.Selected then
-                rgb255 0xFF 0xFF 0xFF
+                rgb255 50 150 50
 
             else
                 rgb255 114 159 207
+        , Font.color <| rgb255 0xFF 0xFF 0xFF
         ]
     <|
         el [ centerX, centerY ] <|
@@ -178,6 +186,7 @@ commonShortHorizontalSliderStyles =
             Element.none
     ]
 
+
 straightenButton c m =
     button
         prettyButtonStyles
@@ -186,6 +195,7 @@ straightenButton c m =
             text <|
                 "Straighten between markers"
         }
+
 
 nudgeButton c horizontalValue verticalValue =
     button
@@ -196,6 +206,7 @@ nudgeButton c horizontalValue verticalValue =
                 "Apply nudge"
         }
 
+
 splitButton c =
     button
         prettyButtonStyles
@@ -205,6 +216,7 @@ splitButton c =
                 "Divide this segment\ninto two"
         }
 
+
 horizontalNudgeSlider c value =
     Input.slider
         commonShortHorizontalSliderStyles
@@ -213,13 +225,15 @@ horizontalNudgeSlider c value =
             Input.labelBelow [] <|
                 text <|
                     "Nudge value = "
-                        ++ showDecimal2 value ++ "m"
+                        ++ showDecimal2 value
+                        ++ "m"
         , min = -5.0
         , max = 5.0
         , step = Nothing
         , value = value
         , thumb = Input.defaultThumb
         }
+
 
 verticalNudgeSlider c value =
     Input.slider
@@ -229,7 +243,8 @@ verticalNudgeSlider c value =
             Input.labelBelow [] <|
                 text <|
                     "Nudge value = "
-                        ++ showDecimal2 value ++ "m"
+                        ++ showDecimal2 value
+                        ++ "m"
         , min = -5.0
         , max = 5.0
         , step = Nothing
