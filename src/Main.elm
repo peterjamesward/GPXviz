@@ -2376,18 +2376,9 @@ viewBendFixerPane model =
                     , bendSmoothnessSlider model
                     ]
 
-            ( Just c, _ ) ->
-                --insertNodeOptionsBox c
-                column [ padding 5, spacing 10 ]
-                    [ horizontalNudgeSlider c model.nudgeValue
-                    , nudgeButton c model.nudgeValue model.verticalNudgeValue
-                    , splitButton c
-                    ]
-
             _ ->
                 none
         , undoButton model
-        , viewBearingChanges model
         ]
 
 
