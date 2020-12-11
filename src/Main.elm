@@ -226,7 +226,7 @@ genericAccordion model =
       }
     , { label = "Straighten"
       , state = Contracted
-      , content = viewNodeTools model
+      , content = viewStraightenTools model
       }
     , { label = "Add Trackpoint"
       , state = Contracted
@@ -2397,6 +2397,20 @@ viewNodeTools model =
                     , nudgeButton c model.nudgeValue model.verticalNudgeValue
                     , splitButton c
                     ]
+
+            _ ->
+                none
+        , undoButton model
+        ]
+
+
+viewStraightenTools : Model -> Element Msg
+viewStraightenTools model =
+    column [ spacing 10, padding 10, alignTop ]
+        [ markerButton model
+        , case ( model.currentNode, model.markedNode ) of
+            ( Just c, Just m ) ->
+                straightenButton c m
 
             _ ->
                 none
