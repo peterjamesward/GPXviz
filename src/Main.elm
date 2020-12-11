@@ -81,6 +81,7 @@ type alias Model =
     , filename : Maybe String
     , time : Time.Posix
     , zone : Time.Zone
+    , timeOfLastSave : Time.Posix
     , gpxUrl : String
     , trackPoints : List TrackPoint
     , trackPointBox : Maybe (BoundingBox3d Length.Meters GPXCoords)
@@ -138,6 +139,7 @@ init _ =
       , filename = Nothing
       , time = Time.millisToPosix 0
       , zone = Time.utc
+      , timeOfLastSave = Time.millisToPosix 0
       , gpxUrl = ""
       , trackPoints = []
       , trackPointBox = Nothing
@@ -270,7 +272,8 @@ update msg model =
     in
     case msg of
         Tick newTime ->
-            ( { model | time = newTime } |> advanceFlythrough newTime
+            ( { model | time = newTime }
+            |> advanceFlythrough newTime
             , Cmd.none
             )
 
