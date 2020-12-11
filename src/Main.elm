@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import About exposing (viewAboutText)
-import Accordion exposing (AccordionEntry, AccordionMessage, AccordionState(..), accordionActiveItem, accordionToggle, accordionView)
+import Accordion exposing (AccordionEntry, AccordionMessage, AccordionState(..), accordionActiveItem, accordionSelectEntry, accordionToggle, accordionView)
 import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
@@ -1470,6 +1470,7 @@ resetViewSettings model =
         , markedNode = Nothing
         , viewingMode = ThirdPersonView
         , flythrough = Nothing
+        , accordion = accordionSelectEntry model.accordion (List.head model.accordion) --TODO: Not working!
     }
 
 
@@ -1700,7 +1701,7 @@ viewGenericNew model =
             ]
           <|
             column
-                [ ]
+                []
                 [ row [ centerX, spaceEvenly, spacing 20, padding 10 ]
                     [ loadButton
                     , case model.filename of
@@ -2044,6 +2045,7 @@ viewPointCloud scale model =
 
 
 updatedAccordion model =
+    -- We have to reapply the accordion update functions with the current model,
     let
         blendAccordionStatus currentAccordionState refreshedContent =
             { currentAccordionState | content = refreshedContent.content }
@@ -2095,15 +2097,17 @@ viewLoopiness model =
                             "Make the track into a loop"
                     }
 
-            _ ->
-                none
+            IsALoop ->
+                text "This track is a loop."
+
+            NotALoop ->
+                text "The ends are kind of too far about to treat this as a loop."
 
 
 positionControls model =
     row
         [ spacing 5
         , padding 5
-        , Border.width 1
         , centerX
         , centerY
         ]
@@ -2493,11 +2497,7 @@ viewGradientFixerPane model =
                             none
 
                 ( Just c, Nothing ) ->
-                    column [ padding 10, spacing 10 ]
-                        [ verticalNudgeSlider c model.verticalNudgeValue
-                        , nudgeButton c model.nudgeValue model.verticalNudgeValue
-                        , insertNodeOptionsBox c
-                        ]
+                    insertNodeOptionsBox c
 
                 _ ->
                     none
@@ -2506,9 +2506,7 @@ viewGradientFixerPane model =
         []
             ++ [ markerButton model ]
             ++ [ gradientSmoothControls ]
-            ++ [ undoButton model
-               , viewGradientChanges model
-               ]
+            ++ [ undoButton model ]
 
 
 insertNodeOptionsBox c =
@@ -2561,7 +2559,6 @@ lookupRoad model idx =
 
         _ ->
             Nothing
-
 
 
 viewCurrentNode : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg

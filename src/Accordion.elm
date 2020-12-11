@@ -39,18 +39,18 @@ accordionRowStyles state =
     , Border.widthEach { left = 2, right = 2, top = 2, bottom = 0 }
     , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
     , Border.color <|
-            if state == Expanded then
-                rgb255 150 200 50
+        if state == Expanded then
+            rgb255 150 200 50
 
-            else
-                rgb255 255 255 255
+        else
+            rgb255 255 255 255
     , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
-        , Background.color <|
-            if state == Expanded then
-                rgb255 50 150 50
+    , Background.color <|
+        if state == Expanded then
+            rgb255 50 150 50
 
-            else
-                rgb255 114 159 207
+        else
+            rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
     ]
 
@@ -61,22 +61,19 @@ accordionToggle :
     -> List (AccordionEntry msg)
 accordionToggle entries entry =
     let
-        _ =
-            Debug.log "Toggle " entry
-
         toggleMatching e =
             if e.label == entry.label then
                 { e
                     | state =
-                    case e.state of
-                        Expanded ->
-                            Contracted
+                        case e.state of
+                            Expanded ->
+                                Contracted
 
-                        Contracted ->
-                            Expanded
+                            Contracted ->
+                                Expanded
 
-                        Disabled ->
-                            Disabled
+                            Disabled ->
+                                Disabled
                 }
 
             else
@@ -112,3 +109,21 @@ accordionView entries message =
 accordionActiveItem : List (AccordionEntry msg) -> Maybe (AccordionEntry msg)
 accordionActiveItem entries =
     List.head <| List.filter (\e -> e.state == Expanded) entries
+
+
+accordionSelectEntry : List (AccordionEntry msg) -> Maybe (AccordionEntry msg) -> List (AccordionEntry msg)
+accordionSelectEntry entries maybeEntry =
+    let
+        expandMatching entry e =
+            if e.label == entry.label then
+                { e | state = Expanded }
+
+            else
+                { e | state = Contracted }
+    in
+    case maybeEntry of
+        Just entry ->
+            List.map (expandMatching entry) entries
+
+        Nothing ->
+            entries
