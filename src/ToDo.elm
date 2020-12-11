@@ -2,9 +2,9 @@ module ToDo exposing (..)
 
 --TODO: Feat. Redo button.
 
---TODO: Delete node. Including start node.
+--TODO: Auto-save.
 
---TODO: Change loop start/finish.
+--TODO: Trap navigation away from page?
 
 --TODO: Feat? Clicking & Dragging on Plan & Elevation views.
 --Ian MacKenzie (himself) says Camera3d.ray will be useful here!

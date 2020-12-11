@@ -206,7 +206,7 @@ genericAccordion model =
       }
     , { label = "Loop maker"
       , state = Contracted
-      , content = viewLoopiness model
+      , content = viewLoopTools model
       }
     , { label = "Fly-through"
       , state = Contracted
@@ -624,6 +624,16 @@ update msg model =
             , Cmd.none
             )
 
+        ChangeLoopStart c ->
+            ( changeLoopStart c model
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveProblems
+                |> clearTerrain
+                |> deriveVaryingVisualEntities
+            , Cmd.none
+            )
+
         MakeTerrain ->
             ( deriveTerrain model
             , Cmd.none
@@ -957,6 +967,34 @@ deleteTrackPoint n model =
                 { m
                     | trackPoints = reindexTrackpoints newTPs
                     , currentNode = Just <| min n (List.length newTPs - 2)
+                }
+           )
+
+changeLoopStart : Int -> Model -> Model
+changeLoopStart n model =
+    let
+        undoMessage =
+            "move start point to " ++ String.fromInt n
+    in
+    let
+        newStart =
+            List.take 1 remainingTPs
+
+        precedingTPs =
+            List.take n model.trackPoints
+
+        remainingTPs =
+            List.drop n model.trackPoints
+
+        newTPs =
+            -- Make sure loop remains closed.
+            remainingTPs ++ precedingTPs ++ newStart
+    in
+    addToUndoStack undoMessage model
+        |> (\m ->
+                { m
+                    | trackPoints = reindexTrackpoints newTPs
+                    , currentNode = Just 0
                 }
            )
 
@@ -2119,11 +2157,11 @@ overviewSummary model =
             none
 
 
-viewLoopiness : Model -> Element Msg
-viewLoopiness model =
+viewLoopTools : Model -> Element Msg
+viewLoopTools model =
     el [ spacing 10, padding 20 ] <|
-        case model.loopiness of
-            AlmostLoop gap ->
+        case ( model.loopiness, model.currentNode ) of
+            ( AlmostLoop gap, _ ) ->
                 button
                     prettyButtonStyles
                     { onPress = Just CloseTheLoop
@@ -2132,10 +2170,20 @@ viewLoopiness model =
                             "Make the track into a loop"
                     }
 
-            IsALoop ->
-                text "This track is a loop."
+            ( IsALoop, Just c ) ->
+                column [ spacing 10 ]
+                    [ text "This track is a loop."
+                    , button
+                        prettyButtonStyles
+                        { onPress = Just (ChangeLoopStart c)
+                        , label =
+                            text <|
+                                "Move start/finish to current point"
+                        }
+                    , undoButton model
+                    ]
 
-            NotALoop ->
+            _ ->
                 text "The ends are kind of too far about to treat this as a loop."
 
 

@@ -58,6 +58,7 @@ type Msg
     | SplitRoad Int
     | AccordionMessage (AccordionEntry Msg)
     | DeleteCurrentPoint Int
+    | ChangeLoopStart Int
 
 
 type NodeSplitDirection
