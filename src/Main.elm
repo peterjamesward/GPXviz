@@ -1932,6 +1932,9 @@ viewMap model =
         baseUrl =
             "https://www.mapquestapi.com/staticmap/v5/map?key="
 
+        mapQuestAPIKey =
+            ""
+
         url box =
             let
                 { minX, maxX, minY, maxY, minZ, maxZ } =
