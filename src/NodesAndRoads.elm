@@ -70,16 +70,32 @@ deriveTrackPointBox tps =
 deriveNodes : BoundingBox3d Length.Meters GPXCoords -> List TrackPoint -> List DrawingNode
 deriveNodes box tps =
     let
-        ( midX, midY, _ ) =
+        ( midLon, midLat, _ ) =
             Point3d.toTuple Length.inMeters <|
                 BoundingBox3d.centerPoint box
+
+        {- double[] WGS84toGoogleBing(double lon, double lat) {
+             double x = lon * 20037508.34 / 180;
+             double y = Math.Log(Math.Tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+             y = y * 20037508.34 / 180;
+             return new double[] {x, y};
+           }
+        -}
+        mercatorX lon =
+            lon * 20037508.34 / 180
+
+        mercatorY lat =
+            (20037508.34 / pi) * logBase e (tan (degrees (45 + lat / 2.0)))
+
+        ( midX, midY ) =
+            ( mercatorX midLon, mercatorY midLat )
 
         prepareDrawingNode tp =
             { trackPoint = tp
             , location =
                 Point3d.meters
-                    ((tp.lon - midX) * metresPerDegree) -- * cos tp.lat)
-                    ((tp.lat - midY) * metresPerDegree)
+                    (mercatorX tp.lon - midX)
+                    (mercatorY tp.lat - midY)
                     tp.ele
             }
     in
