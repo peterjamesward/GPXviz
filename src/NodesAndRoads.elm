@@ -78,8 +78,7 @@ deriveNodes box tps =
             { trackPoint = tp
             , location =
                 Point3d.meters
-                    ((tp.lon - midX) * metresPerDegree)
-                    -- * cos tp.lat)
+                    ((tp.lon - midX) * metresPerDegree * cos tp.lat)
                     ((tp.lat - midY) * metresPerDegree)
                     tp.ele
             }

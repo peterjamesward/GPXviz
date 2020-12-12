@@ -1924,6 +1924,8 @@ viewMap model =
     -- Use MapQuest static maps API.
     -- Then work out how to project it.
     let
+        --baseUrl =
+        --    "https://open.mapquestapi.com/staticmap/v5/map?key=KEY&center=Boston,MA&size=@2x
         baseUrl =
             "https://www.mapquestapi.com/staticmap/v5/map?key="
 
@@ -1942,10 +1944,11 @@ viewMap model =
                 ++ decimals6 (Length.inMeters minY)
                 ++ ","
                 ++ decimals6 (Length.inMeters maxX)
+                ++ "&size=@2x"
     in
     case model.trackPointBox of
         Just box ->
-            image []
+            image [ inFront <| viewCentredPlanViewForMap model ]
                 { src = url box
                 , description = "Map"
                 }
@@ -2908,6 +2911,45 @@ viewCurrentNodePlanView scale model node =
                     , shadows = True
                     }
         ]
+
+
+viewCentredPlanViewForMap : Model -> Element Msg
+viewCentredPlanViewForMap model =
+    let
+        focus =
+            Point3d.projectOnto Plane3d.xy
+                Point3d.origin
+
+        eyePoint =
+            Point3d.translateBy
+                (Vector3d.meters 0.0 0.0 5000.0)
+                Point3d.origin
+
+        camera =
+            Camera3d.orthographic
+                { viewpoint =
+                    Viewpoint3d.lookAt
+                        { focalPoint = focus
+                        , eyePoint = eyePoint
+                        , upDirection = positiveY
+                        }
+                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
+                }
+    in
+    el
+        []
+    <|
+        html <|
+            Scene3d.sunny
+                { camera = camera
+                , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                , background = Scene3d.transparentBackground
+                , clipDepth = Length.meters 1.0
+                , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                , upDirection = positiveZ
+                , sunlightDirection = negativeZ
+                , shadows = True
+                }
 
 
 viewRouteProfile : Model -> DrawingRoad -> Element Msg
