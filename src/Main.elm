@@ -260,7 +260,7 @@ addToUndoStack label model =
             , currentNode = model.currentNode
             , markedNode = model.markedNode
             }
-                :: (List.take 9 model.undoStack)
+                :: List.take 9 model.undoStack
         , redoStack = []
     }
 
@@ -680,6 +680,16 @@ update msg model =
             , Cmd.none
             )
 
+        ReverseTrack ->
+            ( reverseTrack model
+                |> clearTerrain
+                |> deriveNodesAndRoads
+                |> deriveProblems
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+            , Cmd.none
+            )
+
         StraightenStraight c m ->
             ( straightenStraight c m model
                 |> deriveNodesAndRoads
@@ -1021,6 +1031,21 @@ changeLoopStart n model =
         |> (\m ->
                 { m
                     | trackPoints = reindexTrackpoints newTPs
+                    , currentNode = Just 0
+                }
+           )
+
+
+reverseTrack : Model -> Model
+reverseTrack model =
+    let
+        undoMessage =
+            "reverse track"
+    in
+    addToUndoStack undoMessage model
+        |> (\m ->
+                { m
+                    | trackPoints = reindexTrackpoints <| List.reverse model.trackPoints
                     , currentNode = Just 0
                 }
            )
@@ -1889,13 +1914,16 @@ view3D scale model =
         PlanView ->
             viewPlanView scale model
 
-        MapView -> viewMap  scale model
+        MapView ->
+            viewMap scale model
+
 
 viewMap scale model =
     -- Try OSM
     -- https://www.openstreetmap.org/?minlon=[Min Longitude]&minlat=[Min Latitude]&maxlon=[Max Longitude]&maxlat=[Max Latitude]&layers=[Layer code]
     -- Then work out how to project it.
     text "Hello World"
+
 
 viewInputError : Model -> Element Msg
 viewInputError model =
@@ -2194,32 +2222,60 @@ overviewSummary model =
 
 viewLoopTools : Model -> Element Msg
 viewLoopTools model =
+    let
+        loopButton =
+            button
+                prettyButtonStyles
+                { onPress = Just CloseTheLoop
+                , label =
+                    text <|
+                        "Make the track into a loop"
+                }
+
+        reverseButton =
+            button
+                prettyButtonStyles
+                { onPress = Just ReverseTrack
+                , label =
+                    text <|
+                        "Reverse the track"
+                }
+
+        changeStartButton c =
+            button
+                prettyButtonStyles
+                { onPress = Just (ChangeLoopStart c)
+                , label =
+                    text <|
+                        "Move start/finish to current point"
+                }
+    in
     el [ spacing 10, padding 20, centerX ] <|
         case ( model.loopiness, model.currentNode ) of
             ( AlmostLoop gap, _ ) ->
-                button
-                    prettyButtonStyles
-                    { onPress = Just CloseTheLoop
-                    , label =
-                        text <|
-                            "Make the track into a loop"
-                    }
+                column [ spacing 10 ]
+                    [ loopButton
+                    , reverseButton
+                    , undoButton model
+                    ]
 
             ( IsALoop, Just c ) ->
                 column [ spacing 10 ]
                     [ text "This track is a loop."
-                    , button
-                        prettyButtonStyles
-                        { onPress = Just (ChangeLoopStart c)
-                        , label =
-                            text <|
-                                "Move start/finish to current point"
-                        }
+                    , changeStartButton c
+                    , reverseButton
+                    , undoButton model
+                    ]
+
+            ( NotALoop, Just c ) ->
+                column [ spacing 10 ]
+                    [ text "This track is not a loop."
+                    , reverseButton
                     , undoButton model
                     ]
 
             _ ->
-                text "The ends are kind of too far about to treat this as a loop."
+                text "Unable to determine current node."
 
 
 positionControls model =

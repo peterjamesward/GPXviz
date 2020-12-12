@@ -60,6 +60,7 @@ type Msg
     | AccordionMessage (AccordionEntry Msg)
     | DeleteCurrentPoint Int
     | ChangeLoopStart Int
+    | ReverseTrack
 
 
 type NodeSplitDirection

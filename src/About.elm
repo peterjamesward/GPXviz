@@ -12,6 +12,8 @@ aboutText =
 
 > **It's all changed. New UI. New tools. Redo button.**
 
+> _News flash_ -- Undo limit of 10 (sorry, needs must). Reverse track (under Loop maker).
+
 > _This text updated 2020-12-12_
 
 The file load and save buttons are the same, almost everything else has changed. It's a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.
