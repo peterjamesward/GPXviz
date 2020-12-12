@@ -1,7 +1,8 @@
 module ToDo exposing (..)
 
 --TODO: Map on sea level plane.
--- https://www.openstreetmap.org/?minlon=[Min Longitude]&minlat=[Min Latitude]&maxlon=[Max Longitude]&maxlat=[Max Latitude]&layers=[Layer code]
+-- Not possible to map an image to elm-3d-scene. Could use transparent background but
+-- then care needed to synchronise map zoom and position. Doable but is it worth it?
 
 --TODO: Auto-save.
 
