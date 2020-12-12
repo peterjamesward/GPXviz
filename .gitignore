@@ -1,3 +1,4 @@
 # Project exclude paths
 /elm-stuff/
 index.html
+src/MapQuestKey.elm

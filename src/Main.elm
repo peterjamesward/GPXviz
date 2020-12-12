@@ -23,6 +23,7 @@ import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Iso8601
 import Length
 import List exposing (drop, take)
+import MapQuestKey exposing (mapQuestAPIKey)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -42,7 +43,7 @@ import ViewElements exposing (..)
 import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
-import WriteGPX exposing (writeGPX)
+import WriteGPX exposing (decimals6, writeGPX)
 
 
 main : Program () Model Msg
@@ -1915,14 +1916,44 @@ view3D scale model =
             viewPlanView scale model
 
         MapView ->
-            viewMap scale model
+            viewMap model
 
 
-viewMap scale model =
+viewMap : Model -> Element Msg
+viewMap model =
     -- Try OSM
     -- https://www.openstreetmap.org/?minlon=[Min Longitude]&minlat=[Min Latitude]&maxlon=[Max Longitude]&maxlat=[Max Latitude]&layers=[Layer code]
     -- Then work out how to project it.
-    text "Hello World"
+    -- Use MapQuest static maps API.
+    let
+        baseUrl =
+            "https://www.mapquestapi.com/staticmap/v5/map?key="
+
+        url box =
+            let
+                { minX, maxX, minY, maxY, minZ, maxZ } =
+                    BoundingBox3d.extrema box
+            in
+            baseUrl
+                ++ mapQuestAPIKey
+                ++ "&size=800,500&boundingBox="
+                ++ decimals6 (Length.inMeters maxY)
+                ++ ","
+                ++ decimals6 (Length.inMeters minX)
+                ++ ","
+                ++ decimals6 (Length.inMeters minY)
+                ++ ","
+                ++ decimals6 (Length.inMeters maxX)
+    in
+    case model.trackPointBox of
+        Just box ->
+            image []
+                { src = url box
+                , description = "Map"
+                }
+
+        Nothing ->
+            text "Sorry, no bounding box."
 
 
 viewInputError : Model -> Element Msg

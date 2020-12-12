@@ -1,4 +1,4 @@
-module WriteGPX exposing (writeGPX)
+module WriteGPX exposing (writeGPX, decimals6)
 
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
