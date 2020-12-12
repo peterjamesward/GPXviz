@@ -260,7 +260,7 @@ addToUndoStack label model =
             , currentNode = model.currentNode
             , markedNode = model.markedNode
             }
-                :: model.undoStack
+                :: (List.take 9 model.undoStack)
         , redoStack = []
     }
 
@@ -1861,6 +1861,7 @@ viewModeChoices model =
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith AboutView <| radioButton Last "About"
+            , Input.optionWith MapView <| radioButton Last "Map test"
             ]
         }
 
@@ -1888,6 +1889,13 @@ view3D scale model =
         PlanView ->
             viewPlanView scale model
 
+        MapView -> viewMap  scale model
+
+viewMap scale model =
+    -- Try OSM
+    -- https://www.openstreetmap.org/?minlon=[Min Longitude]&minlat=[Min Latitude]&maxlon=[Max Longitude]&maxlat=[Max Latitude]&layers=[Layer code]
+    -- Then work out how to project it.
+    text "Hello World"
 
 viewInputError : Model -> Element Msg
 viewInputError model =

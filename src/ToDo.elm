@@ -1,5 +1,10 @@
 module ToDo exposing (..)
 
+--TODO: Map on sea level plane.
+-- https://www.openstreetmap.org/?minlon=[Min Longitude]&minlat=[Min Latitude]&maxlon=[Max Longitude]&maxlat=[Max Latitude]&layers=[Layer code]
+
+--TODO: Feat. Reverse track?
+
 --TODO: Auto-save.
 
 --TODO: Trap navigation away from page?

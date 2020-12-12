@@ -44,7 +44,7 @@ Once a file is loaded, **Third person**, **First person**, **Elevation** and **P
 
 Click the blue button at the page top to choose a file.
 
-**Remember** to save your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).
+**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).
 
 > _Peter Ward, 2020_
 """
