@@ -555,6 +555,7 @@ update msg model =
                         , markedNode = action.markedNode
                     }
                         |> deriveNodesAndRoads
+                        |> tryBendSmoother
                         |> deriveStaticVisualEntities
                         |> deriveVaryingVisualEntities
                         |> deriveProblems
@@ -576,6 +577,7 @@ update msg model =
                         , markedNode = action.markedNode
                     }
                         |> deriveNodesAndRoads
+                        |> tryBendSmoother
                         |> deriveStaticVisualEntities
                         |> deriveVaryingVisualEntities
                         |> deriveProblems
@@ -1887,6 +1889,7 @@ viewModeChoices model =
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith AboutView <| radioButton Last "About"
+
             --, Input.optionWith MapView <| radioButton Last "Map test"
             ]
         }
@@ -2585,33 +2588,8 @@ viewBendFixerPane model =
             _ ->
                 none
         , undoButton model
+        , viewBearingChanges model
         ]
-
-
-
-{-
-
-   viewNodeTools : Model -> Element Msg
-   viewNodeTools model =
-       --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
-       column [ spacing 10, padding 10, alignTop ]
-           [ markerButton model
-           , case ( model.currentNode, model.markedNode ) of
-               ( Just c, Just m ) ->
-                   straightenButton c m
-
-               ( Just c, Nothing ) ->
-                   column [ padding 5, spacing 10 ]
-                       [ horizontalNudgeSlider c model.nudgeValue
-                       , nudgeButton c model.nudgeValue model.verticalNudgeValue
-                       , splitButton c
-                       ]
-
-               _ ->
-                   none
-           , undoButton model
-           ]
--}
 
 
 viewStraightenTools : Model -> Element Msg
@@ -2758,6 +2736,7 @@ viewGradientFixerPane model =
         [ markerButton model
         , gradientSmoothControls
         , undoButton model
+        , viewGradientChanges model
         ]
 
 

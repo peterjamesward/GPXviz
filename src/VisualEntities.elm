@@ -202,7 +202,7 @@ makeStatic3DEntities context roadList =
             else
                 []
     in
-    [ ] --seaLevel]
+    [ seaLevel]
         ++ optionally context.displayOptions.roadPillars pillars
         ++ optionally context.displayOptions.roadCones trackpointMarkers
         ++ optionally context.displayOptions.roadTrack roadSurfaces
