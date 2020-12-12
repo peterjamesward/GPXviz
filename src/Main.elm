@@ -261,6 +261,7 @@ addToUndoStack label model =
             , markedNode = model.markedNode
             }
                 :: model.undoStack
+        , redoStack = []
     }
 
 
@@ -273,7 +274,7 @@ update msg model =
     case msg of
         Tick newTime ->
             ( { model | time = newTime }
-            |> advanceFlythrough newTime
+                |> advanceFlythrough newTime
             , Cmd.none
             )
 
@@ -548,6 +549,28 @@ update msg model =
                     { model
                         | trackPoints = action.trackPoints
                         , undoStack = undos
+                        , redoStack = { action | trackPoints = model.trackPoints } :: model.redoStack
+                        , currentNode = action.currentNode
+                        , markedNode = action.markedNode
+                    }
+                        |> deriveNodesAndRoads
+                        |> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
+                        |> deriveProblems
+                        |> clearTerrain
+
+                _ ->
+                    model
+            , Cmd.none
+            )
+
+        Redo ->
+            ( case model.redoStack of
+                action :: redos ->
+                    { model
+                        | trackPoints = action.trackPoints
+                        , redoStack = redos
+                        , undoStack = { action | trackPoints = model.trackPoints } :: model.undoStack
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                     }
@@ -972,6 +995,7 @@ deleteTrackPoint n model =
                     , currentNode = Just <| min n (List.length newTPs - 2)
                 }
            )
+
 
 changeLoopStart : Int -> Model -> Model
 changeLoopStart n model =
@@ -2557,23 +2581,42 @@ markerButton model =
 
 
 undoButton model =
-    button
-        prettyButtonStyles
-        { onPress =
-            case model.undoStack of
-                [] ->
-                    Nothing
+    column [ spacing 5 ]
+        [ button
+            prettyButtonStyles
+            { onPress =
+                case model.undoStack of
+                    [] ->
+                        Nothing
 
-                _ ->
-                    Just Undo
-        , label =
-            case model.undoStack of
-                u :: _ ->
-                    text <| "Undo " ++ u.label
+                    _ ->
+                        Just Undo
+            , label =
+                case model.undoStack of
+                    u :: _ ->
+                        text <| "Undo " ++ u.label
 
-                _ ->
-                    text "Nothing to undo"
-        }
+                    _ ->
+                        text "Nothing to undo"
+            }
+        , button
+            prettyButtonStyles
+            { onPress =
+                case model.redoStack of
+                    [] ->
+                        Nothing
+
+                    _ ->
+                        Just Redo
+            , label =
+                case model.redoStack of
+                    u :: _ ->
+                        text <| "Redo " ++ u.label
+
+                    _ ->
+                        text "Nothing to redo"
+            }
+        ]
 
 
 viewGradientFixerPane : Model -> Element Msg

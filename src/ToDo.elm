@@ -1,7 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Feat. Redo button.
-
 --TODO: Auto-save.
 
 --TODO: Trap navigation away from page?

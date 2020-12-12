@@ -39,6 +39,7 @@ type Msg
     | SmoothGradient Int Int Float
     | SmoothBend
     | Undo
+    | Redo
     | ToggleMarker
     | MarkerForwardOne
     | MarkerBackOne
