@@ -202,11 +202,130 @@ makeStatic3DEntities context roadList =
             else
                 []
     in
-    [ seaLevel]
+    [ seaLevel ]
         ++ optionally context.displayOptions.roadPillars pillars
         ++ optionally context.displayOptions.roadCones trackpointMarkers
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
+        ++ optionally context.displayOptions.centreLine centreLine
+
+
+makeStaticMapEntities :
+    RenderingContext
+    -> List DrawingRoad
+    -> List (Entity LocalCoords)
+makeStaticMapEntities context roadList =
+    let
+        trackpointmarker loc =
+            cone (Material.color Color.black) <|
+                Cone3d.startingAt
+                    (Point3d.translateBy
+                        (Vector3d.meters 0.0 0.0 -1.0)
+                        loc
+                    )
+                    positiveZ
+                    { radius = meters <| 0.6
+                    , length = meters <| 1.0
+                    }
+
+        trackpointMarkers =
+            let
+                makeStartCone road =
+                    trackpointmarker road.startsAt.location
+
+                makeEndCone road =
+                    trackpointmarker road.endsAt.location
+            in
+            List.map makeStartCone (List.take 1 roadList)
+                ++ List.map makeEndCone roadList
+
+        roadSurfaces =
+            List.concat <|
+                List.map roadSurface <|
+                    roadList
+
+        roadSurface road =
+            --TODO: Factor out these common ones.
+            let
+                ( kerbX, kerbY ) =
+                    -- Road is assumed to be 6 m wide.
+                    ( 3.0 * cos road.bearing
+                    , 3.0 * sin road.bearing
+                    )
+
+                roadAsSegment =
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+
+                leftKerbVector =
+                    Vector3d.meters
+                        (-1.0 * kerbX)
+                        kerbY
+                        0.0
+
+                rightKerbVector =
+                    Vector3d.reverse leftKerbVector
+
+                ( leftKerb, rightKerb ) =
+                    ( LineSegment3d.translateBy leftKerbVector roadAsSegment
+                    , LineSegment3d.translateBy rightKerbVector roadAsSegment
+                    )
+            in
+            [ Scene3d.quad (Material.matte Color.red)
+                (LineSegment3d.startPoint leftKerb)
+                (LineSegment3d.endPoint leftKerb)
+                (LineSegment3d.endPoint rightKerb)
+                (LineSegment3d.startPoint rightKerb)
+            ]
+
+        subtleGradientLine road =
+            let
+                ( halfX, halfY ) =
+                    -- Width of the centre line.
+                    ( 0.3 * cos road.bearing
+                    , 0.3 * sin road.bearing
+                    )
+
+                roadAsSegment =
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+
+                leftVector =
+                    Vector3d.meters
+                        (-1.0 * halfX)
+                        halfY
+                        0.05
+
+                rightVector =
+                    Vector3d.reverse leftVector
+
+                ( leftEdge, rightEdge ) =
+                    ( LineSegment3d.translateBy leftVector roadAsSegment
+                    , LineSegment3d.translateBy rightVector roadAsSegment
+                    )
+            in
+            [ --surface
+              Scene3d.quad (Material.color <| gradientColourPastel road.gradient)
+                (LineSegment3d.startPoint leftEdge)
+                (LineSegment3d.endPoint leftEdge)
+                (LineSegment3d.endPoint rightEdge)
+                (LineSegment3d.startPoint rightEdge)
+            ]
+
+        centreLine =
+            List.concat <|
+                List.map subtleGradientLine <|
+                    roadList
+
+        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
+        optionally test element =
+            if test then
+                element
+
+            else
+                []
+    in
+    []
+        ++ optionally context.displayOptions.roadCones trackpointMarkers
+        ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally context.displayOptions.centreLine centreLine
 
 

@@ -30,6 +30,7 @@ import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
 import Point3d
+import Quantity
 import Scene3d exposing (Entity)
 import Spherical exposing (metresPerDegree)
 import Task
@@ -97,6 +98,8 @@ type alias Model =
     , staticProfileEntities : List (Entity LocalCoords) -- an unrolled 3D world for the profile view.
     , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
     , varyingProfileEntities : List (Entity LocalCoords)
+    , mapStaticEntities : List (Entity LocalCoords) -- we must use different projection for map
+    , mapVaryingEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
     , httpError : Maybe String
     , currentNode : Maybe Int
@@ -189,6 +192,8 @@ init _ =
       , nudgedNodeRoads = []
       , verticalNudgeValue = 0.0
       , accordion = []
+      , mapStaticEntities = []
+      , mapVaryingEntities = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -1779,6 +1784,7 @@ deriveStaticVisualEntities model =
             { model
                 | staticVisualEntities = makeStatic3DEntities context model.roads
                 , staticProfileEntities = makeStaticProfileEntities context model.roads
+                , mapStaticEntities = makeStaticMapEntities context model.roads
             }
 
         Nothing ->
@@ -1928,8 +1934,7 @@ viewModeChoices model =
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith AboutView <| radioButton Last "About"
-
-            --, Input.optionWith MapView <| radioButton Last "Map test"
+            , Input.optionWith MapView <| radioButton Last "Map test"
             ]
         }
 
@@ -1958,11 +1963,11 @@ view3D scale model =
             viewPlanView scale model
 
         MapView ->
-            viewMap model
+            viewMap scale model
 
 
-viewMap : Model -> Element Msg
-viewMap model =
+viewMap : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
+viewMap scale model =
     -- Use MapQuest static maps API.
     -- Then work out how to project it.
     let
@@ -1971,9 +1976,8 @@ viewMap model =
         baseUrl =
             "https://www.mapquestapi.com/staticmap/v5/map?key="
 
-        mapQuestAPIKey =
-            ""
-
+        --mapQuestAPIKey =
+        --    ""
         url box =
             let
                 { minX, maxX, minY, maxY, minZ, maxZ } =
@@ -1993,10 +1997,14 @@ viewMap model =
     in
     case model.trackPointBox of
         Just box ->
-            image [ inFront <| viewCentredPlanViewForMap model ]
-                { src = url box
-                , description = "Map"
-                }
+            row [ alignTop ]
+                [ column
+                    [ alignTop
+                    ]
+                    [ viewCentredPlanViewForMap scale model (url box)
+                    , positionControls model
+                    ]
+                ]
 
         Nothing ->
             text "Sorry, no bounding box."
@@ -2949,9 +2957,16 @@ viewCurrentNodePlanView scale model node =
         ]
 
 
-viewCentredPlanViewForMap : Model -> Element Msg
-viewCentredPlanViewForMap model =
+viewCentredPlanViewForMap :
+    BoundingBox3d Length.Meters LocalCoords
+    -> Model
+    -> String
+    -> Element Msg
+viewCentredPlanViewForMap scale model url =
     let
+        ( x, y, z ) =
+            BoundingBox3d.dimensions scale
+
         focus =
             Point3d.projectOnto Plane3d.xy
                 Point3d.origin
@@ -2969,23 +2984,29 @@ viewCentredPlanViewForMap model =
                         , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
-                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
+                , viewportHeight = Quantity.multiplyBy (model.zoomLevelPlan * 0.5) y
                 }
+
+        projection =
+            html <|
+                Scene3d.sunny
+                    { camera = camera
+                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , background = Scene3d.transparentBackground
+                    , clipDepth = Length.meters 1.0
+                    , entities = model.varyingVisualEntities ++ model.mapStaticEntities
+                    , upDirection = positiveZ
+                    , sunlightDirection = negativeZ
+                    , shadows = True
+                    }
     in
-    el
-        []
-    <|
-        html <|
-            Scene3d.sunny
-                { camera = camera
-                , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                , background = Scene3d.transparentBackground
-                , clipDepth = Length.meters 1.0
-                , entities = model.varyingVisualEntities ++ model.staticVisualEntities
-                , upDirection = positiveZ
-                , sunlightDirection = negativeZ
-                , shadows = True
-                }
+    row []
+        [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
+        , image [ inFront <| projection ]
+            { src = url
+            , description = "Map"
+            }
+        ]
 
 
 viewRouteProfile : Model -> DrawingRoad -> Element Msg
