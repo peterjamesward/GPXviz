@@ -72,7 +72,7 @@ type alias UndoEntry =
 
 
 type Loopiness
-    = NotALoop
+    = NotALoop Float
     | IsALoop
     | AlmostLoop Float -- if, say, less than 200m back to start.
 
@@ -184,7 +184,7 @@ init _ =
       , bumpinessFactor = 0.0
       , flythrough = Nothing
       , flythroughSpeed = 1.0
-      , loopiness = NotALoop
+      , loopiness = NotALoop 0.0
       , nudgeValue = 0.0
       , nudgedNodeRoads = []
       , verticalNudgeValue = 0.0
@@ -266,6 +266,42 @@ addToUndoStack label model =
     }
 
 
+clearTheModel model =
+    { model
+        | gpx = Nothing
+        , timeOfLastSave = Time.millisToPosix 0
+        , trackPoints = []
+        , trackPointBox = Nothing
+        , nodeBox = Nothing
+        , nodes = []
+        , roads = []
+        , trackName = Nothing
+        , orbiting = Nothing
+        , staticVisualEntities = []
+        , varyingVisualEntities = []
+        , staticProfileEntities = []
+        , varyingProfileEntities = []
+        , terrainEntities = []
+        , currentNode = Nothing
+        , markedNode = Nothing
+        , summary = Nothing
+        , nodeArray = Array.empty
+        , roadArray = Array.empty
+        , abruptGradientChanges = []
+        , abruptBearingChanges = []
+        , zeroLengths = []
+        , hasBeenChanged = False
+        , smoothingEndIndex = Nothing
+        , undoStack = []
+        , redoStack = []
+        , smoothedBend = Nothing
+        , smoothedRoads = []
+        , flythrough = Nothing
+        , loopiness = NotALoop 0.0
+        , nudgedNodeRoads = []
+    }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -302,17 +338,18 @@ update msg model =
         GpxLoaded content ->
             -- TODO: Tidy up the removal of zero length segments,
             -- so as not to repeat ourselves here.
-            ( parseGPXintoModel content model
+            ( clearTheModel model
+                |> parseGPXintoModel content
                 |> deriveNodesAndRoads
                 |> deriveProblems
                 |> deleteZeroLengthSegments
                 |> deriveNodesAndRoads
                 |> deriveProblems
-                |> resetViewSettings
                 |> clearTerrain
                 |> initialiseAccordion
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
+                |> resetViewSettings
             , Cmd.none
             )
 
@@ -1495,22 +1532,11 @@ deleteZeroLengthSegments model =
 
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
-    let
-        tps =
-            parseTrackPoints content
-    in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = tps
+        , trackPoints = parseTrackPoints content
         , hasBeenChanged = False
-        , undoStack = []
-        , viewingMode =
-            if model.trackPoints == [] then
-                InputErrorView
-
-            else
-                model.viewingMode
     }
 
 
@@ -1596,8 +1622,16 @@ resetViewSettings model =
         , elevation = Angle.degrees 30.0
         , currentNode = Just 0
         , markedNode = Nothing
-        , viewingMode = ThirdPersonView
         , flythrough = Nothing
+        , undoStack = []
+        , redoStack = []
+
+        --, viewingMode =
+        --    if List.length model.trackPoints == 0 then
+        --        InputErrorView
+        --
+        --    else
+        --        model.viewingMode
     }
 
 
@@ -1689,17 +1723,17 @@ deriveProblems model =
             in
             case maybeGap of
                 Just ( gap, heightDiff ) ->
-                    if gap < 0.5 && heightDiff < 0.5 then
+                    if gap < 1.0 && heightDiff < 1.0 then
                         IsALoop
 
                     else if gap < 1000.0 then
                         AlmostLoop gap
 
                     else
-                        NotALoop
+                        NotALoop gap
 
                 _ ->
-                    NotALoop
+                    NotALoop 0.0
     in
     { model
         | abruptGradientChanges = suddenGradientChanges
@@ -1715,7 +1749,9 @@ trackPointGap t1 t2 =
     case ( t1, t2 ) of
         ( Just tp1, Just tp2 ) ->
             Just
-                ( Spherical.range ( tp1.lon, tp1.lat ) ( tp2.lon, tp2.lat )
+                ( Spherical.range
+                    ( degrees tp1.lon, degrees tp1.lat )
+                    ( degrees tp2.lon, degrees tp2.lat )
                 , abs (tp1.ele - tp2.ele)
                 )
 
@@ -1845,14 +1881,17 @@ viewGenericNew model =
                 , row [ alignLeft, moveRight 100 ]
                     [ viewModeChoices model
                     ]
-                , case model.nodeBox of
-                    Just scale ->
+                , case ( model.gpx, model.nodeBox ) of
+                    ( _, Just scale ) ->
                         row [ alignLeft, alignTop ]
                             [ view3D scale model
                             , accordionView (updatedAccordion model) AccordionMessage
                             ]
 
-                    Nothing ->
+                    ( Just _, Nothing ) ->
+                        viewInputError model
+
+                    _ ->
                         viewAboutText
                 ]
         ]
@@ -1965,22 +2004,35 @@ viewMap model =
 
 viewInputError : Model -> Element Msg
 viewInputError model =
-    if model.trackPoints == [] then
-        column [ spacing 20 ]
-            [ text "I was looking for things like 'lat', 'lon' and 'ele' but didn't find them."
-            , case model.gpx of
-                Just content ->
-                    column []
-                        [ text "This is what I found instead."
-                        , text <| content
-                        ]
-
-                Nothing ->
-                    text "<Nothing to see here>"
+    row
+        [ centerX
+        , Background.color <| rgb255 220 220 200
+        , padding 20
+        , Border.width 2
+        , Border.color <| rgb255 50 50 50
+        , clipY
+        , scrollbarY
+        ]
+        [ el
+            [ width <| px 800
+            , height <| maximum 600 fill
             ]
+          <|
+            if List.length model.trackPoints == 0 then
+                case model.gpx of
+                    Just content ->
+                        column [ spacing 10, padding 10 ]
+                            [ text "I wanted to see lat, lon and ele data."
+                            , text "This is what I found instead."
+                            , text <| content
+                            ]
 
-    else
-        text "That was lovely."
+                    Nothing ->
+                        text "I seem to have no filename."
+
+            else
+                text "Nothing to see here."
+        ]
 
 
 averageGradient : Model -> Int -> Int -> Maybe Float
@@ -2290,13 +2342,6 @@ viewLoopTools model =
     in
     el [ spacing 10, padding 20, centerX ] <|
         case ( model.loopiness, model.currentNode ) of
-            ( AlmostLoop gap, _ ) ->
-                column [ spacing 10 ]
-                    [ loopButton
-                    , reverseButton
-                    , undoButton model
-                    ]
-
             ( IsALoop, Just c ) ->
                 column [ spacing 10 ]
                     [ text "This track is a loop."
@@ -2305,9 +2350,18 @@ viewLoopTools model =
                     , undoButton model
                     ]
 
-            ( NotALoop, Just c ) ->
+            ( AlmostLoop gap, _ ) ->
                 column [ spacing 10 ]
-                    [ text "This track is not a loop."
+                    [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
+                    , loopButton
+                    , reverseButton
+                    , undoButton model
+                    ]
+
+            ( NotALoop gap, Just c ) ->
+                column [ spacing 10 ]
+                    [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
+                    , loopButton
                     , reverseButton
                     , undoButton model
                     ]

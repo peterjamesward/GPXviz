@@ -17,5 +17,3 @@ module ToDo exposing (..)
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 
 --TODO: Debt. Improve removal of zero lengths so we don't have to repeat ourselves!
-
---TODO: Report input file parse errors.

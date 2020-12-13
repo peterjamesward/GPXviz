@@ -10,11 +10,10 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-12 16:00_
+> _This text updated 2020-12-12 22:00_
 
 > **Changes**
-> - Bend suggestion was not showing after Undo or Redo.
-> - Bend and Gradient problems now also visible in Bend Smoother and Gradient Smoother tools respectively.
+> - Now using Web Mercator projection for compatibility with common mapping tools.
 
 The file load and save buttons are the same, almost everything else has changed. It's a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.
 
