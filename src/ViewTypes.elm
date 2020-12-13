@@ -8,5 +8,4 @@ type ViewingMode
     | InputErrorView
     | ProfileView
     | PlanView
-    | MapView
 

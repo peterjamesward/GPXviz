@@ -1934,7 +1934,6 @@ viewModeChoices model =
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith AboutView <| radioButton Last "About"
-            , Input.optionWith MapView <| radioButton Last "Map test"
             ]
         }
 
@@ -1961,53 +1960,6 @@ view3D scale model =
 
         PlanView ->
             viewPlanView scale model
-
-        MapView ->
-            viewMap scale model
-
-
-viewMap : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewMap scale model =
-    -- Use MapQuest static maps API.
-    -- Then work out how to project it.
-    let
-        --baseUrl =
-        --    "https://open.mapquestapi.com/staticmap/v5/map?key=KEY&center=Boston,MA&size=@2x
-        baseUrl =
-            "https://www.mapquestapi.com/staticmap/v5/map?key="
-
-        --mapQuestAPIKey =
-        --    ""
-        url box =
-            let
-                { minX, maxX, minY, maxY, minZ, maxZ } =
-                    BoundingBox3d.extrema box
-            in
-            baseUrl
-                ++ mapQuestAPIKey
-                ++ "&size=800,500@2x&boundingBox="
-                ++ decimals6 (Length.inMeters maxY)
-                ++ ","
-                ++ decimals6 (Length.inMeters minX)
-                ++ ","
-                ++ decimals6 (Length.inMeters minY)
-                ++ ","
-                ++ decimals6 (Length.inMeters maxX)
-                ++ "&margin=0"
-    in
-    case model.trackPointBox of
-        Just box ->
-            row [ alignTop ]
-                [ column
-                    [ alignTop
-                    ]
-                    [ viewCentredPlanViewForMap scale model (url box)
-                    , positionControls model
-                    ]
-                ]
-
-        Nothing ->
-            text "Sorry, no bounding box."
 
 
 viewInputError : Model -> Element Msg
