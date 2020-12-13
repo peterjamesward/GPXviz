@@ -10,10 +10,12 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-12 22:00_
+> _This text updated 2020-12-13 12:00_
 
 > **Changes**
 > - Now using Web Mercator projection for compatibility with common mapping tools.
+> - Should report problems reading GPX file.
+> - Properly clears out old state when changing tracks.
 
 The file load and save buttons are the same, almost everything else has changed. It's a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.
 
