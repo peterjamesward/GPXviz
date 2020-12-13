@@ -1985,7 +1985,7 @@ viewMap scale model =
             in
             baseUrl
                 ++ mapQuestAPIKey
-                ++ "&size=800,500&boundingBox="
+                ++ "&size=800,500@2x&boundingBox="
                 ++ decimals6 (Length.inMeters maxY)
                 ++ ","
                 ++ decimals6 (Length.inMeters minX)
@@ -1993,7 +1993,7 @@ viewMap scale model =
                 ++ decimals6 (Length.inMeters minY)
                 ++ ","
                 ++ decimals6 (Length.inMeters maxX)
-                ++ "&size=@2x"
+                ++ "&margin=0"
     in
     case model.trackPointBox of
         Just box ->
@@ -3002,7 +3002,7 @@ viewCentredPlanViewForMap scale model url =
     in
     row []
         [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-        , image [ inFront <| projection ]
+        , image [ inFront <| projection, height <| px 500, width <| px 800 ]
             { src = url
             , description = "Map"
             }
