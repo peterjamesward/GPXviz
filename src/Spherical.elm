@@ -9,17 +9,17 @@ metresPerDegree = 78846.81
 
 
 -- Equirectangular approximation
-range (φ1, λ1) (φ2, λ2) = 
+range (lat1, lon1) (lat2, lon2) =
   let 
-      x = (λ2 - λ1) * cos ((φ1 + φ2)/2)
-      y = (φ2 - φ1)
+      x = (lon2 - lon1) * cos ((lat1 + lat2)/2)
+      y = (lat2 - lat1)
   in 
       meanRadius * sqrt (x*x + y*y)
 
-findBearingToTarget (φ1, λ1) (φ2, λ2) =
+findBearingToTarget (lat1, lon1) (lat2, lon2) =
   let
-    y = sin (λ2 - λ1) * cos φ2
-    x = cos φ1 * sin φ2 - sin φ1 * cos φ2 * cos (λ2 - λ1)
+    y = sin (lon2 - lon1) * cos lat2
+    x = cos lat1 * sin lat2 - sin lat1 * cos lat2 * cos (lon2 - lon1)
   in
       atan2 y x
 
@@ -28,13 +28,13 @@ findBearingToTarget (φ1, λ1) (φ2, λ2) =
 
 
 newPosition : (Float, Float) -> Float -> Float -> (Float, Float)
-newPosition (φ1, λ1) d θ =
+newPosition (lat1, lon1) d θ =
   let
        δ = d / meanRadius
-       φ2 = asin ( sin φ1 * cos δ + cos φ1 * sin δ * cos θ )
-       λ2 = λ1 + atan2 (sin θ * sin δ * cos φ1) (cos δ - sin φ1 * sin φ2)
+       lat2 = asin ( sin lat1 * cos δ + cos lat1 * sin δ * cos θ )
+       lon2 = lon1 + atan2 (sin θ * sin δ * cos lat1) (cos δ - sin lat1 * sin lat2)
   in
-    (φ2, λ2)
+    (lat2, lon2)
 
 approximateElevation : Float -> Float -> Float
 approximateElevation r h =
@@ -45,20 +45,20 @@ approximateElevation r h =
 
 
 cartesianTargetPosition : (Float, Float) -> Float -> Float -> (Float, Float)
-cartesianTargetPosition (λ1, φ1) r θ =
+cartesianTargetPosition (lon1, lat1) r θ =
     --Find lat and long given range and bearing from a known point.
     --Uses range in meters!
-    --where φ is latitude, λ is longitude,
+    --where lat is latitude, lon is longitude,
     --θ is the bearing (clockwise from north),
     --δ is the angular distance d/R;
     --d being the distance travelled, R the earth’s radius
     let δ =
             r / meanRadius
-        φ2 =
-            asin ( sin φ1 * cos δ + cos φ1 * sin δ * cos θ )
-        λ2 =
-            λ1 + atan2
-                    ((sin θ) * (sin δ) * (cos φ1))
-                    ((cos δ) - (sin φ1) * (sin φ2))
+        lat2 =
+            asin ( sin lat1 * cos δ + cos lat1 * sin δ * cos θ )
+        lon2 =
+            lon1 + atan2
+                    ((sin θ) * (sin δ) * (cos lat1))
+                    ((cos δ) - (sin lat1) * (sin lat2))
     in
-        (λ2, φ2)
+        (lon2, lat2)

@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import About exposing (viewAboutText)
 import Accordion exposing (..)
@@ -20,10 +20,11 @@ import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
+import Html.Attributes exposing (class, id)
 import Iso8601
+import Json.Encode as E
 import Length
 import List exposing (drop, take)
-import MapQuestKey exposing (mapQuestAPIKey)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -47,6 +48,9 @@ import VisualEntities exposing (..)
 import WriteGPX exposing (decimals6, writeGPX)
 
 
+port mapPort : E.Value -> Cmd msg
+
+
 main : Program () Model Msg
 main =
     Browser.document
@@ -55,6 +59,35 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
+
+
+positionMap : Model -> Cmd Msg
+positionMap model =
+    let
+        centre box =
+            BoundingBox3d.centerPoint box
+
+        _ =
+            Debug.log "positionMap (Elm)"
+    in
+    case model.trackPointBox of
+        Just box ->
+            mapPort <|
+                E.object
+                    [ ( "Cmd", E.string "Fly" )
+                    , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
+                    , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
+                    , ( "zoom", E.float 12.0 )
+                    ]
+
+        Nothing ->
+            mapPort <|
+                E.object
+                    [ ( "Cmd", E.string "Fly" )
+                    , ( "lon", E.float 0.0 )
+                    , ( "lat", E.float 52.0 )
+                    , ( "zoom", E.float 12.0 )
+                    ]
 
 
 type alias AbruptChange =
@@ -424,7 +457,11 @@ update msg model =
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , if mode == MapView then
+                positionMap model
+
+              else
+                Cmd.none
             )
 
         ZoomLevelOverview level ->
@@ -1933,6 +1970,7 @@ viewModeChoices model =
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
+            , Input.optionWith MapView <| radioButton Mid "Map test"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
@@ -1960,6 +1998,9 @@ view3D scale model =
 
         PlanView ->
             viewPlanView scale model
+
+        MapView ->
+            viewMapView scale model
 
 
 viewInputError : Model -> Element Msg
@@ -2548,6 +2589,30 @@ viewPlanView scale model =
                     [ alignTop
                     ]
                     [ viewCurrentNodePlanView scale model node.startsAt
+                    , positionControls model
+                    ]
+                ]
+
+
+viewMapView : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
+viewMapView scale model =
+    case lookupRoad model model.currentNode of
+        Nothing ->
+            none
+
+        Just node ->
+            row [ alignTop ]
+                [ column
+                    [ alignTop
+                    ]
+                    [ el
+                        [ width (px 800)
+                        , height (px 500)
+                        , alignTop
+                        , alignLeft
+                        , htmlAttribute (id "map")
+                        ]
+                        none
                     , positionControls model
                     ]
                 ]
