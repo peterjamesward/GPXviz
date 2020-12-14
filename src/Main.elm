@@ -1970,7 +1970,8 @@ viewModeChoices model =
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
-            , Input.optionWith MapView <| radioButton Mid "Map test"
+
+            --, Input.optionWith MapView <| radioButton Mid "Map test"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
@@ -2492,10 +2493,27 @@ flythroughControls model =
                     else
                         playButton
     in
-    row [ padding 10, spacing 10, centerX ]
-        [ resetButton
-        , playPauseButton
-        , flythroughSpeedSlider
+    column [ padding 10, spacing 10, alignTop, alignLeft ]
+        [ row [ padding 10, spacing 10, centerX ]
+            [ resetButton
+            , playPauseButton
+            , flythroughSpeedSlider
+            ]
+        , case model.flythrough of
+            Just fly ->
+                row [ padding 20, centerX ]
+                    [ column [ spacing 10 ]
+                        [ text "Segment "
+                        , text "Distance from start "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text <| String.fromInt fly.segment.index
+                        , text <| showDecimal2 fly.metresFromRouteStart
+                        ]
+                    ]
+
+            Nothing ->
+                none
         ]
 
 
