@@ -7516,8 +7516,10 @@ var $author$project$Main$init = function (_v0) {
 			hasBeenChanged: false,
 			httpError: $elm$core$Maybe$Nothing,
 			loopiness: $author$project$Main$NotALoop(0.0),
+			mapCentre: {ele: 0.0, idx: 0, lat: 0.0, lon: 0.0},
 			mapStaticEntities: _List_Nil,
 			mapVaryingEntities: _List_Nil,
+			mapZoom: 1.0,
 			markedNode: $elm$core$Maybe$Nothing,
 			nodeArray: $elm$core$Array$empty,
 			nodeBox: $elm$core$Maybe$Nothing,
@@ -7556,9 +7558,13 @@ var $author$project$Main$init = function (_v0) {
 		},
 		A2($elm$core$Task$perform, $author$project$Msg$AdjustTimeZone, $elm$time$Time$here));
 };
+var $author$project$Msg$MapMoved = function (a) {
+	return {$: 'MapMoved', a: a};
+};
 var $author$project$Msg$Tick = function (a) {
 	return {$: 'Tick', a: a};
 };
+var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$time$Time$Every = F2(
 	function (a, b) {
 		return {$: 'Every', a: a, b: b};
@@ -7959,8 +7965,44 @@ var $elm$time$Time$every = F2(
 		return $elm$time$Time$subscription(
 			A2($elm$time$Time$Every, interval, tagger));
 	});
+var $elm$json$Json$Decode$andThen = _Json_andThen;
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $author$project$Main$mapMoved = _Platform_incomingPort(
+	'mapMoved',
+	A2(
+		$elm$json$Json$Decode$andThen,
+		function (zoom) {
+			return A2(
+				$elm$json$Json$Decode$andThen,
+				function (center) {
+					return $elm$json$Json$Decode$succeed(
+						{center: center, zoom: zoom});
+				},
+				A2(
+					$elm$json$Json$Decode$field,
+					'center',
+					A2(
+						$elm$json$Json$Decode$andThen,
+						function (lon) {
+							return A2(
+								$elm$json$Json$Decode$andThen,
+								function (lat) {
+									return $elm$json$Json$Decode$succeed(
+										{lat: lat, lon: lon});
+								},
+								A2($elm$json$Json$Decode$field, 'lat', $elm$json$Json$Decode$float));
+						},
+						A2($elm$json$Json$Decode$field, 'lon', $elm$json$Json$Decode$float))));
+		},
+		A2($elm$json$Json$Decode$field, 'zoom', $elm$json$Json$Decode$float)));
 var $author$project$Main$subscriptions = function (model) {
-	return A2($elm$time$Time$every, 10, $author$project$Msg$Tick);
+	return $elm$core$Platform$Sub$batch(
+		_List_fromArray(
+			[
+				A2($elm$time$Time$every, 10, $author$project$Msg$Tick),
+				$author$project$Main$mapMoved($author$project$Msg$MapMoved)
+			]));
 };
 var $author$project$Msg$GpxLoaded = function (a) {
 	return {$: 'GpxLoaded', a: a};
@@ -7968,7 +8010,6 @@ var $author$project$Msg$GpxLoaded = function (a) {
 var $author$project$Msg$GpxSelected = function (a) {
 	return {$: 'GpxSelected', a: a};
 };
-var $author$project$ViewTypes$MapView = {$: 'MapView'};
 var $author$project$Accordion$Contracted = {$: 'Contracted'};
 var $author$project$Accordion$Disabled = {$: 'Disabled'};
 var $author$project$Accordion$Expanded = {$: 'Expanded'};
@@ -8952,8 +8993,9 @@ var $author$project$Main$deriveNodesAndRoads = function (model) {
 		withSummary(
 			withRoads(
 				withNodeScaling(
-					withNodes(
-						withTrackPointScaling(model))))));
+					withNodeScaling(
+						withNodes(
+							withTrackPointScaling(model)))))));
 };
 var $author$project$Main$AlmostLoop = function (a) {
 	return {$: 'AlmostLoop', a: a};
@@ -15154,6 +15196,16 @@ var $author$project$Msg$RunFlythrough = function (a) {
 var $author$project$Msg$SetFlythroughSpeed = function (a) {
 	return {$: 'SetFlythroughSpeed', a: a};
 };
+var $mdgriffith$elm_ui$Internal$Model$AlignX = function (a) {
+	return {$: 'AlignX', a: a};
+};
+var $mdgriffith$elm_ui$Internal$Model$Left = {$: 'Left'};
+var $mdgriffith$elm_ui$Element$alignLeft = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Left);
+var $mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
+	return {$: 'AlignY', a: a};
+};
+var $mdgriffith$elm_ui$Internal$Model$Top = {$: 'Top'};
+var $mdgriffith$elm_ui$Element$alignTop = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$Top);
 var $mdgriffith$elm_ui$Internal$Model$Attr = function (a) {
 	return {$: 'Attr', a: a};
 };
@@ -20583,9 +20635,7 @@ var $elm$html$Html$Events$onClick = function (msg) {
 		$elm$json$Json$Decode$succeed(msg));
 };
 var $mdgriffith$elm_ui$Element$Events$onClick = A2($elm$core$Basics$composeL, $mdgriffith$elm_ui$Internal$Model$Attr, $elm$html$Html$Events$onClick);
-var $elm$json$Json$Decode$andThen = _Json_andThen;
 var $elm$json$Json$Decode$fail = _Json_fail;
-var $elm$json$Json$Decode$field = _Json_decodeField;
 var $elm$virtual_dom$VirtualDom$MayPreventDefault = function (a) {
 	return {$: 'MayPreventDefault', a: a};
 };
@@ -20696,11 +20746,28 @@ var $mdgriffith$elm_ui$Element$Input$button = F2(
 				_List_fromArray(
 					[label])));
 	});
-var $mdgriffith$elm_ui$Internal$Model$AlignX = function (a) {
-	return {$: 'AlignX', a: a};
-};
 var $mdgriffith$elm_ui$Internal$Model$CenterX = {$: 'CenterX'};
 var $mdgriffith$elm_ui$Element$centerX = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$CenterX);
+var $mdgriffith$elm_ui$Internal$Model$AsColumn = {$: 'AsColumn'};
+var $mdgriffith$elm_ui$Internal$Model$asColumn = $mdgriffith$elm_ui$Internal$Model$AsColumn;
+var $mdgriffith$elm_ui$Element$column = F2(
+	function (attrs, children) {
+		return A4(
+			$mdgriffith$elm_ui$Internal$Model$element,
+			$mdgriffith$elm_ui$Internal$Model$asColumn,
+			$mdgriffith$elm_ui$Internal$Model$div,
+			A2(
+				$elm$core$List$cons,
+				$mdgriffith$elm_ui$Internal$Model$htmlClass($mdgriffith$elm_ui$Internal$Style$classes.contentTop + (' ' + $mdgriffith$elm_ui$Internal$Style$classes.contentLeft)),
+				A2(
+					$elm$core$List$cons,
+					$mdgriffith$elm_ui$Element$height($mdgriffith$elm_ui$Element$shrink),
+					A2(
+						$elm$core$List$cons,
+						$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$shrink),
+						attrs))),
+			$mdgriffith$elm_ui$Internal$Model$Unkeyed(children));
+	});
 var $mdgriffith$elm_ui$Internal$Model$Behind = {$: 'Behind'};
 var $mdgriffith$elm_ui$Internal$Model$Nearby = F2(
 	function (a, b) {
@@ -20716,9 +20783,6 @@ var $mdgriffith$elm_ui$Element$createNearby = F2(
 	});
 var $mdgriffith$elm_ui$Element$behindContent = function (element) {
 	return A2($mdgriffith$elm_ui$Element$createNearby, $mdgriffith$elm_ui$Internal$Model$Behind, element);
-};
-var $mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
-	return {$: 'AlignY', a: a};
 };
 var $mdgriffith$elm_ui$Internal$Model$CenterY = {$: 'CenterY'};
 var $mdgriffith$elm_ui$Element$centerY = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$CenterY);
@@ -21542,7 +21606,9 @@ var $author$project$Utils$showDecimal2 = function (x) {
 	var locale = _Utils_update(
 		$cuducos$elm_format_number$FormatNumber$Locales$usLocale,
 		{
-			decimals: $cuducos$elm_format_number$FormatNumber$Locales$Exact(2)
+			decimals: $cuducos$elm_format_number$FormatNumber$Locales$Exact(2),
+			negativePrefix: '-',
+			thousandSeparator: ''
 		});
 	return A2($cuducos$elm_format_number$FormatNumber$format, locale, x);
 };
@@ -21559,8 +21625,6 @@ var $mdgriffith$elm_ui$Element$Font$size = function (i) {
 var $mdgriffith$elm_ui$Internal$Flag$active = $mdgriffith$elm_ui$Internal$Flag$flag(32);
 var $mdgriffith$elm_ui$Internal$Model$LivePolite = {$: 'LivePolite'};
 var $mdgriffith$elm_ui$Element$Region$announce = $mdgriffith$elm_ui$Internal$Model$Describe($mdgriffith$elm_ui$Internal$Model$LivePolite);
-var $mdgriffith$elm_ui$Internal$Model$AsColumn = {$: 'AsColumn'};
-var $mdgriffith$elm_ui$Internal$Model$asColumn = $mdgriffith$elm_ui$Internal$Model$AsColumn;
 var $mdgriffith$elm_ui$Element$Input$applyLabel = F3(
 	function (attrs, label, input) {
 		if (label.$ === 'HiddenLabel') {
@@ -21876,24 +21940,6 @@ var $mdgriffith$elm_ui$Element$Input$viewHorizontalThumb = F3(
 						]),
 					$mdgriffith$elm_ui$Element$none)
 				]));
-	});
-var $mdgriffith$elm_ui$Element$column = F2(
-	function (attrs, children) {
-		return A4(
-			$mdgriffith$elm_ui$Internal$Model$element,
-			$mdgriffith$elm_ui$Internal$Model$asColumn,
-			$mdgriffith$elm_ui$Internal$Model$div,
-			A2(
-				$elm$core$List$cons,
-				$mdgriffith$elm_ui$Internal$Model$htmlClass($mdgriffith$elm_ui$Internal$Style$classes.contentTop + (' ' + $mdgriffith$elm_ui$Internal$Style$classes.contentLeft)),
-				A2(
-					$elm$core$List$cons,
-					$mdgriffith$elm_ui$Element$height($mdgriffith$elm_ui$Element$shrink),
-					A2(
-						$elm$core$List$cons,
-						$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$shrink),
-						attrs))),
-			$mdgriffith$elm_ui$Internal$Model$Unkeyed(children));
 	});
 var $mdgriffith$elm_ui$Element$Input$viewVerticalThumb = F3(
 	function (factor, thumbAttributes, trackWidth) {
@@ -22224,11 +22270,11 @@ var $author$project$Main$flythroughControls = function (model) {
 				$author$project$Msg$RunFlythrough(false))
 		});
 	var playPauseButton = function () {
-		var _v0 = model.flythrough;
-		if (_v0.$ === 'Nothing') {
+		var _v1 = model.flythrough;
+		if (_v1.$ === 'Nothing') {
 			return playButton;
 		} else {
-			var flying = _v0.a;
+			var flying = _v1.a;
 			return flying.running ? pauseButton : playButton;
 		}
 	}();
@@ -22250,15 +22296,69 @@ var $author$project$Main$flythroughControls = function (model) {
 			value: model.flythroughSpeed
 		});
 	return A2(
-		$mdgriffith$elm_ui$Element$row,
+		$mdgriffith$elm_ui$Element$column,
 		_List_fromArray(
 			[
 				$mdgriffith$elm_ui$Element$padding(10),
 				$mdgriffith$elm_ui$Element$spacing(10),
-				$mdgriffith$elm_ui$Element$centerX
+				$mdgriffith$elm_ui$Element$alignTop,
+				$mdgriffith$elm_ui$Element$alignLeft
 			]),
 		_List_fromArray(
-			[resetButton, playPauseButton, flythroughSpeedSlider]));
+			[
+				A2(
+				$mdgriffith$elm_ui$Element$row,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$padding(10),
+						$mdgriffith$elm_ui$Element$spacing(10),
+						$mdgriffith$elm_ui$Element$centerX
+					]),
+				_List_fromArray(
+					[resetButton, playPauseButton, flythroughSpeedSlider])),
+				function () {
+				var _v0 = model.flythrough;
+				if (_v0.$ === 'Just') {
+					var fly = _v0.a;
+					return A2(
+						$mdgriffith$elm_ui$Element$row,
+						_List_fromArray(
+							[
+								$mdgriffith$elm_ui$Element$padding(20),
+								$mdgriffith$elm_ui$Element$centerX
+							]),
+						_List_fromArray(
+							[
+								A2(
+								$mdgriffith$elm_ui$Element$column,
+								_List_fromArray(
+									[
+										$mdgriffith$elm_ui$Element$spacing(10)
+									]),
+								_List_fromArray(
+									[
+										$mdgriffith$elm_ui$Element$text('Segment '),
+										$mdgriffith$elm_ui$Element$text('Distance from start ')
+									])),
+								A2(
+								$mdgriffith$elm_ui$Element$column,
+								_List_fromArray(
+									[
+										$mdgriffith$elm_ui$Element$spacing(10)
+									]),
+								_List_fromArray(
+									[
+										$mdgriffith$elm_ui$Element$text(
+										$elm$core$String$fromInt(fly.segment.index)),
+										$mdgriffith$elm_ui$Element$text(
+										$author$project$Utils$showDecimal2(fly.metresFromRouteStart))
+									]))
+							]));
+				} else {
+					return $mdgriffith$elm_ui$Element$none;
+				}
+			}()
+			]));
 };
 var $author$project$Main$overviewSummary = function (model) {
 	var _v0 = model.summary;
@@ -22326,7 +22426,9 @@ var $author$project$Utils$showDecimal6 = function (x) {
 	var locale = _Utils_update(
 		$cuducos$elm_format_number$FormatNumber$Locales$usLocale,
 		{
-			decimals: $cuducos$elm_format_number$FormatNumber$Locales$Exact(6)
+			decimals: $cuducos$elm_format_number$FormatNumber$Locales$Exact(6),
+			negativePrefix: '-',
+			thousandSeparator: ''
 		});
 	return A2($cuducos$elm_format_number$FormatNumber$format, locale, x);
 };
@@ -22654,8 +22756,6 @@ var $author$project$Main$viewBearingChanges = function (model) {
 			]));
 };
 var $author$project$Msg$SmoothBend = {$: 'SmoothBend'};
-var $mdgriffith$elm_ui$Internal$Model$Top = {$: 'Top'};
-var $mdgriffith$elm_ui$Element$alignTop = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$Top);
 var $author$project$Msg$SetMaxTurnPerSegment = function (a) {
 	return {$: 'SetMaxTurnPerSegment', a: a};
 };
@@ -23157,6 +23257,43 @@ var $author$project$Main$viewLoopTools = function (model) {
 			return $mdgriffith$elm_ui$Element$text('Unable to determine current node.');
 		}());
 };
+var $author$project$Main$viewMapInfo = function (model) {
+	return A2(
+		$mdgriffith$elm_ui$Element$row,
+		_List_Nil,
+		_List_fromArray(
+			[
+				A2(
+				$mdgriffith$elm_ui$Element$column,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$spacing(5),
+						$mdgriffith$elm_ui$Element$padding(5)
+					]),
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$text('Longitude '),
+						$mdgriffith$elm_ui$Element$text('Latitude'),
+						$mdgriffith$elm_ui$Element$text('Zoom level')
+					])),
+				A2(
+				$mdgriffith$elm_ui$Element$column,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$spacing(5),
+						$mdgriffith$elm_ui$Element$padding(5)
+					]),
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$text(
+						$author$project$Utils$showDecimal2(model.mapCentre.lon)),
+						$mdgriffith$elm_ui$Element$text(
+						$author$project$Utils$showDecimal2(model.mapCentre.lat)),
+						$mdgriffith$elm_ui$Element$text(
+						$author$project$Utils$showDecimal2(model.mapZoom))
+					]))
+			]));
+};
 var $author$project$Msg$SetHorizontalNudgeFactor = F2(
 	function (a, b) {
 		return {$: 'SetHorizontalNudgeFactor', a: a, b: b};
@@ -23307,8 +23444,6 @@ var $author$project$Msg$TogglePillars = function (a) {
 var $author$project$Msg$ToggleRoad = function (a) {
 	return {$: 'ToggleRoad', a: a};
 };
-var $mdgriffith$elm_ui$Internal$Model$Left = {$: 'Left'};
-var $mdgriffith$elm_ui$Element$alignLeft = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Left);
 var $mdgriffith$elm_ui$Element$Input$tabindex = A2($elm$core$Basics$composeL, $mdgriffith$elm_ui$Internal$Model$Attr, $elm$html$Html$Attributes$tabindex);
 var $mdgriffith$elm_ui$Element$Input$checkbox = F2(
 	function (attrs, _v0) {
@@ -24154,6 +24289,11 @@ var $author$project$Main$genericAccordion = function (model) {
 			{
 			content: $author$project$Main$viewBearingChanges(model),
 			label: 'Bend problems',
+			state: $author$project$Accordion$Contracted
+		},
+			{
+			content: $author$project$Main$viewMapInfo(model),
+			label: 'Map info',
 			state: $author$project$Accordion$Contracted
 		}
 		]);
@@ -25782,6 +25922,16 @@ var $author$project$Main$update = F2(
 	function (msg, model) {
 		var options = model.displayOptions;
 		switch (msg.$) {
+			case 'MapMoved':
+				var mapView = msg.a;
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							mapCentre: {ele: 0.0, idx: 0, lat: mapView.center.lat, lon: mapView.center.lon},
+							mapZoom: mapView.zoom
+						}),
+					$elm$core$Platform$Cmd$none);
 			case 'Tick':
 				var newTime = msg.a;
 				return _Utils_Tuple2(
@@ -25940,7 +26090,11 @@ var $author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{viewingMode: mode})),
-					_Utils_eq(mode, $author$project$ViewTypes$MapView) ? $author$project$Main$positionMap(model) : $elm$core$Platform$Cmd$none);
+					$author$project$Main$positionMap(model));
+			case 'ConfirmMapView':
+				return _Utils_Tuple2(
+					model,
+					$author$project$Main$positionMap(model));
 			case 'ZoomLevelOverview':
 				var level = msg.a;
 				return _Utils_Tuple2(
@@ -26753,7 +26907,7 @@ var $author$project$Main$updatedAccordion = function (model) {
 		model.accordion,
 		$author$project$Main$genericAccordion(model));
 };
-var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-13 12:00_\n\n> **Changes**\n> - Now using Web Mercator projection for compatibility with common mapping tools.\n> - Should report problems reading GPX file.\n> - Properly clears out old state when changing tracks.\n\nThe file load and save buttons are the same, almost everything else has changed. It\'s a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.\n\nThe selection button style is changed, and there is no _Overview_ panel. Under **About**, you see this text, which will scroll within the shaded box. The other options work only once a file is loaded.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** just summarises the GPX information. This will (soon) provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
+var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-15_\n\n> **Changes**\n> - Flythrough shows distance from start.\n\nThe file load and save buttons are the same, almost everything else has changed. It\'s a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.\n\nThe selection button style is changed, and there is no _Overview_ panel. Under **About**, you see this text, which will scroll within the shaded box. The other options work only once a file is loaded.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** just summarises the GPX information. This will (soon) provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
 var $elm$core$Basics$always = F2(
@@ -28362,7 +28516,6 @@ var $mpizenberg$elm_pointer_events$Html$Events$Extra$Pointer$ContactDetails = F5
 	function (width, height, pressure, tiltX, tiltY) {
 		return {height: height, pressure: pressure, tiltX: tiltX, tiltY: tiltY, width: width};
 	});
-var $elm$json$Json$Decode$float = _Json_decodeFloat;
 var $elm$json$Json$Decode$map5 = _Json_map5;
 var $mpizenberg$elm_pointer_events$Html$Events$Extra$Pointer$contactDetailsDecoder = A6(
 	$elm$json$Json$Decode$map5,
@@ -28700,33 +28853,26 @@ var $author$project$Main$viewMapView = F2(
 		} else {
 			var node = _v0.a;
 			return A2(
-				$mdgriffith$elm_ui$Element$row,
+				$mdgriffith$elm_ui$Element$column,
 				_List_fromArray(
 					[$mdgriffith$elm_ui$Element$alignTop]),
 				_List_fromArray(
 					[
 						A2(
-						$mdgriffith$elm_ui$Element$column,
-						_List_fromArray(
-							[$mdgriffith$elm_ui$Element$alignTop]),
+						$mdgriffith$elm_ui$Element$el,
 						_List_fromArray(
 							[
-								A2(
-								$mdgriffith$elm_ui$Element$el,
-								_List_fromArray(
-									[
-										$mdgriffith$elm_ui$Element$width(
-										$mdgriffith$elm_ui$Element$px(800)),
-										$mdgriffith$elm_ui$Element$height(
-										$mdgriffith$elm_ui$Element$px(500)),
-										$mdgriffith$elm_ui$Element$alignTop,
-										$mdgriffith$elm_ui$Element$alignLeft,
-										$mdgriffith$elm_ui$Element$htmlAttribute(
-										$elm$html$Html$Attributes$id('map'))
-									]),
-								$mdgriffith$elm_ui$Element$none),
-								$author$project$Main$positionControls(model)
-							]))
+								$mdgriffith$elm_ui$Element$width(
+								$mdgriffith$elm_ui$Element$px(800)),
+								$mdgriffith$elm_ui$Element$height(
+								$mdgriffith$elm_ui$Element$px(500)),
+								$mdgriffith$elm_ui$Element$alignTop,
+								$mdgriffith$elm_ui$Element$alignLeft,
+								$mdgriffith$elm_ui$Element$htmlAttribute(
+								$elm$html$Html$Attributes$id('map'))
+							]),
+						$mdgriffith$elm_ui$Element$none),
+						$author$project$Main$positionControls(model)
 					]));
 		}
 	});
@@ -29193,6 +29339,7 @@ var $author$project$Msg$ChooseViewMode = function (a) {
 	return {$: 'ChooseViewMode', a: a};
 };
 var $author$project$ViewTypes$FirstPersonView = {$: 'FirstPersonView'};
+var $author$project$ViewTypes$MapView = {$: 'MapView'};
 var $author$project$ViewTypes$PlanView = {$: 'PlanView'};
 var $author$project$ViewTypes$ProfileView = {$: 'ProfileView'};
 var $author$project$ViewTypes$ThirdPersonView = {$: 'ThirdPersonView'};

@@ -23,6 +23,7 @@ bearingToDisplayDegrees x =
             else
                 x
 
+
 showMaybe : Maybe Int -> String
 showMaybe mi =
     case mi of
@@ -31,7 +32,6 @@ showMaybe mi =
 
         Nothing ->
             "----"
-
 
 
 gradientColourVivid slope =
@@ -69,7 +69,6 @@ gradientColourPastel slope =
     Color.hsl hue 0.6 0.7
 
 
-
 asRegex t =
     -- Helper to make a regex pattern.
     Maybe.withDefault Regex.never <| Regex.fromString t
@@ -92,7 +91,11 @@ parseTrackName xml =
 showDecimal2 x =
     let
         locale =
-            { usLocale | decimals = Exact 2 }
+            { usLocale
+                | decimals = Exact 2
+                , thousandSeparator = ""
+                , negativePrefix = "-"
+            }
     in
     format locale x
 
@@ -100,7 +103,11 @@ showDecimal2 x =
 showDecimal6 x =
     let
         locale =
-            { usLocale | decimals = Exact 6 }
+            { usLocale
+                | decimals = Exact 6
+                , thousandSeparator = ""
+                , negativePrefix = "-"
+            }
     in
     format locale x
 

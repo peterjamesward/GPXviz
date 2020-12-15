@@ -10,7 +10,7 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-13 12:00_
+> _This text updated 2020-12-15_
 
 > **Changes**
 > - Flythrough shows distance from start.

@@ -5,7 +5,7 @@ import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
 import Time
 import Utils exposing (Point)
-import ViewTypes exposing (ViewingMode)
+import ViewTypes exposing (MapInfo, ViewingMode)
 
 
 type Msg
@@ -61,6 +61,9 @@ type Msg
     | DeleteCurrentPoint Int
     | ChangeLoopStart Int
     | ReverseTrack
+    | MapMoved MapInfo
+    | ConfirmMapView
+
 
 
 type NodeSplitDirection

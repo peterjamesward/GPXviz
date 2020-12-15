@@ -51,6 +51,9 @@ import WriteGPX exposing (decimals6, writeGPX)
 port mapPort : E.Value -> Cmd msg
 
 
+port mapMoved : (MapInfo -> msg) -> Sub msg
+
+
 main : Program () Model Msg
 main =
     Browser.document
@@ -167,6 +170,8 @@ type alias Model =
     , nudgedNodeRoads : List DrawingRoad -- actually only two but this is consistent with smoothedRoads.
     , verticalNudgeValue : Float
     , accordion : List (AccordionEntry Msg)
+    , mapCentre : TrackPoint
+    , mapZoom : Float
     }
 
 
@@ -227,6 +232,8 @@ init _ =
       , accordion = []
       , mapStaticEntities = []
       , mapVaryingEntities = []
+      , mapCentre = { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
+      , mapZoom = 1.0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -280,6 +287,10 @@ genericAccordion model =
     , { label = "Bend problems"
       , state = Contracted
       , content = viewBearingChanges model
+      }
+    , { label = "Map info"
+      , state = Contracted
+      , content = viewMapInfo model
       }
     ]
 
@@ -347,6 +358,19 @@ update msg model =
             model.displayOptions
     in
     case msg of
+        MapMoved mapView ->
+            ( { model
+                | mapCentre =
+                    { lon = mapView.center.lon
+                    , lat = mapView.center.lat
+                    , ele = 0.0
+                    , idx = 0
+                    }
+                , mapZoom = mapView.zoom
+              }
+            , Cmd.none
+            )
+
         Tick newTime ->
             ( { model | time = newTime }
                 |> advanceFlythrough newTime
@@ -457,11 +481,12 @@ update msg model =
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
                 |> deriveVaryingVisualEntities
-            , if mode == MapView then
-                positionMap model
+            , positionMap model
+            )
 
-              else
-                Cmd.none
+        ConfirmMapView ->
+            ( model
+            , positionMap model
             )
 
         ZoomLevelOverview level ->
@@ -1632,6 +1657,7 @@ deriveNodesAndRoads model =
         |> withTrackPointScaling
         |> withNodes
         |> withNodeScaling
+        |> withNodeScaling
         |> withRoads
         |> withSummary
         |> withArrays
@@ -1921,7 +1947,10 @@ viewGenericNew model =
                             none
                     , saveButtonIfChanged model
                     ]
-                , row [ alignLeft, moveRight 100 ]
+                , row
+                    [ alignLeft
+                    , moveRight 100
+                    ]
                     [ viewModeChoices model
                     ]
                 , case ( model.gpx, model.nodeBox ) of
@@ -1970,8 +1999,7 @@ viewModeChoices model =
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
-
-            --, Input.optionWith MapView <| radioButton Mid "Map test"
+            , Input.optionWith MapView <| radioButton Mid "Map test"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
@@ -2619,21 +2647,35 @@ viewMapView scale model =
             none
 
         Just node ->
-            row [ alignTop ]
-                [ column
-                    [ alignTop
-                    ]
-                    [ el
-                        [ width (px 800)
-                        , height (px 500)
-                        , alignTop
-                        , alignLeft
-                        , htmlAttribute (id "map")
-                        ]
-                        none
-                    , positionControls model
-                    ]
+            column
+                [ alignTop
                 ]
+                [ el
+                    [ width (px 800)
+                    , height (px 500)
+                    , alignTop
+                    , alignLeft
+                    , htmlAttribute (id "map")
+                    ]
+                    none
+                , positionControls model
+                ]
+
+
+viewMapInfo : Model -> Element Msg
+viewMapInfo model =
+    row []
+        [ column [ spacing 5, padding 5 ]
+            [ text "Longitude "
+            , text "Latitude"
+            , text "Zoom level"
+            ]
+        , column [ spacing 5, padding 5 ]
+            [ text <| showDecimal2 model.mapCentre.lon
+            , text <| showDecimal2 model.mapCentre.lat
+            , text <| showDecimal2 model.mapZoom
+            ]
+        ]
 
 
 viewProfileView : Model -> Element Msg
@@ -2995,9 +3037,8 @@ viewCurrentNodePlanView scale model node =
 viewCentredPlanViewForMap :
     BoundingBox3d Length.Meters LocalCoords
     -> Model
-    -> String
     -> Element Msg
-viewCentredPlanViewForMap scale model url =
+viewCentredPlanViewForMap scale model =
     let
         ( x, y, z ) =
             BoundingBox3d.dimensions scale
@@ -3035,13 +3076,7 @@ viewCentredPlanViewForMap scale model url =
                     , shadows = True
                     }
     in
-    row []
-        [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-        , image [ inFront <| projection, height <| px 500, width <| px 800 ]
-            { src = url
-            , description = "Map"
-            }
-        ]
+    projection
 
 
 viewRouteProfile : Model -> DrawingRoad -> Element Msg
@@ -3090,4 +3125,7 @@ viewRouteProfile model road =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every 10 Tick
+    Sub.batch
+        [ Time.every 10 Tick
+        , mapMoved MapMoved
+        ]
