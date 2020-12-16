@@ -8,23 +8,20 @@ import Msg exposing (Msg)
 
 
 aboutText =
-    """Thank you for trying this GPX viewer. It is freely provided without warranty.
+    """Thank you for trying this GPX editor. It is freely provided without warranty.
 
 > _This text updated 2020-12-16_
 
 > **Changes**
 > - New map view added. You may need to click the "Map" tab to force reload the track after any changes.
-> Editing not (yet) possible in the map view.
+> Editing not (yet) possible in the map view. Occasionally, you may need to load the GPX file again - this seems to relate to viewing the map "too quickly".
+> - Replaced the nice button icons with plain text (not permanently).
 
 Legal info: mapping services from mapbox; map data from OpenStreetMap.
 
-The file load and save buttons are the same, almost everything else has changed. It's a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.
-
-The selection button style is changed, and there is no _Overview_ panel. Under **About**, you see this text, which will scroll within the shaded box. The other options work only once a file is loaded.
-
 Once a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
-**File** just summarises the GPX information. This will (soon) provide error messages if the file is not what we're expecting.
+**File** summarises the GPX information. This will provide error messages if the file is not what we're expecting.
 
 **Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.
 

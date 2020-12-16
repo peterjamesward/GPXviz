@@ -51,6 +51,7 @@ accordionRowStyles state =
         else
             rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
+    , Font.center
     ]
 
 

@@ -14,7 +14,7 @@ import DisplayOptions exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Font as Font
+import Element.Font as Font exposing (heavy)
 import Element.Input as Input exposing (button)
 import File exposing (File)
 import File.Download as Download
@@ -80,7 +80,7 @@ positionMap model =
                     , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
                     , ( "zoom", E.float 12.0 )
                     , ( "data", trackToJSON model.trackPoints )
-                    , ( "token", E.string mapboxKey)
+                    , ( "token", E.string mapboxKey )
                     ]
 
         Nothing ->
@@ -91,6 +91,7 @@ positionMap model =
                     , ( "lat", E.float 52.0 )
                     , ( "zoom", E.float 12.0 )
                     ]
+
 
 addTrackToMap : Model -> Cmd Msg
 addTrackToMap model =
@@ -510,8 +511,9 @@ update msg model =
                 |> deriveVaryingVisualEntities
             , if mode == MapView then
                 addTrackToMap model
-            else
-            Cmd.none
+
+              else
+                Cmd.none
             )
 
         ConfirmMapView ->
@@ -2044,7 +2046,7 @@ viewModeChoices model =
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
-            , Input.optionWith MapView <| radioButton Mid "Map test"
+            , Input.optionWith MapView <| radioButton Mid "Map"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
         }
@@ -2446,6 +2448,10 @@ viewLoopTools model =
 
 
 positionControls model =
+    let
+        font =
+            Font.family [ Font.typeface "Courier", Font.monospace ]
+    in
     row
         [ spacing 5
         , padding 5
@@ -2454,14 +2460,14 @@ positionControls model =
         ]
         [ positionSlider model
         , button
-            prettyButtonStyles
+            (font :: prettyButtonStyles)
             { onPress = Just PositionBackOne
-            , label = text "◀︎"
+            , label = text "<<"
             }
         , button
-            prettyButtonStyles
+            (font :: prettyButtonStyles)
             { onPress = Just PositionForwardOne
-            , label = text "►︎"
+            , label = text ">>"
             }
         ]
 
@@ -2533,25 +2539,28 @@ flythroughControls model =
                 , thumb = Input.defaultThumb
                 }
 
+        font =
+            Font.family [ Font.typeface "Courier", Font.monospace ]
+
         resetButton =
             button
                 prettyButtonStyles
                 { onPress = Just ResetFlythrough
-                , label = el [ Font.size 24 ] <| text "⏮️"
+                , label = el [ Font.size 16, font ] <| text "|<"
                 }
 
         playButton =
             button
                 prettyButtonStyles
                 { onPress = Just (RunFlythrough True)
-                , label = el [ Font.size 24 ] <| text "▶️"
+                , label = el [ Font.size 16, font ] <| text "|>"
                 }
 
         pauseButton =
             button
                 prettyButtonStyles
                 { onPress = Just (RunFlythrough False)
-                , label = el [ Font.size 24 ] <| text "⏸"
+                , label = el [ Font.size 16, font ] <| text "||"
                 }
 
         playPauseButton =

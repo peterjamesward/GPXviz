@@ -21013,12 +21013,67 @@ var $mdgriffith$elm_ui$Element$Input$defaultThumb = $mdgriffith$elm_ui$Element$I
 			$mdgriffith$elm_ui$Element$Background$color(
 			A3($mdgriffith$elm_ui$Element$rgb, 1, 1, 1))
 		]));
+var $mdgriffith$elm_ui$Internal$Model$FontFamily = F2(
+	function (a, b) {
+		return {$: 'FontFamily', a: a, b: b};
+	});
+var $mdgriffith$elm_ui$Internal$Flag$fontFamily = $mdgriffith$elm_ui$Internal$Flag$flag(5);
+var $elm$core$String$toLower = _String_toLower;
+var $elm$core$String$words = _String_words;
+var $mdgriffith$elm_ui$Internal$Model$renderFontClassName = F2(
+	function (font, current) {
+		return _Utils_ap(
+			current,
+			function () {
+				switch (font.$) {
+					case 'Serif':
+						return 'serif';
+					case 'SansSerif':
+						return 'sans-serif';
+					case 'Monospace':
+						return 'monospace';
+					case 'Typeface':
+						var name = font.a;
+						return A2(
+							$elm$core$String$join,
+							'-',
+							$elm$core$String$words(
+								$elm$core$String$toLower(name)));
+					case 'ImportFont':
+						var name = font.a;
+						var url = font.b;
+						return A2(
+							$elm$core$String$join,
+							'-',
+							$elm$core$String$words(
+								$elm$core$String$toLower(name)));
+					default:
+						var name = font.a.name;
+						return A2(
+							$elm$core$String$join,
+							'-',
+							$elm$core$String$words(
+								$elm$core$String$toLower(name)));
+				}
+			}());
+	});
+var $mdgriffith$elm_ui$Element$Font$family = function (families) {
+	return A2(
+		$mdgriffith$elm_ui$Internal$Model$StyleClass,
+		$mdgriffith$elm_ui$Internal$Flag$fontFamily,
+		A2(
+			$mdgriffith$elm_ui$Internal$Model$FontFamily,
+			A3($elm$core$List$foldl, $mdgriffith$elm_ui$Internal$Model$renderFontClassName, 'ff-', families),
+			families));
+};
 var $mdgriffith$elm_ui$Element$Input$Below = {$: 'Below'};
 var $mdgriffith$elm_ui$Element$Input$Label = F3(
 	function (a, b, c) {
 		return {$: 'Label', a: a, b: b, c: c};
 	});
 var $mdgriffith$elm_ui$Element$Input$labelBelow = $mdgriffith$elm_ui$Element$Input$Label($mdgriffith$elm_ui$Element$Input$Below);
+var $mdgriffith$elm_ui$Internal$Model$Monospace = {$: 'Monospace'};
+var $mdgriffith$elm_ui$Element$Font$monospace = $mdgriffith$elm_ui$Internal$Model$Monospace;
 var $mdgriffith$elm_ui$Internal$Model$PaddingStyle = F5(
 	function (a, b, c, d, e) {
 		return {$: 'PaddingStyle', a: a, b: b, c: c, d: d, e: e};
@@ -21037,6 +21092,8 @@ var $mdgriffith$elm_ui$Element$padding = function (x) {
 			f,
 			f));
 };
+var $mdgriffith$elm_ui$Internal$Flag$fontAlignment = $mdgriffith$elm_ui$Internal$Flag$flag(12);
+var $mdgriffith$elm_ui$Element$Font$center = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$fontAlignment, $mdgriffith$elm_ui$Internal$Style$classes.textCenter);
 var $mdgriffith$elm_ui$Internal$Flag$fontColor = $mdgriffith$elm_ui$Internal$Flag$flag(14);
 var $mdgriffith$elm_ui$Element$Font$color = function (fontColor) {
 	return A2(
@@ -21237,6 +21294,7 @@ var $author$project$ViewElements$prettyButtonStyles = _List_fromArray(
 		A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
 		$mdgriffith$elm_ui$Element$Font$color(
 		A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255)),
+		$mdgriffith$elm_ui$Element$Font$center,
 		$mdgriffith$elm_ui$Element$mouseOver(
 		_List_fromArray(
 			[
@@ -22314,8 +22372,18 @@ var $mdgriffith$elm_ui$Element$spacing = function (x) {
 var $mdgriffith$elm_ui$Element$text = function (content) {
 	return $mdgriffith$elm_ui$Internal$Model$Text(content);
 };
+var $mdgriffith$elm_ui$Internal$Model$Typeface = function (a) {
+	return {$: 'Typeface', a: a};
+};
+var $mdgriffith$elm_ui$Element$Font$typeface = $mdgriffith$elm_ui$Internal$Model$Typeface;
 var $author$project$Main$flythroughControls = function (model) {
-	var resetButton = A2(
+	var font = $mdgriffith$elm_ui$Element$Font$family(
+		_List_fromArray(
+			[
+				$mdgriffith$elm_ui$Element$Font$typeface('Courier'),
+				$mdgriffith$elm_ui$Element$Font$monospace
+			]));
+	var pauseButton = A2(
 		$mdgriffith$elm_ui$Element$Input$button,
 		$author$project$ViewElements$prettyButtonStyles,
 		{
@@ -22323,10 +22391,12 @@ var $author$project$Main$flythroughControls = function (model) {
 				$mdgriffith$elm_ui$Element$el,
 				_List_fromArray(
 					[
-						$mdgriffith$elm_ui$Element$Font$size(24)
+						$mdgriffith$elm_ui$Element$Font$size(16),
+						font
 					]),
-				$mdgriffith$elm_ui$Element$text('⏮️')),
-			onPress: $elm$core$Maybe$Just($author$project$Msg$ResetFlythrough)
+				$mdgriffith$elm_ui$Element$text('||')),
+			onPress: $elm$core$Maybe$Just(
+				$author$project$Msg$RunFlythrough(false))
 		});
 	var playButton = A2(
 		$mdgriffith$elm_ui$Element$Input$button,
@@ -22336,25 +22406,12 @@ var $author$project$Main$flythroughControls = function (model) {
 				$mdgriffith$elm_ui$Element$el,
 				_List_fromArray(
 					[
-						$mdgriffith$elm_ui$Element$Font$size(24)
+						$mdgriffith$elm_ui$Element$Font$size(16),
+						font
 					]),
-				$mdgriffith$elm_ui$Element$text('▶️')),
+				$mdgriffith$elm_ui$Element$text('|>')),
 			onPress: $elm$core$Maybe$Just(
 				$author$project$Msg$RunFlythrough(true))
-		});
-	var pauseButton = A2(
-		$mdgriffith$elm_ui$Element$Input$button,
-		$author$project$ViewElements$prettyButtonStyles,
-		{
-			label: A2(
-				$mdgriffith$elm_ui$Element$el,
-				_List_fromArray(
-					[
-						$mdgriffith$elm_ui$Element$Font$size(24)
-					]),
-				$mdgriffith$elm_ui$Element$text('⏸')),
-			onPress: $elm$core$Maybe$Just(
-				$author$project$Msg$RunFlythrough(false))
 		});
 	var playPauseButton = function () {
 		var _v1 = model.flythrough;
@@ -22365,6 +22422,20 @@ var $author$project$Main$flythroughControls = function (model) {
 			return flying.running ? pauseButton : playButton;
 		}
 	}();
+	var resetButton = A2(
+		$mdgriffith$elm_ui$Element$Input$button,
+		$author$project$ViewElements$prettyButtonStyles,
+		{
+			label: A2(
+				$mdgriffith$elm_ui$Element$el,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$Font$size(16),
+						font
+					]),
+				$mdgriffith$elm_ui$Element$text('|<')),
+			onPress: $elm$core$Maybe$Just($author$project$Msg$ResetFlythrough)
+		});
 	var flythroughSpeedSlider = A2(
 		$mdgriffith$elm_ui$Element$Input$slider,
 		$author$project$ViewElements$commonShortHorizontalSliderStyles,
@@ -26613,7 +26684,8 @@ var $author$project$Accordion$accordionRowStyles = function (state) {
 			$mdgriffith$elm_ui$Element$Background$color(
 			_Utils_eq(state, $author$project$Accordion$Expanded) ? A3($mdgriffith$elm_ui$Element$rgb255, 50, 150, 50) : A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
 			$mdgriffith$elm_ui$Element$Font$color(
-			A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255))
+			A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255)),
+			$mdgriffith$elm_ui$Element$Font$center
 		]);
 };
 var $author$project$Accordion$accordionView = F2(
@@ -26818,54 +26890,7 @@ var $mdgriffith$elm_ui$Internal$Model$renderRoot = F3(
 					_List_fromArray(
 						[child]))));
 	});
-var $mdgriffith$elm_ui$Internal$Model$FontFamily = F2(
-	function (a, b) {
-		return {$: 'FontFamily', a: a, b: b};
-	});
 var $mdgriffith$elm_ui$Internal$Model$SansSerif = {$: 'SansSerif'};
-var $mdgriffith$elm_ui$Internal$Model$Typeface = function (a) {
-	return {$: 'Typeface', a: a};
-};
-var $mdgriffith$elm_ui$Internal$Flag$fontFamily = $mdgriffith$elm_ui$Internal$Flag$flag(5);
-var $elm$core$String$toLower = _String_toLower;
-var $elm$core$String$words = _String_words;
-var $mdgriffith$elm_ui$Internal$Model$renderFontClassName = F2(
-	function (font, current) {
-		return _Utils_ap(
-			current,
-			function () {
-				switch (font.$) {
-					case 'Serif':
-						return 'serif';
-					case 'SansSerif':
-						return 'sans-serif';
-					case 'Monospace':
-						return 'monospace';
-					case 'Typeface':
-						var name = font.a;
-						return A2(
-							$elm$core$String$join,
-							'-',
-							$elm$core$String$words(
-								$elm$core$String$toLower(name)));
-					case 'ImportFont':
-						var name = font.a;
-						var url = font.b;
-						return A2(
-							$elm$core$String$join,
-							'-',
-							$elm$core$String$words(
-								$elm$core$String$toLower(name)));
-					default:
-						var name = font.a.name;
-						return A2(
-							$elm$core$String$join,
-							'-',
-							$elm$core$String$words(
-								$elm$core$String$toLower(name)));
-				}
-			}());
-	});
 var $mdgriffith$elm_ui$Internal$Model$rootStyle = function () {
 	var families = _List_fromArray(
 		[
@@ -26973,7 +26998,7 @@ var $author$project$Main$updatedAccordion = function (model) {
 		model.accordion,
 		$author$project$Main$accordionTabs(model));
 };
-var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-16_\n\n> **Changes**\n> - New map view added. You may need to click the "Map" tab to force reload the track after any changes.\n> Editing not (yet) possible in the map view.\n\nLegal info: mapping services from mapbox; map data from OpenStreetMap.\n\nThe file load and save buttons are the same, almost everything else has changed. It\'s a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.\n\nThe selection button style is changed, and there is no _Overview_ panel. Under **About**, you see this text, which will scroll within the shaded box. The other options work only once a file is loaded.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** just summarises the GPX information. This will (soon) provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
+var $author$project$About$aboutText = 'Thank you for trying this GPX editor. It is freely provided without warranty.\n\n> _This text updated 2020-12-16_\n\n> **Changes**\n> - New map view added. You may need to click the "Map" tab to force reload the track after any changes.\n> Editing not (yet) possible in the map view. Occasionally, you may need to load the GPX file again - this seems to relate to viewing the map "too quickly".\n> - Had to remove the button icons and replace with plain text (not permanently).\n\nLegal info: mapping services from mapbox; map data from OpenStreetMap.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This will provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
 var $elm$core$Basics$always = F2(
@@ -27077,6 +27102,12 @@ var $author$project$Main$positionSlider = function (model) {
 		});
 };
 var $author$project$Main$positionControls = function (model) {
+	var font = $mdgriffith$elm_ui$Element$Font$family(
+		_List_fromArray(
+			[
+				$mdgriffith$elm_ui$Element$Font$typeface('Courier'),
+				$mdgriffith$elm_ui$Element$Font$monospace
+			]));
 	return A2(
 		$mdgriffith$elm_ui$Element$row,
 		_List_fromArray(
@@ -27091,16 +27122,16 @@ var $author$project$Main$positionControls = function (model) {
 				$author$project$Main$positionSlider(model),
 				A2(
 				$mdgriffith$elm_ui$Element$Input$button,
-				$author$project$ViewElements$prettyButtonStyles,
+				A2($elm$core$List$cons, font, $author$project$ViewElements$prettyButtonStyles),
 				{
-					label: $mdgriffith$elm_ui$Element$text('◀︎'),
+					label: $mdgriffith$elm_ui$Element$text('<<'),
 					onPress: $elm$core$Maybe$Just($author$project$Msg$PositionBackOne)
 				}),
 				A2(
 				$mdgriffith$elm_ui$Element$Input$button,
-				$author$project$ViewElements$prettyButtonStyles,
+				A2($elm$core$List$cons, font, $author$project$ViewElements$prettyButtonStyles),
 				{
-					label: $mdgriffith$elm_ui$Element$text('►︎'),
+					label: $mdgriffith$elm_ui$Element$text('>>'),
 					onPress: $elm$core$Maybe$Just($author$project$Msg$PositionForwardOne)
 				})
 			]));
@@ -29427,7 +29458,7 @@ var $author$project$Main$viewModeChoices = function (model) {
 					A2(
 					$mdgriffith$elm_ui$Element$Input$optionWith,
 					$author$project$ViewTypes$MapView,
-					A2($author$project$ViewElements$radioButton, $author$project$ViewElements$Mid, 'Map test')),
+					A2($author$project$ViewElements$radioButton, $author$project$ViewElements$Mid, 'Map')),
 					A2(
 					$mdgriffith$elm_ui$Element$Input$optionWith,
 					$author$project$ViewTypes$AboutView,
