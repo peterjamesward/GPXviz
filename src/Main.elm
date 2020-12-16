@@ -25,6 +25,7 @@ import Iso8601
 import Json.Encode as E
 import Length
 import List exposing (drop, take)
+import MapboxKey exposing (mapboxKey)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)

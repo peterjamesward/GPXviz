@@ -10,10 +10,13 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-15_
+> _This text updated 2020-12-16_
 
 > **Changes**
-> - Flythrough shows distance from start.
+> - New map view added. You may need to click the "Map" tab to force reload the track after any changes.
+> Editing not (yet) possible in the map view.
+
+Legal info: mapping services from mapbox; map data from OpenStreetMap.
 
 The file load and save buttons are the same, almost everything else has changed. It's a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.
 

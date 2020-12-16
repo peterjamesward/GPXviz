@@ -28,8 +28,10 @@ app.ports.mapPort.subscribe(function(msg) {
             }
             break;
         case 'Track':
-            addLineToMap(msg.data);
-            map.setCenter([msg.lon, msg.lat]);
+            if (mapCreated) {
+                addLineToMap(msg.data);
+                map.setCenter([msg.lon, msg.lat]);
+            }
             break;
     }
 });
@@ -41,8 +43,7 @@ var trackAdded = false;
 
 function makeTheMap(msg) {
     console.log('create the map');
-    console.log(msg.token);
-    
+
     mapboxgl.accessToken = msg.token;
     var element = document.getElementById("map");
     if(typeof(element) != 'undefined' && element != null && !mapCreated)
