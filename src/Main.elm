@@ -23,7 +23,6 @@ import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Iso8601
 import Length
 import List exposing (drop, take)
-import MapQuestKey exposing (mapQuestAPIKey)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)

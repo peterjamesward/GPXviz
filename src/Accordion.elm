@@ -32,6 +32,7 @@ accordionMenuStyles =
 accordionRowStyles state =
     [ padding 10
     , spacing 2
+    , width fill
     , Border.widthEach { left = 2, right = 2, top = 2, bottom = 0 }
     , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
     , Border.color <|
@@ -48,6 +49,7 @@ accordionRowStyles state =
         else
             rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
+    , Font.center
     ]
 
 
