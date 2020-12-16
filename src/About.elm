@@ -17,13 +17,9 @@ aboutText =
 > - Should report problems reading GPX file.
 > - Properly clears out old state when changing tracks.
 
-The file load and save buttons are the same, almost everything else has changed. It's a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.
-
-The selection button style is changed, and there is no _Overview_ panel. Under **About**, you see this text, which will scroll within the shaded box. The other options work only once a file is loaded.
-
 Once a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
-**File** just summarises the GPX information. This will (soon) provide error messages if the file is not what we're expecting.
+**File** summarises the GPX information. This provides error messages if the file is not what we're expecting.
 
 **Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.
 
