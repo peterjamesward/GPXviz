@@ -23344,43 +23344,6 @@ var $author$project$Main$viewLoopTools = function (model) {
 			return $mdgriffith$elm_ui$Element$text('Unable to determine current node.');
 		}());
 };
-var $author$project$Main$viewMapInfo = function (model) {
-	return A2(
-		$mdgriffith$elm_ui$Element$row,
-		_List_Nil,
-		_List_fromArray(
-			[
-				A2(
-				$mdgriffith$elm_ui$Element$column,
-				_List_fromArray(
-					[
-						$mdgriffith$elm_ui$Element$spacing(5),
-						$mdgriffith$elm_ui$Element$padding(5)
-					]),
-				_List_fromArray(
-					[
-						$mdgriffith$elm_ui$Element$text('Longitude '),
-						$mdgriffith$elm_ui$Element$text('Latitude'),
-						$mdgriffith$elm_ui$Element$text('Zoom level')
-					])),
-				A2(
-				$mdgriffith$elm_ui$Element$column,
-				_List_fromArray(
-					[
-						$mdgriffith$elm_ui$Element$spacing(5),
-						$mdgriffith$elm_ui$Element$padding(5)
-					]),
-				_List_fromArray(
-					[
-						$mdgriffith$elm_ui$Element$text(
-						$author$project$Utils$showDecimal2(model.mapCentre.lon)),
-						$mdgriffith$elm_ui$Element$text(
-						$author$project$Utils$showDecimal2(model.mapCentre.lat)),
-						$mdgriffith$elm_ui$Element$text(
-						$author$project$Utils$showDecimal2(model.mapZoom))
-					]))
-			]));
-};
 var $author$project$Msg$SetHorizontalNudgeFactor = F2(
 	function (a, b) {
 		return {$: 'SetHorizontalNudgeFactor', a: a, b: b};
@@ -24314,7 +24277,7 @@ var $author$project$Main$viewTrackPointTools = function (model) {
 		return $mdgriffith$elm_ui$Element$text('Odd. There\'s no current node.');
 	}
 };
-var $author$project$Main$genericAccordion = function (model) {
+var $author$project$Main$accordionTabs = function (model) {
 	return _List_fromArray(
 		[
 			{
@@ -24377,11 +24340,6 @@ var $author$project$Main$genericAccordion = function (model) {
 			content: $author$project$Main$viewBearingChanges(model),
 			label: 'Bend problems',
 			state: $author$project$Accordion$Contracted
-		},
-			{
-			content: $author$project$Main$viewMapInfo(model),
-			label: 'Map info',
-			state: $author$project$Accordion$Contracted
 		}
 		]);
 };
@@ -24389,7 +24347,7 @@ var $author$project$Main$initialiseAccordion = function (model) {
 	return _Utils_update(
 		model,
 		{
-			accordion: $author$project$Main$genericAccordion(model)
+			accordion: $author$project$Main$accordionTabs(model)
 		});
 };
 var $author$project$TrackPoint$interpolateSegment = F3(
@@ -27009,7 +26967,7 @@ var $author$project$Main$updatedAccordion = function (model) {
 		$elm$core$List$map2,
 		blendAccordionStatus,
 		model.accordion,
-		$author$project$Main$genericAccordion(model));
+		$author$project$Main$accordionTabs(model));
 };
 var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-15_\n\n> **Changes**\n> - Flythrough shows distance from start.\n\nThe file load and save buttons are the same, almost everything else has changed. It\'s a rework of the user experience. I hope this is largely for the better, though there are inevitably some compromises.\n\nThe selection button style is changed, and there is no _Overview_ panel. Under **About**, you see this text, which will scroll within the shaded box. The other options work only once a file is loaded.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** just summarises the GPX information. This will (soon) provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);

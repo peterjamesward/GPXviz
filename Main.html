@@ -20,10 +20,12 @@ var app = Elm.Main.init({
 app.ports.mapPort.subscribe(function(msg) {
     switch (msg.Cmd) {
         case 'Fly':
-            setTheMapPosition(msg);
+            makeTheMap(msg);
+            map.setCenter([msg.lon, msg.lat]);
             break;
         case 'Track':
             addLineToMap(msg.data);
+            map.setCenter([msg.lon, msg.lat]);
             break;
     }
 });
@@ -52,6 +54,11 @@ function addLineToMap(data) {
     console.log('addline');
     console.log(data);
 
+    if (map.isSourceLoaded('route')) {
+        map.removeLayer('route');
+        map.removeSource('route');
+    };
+
     map.addSource('route', {
         'type': 'geojson',
         'data': data
@@ -71,14 +78,7 @@ function addLineToMap(data) {
    });
 };
 
-function setTheMapPosition(msg) {
-    console.log('setTheMapPosition');
-    mapboxgl.accessToken = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpbmJpa2U3MTFnYjJ6bXdvYmR5eTZ2aSJ9.LOldXEKf7qhJw9TMyovDGg';
 
-    if (typeof map === "undefined") {
-        makeTheMap(msg);
-        }
-};
 
 function moveend() {
     // console.log('moveend');

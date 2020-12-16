@@ -263,7 +263,7 @@ init _ =
     )
 
 
-genericAccordion model =
+accordionTabs model =
     [ { label = "File"
       , state = Expanded
       , content = overviewSummary model
@@ -312,16 +312,12 @@ genericAccordion model =
       , state = Contracted
       , content = viewBearingChanges model
       }
-    , { label = "Map info"
-      , state = Contracted
-      , content = viewMapInfo model
-      }
     ]
 
 
 initialiseAccordion model =
     { model
-        | accordion = genericAccordion model
+        | accordion = accordionTabs model
     }
 
 
@@ -2356,7 +2352,7 @@ updatedAccordion model =
     List.map2
         blendAccordionStatus
         model.accordion
-        (genericAccordion model)
+        (accordionTabs model)
 
 
 overviewSummary model =
