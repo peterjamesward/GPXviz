@@ -22,6 +22,9 @@ app.ports.mapPort.subscribe(function(msg) {
         case 'Fly':
             setTheMapPosition(msg);
             break;
+        case 'Track':
+            addLineToMap(msg.data);
+            break;
     }
 });
 
@@ -40,15 +43,18 @@ function makeTheMap(msg) {
             zoom: msg.zoom
             });
 
-//        map.on('load', setTheMapPosition(msg) );
+//        map.on('load', addLineToMap(msg.data) );
 
     };
 };
 
 function addLineToMap(data) {
+    console.log('addline');
+    console.log(data);
+
     map.addSource('route', {
         'type': 'geojson',
-        'data': msg.data
+        'data': data
         });
     map.addLayer({
         'id': 'route',

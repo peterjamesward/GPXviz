@@ -1,6 +1,7 @@
 module TrackPoint exposing (..)
 
 import Element exposing (..)
+import Json.Encode as E exposing (float)
 import Msg exposing (..)
 import Regex
 import Utils exposing (asRegex)
@@ -100,29 +101,23 @@ parseTrackPoints xml =
         |> List.filterMap identity
 
 
-trackToJSON : List TrackPoint -> String
+trackToJSON : List TrackPoint -> E.Value
 trackToJSON tps =
-    --TODO: Use JSON encoder!
     let
-        preamble =
-            """
-{   'type': 'Feature',
-    'properties': {},
-    'geometry': {
-        'type': 'LineString',
-        'coordinates': [
-            """
+        geometry =
+            E.object
+                [ ( "type", E.string "LineString" )
+                , ( "coordinates", E.list identity coordinates )
+                ]
+
+        coordinates =
+            List.map latLonPair tps
 
         latLonPair tp =
-            "["
-                ++ String.fromFloat tp.lon
-                ++ ", "
-                ++ String.fromFloat tp.lat
-                ++ "]"
-
-        postamble =
-            "]}}"
+            E.list float [ tp.lon, tp.lat ]
     in
-    preamble
-        ++ String.join ", " (List.map latLonPair tps)
-        ++ postamble
+    E.object
+        [ ( "type", E.string "Feature" )
+        , ( "properties", E.object [] )
+        , ( "geometry", geometry )
+        ]

@@ -69,9 +69,6 @@ positionMap model =
     let
         centre box =
             BoundingBox3d.centerPoint box
-
-        _ =
-            Debug.log "positionMap (Elm)"
     in
     case model.trackPointBox of
         Just box ->
@@ -81,7 +78,33 @@ positionMap model =
                     , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
                     , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
                     , ( "zoom", E.float 12.0 )
-                    , ( "data", E.string <| trackToJSON model.trackPoints )
+                    , ( "data", trackToJSON model.trackPoints )
+                    ]
+
+        Nothing ->
+            mapPort <|
+                E.object
+                    [ ( "Cmd", E.string "Fly" )
+                    , ( "lon", E.float 0.0 )
+                    , ( "lat", E.float 52.0 )
+                    , ( "zoom", E.float 12.0 )
+                    ]
+
+addTrackToMap : Model -> Cmd Msg
+addTrackToMap model =
+    let
+        centre box =
+            BoundingBox3d.centerPoint box
+    in
+    case model.trackPointBox of
+        Just box ->
+            mapPort <|
+                E.object
+                    [ ( "Cmd", E.string "Track" )
+                    , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
+                    , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
+                    , ( "zoom", E.float 12.0 )
+                    , ( "data", trackToJSON model.trackPoints )
                     ]
 
         Nothing ->
@@ -401,19 +424,24 @@ update msg model =
         GpxLoaded content ->
             -- TODO: Tidy up the removal of zero length segments,
             -- so as not to repeat ourselves here.
-            ( clearTheModel model
-                |> parseGPXintoModel content
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> deleteZeroLengthSegments
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> clearTerrain
-                |> initialiseAccordion
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> resetViewSettings
-            , Cmd.none
+            let
+                newModel =
+                    model
+                        |> clearTheModel
+                        |> parseGPXintoModel content
+                        |> deriveNodesAndRoads
+                        |> deriveProblems
+                        |> deleteZeroLengthSegments
+                        |> deriveNodesAndRoads
+                        |> deriveProblems
+                        |> clearTerrain
+                        |> initialiseAccordion
+                        |> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
+                        |> resetViewSettings
+            in
+            ( newModel
+            , positionMap newModel
             )
 
         UserMovedNodeSlider node ->
@@ -482,12 +510,15 @@ update msg model =
         ChooseViewMode mode ->
             ( { model | viewingMode = mode }
                 |> deriveVaryingVisualEntities
-            , positionMap model
+            , if mode == MapView then
+                addTrackToMap model
+            else
+            Cmd.none
             )
 
         ConfirmMapView ->
             ( model
-            , positionMap model
+            , Cmd.none
             )
 
         ZoomLevelOverview level ->

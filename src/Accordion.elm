@@ -26,7 +26,7 @@ accordionMenuStyles =
     [ padding 10
     , alignTop
     , alignRight
-    , width (fillPortion 2)
+    , width (fillPortion 2 |> maximum 500)
     ]
 
 

@@ -8010,6 +8010,7 @@ var $author$project$Msg$GpxLoaded = function (a) {
 var $author$project$Msg$GpxSelected = function (a) {
 	return {$: 'GpxSelected', a: a};
 };
+var $author$project$ViewTypes$MapView = {$: 'MapView'};
 var $author$project$Accordion$Contracted = {$: 'Contracted'};
 var $author$project$Accordion$Disabled = {$: 'Disabled'};
 var $author$project$Accordion$Expanded = {$: 'Expanded'};
@@ -8036,15 +8037,169 @@ var $author$project$Accordion$accordionToggle = F2(
 		};
 		return A2($elm$core$List$map, toggleMatching, entries);
 	});
+var $ianmackenzie$elm_units$Quantity$interpolateFrom = F3(
+	function (_v0, _v1, parameter) {
+		var start = _v0.a;
+		var end = _v1.a;
+		return (parameter <= 0.5) ? $ianmackenzie$elm_units$Quantity$Quantity(start + (parameter * (end - start))) : $ianmackenzie$elm_units$Quantity$Quantity(end + ((1 - parameter) * (start - end)));
+	});
+var $ianmackenzie$elm_geometry$BoundingBox3d$midX = function (_v0) {
+	var boundingBox = _v0.a;
+	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minX, boundingBox.maxX, 0.5);
+};
+var $ianmackenzie$elm_geometry$BoundingBox3d$midY = function (_v0) {
+	var boundingBox = _v0.a;
+	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minY, boundingBox.maxY, 0.5);
+};
+var $ianmackenzie$elm_geometry$BoundingBox3d$midZ = function (_v0) {
+	var boundingBox = _v0.a;
+	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minZ, boundingBox.maxZ, 0.5);
+};
+var $ianmackenzie$elm_geometry$Geometry$Types$Point3d = function (a) {
+	return {$: 'Point3d', a: a};
+};
+var $ianmackenzie$elm_geometry$Point3d$xyz = F3(
+	function (_v0, _v1, _v2) {
+		var x = _v0.a;
+		var y = _v1.a;
+		var z = _v2.a;
+		return $ianmackenzie$elm_geometry$Geometry$Types$Point3d(
+			{x: x, y: y, z: z});
+	});
+var $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint = function (boundingBox) {
+	return A3(
+		$ianmackenzie$elm_geometry$Point3d$xyz,
+		$ianmackenzie$elm_geometry$BoundingBox3d$midX(boundingBox),
+		$ianmackenzie$elm_geometry$BoundingBox3d$midY(boundingBox),
+		$ianmackenzie$elm_geometry$BoundingBox3d$midZ(boundingBox));
+};
+var $elm$json$Json$Encode$float = _Json_wrap;
+var $ianmackenzie$elm_units$Length$inMeters = function (_v0) {
+	var numMeters = _v0.a;
+	return numMeters;
+};
+var $author$project$Main$mapPort = _Platform_outgoingPort('mapPort', $elm$core$Basics$identity);
+var $elm$json$Json$Encode$object = function (pairs) {
+	return _Json_wrap(
+		A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v0, obj) {
+					var k = _v0.a;
+					var v = _v0.b;
+					return A3(_Json_addField, k, v, obj);
+				}),
+			_Json_emptyObject(_Utils_Tuple0),
+			pairs));
+};
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $elm$json$Json$Encode$list = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				$elm$core$List$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(_Utils_Tuple0),
+				entries));
+	});
+var $author$project$TrackPoint$trackToJSON = function (tps) {
+	var latLonPair = function (tp) {
+		return A2(
+			$elm$json$Json$Encode$list,
+			$elm$json$Json$Encode$float,
+			_List_fromArray(
+				[tp.lon, tp.lat]));
+	};
+	var coordinates = A2($elm$core$List$map, latLonPair, tps);
+	var geometry = $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'type',
+				$elm$json$Json$Encode$string('LineString')),
+				_Utils_Tuple2(
+				'coordinates',
+				A2($elm$json$Json$Encode$list, $elm$core$Basics$identity, coordinates))
+			]));
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'type',
+				$elm$json$Json$Encode$string('Feature')),
+				_Utils_Tuple2(
+				'properties',
+				$elm$json$Json$Encode$object(_List_Nil)),
+				_Utils_Tuple2('geometry', geometry)
+			]));
+};
+var $ianmackenzie$elm_geometry$Point3d$xCoordinate = function (_v0) {
+	var p = _v0.a;
+	return $ianmackenzie$elm_units$Quantity$Quantity(p.x);
+};
+var $ianmackenzie$elm_geometry$Point3d$yCoordinate = function (_v0) {
+	var p = _v0.a;
+	return $ianmackenzie$elm_units$Quantity$Quantity(p.y);
+};
+var $author$project$Main$addTrackToMap = function (model) {
+	var centre = function (box) {
+		return $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(box);
+	};
+	var _v0 = model.trackPointBox;
+	if (_v0.$ === 'Just') {
+		var box = _v0.a;
+		return $author$project$Main$mapPort(
+			$elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'Cmd',
+						$elm$json$Json$Encode$string('Track')),
+						_Utils_Tuple2(
+						'lon',
+						$elm$json$Json$Encode$float(
+							$ianmackenzie$elm_units$Length$inMeters(
+								$ianmackenzie$elm_geometry$Point3d$xCoordinate(
+									centre(box))))),
+						_Utils_Tuple2(
+						'lat',
+						$elm$json$Json$Encode$float(
+							$ianmackenzie$elm_units$Length$inMeters(
+								$ianmackenzie$elm_geometry$Point3d$yCoordinate(
+									centre(box))))),
+						_Utils_Tuple2(
+						'zoom',
+						$elm$json$Json$Encode$float(12.0)),
+						_Utils_Tuple2(
+						'data',
+						$author$project$TrackPoint$trackToJSON(model.trackPoints))
+					])));
+	} else {
+		return $author$project$Main$mapPort(
+			$elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'Cmd',
+						$elm$json$Json$Encode$string('Fly')),
+						_Utils_Tuple2(
+						'lon',
+						$elm$json$Json$Encode$float(0.0)),
+						_Utils_Tuple2(
+						'lat',
+						$elm$json$Json$Encode$float(52.0)),
+						_Utils_Tuple2(
+						'zoom',
+						$elm$json$Json$Encode$float(12.0))
+					])));
+	}
+};
 var $elm$core$Basics$clamp = F3(
 	function (low, high, number) {
 		return (_Utils_cmp(number, low) < 0) ? low : ((_Utils_cmp(number, high) > 0) ? high : number);
 	});
 var $author$project$Flythrough$eyeHeight = 2.0;
 var $elm$core$Basics$ge = _Utils_ge;
-var $ianmackenzie$elm_geometry$Geometry$Types$Point3d = function (a) {
-	return {$: 'Point3d', a: a};
-};
 var $ianmackenzie$elm_geometry$Point3d$interpolateFrom = F3(
 	function (_v0, _v1, t) {
 		var p1 = _v0.a;
@@ -8416,10 +8571,6 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
-var $ianmackenzie$elm_units$Length$inMeters = function (_v0) {
-	var numMeters = _v0.a;
-	return numMeters;
-};
 var $ianmackenzie$elm_geometry$Geometry$Types$Point2d = function (a) {
 	return {$: 'Point2d', a: a};
 };
@@ -8602,39 +8753,6 @@ var $author$project$Main$deleteZeroLengthSegments = function (model) {
 				A2($elm$core$List$filter, keepNonZero, model.trackPoints))
 		});
 };
-var $ianmackenzie$elm_units$Quantity$interpolateFrom = F3(
-	function (_v0, _v1, parameter) {
-		var start = _v0.a;
-		var end = _v1.a;
-		return (parameter <= 0.5) ? $ianmackenzie$elm_units$Quantity$Quantity(start + (parameter * (end - start))) : $ianmackenzie$elm_units$Quantity$Quantity(end + ((1 - parameter) * (start - end)));
-	});
-var $ianmackenzie$elm_geometry$BoundingBox3d$midX = function (_v0) {
-	var boundingBox = _v0.a;
-	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minX, boundingBox.maxX, 0.5);
-};
-var $ianmackenzie$elm_geometry$BoundingBox3d$midY = function (_v0) {
-	var boundingBox = _v0.a;
-	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minY, boundingBox.maxY, 0.5);
-};
-var $ianmackenzie$elm_geometry$BoundingBox3d$midZ = function (_v0) {
-	var boundingBox = _v0.a;
-	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minZ, boundingBox.maxZ, 0.5);
-};
-var $ianmackenzie$elm_geometry$Point3d$xyz = F3(
-	function (_v0, _v1, _v2) {
-		var x = _v0.a;
-		var y = _v1.a;
-		var z = _v2.a;
-		return $ianmackenzie$elm_geometry$Geometry$Types$Point3d(
-			{x: x, y: y, z: z});
-	});
-var $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint = function (boundingBox) {
-	return A3(
-		$ianmackenzie$elm_geometry$Point3d$xyz,
-		$ianmackenzie$elm_geometry$BoundingBox3d$midX(boundingBox),
-		$ianmackenzie$elm_geometry$BoundingBox3d$midY(boundingBox),
-		$ianmackenzie$elm_geometry$BoundingBox3d$midZ(boundingBox));
-};
 var $elm$core$Basics$degrees = function (angleInDegrees) {
 	return (angleInDegrees * $elm$core$Basics$pi) / 180;
 };
@@ -8645,14 +8763,6 @@ var $ianmackenzie$elm_geometry$Point3d$meters = F3(
 			{x: x, y: y, z: z});
 	});
 var $elm$core$Basics$tan = _Basics_tan;
-var $ianmackenzie$elm_geometry$Point3d$xCoordinate = function (_v0) {
-	var p = _v0.a;
-	return $ianmackenzie$elm_units$Quantity$Quantity(p.x);
-};
-var $ianmackenzie$elm_geometry$Point3d$yCoordinate = function (_v0) {
-	var p = _v0.a;
-	return $ianmackenzie$elm_units$Quantity$Quantity(p.y);
-};
 var $ianmackenzie$elm_geometry$Point3d$zCoordinate = function (_v0) {
 	var p = _v0.a;
 	return $ianmackenzie$elm_units$Quantity$Quantity(p.z);
@@ -15342,7 +15452,6 @@ var $mdgriffith$elm_ui$Internal$Flag$alignBottom = $mdgriffith$elm_ui$Internal$F
 var $mdgriffith$elm_ui$Internal$Flag$alignRight = $mdgriffith$elm_ui$Internal$Flag$flag(40);
 var $mdgriffith$elm_ui$Internal$Flag$centerX = $mdgriffith$elm_ui$Internal$Flag$flag(42);
 var $mdgriffith$elm_ui$Internal$Flag$centerY = $mdgriffith$elm_ui$Internal$Flag$flag(43);
-var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
 		return A2(
@@ -17768,28 +17877,6 @@ var $mdgriffith$elm_ui$Internal$Model$staticRoot = function (opts) {
 					]),
 				_List_Nil);
 	}
-};
-var $elm$json$Json$Encode$list = F2(
-	function (func, entries) {
-		return _Json_wrap(
-			A3(
-				$elm$core$List$foldl,
-				_Json_addEntry(func),
-				_Json_emptyArray(_Utils_Tuple0),
-				entries));
-	});
-var $elm$json$Json$Encode$object = function (pairs) {
-	return _Json_wrap(
-		A3(
-			$elm$core$List$foldl,
-			F2(
-				function (_v0, obj) {
-					var k = _v0.a;
-					var v = _v0.b;
-					return A3(_Json_addField, k, v, obj);
-				}),
-			_Json_emptyObject(_Utils_Tuple0),
-			pairs));
 };
 var $mdgriffith$elm_ui$Internal$Model$fontName = function (font) {
 	switch (font.$) {
@@ -24849,32 +24936,13 @@ var $author$project$Main$pauseFlythrough = function (model) {
 		return model;
 	}
 };
-var $elm$json$Json$Encode$float = _Json_wrap;
-var $elm$core$Debug$log = _Debug_log;
-var $author$project$Main$mapPort = _Platform_outgoingPort('mapPort', $elm$core$Basics$identity);
-var $author$project$TrackPoint$trackToJSON = function (tps) {
-	var preamble = '\n{   \'type\': \'Feature\',\n    \'properties\': {},\n    \'geometry\': {\n        \'type\': \'LineString\',\n        \'coordinates\': [\n            ';
-	var postamble = ']}}';
-	var latLonPair = function (tp) {
-		return '[' + ($elm$core$String$fromFloat(tp.lon) + (', ' + ($elm$core$String$fromFloat(tp.lat) + ']')));
-	};
-	return _Utils_ap(
-		preamble,
-		_Utils_ap(
-			A2(
-				$elm$core$String$join,
-				', ',
-				A2($elm$core$List$map, latLonPair, tps)),
-			postamble));
-};
 var $author$project$Main$positionMap = function (model) {
 	var centre = function (box) {
 		return $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(box);
 	};
-	var _v0 = $elm$core$Debug$log('positionMap (Elm)');
-	var _v1 = model.trackPointBox;
-	if (_v1.$ === 'Just') {
-		var box = _v1.a;
+	var _v0 = model.trackPointBox;
+	if (_v0.$ === 'Just') {
+		var box = _v0.a;
 		return $author$project$Main$mapPort(
 			$elm$json$Json$Encode$object(
 				_List_fromArray(
@@ -24899,8 +24967,7 @@ var $author$project$Main$positionMap = function (model) {
 						$elm$json$Json$Encode$float(12.0)),
 						_Utils_Tuple2(
 						'data',
-						$elm$json$Json$Encode$string(
-							$author$project$TrackPoint$trackToJSON(model.trackPoints)))
+						$author$project$TrackPoint$trackToJSON(model.trackPoints))
 					])));
 	} else {
 		return $author$project$Main$mapPort(
@@ -26000,22 +26067,23 @@ var $author$project$Main$update = F2(
 						$elm$file$File$toString(file)));
 			case 'GpxLoaded':
 				var content = msg.a;
+				var newModel = $author$project$Main$resetViewSettings(
+					$author$project$Main$deriveVaryingVisualEntities(
+						$author$project$Main$deriveStaticVisualEntities(
+							$author$project$Main$initialiseAccordion(
+								$author$project$Main$clearTerrain(
+									$author$project$Main$deriveProblems(
+										$author$project$Main$deriveNodesAndRoads(
+											$author$project$Main$deleteZeroLengthSegments(
+												$author$project$Main$deriveProblems(
+													$author$project$Main$deriveNodesAndRoads(
+														A2(
+															$author$project$Main$parseGPXintoModel,
+															content,
+															$author$project$Main$clearTheModel(model))))))))))));
 				return _Utils_Tuple2(
-					$author$project$Main$resetViewSettings(
-						$author$project$Main$deriveVaryingVisualEntities(
-							$author$project$Main$deriveStaticVisualEntities(
-								$author$project$Main$initialiseAccordion(
-									$author$project$Main$clearTerrain(
-										$author$project$Main$deriveProblems(
-											$author$project$Main$deriveNodesAndRoads(
-												$author$project$Main$deleteZeroLengthSegments(
-													$author$project$Main$deriveProblems(
-														$author$project$Main$deriveNodesAndRoads(
-															A2(
-																$author$project$Main$parseGPXintoModel,
-																content,
-																$author$project$Main$clearTheModel(model)))))))))))),
-					$elm$core$Platform$Cmd$none);
+					newModel,
+					$author$project$Main$positionMap(newModel));
 			case 'UserMovedNodeSlider':
 				var node = msg.a;
 				return _Utils_Tuple2(
@@ -26109,11 +26177,9 @@ var $author$project$Main$update = F2(
 						_Utils_update(
 							model,
 							{viewingMode: mode})),
-					$author$project$Main$positionMap(model));
+					_Utils_eq(mode, $author$project$ViewTypes$MapView) ? $author$project$Main$addTrackToMap(model) : $elm$core$Platform$Cmd$none);
 			case 'ConfirmMapView':
-				return _Utils_Tuple2(
-					model,
-					$author$project$Main$positionMap(model));
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'ZoomLevelOverview':
 				var level = msg.a;
 				return _Utils_Tuple2(
@@ -26543,13 +26609,24 @@ var $author$project$Accordion$accordionActiveItem = function (entries) {
 };
 var $mdgriffith$elm_ui$Internal$Model$Right = {$: 'Right'};
 var $mdgriffith$elm_ui$Element$alignRight = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Right);
+var $mdgriffith$elm_ui$Internal$Model$Max = F2(
+	function (a, b) {
+		return {$: 'Max', a: a, b: b};
+	});
+var $mdgriffith$elm_ui$Element$maximum = F2(
+	function (i, l) {
+		return A2($mdgriffith$elm_ui$Internal$Model$Max, i, l);
+	});
 var $author$project$Accordion$accordionMenuStyles = _List_fromArray(
 	[
 		$mdgriffith$elm_ui$Element$padding(10),
 		$mdgriffith$elm_ui$Element$alignTop,
 		$mdgriffith$elm_ui$Element$alignRight,
 		$mdgriffith$elm_ui$Element$width(
-		$mdgriffith$elm_ui$Element$fillPortion(2))
+		A2(
+			$mdgriffith$elm_ui$Element$maximum,
+			500,
+			$mdgriffith$elm_ui$Element$fillPortion(2)))
 	]);
 var $author$project$Accordion$accordionRowStyles = function (state) {
 	return _List_fromArray(
@@ -26943,14 +27020,6 @@ var $elm$core$Basics$always = F2(
 	});
 var $mdgriffith$elm_ui$Internal$Model$unstyled = A2($elm$core$Basics$composeL, $mdgriffith$elm_ui$Internal$Model$Unstyled, $elm$core$Basics$always);
 var $mdgriffith$elm_ui$Element$html = $mdgriffith$elm_ui$Internal$Model$unstyled;
-var $mdgriffith$elm_ui$Internal$Model$Max = F2(
-	function (a, b) {
-		return {$: 'Max', a: a, b: b};
-	});
-var $mdgriffith$elm_ui$Element$maximum = F2(
-	function (i, l) {
-		return A2($mdgriffith$elm_ui$Internal$Model$Max, i, l);
-	});
 var $mdgriffith$elm_ui$Element$scrollbarY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.scrollbarsY);
 var $elm_explorations$markdown$Markdown$defaultOptions = {
 	defaultHighlighting: $elm$core$Maybe$Nothing,
@@ -29355,7 +29424,6 @@ var $author$project$Msg$ChooseViewMode = function (a) {
 	return {$: 'ChooseViewMode', a: a};
 };
 var $author$project$ViewTypes$FirstPersonView = {$: 'FirstPersonView'};
-var $author$project$ViewTypes$MapView = {$: 'MapView'};
 var $author$project$ViewTypes$PlanView = {$: 'PlanView'};
 var $author$project$ViewTypes$ProfileView = {$: 'ProfileView'};
 var $author$project$ViewTypes$ThirdPersonView = {$: 'ThirdPersonView'};
