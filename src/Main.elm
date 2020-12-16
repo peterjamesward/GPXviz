@@ -97,6 +97,7 @@ type alias Model =
     , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
     , varyingProfileEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
+    , mapVisualEntities : List (Entity LocalCoords) -- for map image only
     , httpError : Maybe String
     , currentNode : Maybe Int
     , markedNode : Maybe Int
@@ -154,6 +155,7 @@ init _ =
       , varyingVisualEntities = []
       , staticProfileEntities = []
       , varyingProfileEntities = []
+      , mapVisualEntities = []
       , terrainEntities = []
       , httpError = Nothing
       , currentNode = Nothing
@@ -1778,6 +1780,7 @@ deriveStaticVisualEntities model =
             { model
                 | staticVisualEntities = makeStatic3DEntities context model.roads
                 , staticProfileEntities = makeStaticProfileEntities context model.roads
+                , mapVisualEntities = makeMapEntities context model.roads
             }
 
         Nothing ->
@@ -1926,9 +1929,8 @@ viewModeChoices model =
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
             , Input.optionWith PlanView <| radioButton Mid "Plan"
+            , Input.optionWith MapView <| radioButton Mid "Map"
             , Input.optionWith AboutView <| radioButton Last "About"
-
-            --, Input.optionWith MapView <| radioButton Last "Map test"
             ]
         }
 
@@ -1965,13 +1967,14 @@ viewMap model =
     -- Use MapQuest static maps API.
     -- Then work out how to project it.
     let
-        --baseUrl =
-        --    "https://open.mapquestapi.com/staticmap/v5/map?key=KEY&center=Boston,MA&size=@2x
+        {-
+           "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/[-77.043686,38.892035,-77.028923,38.904192]/400x400?access_token=pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
+        -}
         baseUrl =
-            "https://www.mapquestapi.com/staticmap/v5/map?key="
+            "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/"
 
-        mapQuestAPIKey =
-            ""
+        mapboxAPIKey =
+            "pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
 
         url box =
             let
@@ -1979,25 +1982,25 @@ viewMap model =
                     BoundingBox3d.extrema box
             in
             baseUrl
-                ++ mapQuestAPIKey
-                ++ "&size=800,500&boundingBox="
-                ++ decimals6 (Length.inMeters maxY)
-                ++ ","
+                ++ "["
                 ++ decimals6 (Length.inMeters minX)
                 ++ ","
                 ++ decimals6 (Length.inMeters minY)
                 ++ ","
                 ++ decimals6 (Length.inMeters maxX)
-                ++ "&size=@2x"
+                ++ ","
+                ++ decimals6 (Length.inMeters maxY)
+                ++ "]/800x500?access_token="
+                ++ mapboxAPIKey
     in
-    case model.trackPointBox of
-        Just box ->
-            image [ inFront <| viewCentredPlanViewForMap model ]
+    case ( model.trackPointBox, model.nodeBox ) of
+        ( Just box, Just scale ) ->
+            image [ inFront <| viewCentredPlanViewForMap scale model ]
                 { src = url box
                 , description = "Map"
                 }
 
-        Nothing ->
+        _ ->
             text "Sorry, no bounding box."
 
 
@@ -2948,17 +2951,29 @@ viewCurrentNodePlanView scale model node =
         ]
 
 
-viewCentredPlanViewForMap : Model -> Element Msg
-viewCentredPlanViewForMap model =
+viewCentredPlanViewForMap : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
+viewCentredPlanViewForMap box model =
+    -- Challenge is to optimize zoom level to fit map.
     let
+        { minX, maxX, minY, maxY, minZ, maxZ } =
+            BoundingBox3d.extrema box
+
         focus =
-            Point3d.projectOnto Plane3d.xy
-                Point3d.origin
+            BoundingBox3d.centerPoint box
+
+        ( xSize, ySize, zSize ) =
+            BoundingBox3d.dimensions box
 
         eyePoint =
             Point3d.translateBy
                 (Vector3d.meters 0.0 0.0 5000.0)
                 Point3d.origin
+
+        viewPort =
+            Length.meters <|
+                max
+                    (Length.inMeters ySize)
+                    (Length.inMeters xSize * 500.0 / 800.0)
 
         camera =
             Camera3d.orthographic
@@ -2968,11 +2983,11 @@ viewCentredPlanViewForMap model =
                         , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
-                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
+                , viewportHeight = viewPort
                 }
     in
     el
-        []
+        [ width (px 800), height (px 500), alignLeft, alignTop ]
     <|
         html <|
             Scene3d.sunny
@@ -2980,7 +2995,7 @@ viewCentredPlanViewForMap model =
                 , dimensions = ( Pixels.int 800, Pixels.int 500 )
                 , background = Scene3d.transparentBackground
                 , clipDepth = Length.meters 1.0
-                , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                , entities = model.mapVisualEntities
                 , upDirection = positiveZ
                 , sunlightDirection = negativeZ
                 , shadows = True

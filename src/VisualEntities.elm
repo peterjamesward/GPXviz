@@ -23,6 +23,15 @@ import Vector3d
 import ViewTypes exposing (ViewingMode(..))
 
 
+optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
+optionally test element =
+    if test then
+        element
+
+    else
+        []
+
+
 makeStatic3DEntities :
     RenderingContext
     -> List DrawingRoad
@@ -193,21 +202,59 @@ makeStatic3DEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.endsAt.location)
                 (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
-
-        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
-        optionally test element =
-            if test then
-                element
-
-            else
-                []
     in
-    [ seaLevel]
+    [ seaLevel ]
         ++ optionally context.displayOptions.roadPillars pillars
         ++ optionally context.displayOptions.roadCones trackpointMarkers
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ optionally context.displayOptions.centreLine centreLine
+
+
+makeMapEntities :
+    RenderingContext
+    -> List DrawingRoad
+    -> List (Entity LocalCoords)
+makeMapEntities context roadList =
+    let
+        roadSurfaces =
+            List.concat <|
+                List.map roadSurface <|
+                    roadList
+
+        roadSurface road =
+            let
+                ( kerbX, kerbY ) =
+                    -- Road is assumed to be 6 m wide.
+                    ( 3.0 * cos road.bearing
+                    , 3.0 * sin road.bearing
+                    )
+
+                roadAsSegment =
+                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+
+                leftKerbVector =
+                    Vector3d.meters
+                        (-1.0 * kerbX)
+                        kerbY
+                        0.0
+
+                rightKerbVector =
+                    Vector3d.reverse leftKerbVector
+
+                ( leftKerb, rightKerb ) =
+                    ( LineSegment3d.translateBy leftKerbVector roadAsSegment
+                    , LineSegment3d.translateBy rightKerbVector roadAsSegment
+                    )
+            in
+            [ Scene3d.quad (Material.matte Color.lightRed)
+                (LineSegment3d.startPoint leftKerb)
+                (LineSegment3d.endPoint leftKerb)
+                (LineSegment3d.endPoint rightKerb)
+                (LineSegment3d.startPoint rightKerb)
+            ]
+    in
+    roadSurfaces
 
 
 makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
@@ -277,13 +324,6 @@ makeStaticProfileEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.profileStartsAt.location)
             ]
 
-        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
-        optionally test element =
-            if test then
-                element
-
-            else
-                []
     in
     []
         ++ optionally context.displayOptions.roadPillars pillars
