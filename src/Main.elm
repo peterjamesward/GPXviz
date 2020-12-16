@@ -1990,12 +1990,16 @@ viewMap model =
                 ++ decimals6 (Length.inMeters maxX)
                 ++ ","
                 ++ decimals6 (Length.inMeters maxY)
-                ++ "]/800x500?access_token="
+                ++ "]/800x500@2x?access_token="
                 ++ mapboxAPIKey
     in
     case ( model.trackPointBox, model.nodeBox ) of
         ( Just box, Just scale ) ->
-            image [ inFront <| viewCentredPlanViewForMap scale model ]
+            image
+                [ width (px 800)
+                , height (px 500)
+                , inFront <| viewCentredPlanViewForMap scale model
+                ]
                 { src = url box
                 , description = "Map"
                 }

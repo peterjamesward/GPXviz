@@ -10,14 +10,12 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-13 12:00_
+> _This text updated 2020-12-16_
 
 > **Changes**
-> - Now using Web Mercator projection for compatibility with common mapping tools.
-> - Should report problems reading GPX file.
-> - Properly clears out old state when changing tracks.
+> - Non-interactive map view.
 
-Once a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
+Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
 **File** summarises the GPX information. This provides error messages if the file is not what we're expecting.
 
