@@ -16,6 +16,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (button)
+import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
@@ -2377,6 +2378,15 @@ viewLoopTools model =
 
 
 positionControls model =
+    let
+        forwards =
+            FeatherIcons.skipForward
+                |> FeatherIcons.toHtml []
+
+        backwards =
+            FeatherIcons.skipBack
+                |> FeatherIcons.toHtml []
+    in
     row
         [ spacing 5
         , padding 5
@@ -2387,12 +2397,12 @@ positionControls model =
         , button
             prettyButtonStyles
             { onPress = Just PositionBackOne
-            , label = text "◀︎"
+            , label = html backwards
             }
         , button
             prettyButtonStyles
             { onPress = Just PositionForwardOne
-            , label = text "►︎"
+            , label = html forwards
             }
         ]
 
@@ -2444,6 +2454,18 @@ viewFirstPerson scale model =
 flythroughControls : Model -> Element Msg
 flythroughControls model =
     let
+        reset =
+            FeatherIcons.rewind
+                |> FeatherIcons.toHtml []
+
+        play =
+            FeatherIcons.play
+                |> FeatherIcons.toHtml []
+
+        pause =
+            FeatherIcons.pause
+                |> FeatherIcons.toHtml []
+
         flythroughSpeedSlider =
             Input.slider
                 commonShortHorizontalSliderStyles
@@ -2468,21 +2490,21 @@ flythroughControls model =
             button
                 prettyButtonStyles
                 { onPress = Just ResetFlythrough
-                , label = el [ Font.size 24 ] <| text "⏮️"
+                , label = html reset
                 }
 
         playButton =
             button
                 prettyButtonStyles
                 { onPress = Just (RunFlythrough True)
-                , label = el [ Font.size 24 ] <| text "▶️"
+                , label = html play
                 }
 
         pauseButton =
             button
                 prettyButtonStyles
                 { onPress = Just (RunFlythrough False)
-                , label = el [ Font.size 24 ] <| text "⏸"
+                , label = html pause
                 }
 
         playPauseButton =
@@ -2689,6 +2711,14 @@ viewNudgeTools model =
 
 markerButton model =
     let
+        forward =
+            FeatherIcons.skipForward
+                |> FeatherIcons.toHtml []
+
+        back =
+            FeatherIcons.skipBack
+                |> FeatherIcons.toHtml []
+
         makeButton label =
             button
                 prettyButtonStyles
@@ -2703,13 +2733,13 @@ markerButton model =
                 [ button
                     prettyButtonStyles
                     { onPress = Just MarkerBackOne
-                    , label = text "◀︎"
+                    , label = html back
                     }
                 , makeButton "Clear marker"
                 , button
                     prettyButtonStyles
                     { onPress = Just MarkerForwardOne
-                    , label = text "►︎"
+                    , label = html forward
                     }
                 ]
 
