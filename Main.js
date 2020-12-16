@@ -24894,6 +24894,7 @@ var $author$project$Main$pauseFlythrough = function (model) {
 		return model;
 	}
 };
+var $author$project$Main$mapboxKey = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpbmJpa2U3MTFnYjJ6bXdvYmR5eTZ2aSJ9.LOldXEKf7qhJw9TMyovDGg';
 var $author$project$Main$positionMap = function (model) {
 	var centre = function (box) {
 		return $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(box);
@@ -24925,7 +24926,10 @@ var $author$project$Main$positionMap = function (model) {
 						$elm$json$Json$Encode$float(12.0)),
 						_Utils_Tuple2(
 						'data',
-						$author$project$TrackPoint$trackToJSON(model.trackPoints))
+						$author$project$TrackPoint$trackToJSON(model.trackPoints)),
+						_Utils_Tuple2(
+						'token',
+						$elm$json$Json$Encode$string($author$project$Main$mapboxKey))
 					])));
 	} else {
 		return $author$project$Main$mapPort(

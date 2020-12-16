@@ -41,7 +41,9 @@ var trackAdded = false;
 
 function makeTheMap(msg) {
     console.log('create the map');
-    mapboxgl.accessToken = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpbmJpa2U3MTFnYjJ6bXdvYmR5eTZ2aSJ9.LOldXEKf7qhJw9TMyovDGg';
+    console.log(msg.token);
+    
+    mapboxgl.accessToken = msg.token;
     var element = document.getElementById("map");
     if(typeof(element) != 'undefined' && element != null && !mapCreated)
     {

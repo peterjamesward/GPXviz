@@ -63,6 +63,7 @@ main =
         , subscriptions = subscriptions
         }
 
+
 positionMap : Model -> Cmd Msg
 positionMap model =
     let
@@ -78,6 +79,7 @@ positionMap model =
                     , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
                     , ( "zoom", E.float 12.0 )
                     , ( "data", trackToJSON model.trackPoints )
+                    , ( "token", E.string mapboxKey)
                     ]
 
         Nothing ->
