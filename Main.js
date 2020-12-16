@@ -24852,6 +24852,21 @@ var $author$project$Main$pauseFlythrough = function (model) {
 var $elm$json$Json$Encode$float = _Json_wrap;
 var $elm$core$Debug$log = _Debug_log;
 var $author$project$Main$mapPort = _Platform_outgoingPort('mapPort', $elm$core$Basics$identity);
+var $author$project$TrackPoint$trackToJSON = function (tps) {
+	var preamble = '\n{   \'type\': \'Feature\',\n    \'properties\': {},\n    \'geometry\': {\n        \'type\': \'LineString\',\n        \'coordinates\': [\n            ';
+	var postamble = ']}}';
+	var latLonPair = function (tp) {
+		return '[' + ($elm$core$String$fromFloat(tp.lon) + (', ' + ($elm$core$String$fromFloat(tp.lat) + ']')));
+	};
+	return _Utils_ap(
+		preamble,
+		_Utils_ap(
+			A2(
+				$elm$core$String$join,
+				', ',
+				A2($elm$core$List$map, latLonPair, tps)),
+			postamble));
+};
 var $author$project$Main$positionMap = function (model) {
 	var centre = function (box) {
 		return $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(box);
@@ -24881,7 +24896,11 @@ var $author$project$Main$positionMap = function (model) {
 									centre(box))))),
 						_Utils_Tuple2(
 						'zoom',
-						$elm$json$Json$Encode$float(12.0))
+						$elm$json$Json$Encode$float(12.0)),
+						_Utils_Tuple2(
+						'data',
+						$elm$json$Json$Encode$string(
+							$author$project$TrackPoint$trackToJSON(model.trackPoints)))
 					])));
 	} else {
 		return $author$project$Main$mapPort(
@@ -26522,17 +26541,23 @@ var $author$project$Accordion$accordionActiveItem = function (entries) {
 			},
 			entries));
 };
+var $mdgriffith$elm_ui$Internal$Model$Right = {$: 'Right'};
+var $mdgriffith$elm_ui$Element$alignRight = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Right);
 var $author$project$Accordion$accordionMenuStyles = _List_fromArray(
 	[
 		$mdgriffith$elm_ui$Element$padding(10),
 		$mdgriffith$elm_ui$Element$alignTop,
-		$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill)
+		$mdgriffith$elm_ui$Element$alignRight,
+		$mdgriffith$elm_ui$Element$width(
+		$mdgriffith$elm_ui$Element$fillPortion(2))
 	]);
 var $author$project$Accordion$accordionRowStyles = function (state) {
 	return _List_fromArray(
 		[
 			$mdgriffith$elm_ui$Element$padding(10),
 			$mdgriffith$elm_ui$Element$spacing(2),
+			$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
+			$mdgriffith$elm_ui$Element$centerX,
 			$mdgriffith$elm_ui$Element$Border$widthEach(
 			{bottom: 0, left: 2, right: 2, top: 2}),
 			$mdgriffith$elm_ui$Element$Border$roundEach(
@@ -26608,6 +26633,8 @@ var $author$project$ViewElements$displayName = function (n) {
 		return $mdgriffith$elm_ui$Element$none;
 	}
 };
+var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
+var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
 var $mdgriffith$elm_ui$Internal$Model$OnlyDynamic = F2(
 	function (a, b) {
 		return {$: 'OnlyDynamic', a: a, b: b};
@@ -26945,7 +26972,10 @@ var $author$project$About$viewAboutText = A2(
 	$mdgriffith$elm_ui$Element$row,
 	_List_fromArray(
 		[
-			$mdgriffith$elm_ui$Element$centerX,
+			$mdgriffith$elm_ui$Element$alignLeft,
+			$mdgriffith$elm_ui$Element$alignTop,
+			$mdgriffith$elm_ui$Element$width(
+			$mdgriffith$elm_ui$Element$px(880)),
 			$mdgriffith$elm_ui$Element$Background$color(
 			A3($mdgriffith$elm_ui$Element$rgb255, 220, 220, 200)),
 			$mdgriffith$elm_ui$Element$padding(20),
@@ -28495,7 +28525,6 @@ var $author$project$Msg$ImageRelease = function (a) {
 var $author$project$Msg$ImageRotate = function (a) {
 	return {$: 'ImageRotate', a: a};
 };
-var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
 var $mpizenberg$elm_pointer_events$Html$Events$Extra$Pointer$defaultOptions = {preventDefault: true, stopPropagation: false};
 var $elm$virtual_dom$VirtualDom$Custom = function (a) {
 	return {$: 'Custom', a: a};
@@ -28844,7 +28873,6 @@ var $author$project$Main$viewInputError = function (model) {
 				}())
 			]));
 };
-var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
 var $author$project$Main$viewMapView = F2(
 	function (scale, model) {
 		var _v0 = A2($author$project$Main$lookupRoad, model, model.currentNode);
@@ -28852,28 +28880,7 @@ var $author$project$Main$viewMapView = F2(
 			return $mdgriffith$elm_ui$Element$none;
 		} else {
 			var node = _v0.a;
-			return A2(
-				$mdgriffith$elm_ui$Element$column,
-				_List_fromArray(
-					[$mdgriffith$elm_ui$Element$alignTop]),
-				_List_fromArray(
-					[
-						A2(
-						$mdgriffith$elm_ui$Element$el,
-						_List_fromArray(
-							[
-								$mdgriffith$elm_ui$Element$width(
-								$mdgriffith$elm_ui$Element$px(800)),
-								$mdgriffith$elm_ui$Element$height(
-								$mdgriffith$elm_ui$Element$px(500)),
-								$mdgriffith$elm_ui$Element$alignTop,
-								$mdgriffith$elm_ui$Element$alignLeft,
-								$mdgriffith$elm_ui$Element$htmlAttribute(
-								$elm$html$Html$Attributes$id('map'))
-							]),
-						$mdgriffith$elm_ui$Element$none),
-						$author$project$Main$positionControls(model)
-					]));
+			return $mdgriffith$elm_ui$Element$none;
 		}
 	});
 var $author$project$Msg$ZoomLevelPlan = function (a) {
@@ -29317,23 +29324,32 @@ var $author$project$Main$viewThirdPerson = F2(
 	});
 var $author$project$Main$view3D = F2(
 	function (scale, model) {
-		var _v0 = model.viewingMode;
-		switch (_v0.$) {
-			case 'FirstPersonView':
-				return A2($author$project$Main$viewFirstPerson, scale, model);
-			case 'ThirdPersonView':
-				return A2($author$project$Main$viewThirdPerson, scale, model);
-			case 'ProfileView':
-				return $author$project$Main$viewProfileView(model);
-			case 'AboutView':
-				return $author$project$About$viewAboutText;
-			case 'InputErrorView':
-				return $author$project$Main$viewInputError(model);
-			case 'PlanView':
-				return A2($author$project$Main$viewPlanView, scale, model);
-			default:
-				return A2($author$project$Main$viewMapView, scale, model);
-		}
+		return A2(
+			$mdgriffith$elm_ui$Element$el,
+			_List_fromArray(
+				[
+					$mdgriffith$elm_ui$Element$width(
+					$mdgriffith$elm_ui$Element$fillPortion(3))
+				]),
+			function () {
+				var _v0 = model.viewingMode;
+				switch (_v0.$) {
+					case 'FirstPersonView':
+						return A2($author$project$Main$viewFirstPerson, scale, model);
+					case 'ThirdPersonView':
+						return A2($author$project$Main$viewThirdPerson, scale, model);
+					case 'ProfileView':
+						return $author$project$Main$viewProfileView(model);
+					case 'AboutView':
+						return $author$project$About$viewAboutText;
+					case 'InputErrorView':
+						return $author$project$Main$viewInputError(model);
+					case 'PlanView':
+						return A2($author$project$Main$viewPlanView, scale, model);
+					default:
+						return A2($author$project$Main$viewMapView, scale, model);
+				}
+			}());
 	});
 var $author$project$Msg$ChooseViewMode = function (a) {
 	return {$: 'ChooseViewMode', a: a};
@@ -29404,7 +29420,10 @@ var $author$project$Main$viewGenericNew = function (model) {
 					]),
 				A2(
 					$mdgriffith$elm_ui$Element$column,
-					_List_Nil,
+					_List_fromArray(
+						[
+							$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill)
+						]),
 					_List_fromArray(
 						[
 							A2(
@@ -29455,7 +29474,27 @@ var $author$project$Main$viewGenericNew = function (model) {
 								return A2(
 									$mdgriffith$elm_ui$Element$row,
 									_List_fromArray(
-										[$mdgriffith$elm_ui$Element$alignLeft, $mdgriffith$elm_ui$Element$alignTop]),
+										[
+											$mdgriffith$elm_ui$Element$alignLeft,
+											$mdgriffith$elm_ui$Element$alignTop,
+											$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
+											$mdgriffith$elm_ui$Element$behindContent(
+											A2(
+												$mdgriffith$elm_ui$Element$el,
+												_List_fromArray(
+													[
+														$mdgriffith$elm_ui$Element$width(
+														$mdgriffith$elm_ui$Element$px(800)),
+														$mdgriffith$elm_ui$Element$height(
+														$mdgriffith$elm_ui$Element$px(500)),
+														$mdgriffith$elm_ui$Element$alignTop,
+														$mdgriffith$elm_ui$Element$alignLeft,
+														$mdgriffith$elm_ui$Element$moveRight(80),
+														$mdgriffith$elm_ui$Element$htmlAttribute(
+														$elm$html$Html$Attributes$id('map'))
+													]),
+												$mdgriffith$elm_ui$Element$text('map')))
+										]),
 									_List_fromArray(
 										[
 											A2($author$project$Main$view3D, scale, model),

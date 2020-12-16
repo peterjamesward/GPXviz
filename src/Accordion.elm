@@ -25,13 +25,16 @@ type alias AccordionEntry msg =
 accordionMenuStyles =
     [ padding 10
     , alignTop
-    , width fill
+    , alignRight
+    , width (fillPortion 2)
     ]
 
 
 accordionRowStyles state =
     [ padding 10
     , spacing 2
+    , width fill
+    , centerX
     , Border.widthEach { left = 2, right = 2, top = 2, bottom = 0 }
     , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
     , Border.color <|

@@ -98,3 +98,31 @@ parseTrackPoints xml =
         elevations
         (List.range 0 (List.length latitudes))
         |> List.filterMap identity
+
+
+trackToJSON : List TrackPoint -> String
+trackToJSON tps =
+    --TODO: Use JSON encoder!
+    let
+        preamble =
+            """
+{   'type': 'Feature',
+    'properties': {},
+    'geometry': {
+        'type': 'LineString',
+        'coordinates': [
+            """
+
+        latLonPair tp =
+            "["
+                ++ String.fromFloat tp.lon
+                ++ ", "
+                ++ String.fromFloat tp.lat
+                ++ "]"
+
+        postamble =
+            "]}}"
+    in
+    preamble
+        ++ String.join ", " (List.map latLonPair tps)
+        ++ postamble

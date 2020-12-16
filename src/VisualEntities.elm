@@ -600,6 +600,3 @@ makeVaryingProfileEntities context roadList =
         ++ markedNode
         ++ nudgedNode context.currentNode
 
-
-
--- i.e. nudge preview.

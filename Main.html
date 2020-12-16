@@ -1,15 +1,9 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.4.3/css/ol.css" type="text/css">
-    <style>
-      .map {
-        height: 500px;
-        width: 800px;
-      }
-    </style>
     <script src="Main.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.4.3/build/ol.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.css' rel='stylesheet' />
     <title>OpenLayers example</title>
 </head>
 <body>
@@ -17,7 +11,6 @@
 
 <script type="text/javascript">
 
-var _map;
 
 // Start the Elm application.
 var app = Elm.Main.init({
@@ -27,36 +20,69 @@ var app = Elm.Main.init({
 app.ports.mapPort.subscribe(function(msg) {
     switch (msg.Cmd) {
         case 'Fly':
-            setTheMapPosition(msg.lon, msg.lat, msg.zoom);
+            setTheMapPosition(msg);
             break;
     }
 });
 
-function setTheMapPosition(lon, lat, zoom) {
-    console.log('setTheMapPosition');
-    _map = new ol.Map({
-        target: 'map',
-        layers: [
-                new ol.layer.Tile({source: new ol.source.OSM()})
-                ],
-        view: new ol.View({
-                center: ol.proj.fromLonLat([lon, lat]),
-                zoom: zoom
-                })
-        });
+var map;
 
-    _map.on('moveend', debounce(moveend, 1000, true));
+function makeTheMap(msg) {
+    console.log('setTheMapPosition');
+    mapboxgl.accessToken = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpbmJpa2U3MTFnYjJ6bXdvYmR5eTZ2aSJ9.LOldXEKf7qhJw9TMyovDGg';
+    var element = document.getElementById("map");
+    if(typeof(element) != 'undefined' && element != null)
+    {
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [msg.lon, msg.lat],
+            zoom: msg.zoom
+            });
+
+//        map.on('load', setTheMapPosition(msg) );
+
+    };
+};
+
+function addLineToMap(data) {
+    map.addSource('route', {
+        'type': 'geojson',
+        'data': msg.data
+        });
+    map.addLayer({
+        'id': 'route',
+        'type': 'line',
+        'source': 'route',
+        'layout': {
+        'line-join': 'round',
+        'line-cap': 'round'
+        },
+        'paint': {
+            'line-color': '#888',
+            'line-width': 8
+        }
+   });
+};
+
+function setTheMapPosition(msg) {
+    console.log('setTheMapPosition');
+    mapboxgl.accessToken = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpbmJpa2U3MTFnYjJ6bXdvYmR5eTZ2aSJ9.LOldXEKf7qhJw9TMyovDGg';
+
+    if (typeof map === "undefined") {
+        makeTheMap(msg);
+        }
 };
 
 function moveend() {
     // console.log('moveend');
-    var coordinate = ol.proj.toLonLat(_map.getView().getCenter());
+    var coordinate = ol.proj.toLonLat(map.getView().getCenter());
     app.ports.mapMoved.send({
         center: {
             lon: coordinate[0],
             lat: coordinate[1]
             },
-        zoom: _map.getView().getZoom()
+        zoom: map.getView().getZoom()
     });
 }
 

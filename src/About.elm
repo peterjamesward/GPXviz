@@ -54,7 +54,9 @@ Click the blue button at the page top to choose a file.
 viewAboutText : Element Msg
 viewAboutText =
     row
-        [ centerX
+        [ alignLeft
+        , alignTop
+        , width (px 880)
         , Background.color <| rgb255 220 220 200
         , padding 20
         , Border.width 2

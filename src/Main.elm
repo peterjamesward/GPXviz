@@ -81,6 +81,7 @@ positionMap model =
                     , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
                     , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
                     , ( "zoom", E.float 12.0 )
+                    , ( "data", E.string <| trackToJSON model.trackPoints )
                     ]
 
         Nothing ->
@@ -1933,7 +1934,7 @@ viewGenericNew model =
             ]
           <|
             column
-                []
+                [ width fill ]
                 [ row [ centerX, spaceEvenly, spacing 20, padding 10 ]
                     [ loadButton
                     , case model.filename of
@@ -1955,7 +1956,22 @@ viewGenericNew model =
                     ]
                 , case ( model.gpx, model.nodeBox ) of
                     ( _, Just scale ) ->
-                        row [ alignLeft, alignTop ]
+                        row
+                            [ alignLeft
+                            , alignTop
+                            , width fill
+                            , behindContent <|
+                                el
+                                    -- Map control needs to be reliably present in the DOM.
+                                    [ width (px 800)
+                                    , height (px 500)
+                                    , alignTop
+                                    , alignLeft
+                                    , moveRight 80
+                                    , htmlAttribute (id "map")
+                                    ]
+                                    (text "map")
+                            ]
                             [ view3D scale model
                             , accordionView (updatedAccordion model) AccordionMessage
                             ]
@@ -2007,29 +2023,29 @@ viewModeChoices model =
 
 view3D : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 view3D scale model =
-    -- The only differences are (should be) which zoom slider and which projection to use.
-    case model.viewingMode of
-        FirstPersonView ->
-            viewFirstPerson scale model
+    el [ width <| fillPortion 3 ] <|
+        case model.viewingMode of
+            FirstPersonView ->
+                viewFirstPerson scale model
 
-        ThirdPersonView ->
-            viewThirdPerson scale model
+            ThirdPersonView ->
+                viewThirdPerson scale model
 
-        ProfileView ->
-            viewProfileView model
+            ProfileView ->
+                viewProfileView model
 
-        AboutView ->
-            viewAboutText
+            AboutView ->
+                viewAboutText
 
-        InputErrorView ->
-            --TODO: Some errors would be nice.
-            viewInputError model
+            InputErrorView ->
+                --TODO: Some errors would be nice.
+                viewInputError model
 
-        PlanView ->
-            viewPlanView scale model
+            PlanView ->
+                viewPlanView scale model
 
-        MapView ->
-            viewMapView scale model
+            MapView ->
+                viewMapView scale model
 
 
 viewInputError : Model -> Element Msg
@@ -2642,24 +2658,18 @@ viewPlanView scale model =
 
 viewMapView : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 viewMapView scale model =
+    -- Since the map div already sits behind our display, we just need something
+    -- here of the same size to position the other controls properly.
     case lookupRoad model model.currentNode of
         Nothing ->
             none
 
         Just node ->
-            column
-                [ alignTop
-                ]
-                [ el
-                    [ width (px 800)
-                    , height (px 500)
-                    , alignTop
-                    , alignLeft
-                    , htmlAttribute (id "map")
-                    ]
-                    none
-                , positionControls model
-                ]
+            none
+
+
+
+--el [ width (px 880), height (px 500), transparent False ] none
 
 
 viewMapInfo : Model -> Element Msg
