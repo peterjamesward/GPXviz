@@ -1981,6 +1981,7 @@ viewGenericNew model =
                     ]
                 , row
                     [ alignLeft
+                    , alignTop
                     , moveRight 100
                     ]
                     [ viewModeChoices model
@@ -2054,7 +2055,7 @@ viewModeChoices model =
 
 view3D : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 view3D scale model =
-    el [ width <| fillPortion 3 ] <|
+    el [ alignTop,  width <| fillPortion 3 ] <|
         case model.viewingMode of
             FirstPersonView ->
                 viewFirstPerson scale model
@@ -2830,13 +2831,13 @@ markerButton model =
                 [ button
                     prettyButtonStyles
                     { onPress = Just MarkerBackOne
-                    , label = text "◀︎"
+                    , label = text "<|"
                     }
                 , makeButton "Clear marker"
                 , button
                     prettyButtonStyles
                     { onPress = Just MarkerForwardOne
-                    , label = text "►︎"
+                    , label = text "|>"
                     }
                 ]
 

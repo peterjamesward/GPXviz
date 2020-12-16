@@ -22965,7 +22965,7 @@ var $author$project$Main$markerButton = function (model) {
 						$mdgriffith$elm_ui$Element$Input$button,
 						$author$project$ViewElements$prettyButtonStyles,
 						{
-							label: $mdgriffith$elm_ui$Element$text('◀︎'),
+							label: $mdgriffith$elm_ui$Element$text('<|'),
 							onPress: $elm$core$Maybe$Just($author$project$Msg$MarkerBackOne)
 						}),
 						makeButton('Clear marker'),
@@ -22973,7 +22973,7 @@ var $author$project$Main$markerButton = function (model) {
 						$mdgriffith$elm_ui$Element$Input$button,
 						$author$project$ViewElements$prettyButtonStyles,
 						{
-							label: $mdgriffith$elm_ui$Element$text('►︎'),
+							label: $mdgriffith$elm_ui$Element$text('|>'),
 							onPress: $elm$core$Maybe$Just($author$project$Msg$MarkerForwardOne)
 						})
 					]);
@@ -26668,6 +26668,7 @@ var $author$project$Accordion$accordionRowStyles = function (state) {
 			$mdgriffith$elm_ui$Element$spacing(2),
 			$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
 			$mdgriffith$elm_ui$Element$centerX,
+			$mdgriffith$elm_ui$Element$alignTop,
 			$mdgriffith$elm_ui$Element$Border$widthEach(
 			{bottom: 0, left: 2, right: 2, top: 2}),
 			$mdgriffith$elm_ui$Element$Border$roundEach(
@@ -26998,7 +26999,7 @@ var $author$project$Main$updatedAccordion = function (model) {
 		model.accordion,
 		$author$project$Main$accordionTabs(model));
 };
-var $author$project$About$aboutText = 'Thank you for trying this GPX editor. It is freely provided without warranty.\n\n> _This text updated 2020-12-16_\n\n> **Changes**\n> - New map view added. You may need to click the "Map" tab to force reload the track after any changes.\n> Editing not (yet) possible in the map view. Occasionally, you may need to load the GPX file again - this seems to relate to viewing the map "too quickly".\n> - Had to remove the button icons and replace with plain text (not permanently).\n\nLegal info: mapping services from mapbox; map data from OpenStreetMap.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This will provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
+var $author$project$About$aboutText = 'Thank you for trying this GPX editor. It is freely provided without warranty.\n\n> _This text updated 2020-12-16_\n\n> **Changes**\n> - New map view added. You may need to click the "Map" tab to force reload the track after any changes.\n> Editing not (yet) possible in the map view. Occasionally, you may need to load the GPX file again - this seems to relate to viewing the map "too quickly".\n> - Replaced the nice button icons with plain text (not permanently).\n\nLegal info: mapping services from mapbox; map data from OpenStreetMap.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation** and **Plan** provide four views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This will provide error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that\'s geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
 var $elm$core$Basics$always = F2(
@@ -29390,6 +29391,7 @@ var $author$project$Main$view3D = F2(
 			$mdgriffith$elm_ui$Element$el,
 			_List_fromArray(
 				[
+					$mdgriffith$elm_ui$Element$alignTop,
 					$mdgriffith$elm_ui$Element$width(
 					$mdgriffith$elm_ui$Element$fillPortion(3))
 				]),
@@ -29522,6 +29524,7 @@ var $author$project$Main$viewGenericNew = function (model) {
 							_List_fromArray(
 								[
 									$mdgriffith$elm_ui$Element$alignLeft,
+									$mdgriffith$elm_ui$Element$alignTop,
 									$mdgriffith$elm_ui$Element$moveRight(100)
 								]),
 							_List_fromArray(

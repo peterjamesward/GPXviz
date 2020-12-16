@@ -35,6 +35,7 @@ accordionRowStyles state =
     , spacing 2
     , width fill
     , centerX
+    , alignTop
     , Border.widthEach { left = 2, right = 2, top = 2, bottom = 0 }
     , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
     , Border.color <|
