@@ -19,9 +19,13 @@ var app = Elm.Main.init({
 
 app.ports.mapPort.subscribe(function(msg) {
     switch (msg.Cmd) {
-        case 'Fly':
-            makeTheMap(msg);
-            map.setCenter([msg.lon, msg.lat]);
+        case 'Init':
+            if (!mapCreated) {
+                makeTheMap(msg);
+            } else {
+                map.setCenter([msg.lon, msg.lat]);
+                addLineToMap(msg.data);
+            }
             break;
         case 'Track':
             addLineToMap(msg.data);
@@ -30,22 +34,25 @@ app.ports.mapPort.subscribe(function(msg) {
     }
 });
 
+// Doubt the wisdom of this shadow state.
 var map;
+var mapCreated = false;
+var trackAdded = false;
 
 function makeTheMap(msg) {
-    console.log('setTheMapPosition');
+    console.log('create the map');
     mapboxgl.accessToken = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpbmJpa2U3MTFnYjJ6bXdvYmR5eTZ2aSJ9.LOldXEKf7qhJw9TMyovDGg';
     var element = document.getElementById("map");
-    if(typeof(element) != 'undefined' && element != null)
+    if(typeof(element) != 'undefined' && element != null && !mapCreated)
     {
+        console.log('making the map now');
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/streets-v11',
             center: [msg.lon, msg.lat],
             zoom: msg.zoom
             });
-
-//        map.on('load', addLineToMap(msg.data) );
+        map.on('load', function () { mapCreated = true; } );
 
     };
 };
@@ -54,10 +61,11 @@ function addLineToMap(data) {
     console.log('addline');
     console.log(data);
 
-    if (map.isSourceLoaded('route')) {
+    if (trackAdded) {
         map.removeLayer('route');
         map.removeSource('route');
-    };
+        trackAdded = false;
+    }
 
     map.addSource('route', {
         'type': 'geojson',
@@ -75,36 +83,8 @@ function addLineToMap(data) {
             'line-color': '#888',
             'line-width': 8
         }
-   });
-};
-
-
-
-function moveend() {
-    // console.log('moveend');
-    var coordinate = ol.proj.toLonLat(map.getView().getCenter());
-    app.ports.mapMoved.send({
-        center: {
-            lon: coordinate[0],
-            lat: coordinate[1]
-            },
-        zoom: map.getView().getZoom()
     });
-}
-
-function debounce(func, wait, immediate) {
-	var timeout;
-	return function() {
-		var context = this, args = arguments;
-		var later = function() {
-			timeout = null;
-			if (!immediate) func.apply(context, args);
-		};
-		var callNow = immediate && !timeout;
-		clearTimeout(timeout);
-		timeout = setTimeout(later, wait);
-		if (callNow) func.apply(context, args);
-	};
+    trackAdded = true;
 };
 
 </script>

@@ -8181,7 +8181,7 @@ var $author$project$Main$addTrackToMap = function (model) {
 					[
 						_Utils_Tuple2(
 						'Cmd',
-						$elm$json$Json$Encode$string('Fly')),
+						$elm$json$Json$Encode$string('Init')),
 						_Utils_Tuple2(
 						'lon',
 						$elm$json$Json$Encode$float(0.0)),
@@ -24907,7 +24907,7 @@ var $author$project$Main$positionMap = function (model) {
 					[
 						_Utils_Tuple2(
 						'Cmd',
-						$elm$json$Json$Encode$string('Fly')),
+						$elm$json$Json$Encode$string('Init')),
 						_Utils_Tuple2(
 						'lon',
 						$elm$json$Json$Encode$float(
@@ -24934,7 +24934,7 @@ var $author$project$Main$positionMap = function (model) {
 					[
 						_Utils_Tuple2(
 						'Cmd',
-						$elm$json$Json$Encode$string('Fly')),
+						$elm$json$Json$Encode$string('Init')),
 						_Utils_Tuple2(
 						'lon',
 						$elm$json$Json$Encode$float(0.0)),

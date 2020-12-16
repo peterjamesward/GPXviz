@@ -63,7 +63,6 @@ main =
         , subscriptions = subscriptions
         }
 
-
 positionMap : Model -> Cmd Msg
 positionMap model =
     let
@@ -74,7 +73,7 @@ positionMap model =
         Just box ->
             mapPort <|
                 E.object
-                    [ ( "Cmd", E.string "Fly" )
+                    [ ( "Cmd", E.string "Init" )
                     , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
                     , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
                     , ( "zoom", E.float 12.0 )
@@ -84,7 +83,7 @@ positionMap model =
         Nothing ->
             mapPort <|
                 E.object
-                    [ ( "Cmd", E.string "Fly" )
+                    [ ( "Cmd", E.string "Init" )
                     , ( "lon", E.float 0.0 )
                     , ( "lat", E.float 52.0 )
                     , ( "zoom", E.float 12.0 )
@@ -110,7 +109,7 @@ addTrackToMap model =
         Nothing ->
             mapPort <|
                 E.object
-                    [ ( "Cmd", E.string "Fly" )
+                    [ ( "Cmd", E.string "Init" )
                     , ( "lon", E.float 0.0 )
                     , ( "lat", E.float 52.0 )
                     , ( "zoom", E.float 12.0 )
