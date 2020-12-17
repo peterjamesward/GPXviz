@@ -61,6 +61,7 @@ type Msg
     | DeleteCurrentPoint Int
     | ChangeLoopStart Int
     | ReverseTrack
+    | SetMaxTrackpointSpacing Float
 
 
 type NodeSplitDirection

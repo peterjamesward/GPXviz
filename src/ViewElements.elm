@@ -226,14 +226,36 @@ nudgeButton c horizontalValue verticalValue =
         }
 
 
-splitButton c =
-    button
-        prettyButtonStyles
-        { onPress = Just (SplitRoad c)
-        , label =
-            text <|
-                "Divide this segment\ninto two"
-        }
+splitSegmentOptions c maxSegLength =
+    let
+        splitSlider value =
+            Input.slider
+                commonShortHorizontalSliderStyles
+                { onChange = SetMaxTrackpointSpacing
+                , label =
+                    Input.labelBelow [] <|
+                        text <|
+                            "Maximum track point gap = "
+                                ++ showDecimal2 value
+                                ++ "m"
+                , min = 5.0
+                , max = 50.0
+                , step = Just 5.0
+                , value = value
+                , thumb = Input.defaultThumb
+                }
+    in
+    column [ spacing 10, padding 10 ]
+        [ splitSlider maxSegLength
+        , button
+            prettyButtonStyles
+            { onPress = Just (SplitRoad c)
+            , label =
+                text <|
+                    "Add track points"
+            }
+        ]
+
 
 deleteNodeButton c =
     button

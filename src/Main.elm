@@ -132,6 +132,7 @@ type alias Model =
     , nudgedNodeRoads : List DrawingRoad -- actually only two but this is consistent with smoothedRoads.
     , verticalNudgeValue : Float
     , accordion : List (AccordionEntry Msg)
+    , maxSegmentSplitSize : Float
     }
 
 
@@ -191,6 +192,7 @@ init _ =
       , nudgedNodeRoads = []
       , verticalNudgeValue = 0.0
       , accordion = []
+      , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -774,6 +776,11 @@ update msg model =
             , Cmd.none
             )
 
+        SetMaxTrackpointSpacing f ->
+            ( { model | maxSegmentSplitSize = f }
+            , Cmd.none
+            )
+
 
 nudgeTrackPoint : TrackPoint -> Float -> Float -> Float -> TrackPoint
 nudgeTrackPoint baseTP roadBearing horizontal vertical =
@@ -886,31 +893,99 @@ nudgeNode model node horizontal vertical =
 splitRoad : Model -> Int -> Model
 splitRoad model node =
     let
-        targetRoad =
-            Array.get node model.roadArray
-
         undoMessage =
             "Split at " ++ String.fromInt node
-    in
-    case targetRoad of
-        Nothing ->
-            model
 
-        Just road ->
+        currentSegment =
+            lookupRoad model model.currentNode
+
+        markedSegment =
+            lookupRoad model model.markedNode
+
+        newPointsIn segment =
             let
-                insertedTrackPoint =
-                    interpolateSegment 0.5 road.startsAt.trackPoint road.endsAt.trackPoint
+                trackPointsNeeded =
+                    -- Including the final one.
+                    -- Replacing this should make it easier for the multiple segment case.
+                    (ceiling <| segment.length / model.maxSegmentSplitSize)
             in
+            List.map
+                (\i ->
+                    interpolateSegment
+                        (toFloat i / toFloat trackPointsNeeded)
+                        segment.startsAt.trackPoint
+                        segment.endsAt.trackPoint
+                )
+                (List.range 1 trackPointsNeeded)
+
+        updatedTrackPointsForSegment seg m =
+            List.take (seg.index + 1) m.trackPoints
+                ++ newPointsIn seg
+                ++ List.drop (seg.index + 1) m.trackPoints
+
+        totalTrackPointsBefore =
+            List.length model.trackPoints
+    in
+    case ( currentSegment, markedSegment ) of
+        ( Just road, Nothing ) ->
+            -- Current segment only (== legacy mode!)
             addToUndoStack undoMessage model
                 |> (\m ->
                         { m
                             | trackPoints =
                                 reindexTrackpoints <|
-                                    List.take (node + 1) model.trackPoints
-                                        ++ [ insertedTrackPoint ]
-                                        ++ List.drop (node + 1) model.trackPoints
+                                    updatedTrackPointsForSegment road m
                         }
                    )
+
+        ( Just road1, Just road2 ) ->
+            -- Applies to all segments *between* the flags
+            -- Lazy way is to just map with the single segment case.
+            let
+                ( firstSegment, lastSegment ) =
+                    ( min road1.index road2.index
+                    , max road1.index road2.index
+                    )
+
+                segmentsToInterpolate =
+                    model.roads |> List.take lastSegment |> List.drop firstSegment
+
+                allNewTrackPoints =
+                    List.concatMap
+                        newPointsIn
+                        segmentsToInterpolate
+
+                precedingTrackPoints =
+                    List.take (firstSegment + 1) model.trackPoints
+
+                subsequentTrackPoints =
+                    List.drop (lastSegment + 1) model.trackPoints
+
+                newTrackPointList =
+                    precedingTrackPoints ++ allNewTrackPoints ++ subsequentTrackPoints
+            in
+            addToUndoStack undoMessage model
+                |> (\m3 ->
+                        -- Adjust marked node positions.
+                        { m3
+                            | trackPoints = reindexTrackpoints newTrackPointList
+                            , currentNode =
+                                if road1.index > road2.index then
+                                    Just (road1.index + List.length newTrackPointList - totalTrackPointsBefore)
+
+                                else
+                                    m3.currentNode
+                            , markedNode =
+                                if road2.index > road1.index then
+                                    Just (road2.index + List.length newTrackPointList - totalTrackPointsBefore)
+
+                                else
+                                    m3.markedNode
+                        }
+                   )
+
+        _ ->
+            model
 
 
 closeTheLoop : Model -> Model
@@ -2748,7 +2823,7 @@ markerButton model =
 
 
 undoButton model =
-    column [ spacing 5 ]
+    column [ spacing 5, Border.width 1 ]
         [ button
             prettyButtonStyles
             { onPress =
@@ -2838,7 +2913,8 @@ viewTrackPointTools model =
         Just c ->
             column [ spacing 10, centerX ] <|
                 [ insertNodeOptionsBox c
-                , splitButton c
+                , markerButton model
+                , splitSegmentOptions c model.maxSegmentSplitSize
                 , deleteNodeButton c
                 , undoButton model
                 ]
@@ -2848,22 +2924,17 @@ viewTrackPointTools model =
 
 
 insertNodeOptionsBox c =
-    column
-        [ spacing 10
-        , padding 5
-        ]
-        [ row [ spacing 10 ]
-            [ button
-                prettyButtonStyles
-                { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
-                , label = text "Insert a node\nafter this one"
-                }
-            , button
-                prettyButtonStyles
-                { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
-                , label = text "Insert a node\nbefore this one"
-                }
-            ]
+    row [ spacing 10 ]
+        [ button
+            prettyButtonStyles
+            { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
+            , label = text "Insert a node\nafter this one"
+            }
+        , button
+            prettyButtonStyles
+            { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
+            , label = text "Insert a node\nbefore this one"
+            }
         ]
 
 

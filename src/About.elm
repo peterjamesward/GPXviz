@@ -10,10 +10,10 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-16_
+> _This text updated 2020-12-17_
 
 > **Changes**
-> - Non-interactive map view.
+> - Track Points allows you to intersperse new (properly interpolated) track points across a range of track bounded by the orange and purple markers. Use the slider to set a _maximum_ distance between track points. This does not mean they will necessarily all have that exact spacing.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
