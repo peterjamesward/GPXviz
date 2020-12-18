@@ -3,6 +3,7 @@ module Msg exposing (..)
 import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
+import Json.Encode as E
 import Time
 import Utils exposing (Point)
 import ViewTypes exposing (ViewingMode)
@@ -62,6 +63,7 @@ type Msg
     | ChangeLoopStart Int
     | ReverseTrack
     | SetMaxTrackpointSpacing Float
+    | MapMessage E.Value
 
 
 type NodeSplitDirection

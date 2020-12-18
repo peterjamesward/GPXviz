@@ -27,11 +27,11 @@ Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan
 
 **Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.
 
-**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a linger section of road by dropping and moving the marker (which appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".
+**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".
 
 **Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that's not enough.
 
-**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (that's geometry, right there). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can't get a nice looking bend, it may be worth adding some more track points (see below) and trying again.
+**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (thanks, Euclid). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can't get a nice looking bend, it may be worth adding some more track points (see below) and trying again.
 
 **Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.
 

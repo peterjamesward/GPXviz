@@ -1,0 +1,111 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Elm + Websockets</title>
+    <script type="text/javascript" src="../Main.js"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.0.0/mapbox-gl.css' rel='stylesheet' />
+</head>
+
+<body>
+<div id="myapp"></div>
+</body>
+
+<script type="text/javascript">
+
+// Start the Elm application.
+var app = Elm.Main.init({
+    node: document.getElementById('myapp')
+});
+
+app.ports.mapPort.subscribe(incomingMessageHandler);
+
+// We use port messages to synchronise our state here with Elm.
+var map;
+var isMapCreated = false;
+var trackAdded = false;
+
+function incomingMessageHandler(msg) {
+    console.log('behold, a message from the land of Elm');
+    switch (msg.Cmd) {
+        case 'Init':
+            if (!isMapCreated) {
+                makeTheMap(msg);
+            }
+            break;
+        case 'Track':
+            if (mapCreated) {
+                addLineToMap(msg.data);
+                map.setCenter([msg.lon, msg.lat]);
+            }
+            break;
+    }
+};
+
+function makeTheMap(msg) {
+    console.log('create the map');
+
+    mapboxgl.accessToken = msg.token;
+    var element = document.getElementById("map");
+    if(typeof(element) != 'undefined' && element != null && !isMapCreated)
+    {
+        console.log('making the map now');
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [msg.lon, msg.lat],
+            zoom: msg.zoom
+            });
+        map.on('load', function () {
+                console.log('tell Elm the map is ready');
+                isMapCreated = true;
+                app.ports.messageReceiver.send({ 'msg' : 'map ready' });
+            }
+        );
+    } else {
+        //No 'map' node, we have to keep checking.
+        console.log('no map node');
+        app.ports.messageReceiver.send({ 'msg' : 'no node' });
+    }
+};
+
+
+function addLineToMap(data) {
+    console.log('addline');
+    console.log(data);
+
+    if (trackAdded) {
+        map.removeLayer('route');
+        map.removeSource('route');
+        trackAdded = false;
+    }
+
+    map.addSource('route', {
+        'type': 'geojson',
+        'data': data
+        });
+    map.addLayer({
+        'id': 'route',
+        'type': 'line',
+        'source': 'route',
+        'layout': {
+        'line-join': 'round',
+        'line-cap': 'round'
+        },
+        'paint': {
+            'line-color': '#888',
+            'line-width': 8
+        }
+    });
+    trackAdded = true;
+};
+
+//socket.addEventListener("message", function(event) {
+//   app.ports.messageReceiver.send(event.data);
+//});
+
+</script>
+
+</html>

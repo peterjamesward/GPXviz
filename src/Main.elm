@@ -21,9 +21,11 @@ import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
+import Html.Attributes exposing (id)
 import Iso8601
 import Length
 import List exposing (drop, take)
+import MapController exposing (MapState(..), mapPort, messageReceiver)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -133,6 +135,7 @@ type alias Model =
     , verticalNudgeValue : Float
     , accordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
+    , mapInfo : Maybe MapController.MapInfo
     }
 
 
@@ -193,6 +196,7 @@ init _ =
       , verticalNudgeValue = 0.0
       , accordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
+      , mapInfo = Nothing
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -246,6 +250,10 @@ genericAccordion model =
     , { label = "Bend problems"
       , state = Contracted
       , content = viewBearingChanges model
+      }
+    , { label = "Map Info"
+      , state = Contracted
+      , content = MapController.viewMapInfo model.mapInfo
       }
     ]
 
@@ -313,6 +321,20 @@ update msg model =
             model.displayOptions
     in
     case msg of
+        MapMessage jsonMsg ->
+            case model.mapInfo of
+                Just mapInfo ->
+                    let
+                        ( newInfo, cmd ) =
+                            MapController.processMapMessage mapInfo jsonMsg
+                    in
+                    ( { model | mapInfo = Just newInfo }
+                    , cmd
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         Tick newTime ->
             ( { model | time = newTime }
                 |> advanceFlythrough newTime
@@ -421,9 +443,30 @@ update msg model =
             )
 
         ChooseViewMode mode ->
-            ( { model | viewingMode = mode }
+            let
+                mapInfo =
+                    case ( model.trackPointBox, mode ) of
+                        ( Just box, MapView ) ->
+                            Just
+                                { mapState = WaitingForNode
+                                , box = box
+                                , points = model.trackPoints
+                                }
+
+                        _ ->
+                            Nothing
+            in
+            ( { model
+                | viewingMode = mode
+                , mapInfo = mapInfo
+              }
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , case mapInfo of
+                Just info ->
+                    MapController.createMap info
+
+                Nothing ->
+                    Cmd.none
             )
 
         ZoomLevelOverview level ->
@@ -782,6 +825,7 @@ update msg model =
             )
 
 
+
 nudgeTrackPoint : TrackPoint -> Float -> Float -> Float -> TrackPoint
 nudgeTrackPoint baseTP roadBearing horizontal vertical =
     let
@@ -907,7 +951,7 @@ splitRoad model node =
                 trackPointsNeeded =
                     -- Including the final one.
                     -- Replacing this should make it easier for the multiple segment case.
-                    (ceiling <| segment.length / model.maxSegmentSplitSize)
+                    ceiling <| segment.length / model.maxSegmentSplitSize
             in
             List.map
                 (\i ->
@@ -2028,60 +2072,73 @@ view3D scale model =
             viewAboutText
 
         InputErrorView ->
-            --TODO: Some errors would be nice.
             viewInputError model
 
         PlanView ->
             viewPlanView scale model
 
         MapView ->
-            viewMap model
-
-
-viewMap : Model -> Element Msg
-viewMap model =
-    -- Use MapQuest static maps API.
-    -- Then work out how to project it.
-    let
-        {-
-           "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/[-77.043686,38.892035,-77.028923,38.904192]/400x400?access_token=pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
-        -}
-        baseUrl =
-            "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/"
-
-        mapboxAPIKey =
-            "pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
-
-        url box =
-            let
-                { minX, maxX, minY, maxY, minZ, maxZ } =
-                    BoundingBox3d.extrema box
-            in
-            baseUrl
-                ++ "["
-                ++ decimals6 (Length.inMeters minX)
-                ++ ","
-                ++ decimals6 (Length.inMeters minY)
-                ++ ","
-                ++ decimals6 (Length.inMeters maxX)
-                ++ ","
-                ++ decimals6 (Length.inMeters maxY)
-                ++ "]/800x500@2x?access_token="
-                ++ mapboxAPIKey
-    in
-    case ( model.trackPointBox, model.nodeBox ) of
-        ( Just box, Just scale ) ->
-            image
+            -- We merely create the placeholder, the work is done by messages through the map port.
+            el
                 [ width (px 800)
                 , height (px 500)
-                , inFront <| viewCentredPlanViewForMap scale model
+                , moveRight 80
+                , alignLeft
+                , alignTop
+                , Border.width 1
+                , Border.color <| rgb255 200 200 120
+                , htmlAttribute (id "map")
                 ]
-                { src = url box
-                , description = "Map"
-                }
+                none
 
-        _ ->
-            text "Sorry, no bounding box."
+
+
+{-
+   viewMap : Model -> Element Msg
+   viewMap model =
+       -- Use MapQuest static maps API.
+       -- Then work out how to project it.
+       let
+           {-
+              "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/[-77.043686,38.892035,-77.028923,38.904192]/400x400?access_token=pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
+           -}
+           baseUrl =
+               "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/"
+
+           mapboxAPIKey =
+               "pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
+
+           url box =
+               let
+                   { minX, maxX, minY, maxY, minZ, maxZ } =
+                       BoundingBox3d.extrema box
+               in
+               baseUrl
+                   ++ "["
+                   ++ decimals6 (Length.inMeters minX)
+                   ++ ","
+                   ++ decimals6 (Length.inMeters minY)
+                   ++ ","
+                   ++ decimals6 (Length.inMeters maxX)
+                   ++ ","
+                   ++ decimals6 (Length.inMeters maxY)
+                   ++ "]/800x500@2x?access_token="
+                   ++ mapboxAPIKey
+       in
+       case ( model.trackPointBox, model.nodeBox ) of
+           ( Just box, Just scale ) ->
+               image
+                   [ width (px 800)
+                   , height (px 500)
+                   , inFront <| viewCentredPlanViewForMap scale model
+                   ]
+                   { src = url box
+                   , description = "Map"
+                   }
+
+           _ ->
+               text "Sorry, no bounding box."
+-}
 
 
 viewInputError : Model -> Element Msg
@@ -3153,4 +3210,7 @@ viewRouteProfile model road =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every 10 Tick
+    Sub.batch
+        [ messageReceiver MapMessage
+        , Time.every 10 Tick
+        ]

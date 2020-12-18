@@ -29,7 +29,7 @@ accordionMenuStyles =
     ]
 
 
-accordionRowStyles state =
+accordionTabStyles state =
     [ padding 10
     , spacing 2
     , width fill
@@ -88,7 +88,7 @@ accordionView entries message =
     let
         entryButton : AccordionEntry msg -> Element msg
         entryButton entry =
-            button (accordionRowStyles entry.state)
+            button (accordionTabStyles entry.state)
                 { onPress = Just (message entry)
                 , label = text entry.label
                 }

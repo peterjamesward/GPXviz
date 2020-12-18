@@ -1,6 +1,7 @@
 module TrackPoint exposing (..)
 
 import Element exposing (..)
+import Json.Encode as E
 import Msg exposing (..)
 import Regex
 import Utils exposing (asRegex)
@@ -98,3 +99,26 @@ parseTrackPoints xml =
         elevations
         (List.range 0 (List.length latitudes))
         |> List.filterMap identity
+
+
+trackToJSON : List TrackPoint -> E.Value
+trackToJSON tps =
+    -- JSON suitable for Mapbox API.
+    let
+        geometry =
+            E.object
+                [ ( "type", E.string "LineString" )
+                , ( "coordinates", E.list identity coordinates )
+                ]
+
+        coordinates =
+            List.map latLonPair tps
+
+        latLonPair tp =
+            E.list E.float [ tp.lon, tp.lat ]
+    in
+    E.object
+        [ ( "type", E.string "Feature" )
+        , ( "properties", E.object [] )
+        , ( "geometry", geometry )
+        ]
