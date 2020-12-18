@@ -36,7 +36,7 @@ function incomingMessageHandler(msg) {
             }
             break;
         case 'Track':
-            if (mapCreated) {
+            if (isMapCreated) {
                 addLineToMap(msg.data);
                 map.setCenter([msg.lon, msg.lat]);
             }
@@ -73,7 +73,7 @@ function makeTheMap(msg) {
 
 
 function addLineToMap(data) {
-    console.log('addline');
+    console.log('add line to map');
     console.log(data);
 
     if (trackAdded) {
