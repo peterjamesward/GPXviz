@@ -7986,6 +7986,7 @@ var $author$project$Msg$GpxLoaded = function (a) {
 var $author$project$Msg$GpxSelected = function (a) {
 	return {$: 'GpxSelected', a: a};
 };
+var $author$project$MapController$MapStopped = {$: 'MapStopped'};
 var $author$project$Accordion$Contracted = {$: 'Contracted'};
 var $author$project$Accordion$Disabled = {$: 'Disabled'};
 var $author$project$Accordion$Expanded = {$: 'Expanded'};
@@ -21085,6 +21086,16 @@ var $mdgriffith$elm_ui$Element$Border$shadow = function (almostShade) {
 			'box-shadow',
 			$mdgriffith$elm_ui$Internal$Model$formatBoxShadow(shade)));
 };
+var $mdgriffith$elm_ui$Internal$Model$FontSize = function (a) {
+	return {$: 'FontSize', a: a};
+};
+var $mdgriffith$elm_ui$Internal$Flag$fontSize = $mdgriffith$elm_ui$Internal$Flag$flag(4);
+var $mdgriffith$elm_ui$Element$Font$size = function (i) {
+	return A2(
+		$mdgriffith$elm_ui$Internal$Model$StyleClass,
+		$mdgriffith$elm_ui$Internal$Flag$fontSize,
+		$mdgriffith$elm_ui$Internal$Model$FontSize(i));
+};
 var $author$project$ViewElements$prettyButtonStyles = _List_fromArray(
 	[
 		$mdgriffith$elm_ui$Element$padding(10),
@@ -21103,6 +21114,7 @@ var $author$project$ViewElements$prettyButtonStyles = _List_fromArray(
 		A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
 		$mdgriffith$elm_ui$Element$Font$color(
 		A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255)),
+		$mdgriffith$elm_ui$Element$Font$size(16),
 		$mdgriffith$elm_ui$Element$mouseOver(
 		_List_fromArray(
 			[
@@ -23263,27 +23275,67 @@ var $author$project$Main$viewLoopTools = function (model) {
 			return $mdgriffith$elm_ui$Element$text('Unable to determine current node.');
 		}());
 };
+var $author$project$MapController$decodeState = function (state) {
+	return $mdgriffith$elm_ui$Element$text(
+		function () {
+			switch (state.$) {
+				case 'WaitingForNode':
+					return 'Waiting for node';
+				case 'WaitingForMapLoad':
+					return 'Waiting for map to load';
+				case 'MapLoaded':
+					return 'Map loaded';
+				case 'TrackLoaded':
+					return 'Track loaded';
+				case 'MapStopping':
+					return 'Stopping';
+				default:
+					return 'Stopped';
+			}
+		}());
+};
 var $author$project$MapController$viewMapInfo = function (mapInfo) {
 	if (mapInfo.$ === 'Just') {
 		var info = mapInfo.a;
-		return $mdgriffith$elm_ui$Element$text(
-			function () {
-				var _v1 = info.mapState;
-				switch (_v1.$) {
-					case 'WaitingForNode':
-						return 'Waiting for node';
-					case 'WaitingForMapLoad':
-						return 'Waiting for map to load';
-					case 'MapLoaded':
-						return 'Map loaded';
-					case 'TrackLoaded':
-						return 'Track loaded';
-					case 'MapStopping':
-						return 'Stopping';
-					default:
-						return 'Stopped';
-				}
-			}());
+		return A2(
+			$mdgriffith$elm_ui$Element$column,
+			_List_fromArray(
+				[
+					$mdgriffith$elm_ui$Element$padding(10),
+					$mdgriffith$elm_ui$Element$spacing(5),
+					$mdgriffith$elm_ui$Element$centerX
+				]),
+			_List_fromArray(
+				[
+					$author$project$MapController$decodeState(info.mapState),
+					A2(
+					$mdgriffith$elm_ui$Element$row,
+					_List_Nil,
+					_List_fromArray(
+						[
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text('Longitude '),
+									$mdgriffith$elm_ui$Element$text('Latitude '),
+									$mdgriffith$elm_ui$Element$text('Zoom ')
+								])),
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal6(info.centreLon)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal6(info.centreLat)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(info.mapZoom))
+								]))
+						]))
+				]));
 	} else {
 		return $mdgriffith$elm_ui$Element$text('There is no map information');
 	}
@@ -23680,7 +23732,8 @@ var $author$project$ViewElements$radioButton = F3(
 					$mdgriffith$elm_ui$Element$Background$color(
 					_Utils_eq(state, $mdgriffith$elm_ui$Element$Input$Selected) ? A3($mdgriffith$elm_ui$Element$rgb255, 50, 150, 50) : A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
 					$mdgriffith$elm_ui$Element$Font$color(
-					A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255))
+					A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255)),
+					$mdgriffith$elm_ui$Element$Font$size(16)
 				]),
 			A2(
 				$mdgriffith$elm_ui$Element$el,
@@ -23994,16 +24047,6 @@ var $mdgriffith$elm_ui$Element$Input$radioHelper = F3(
 			optionArea);
 	});
 var $mdgriffith$elm_ui$Element$Input$radioRow = $mdgriffith$elm_ui$Element$Input$radioHelper($mdgriffith$elm_ui$Element$Input$Row);
-var $mdgriffith$elm_ui$Internal$Model$FontSize = function (a) {
-	return {$: 'FontSize', a: a};
-};
-var $mdgriffith$elm_ui$Internal$Flag$fontSize = $mdgriffith$elm_ui$Internal$Flag$flag(4);
-var $mdgriffith$elm_ui$Element$Font$size = function (i) {
-	return A2(
-		$mdgriffith$elm_ui$Internal$Model$StyleClass,
-		$mdgriffith$elm_ui$Internal$Flag$fontSize,
-		$mdgriffith$elm_ui$Internal$Model$FontSize(i));
-};
 var $author$project$Main$viewOptions = function (model) {
 	return A2(
 		$mdgriffith$elm_ui$Element$column,
@@ -24925,7 +24968,6 @@ var $author$project$TrackPoint$trackToJSON = function (tps) {
 			]));
 };
 var $author$project$MapController$addTrackToMap = function (info) {
-	var centre = $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(info.box);
 	return $author$project$MapController$mapPort(
 		$elm$json$Json$Encode$object(
 			_List_fromArray(
@@ -24935,17 +24977,13 @@ var $author$project$MapController$addTrackToMap = function (info) {
 					$elm$json$Json$Encode$string('Track')),
 					_Utils_Tuple2(
 					'lon',
-					$elm$json$Json$Encode$float(
-						$ianmackenzie$elm_units$Length$inMeters(
-							$ianmackenzie$elm_geometry$Point3d$xCoordinate(centre)))),
+					$elm$json$Json$Encode$float(info.centreLon)),
 					_Utils_Tuple2(
 					'lat',
-					$elm$json$Json$Encode$float(
-						$ianmackenzie$elm_units$Length$inMeters(
-							$ianmackenzie$elm_geometry$Point3d$yCoordinate(centre)))),
+					$elm$json$Json$Encode$float(info.centreLat)),
 					_Utils_Tuple2(
 					'zoom',
-					$elm$json$Json$Encode$float(12.0)),
+					$elm$json$Json$Encode$float(info.mapZoom)),
 					_Utils_Tuple2(
 					'data',
 					$author$project$TrackPoint$trackToJSON(info.points))
@@ -24953,7 +24991,6 @@ var $author$project$MapController$addTrackToMap = function (info) {
 };
 var $author$project$MapboxKey$mapboxKey = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpdWswb3dsMm02bDMzcDMyNGw1bmh5aSJ9.Fk3ibin0PpeEGXlGsctP1g';
 var $author$project$MapController$createMap = function (info) {
-	var centre = $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(info.box);
 	return $author$project$MapController$mapPort(
 		$elm$json$Json$Encode$object(
 			_List_fromArray(
@@ -24966,25 +25003,22 @@ var $author$project$MapController$createMap = function (info) {
 					$elm$json$Json$Encode$string($author$project$MapboxKey$mapboxKey)),
 					_Utils_Tuple2(
 					'lon',
-					$elm$json$Json$Encode$float(
-						$ianmackenzie$elm_units$Length$inMeters(
-							$ianmackenzie$elm_geometry$Point3d$xCoordinate(centre)))),
+					$elm$json$Json$Encode$float(info.centreLon)),
 					_Utils_Tuple2(
 					'lat',
-					$elm$json$Json$Encode$float(
-						$ianmackenzie$elm_units$Length$inMeters(
-							$ianmackenzie$elm_geometry$Point3d$yCoordinate(centre)))),
+					$elm$json$Json$Encode$float(info.centreLat)),
 					_Utils_Tuple2(
 					'zoom',
-					$elm$json$Json$Encode$float(12.0))
+					$elm$json$Json$Encode$float(info.mapZoom))
 				])));
 };
 var $elm$json$Json$Decode$decodeValue = _Json_run;
+var $elm$json$Json$Decode$float = _Json_decodeFloat;
 var $author$project$MapController$msgDecoder = A2($elm$json$Json$Decode$field, 'msg', $elm$json$Json$Decode$string);
 var $author$project$MapController$processMapMessage = F2(
 	function (info, json) {
 		var msg = A2($elm$json$Json$Decode$decodeValue, $author$project$MapController$msgDecoder, json);
-		_v0$2:
+		_v0$3:
 		while (true) {
 			if (msg.$ === 'Ok') {
 				switch (msg.a) {
@@ -25000,11 +25034,37 @@ var $author$project$MapController$processMapMessage = F2(
 								info,
 								{mapState: $author$project$MapController$MapLoaded}),
 							$author$project$MapController$addTrackToMap(info));
+					case 'move':
+						var zoom = A2(
+							$elm$json$Json$Decode$decodeValue,
+							A2($elm$json$Json$Decode$field, 'zoom', $elm$json$Json$Decode$float),
+							json);
+						var lon = A2(
+							$elm$json$Json$Decode$decodeValue,
+							A2($elm$json$Json$Decode$field, 'lon', $elm$json$Json$Decode$float),
+							json);
+						var lat = A2(
+							$elm$json$Json$Decode$decodeValue,
+							A2($elm$json$Json$Decode$field, 'lat', $elm$json$Json$Decode$float),
+							json);
+						var _v1 = _Utils_Tuple3(lat, lon, zoom);
+						if (((_v1.a.$ === 'Ok') && (_v1.b.$ === 'Ok')) && (_v1.c.$ === 'Ok')) {
+							var lat1 = _v1.a.a;
+							var lon1 = _v1.b.a;
+							var zoom1 = _v1.c.a;
+							return _Utils_Tuple2(
+								_Utils_update(
+									info,
+									{centreLat: lat1, centreLon: lon1, mapZoom: zoom1}),
+								$elm$core$Platform$Cmd$none);
+						} else {
+							return _Utils_Tuple2(info, $elm$core$Platform$Cmd$none);
+						}
 					default:
-						break _v0$2;
+						break _v0$3;
 				}
 			} else {
-				break _v0$2;
+				break _v0$3;
 			}
 		}
 		return _Utils_Tuple2(info, $elm$core$Platform$Cmd$none);
@@ -25441,7 +25501,17 @@ var $author$project$MapController$removeMap = $author$project$MapController$mapP
 var $author$project$Main$switchViewMode = F2(
 	function (model, mode) {
 		var newMapInfo = function (box) {
-			return {box: box, mapState: $author$project$MapController$WaitingForNode, nextView: $author$project$ViewTypes$MapView, points: model.trackPoints};
+			return {
+				box: box,
+				centreLat: $ianmackenzie$elm_units$Length$inMeters(
+					$ianmackenzie$elm_geometry$BoundingBox3d$midY(box)),
+				centreLon: $ianmackenzie$elm_units$Length$inMeters(
+					$ianmackenzie$elm_geometry$BoundingBox3d$midX(box)),
+				mapState: $author$project$MapController$WaitingForNode,
+				mapZoom: 12.0,
+				nextView: $author$project$ViewTypes$MapView,
+				points: model.trackPoints
+			};
 		};
 		var _v0 = _Utils_Tuple3(model.viewingMode, mode, model.trackPointBox);
 		if (_v0.a.$ === 'MapView') {
@@ -25459,18 +25529,17 @@ var $author$project$Main$switchViewMode = F2(
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
 			} else {
-				var _v5 = _v0.a;
-				var changedMapInfo = {
-					box: $ianmackenzie$elm_geometry$BoundingBox3d$singleton($ianmackenzie$elm_geometry$Point3d$origin),
-					mapState: $author$project$MapController$MapStopping,
-					nextView: mode,
-					points: _List_Nil
+				var _v6 = _v0.a;
+				var changedMapInfo = function (info) {
+					return _Utils_update(
+						info,
+						{mapState: $author$project$MapController$MapStopping, nextView: mode});
 				};
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{
-							mapInfo: $elm$core$Maybe$Just(changedMapInfo)
+							mapInfo: A2($elm$core$Maybe$map, changedMapInfo, model.mapInfo)
 						}),
 					$author$project$MapController$removeMap);
 			}
@@ -25478,17 +25547,27 @@ var $author$project$Main$switchViewMode = F2(
 			if ((_v0.b.$ === 'MapView') && (_v0.c.$ === 'Just')) {
 				var _v4 = _v0.b;
 				var box = _v0.c.a;
-				return _Utils_Tuple2(
-					$author$project$Main$deriveVaryingVisualEntities(
+				var _v5 = model.mapInfo;
+				if (_v5.$ === 'Just') {
+					var mapInfo = _v5.a;
+					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{
-								mapInfo: $elm$core$Maybe$Just(
-									newMapInfo(box)),
-								viewingMode: mode
-							})),
-					$author$project$MapController$createMap(
-						newMapInfo(box)));
+							{viewingMode: mode}),
+						$author$project$MapController$createMap(mapInfo));
+				} else {
+					return _Utils_Tuple2(
+						$author$project$Main$deriveVaryingVisualEntities(
+							_Utils_update(
+								model,
+								{
+									mapInfo: $elm$core$Maybe$Just(
+										newMapInfo(box)),
+									viewingMode: mode
+								})),
+						$author$project$MapController$createMap(
+							newMapInfo(box)));
+				}
 			} else {
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -26343,10 +26422,16 @@ var $author$project$Main$update = F2(
 				var _v3 = model.mapInfo;
 				if (_v3.$ === 'Just') {
 					var info = _v3.a;
+					var newInfo = _Utils_update(
+						info,
+						{mapState: $author$project$MapController$MapStopped});
 					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{mapInfo: $elm$core$Maybe$Nothing, viewingMode: info.nextView}),
+							{
+								mapInfo: $elm$core$Maybe$Just(newInfo),
+								viewingMode: info.nextView
+							}),
 						$elm$core$Platform$Cmd$none);
 				} else {
 					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
@@ -26787,7 +26872,7 @@ var $author$project$Accordion$accordionActiveItem = function (entries) {
 };
 var $author$project$Accordion$accordionMenuStyles = _List_fromArray(
 	[
-		$mdgriffith$elm_ui$Element$padding(10),
+		$mdgriffith$elm_ui$Element$padding(0),
 		$mdgriffith$elm_ui$Element$alignTop,
 		$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill)
 	]);
@@ -26816,7 +26901,8 @@ var $author$project$Accordion$accordionTabStyles = function (state) {
 			_Utils_eq(state, $author$project$Accordion$Expanded) ? A3($mdgriffith$elm_ui$Element$rgb255, 50, 150, 50) : A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
 			$mdgriffith$elm_ui$Element$Font$color(
 			A3($mdgriffith$elm_ui$Element$rgb255, 255, 255, 255)),
-			$mdgriffith$elm_ui$Element$Font$center
+			$mdgriffith$elm_ui$Element$Font$center,
+			$mdgriffith$elm_ui$Element$Font$size(16)
 		]);
 };
 var $author$project$Accordion$accordionView = F2(
@@ -28780,7 +28866,6 @@ var $mpizenberg$elm_pointer_events$Html$Events$Extra$Pointer$ContactDetails = F5
 	function (width, height, pressure, tiltX, tiltY) {
 		return {height: height, pressure: pressure, tiltX: tiltX, tiltY: tiltY, width: width};
 	});
-var $elm$json$Json$Decode$float = _Json_decodeFloat;
 var $elm$json$Json$Decode$map5 = _Json_map5;
 var $mpizenberg$elm_pointer_events$Html$Events$Extra$Pointer$contactDetailsDecoder = A6(
 	$elm$json$Json$Decode$map5,
@@ -29570,7 +29655,7 @@ var $author$project$Main$view3D = F2(
 					_List_fromArray(
 						[
 							$mdgriffith$elm_ui$Element$width(
-							$mdgriffith$elm_ui$Element$px(800)),
+							$mdgriffith$elm_ui$Element$px(880)),
 							$mdgriffith$elm_ui$Element$height(
 							$mdgriffith$elm_ui$Element$px(500)),
 							$mdgriffith$elm_ui$Element$alignLeft,
@@ -29645,7 +29730,8 @@ var $author$project$Main$viewGenericNew = function (model) {
 					[
 						$mdgriffith$elm_ui$Element$width($mdgriffith$elm_ui$Element$fill),
 						$mdgriffith$elm_ui$Element$padding(20),
-						$mdgriffith$elm_ui$Element$spacing(20)
+						$mdgriffith$elm_ui$Element$spacing(20),
+						$mdgriffith$elm_ui$Element$Font$size(16)
 					]),
 				A2(
 					$mdgriffith$elm_ui$Element$column,

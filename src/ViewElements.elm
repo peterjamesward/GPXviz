@@ -85,6 +85,7 @@ radioButton position label state =
             else
                 rgb255 114 159 207
         , Font.color <| rgb255 0xFF 0xFF 0xFF
+        , Font.size 16
         ]
     <|
         el [ centerX, centerY ] <|
@@ -127,6 +128,7 @@ prettyButtonStyles =
     , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
     , Background.color <| rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
+    , Font.size 16
     , mouseOver
         [ Background.color <| rgb255 0xFF 0xFF 0xFF, Font.color <| rgb255 0 0 0 ]
     , focused

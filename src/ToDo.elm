@@ -1,13 +1,12 @@
 module ToDo exposing (..)
 
---IDEA: Map on sea level plane.
+--TODO: Nudge node could easily work on selection. (John Bytheway)
 
-{- See
-        https://earth-info.nga.mil/GandG/wgs84/web_mercator/(U)%20NGA_SIG_0011_1.0.0_WEBMERC.pdf
--}
+--TODO: Track map centre and zoom; persist over tab change.
 
--- Not possible to map an image to elm-3d-scene. Could use transparent background but
--- then care needed to synchronise map zoom and position. Doable but is it worth it?
+--TODO: Add smoothedBend and markers to map, allowing editing (!).
+
+--TODO: Understand Jason Hurst's UI feedback.
 
 --TODO: Feat? Clicking & Dragging on Plan & Elevation views.
 --Ian MacKenzie (himself) says Camera3d.ray will be useful here!

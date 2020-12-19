@@ -451,9 +451,13 @@ update msg model =
         MapRemoved _ ->
             case model.mapInfo of
                 Just info ->
+                    let
+                        newInfo =
+                            { info | mapState = MapStopped }
+                    in
                     ( { model
                         | viewingMode = info.nextView
-                        , mapInfo = Nothing
+                        , mapInfo = Just newInfo
                       }
                     , Cmd.none
                     )
@@ -828,6 +832,9 @@ switchViewMode model mode =
             , box = box
             , points = model.trackPoints
             , nextView = MapView
+            , centreLon = Length.inMeters <| BoundingBox3d.midX box
+            , centreLat = Length.inMeters <| BoundingBox3d.midY box
+            , mapZoom = 12.0
             }
     in
     case ( model.viewingMode, mode, model.trackPointBox ) of
@@ -844,26 +851,34 @@ switchViewMode model mode =
                     ( model, Cmd.none )
 
         ( _, MapView, Just box ) ->
-            -- Switch to map view, need to wait for DOM node before creating map.
-            ( { model
-                | viewingMode = mode
-                , mapInfo = Just (newMapInfo box)
-              }
-                |> deriveVaryingVisualEntities
-            , MapController.createMap (newMapInfo box)
-            )
+            -- Switch to map view
+            case model.mapInfo of
+                Just mapInfo ->
+                    -- We have a residual map state, we need to restore the map in correct position.
+                    ( { model | viewingMode = mode }
+                    , MapController.createMap mapInfo
+                    )
+
+                Nothing ->
+                    -- If the map state is Stopped, need to wait for DOM node before creating map.
+                    ( { model
+                        | viewingMode = mode
+                        , mapInfo = Just (newMapInfo box)
+                      }
+                        |> deriveVaryingVisualEntities
+                    , MapController.createMap (newMapInfo box)
+                    )
 
         ( MapView, _, _ ) ->
             -- Request map removal, do not destroy the DOM node yet.
             let
-                changedMapInfo =
-                    { mapState = MapStopping
-                    , nextView = mode
-                    , points = []
-                    , box = BoundingBox3d.singleton Point3d.origin
+                changedMapInfo info =
+                    { info
+                        | mapState = MapStopping
+                        , nextView = mode
                     }
             in
-            ( { model | mapInfo = Just changedMapInfo }
+            ( { model | mapInfo = Maybe.map changedMapInfo model.mapInfo }
             , MapController.removeMap
             )
 
@@ -1785,9 +1800,11 @@ resetViewSettings model =
         newMapInfo info =
             -- If route has changed, make sure mapinfo is up to date.
             { info
-                | box = Maybe.withDefault
-                    (BoundingBox3d.singleton Point3d.origin) -- ugh.
-                    model.trackPointBox
+                | box =
+                    Maybe.withDefault
+                        (BoundingBox3d.singleton Point3d.origin)
+                        -- ugh.
+                        model.trackPointBox
                 , points = model.trackPoints
             }
     in
@@ -2035,6 +2052,7 @@ viewGenericNew model =
             [ width fill
             , padding 20
             , spacing 20
+            , Font.size 16
             ]
           <|
             column
@@ -2132,7 +2150,7 @@ view3D scale model =
         MapView ->
             -- We merely create the placeholder, the work is done by messages through the map port.
             el
-                [ width (px 800)
+                [ width (px 880)
                 , height (px 500)
                 , alignLeft
                 , alignTop

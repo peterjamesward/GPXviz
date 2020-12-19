@@ -23,7 +23,7 @@ type alias AccordionEntry msg =
 
 
 accordionMenuStyles =
-    [ padding 10
+    [ padding 0
     , alignTop
     , width fill
     ]
@@ -50,6 +50,7 @@ accordionTabStyles state =
             rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
     , Font.center
+    , Font.size 16
     ]
 
 

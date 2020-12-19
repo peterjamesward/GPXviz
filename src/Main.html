@@ -75,8 +75,17 @@ function makeTheMap(msg) {
                 console.log('tell Elm the map is ready');
                 isMapCreated = true;
                 app.ports.messageReceiver.send({ 'msg' : 'map ready' });
-            }
-        );
+            });
+
+        map.on('move', function (event) {
+                app.ports.messageReceiver.send
+                    ( { 'msg' : 'move'
+                      , 'lat' : map.getCenter().lat
+                      , 'lon' : map.getCenter().lng
+                      , 'zoom' : map.getZoom()
+                      } );
+            });
+
     } else {
         //No 'map' node, we have to keep checking.
         console.log('no map node');
