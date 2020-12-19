@@ -14,6 +14,8 @@ type alias RenderingContext =
     , nodeBox : BoundingBox3d Length.Meters LocalCoords
     , viewingMode : ViewingMode
     , smoothedBend : List DrawingRoad
+    , nudgedRoads : List DrawingRoad
+    , nudgedRegionStart : Maybe Int
     , verticalNudge : Float
     , horizontalNudge : Float
     }

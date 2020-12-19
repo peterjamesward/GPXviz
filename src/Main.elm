@@ -131,7 +131,8 @@ type alias Model =
     , flythrough : Maybe Flythrough
     , loopiness : Loopiness
     , nudgeValue : Float
-    , nudgedNodeRoads : List DrawingRoad -- actually only two but this is consistent with smoothedRoads.
+    , nudgedNodeRoads : List DrawingRoad
+    , nudgedRegionStart : Maybe Int -- so we can correlate nudgedNodeRoads in profile view (ugh).
     , verticalNudgeValue : Float
     , accordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
@@ -193,6 +194,7 @@ init _ =
       , loopiness = NotALoop 0.0
       , nudgeValue = 0.0
       , nudgedNodeRoads = []
+      , nudgedRegionStart = Nothing
       , verticalNudgeValue = 0.0
       , accordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
@@ -961,6 +963,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
             { model
                 | nudgeValue = horizontal
                 , verticalNudgeValue = vertical
+                , nudgedRegionStart = Just node1
                 , nudgedNodeRoads =
                     deriveRoads <|
                         deriveNodes box <|
@@ -1031,6 +1034,7 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
                             ++ nudgedStartPoints
                             ++ List.drop (nodeN + 1) model.trackPoints
                     , nudgedNodeRoads = []
+                    , nudgedRegionStart = Nothing
                     , nudgeValue = 0.0
                     , verticalNudgeValue = 0.0
                 }
@@ -2010,6 +2014,8 @@ deriveStaticVisualEntities model =
                     , smoothedBend = model.smoothedRoads
                     , horizontalNudge = model.nudgeValue
                     , verticalNudge = model.verticalNudgeValue
+                    , nudgedRoads = model.nudgedNodeRoads
+                    , nudgedRegionStart = model.nudgedRegionStart
                     }
             in
             { model
@@ -2038,6 +2044,8 @@ deriveTerrain model =
                     , smoothedBend = model.smoothedRoads
                     , horizontalNudge = model.nudgeValue
                     , verticalNudge = model.verticalNudgeValue
+                    , nudgedRoads = model.nudgedNodeRoads
+                    , nudgedRegionStart = model.nudgedRegionStart
                     }
             in
             { model
@@ -2068,10 +2076,9 @@ deriveVaryingVisualEntities model =
                     , markedNode = markedRoad
                     , nodeBox = scale
                     , viewingMode = model.viewingMode
-                    , smoothedBend =
-                        --TODO: Cheeky. Not clever way to make nudge visible.
-                        model.smoothedRoads
-                            ++ model.nudgedNodeRoads
+                    , smoothedBend = model.smoothedRoads
+                    , nudgedRoads = model.nudgedNodeRoads
+                    , nudgedRegionStart = model.nudgedRegionStart
                     , horizontalNudge = model.nudgeValue
                     , verticalNudge = model.verticalNudgeValue
                     }

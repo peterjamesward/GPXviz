@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Show nudge suggestion in profile.
+
 --TODO: Show yellow smoothed bend option on map.
 
 --TODO: Show current and marked node on map.

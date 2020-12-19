@@ -7525,6 +7525,7 @@ var $author$project$Main$init = function (_v0) {
 			nodes: _List_Nil,
 			nudgeValue: 0.0,
 			nudgedNodeRoads: _List_Nil,
+			nudgedRegionStart: $elm$core$Maybe$Nothing,
 			numLineSegmentsForBend: 3,
 			orbiting: $elm$core$Maybe$Nothing,
 			redoStack: _List_Nil,
@@ -13189,6 +13190,8 @@ var $author$project$Main$deriveStaticVisualEntities = function (model) {
 			horizontalNudge: model.nudgeValue,
 			markedNode: A2($author$project$Main$lookupRoad, model, model.markedNode),
 			nodeBox: scale,
+			nudgedRegionStart: model.nudgedRegionStart,
+			nudgedRoads: model.nudgedNodeRoads,
 			smoothedBend: model.smoothedRoads,
 			verticalNudge: model.verticalNudgeValue,
 			viewingMode: model.viewingMode
@@ -14755,6 +14758,8 @@ var $author$project$Main$deriveTerrain = function (model) {
 			horizontalNudge: model.nudgeValue,
 			markedNode: A2($author$project$Main$lookupRoad, model, model.markedNode),
 			nodeBox: scale,
+			nudgedRegionStart: model.nudgedRegionStart,
+			nudgedRoads: model.nudgedNodeRoads,
 			smoothedBend: model.smoothedRoads,
 			verticalNudge: model.verticalNudgeValue,
 			viewingMode: model.viewingMode
@@ -14770,86 +14775,34 @@ var $author$project$Main$deriveTerrain = function (model) {
 };
 var $avh4$elm_color$Color$lightOrange = A4($avh4$elm_color$Color$RgbaSpace, 252 / 255, 175 / 255, 62 / 255, 1.0);
 var $avh4$elm_color$Color$lightYellow = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 233 / 255, 79 / 255, 1.0);
-var $ianmackenzie$elm_3d_scene$Scene3d$Types$EmissiveMaterial = F3(
-	function (a, b, c) {
-		return {$: 'EmissiveMaterial', a: a, b: b, c: c};
-	});
-var $ianmackenzie$elm_3d_scene$Scene3d$Types$PbrMaterial = F5(
-	function (a, b, c, d, e) {
-		return {$: 'PbrMaterial', a: a, b: b, c: c, d: d, e: e};
-	});
-var $ianmackenzie$elm_3d_scene$Scene3d$Material$coerce = function (material) {
-	switch (material.$) {
-		case 'UnlitMaterial':
-			var textureMap = material.a;
-			var colorTexture = material.b;
-			return A2($ianmackenzie$elm_3d_scene$Scene3d$Types$UnlitMaterial, textureMap, colorTexture);
-		case 'EmissiveMaterial':
-			var textureMap = material.a;
-			var colorTexture = material.b;
-			var brightness = material.c;
-			return A3($ianmackenzie$elm_3d_scene$Scene3d$Types$EmissiveMaterial, textureMap, colorTexture, brightness);
-		case 'LambertianMaterial':
-			var textureMap = material.a;
-			var colorTexture = material.b;
-			var normalMapTexture = material.c;
-			return A3($ianmackenzie$elm_3d_scene$Scene3d$Types$LambertianMaterial, textureMap, colorTexture, normalMapTexture);
-		default:
-			var textureMap = material.a;
-			var colorTexture = material.b;
-			var roughnessTexture = material.c;
-			var metallicTexture = material.d;
-			var normalMapTexture = material.e;
-			return A5($ianmackenzie$elm_3d_scene$Scene3d$Types$PbrMaterial, textureMap, colorTexture, roughnessTexture, metallicTexture, normalMapTexture);
-	}
-};
-var $ianmackenzie$elm_3d_scene$Scene3d$Material$plain = $ianmackenzie$elm_3d_scene$Scene3d$Material$coerce;
-var $ianmackenzie$elm_3d_scene$Scene3d$triangle = F2(
-	function (givenMaterial, givenTriangle) {
-		return A2(
-			$ianmackenzie$elm_3d_scene$Scene3d$facet,
-			$ianmackenzie$elm_3d_scene$Scene3d$Material$plain(givenMaterial),
-			givenTriangle);
-	});
 var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
 	function (context, roadList) {
-		var nudgedNode = function (current) {
-			if (context.verticalNudge !== 0.0) {
-				if (current.$ === 'Just') {
-					var road = current.a;
-					var prevNode = $elm$core$List$head(
-						A2($elm$core$List$drop, road.index - 1, roadList));
-					var nudgedHeight = A2(
-						$ianmackenzie$elm_geometry$Point3d$translateBy,
-						A3($ianmackenzie$elm_geometry$Vector3d$meters, 0.0, 0.0, context.verticalNudge),
-						road.profileStartsAt.location);
-					return A2(
-						$elm$core$List$cons,
-						A2(
-							$ianmackenzie$elm_3d_scene$Scene3d$triangle,
+		var nudgedNodes = function () {
+			var _v4 = context.nudgedRegionStart;
+			if (_v4.$ === 'Just') {
+				var node1 = _v4.a;
+				var prevNode = A2($elm$core$List$drop, node1 - 1, roadList);
+				var elevationVector = A3($ianmackenzie$elm_geometry$Vector3d$meters, 0.0, 0.0, context.verticalNudge);
+				var blendTheRoadData = F2(
+					function (profile, _v5) {
+						return A5(
+							$ianmackenzie$elm_3d_scene$Scene3d$quad,
 							$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$lightYellow),
-							A3($ianmackenzie$elm_geometry$Triangle3d$from, road.profileStartsAt.location, road.profileEndsAt.location, nudgedHeight)),
-						function () {
-							if (prevNode.$ === 'Just') {
-								var prev = prevNode.a;
-								return _List_fromArray(
-									[
-										A2(
-										$ianmackenzie$elm_3d_scene$Scene3d$triangle,
-										$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$lightYellow),
-										A3($ianmackenzie$elm_geometry$Triangle3d$from, road.profileStartsAt.location, nudgedHeight, prev.profileStartsAt.location))
-									]);
-							} else {
-								return _List_Nil;
-							}
-						}());
-				} else {
-					return _List_Nil;
-				}
+							profile.startsAt.location,
+							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.startsAt.location),
+							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.endsAt.location),
+							profile.endsAt.location);
+					});
+				var nudgedRoads = A3(
+					$elm$core$List$map2,
+					blendTheRoadData,
+					A2($elm$core$List$drop, node1, roadList),
+					context.nudgedRoads);
+				return nudgedRoads;
 			} else {
 				return _List_Nil;
 			}
-		};
+		}();
 		var markedNode = function () {
 			var _v2 = _Utils_Tuple2(context.markedNode, context.viewingMode);
 			if ((_v2.a.$ === 'Just') && (_v2.b.$ === 'ProfileView')) {
@@ -14904,9 +14857,7 @@ var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
 		}();
 		return _Utils_ap(
 			currentPositionDisc,
-			_Utils_ap(
-				markedNode,
-				nudgedNode(context.currentNode)));
+			_Utils_ap(markedNode, nudgedNodes));
 	});
 var $author$project$VisualEntities$makeVaryingVisualEntities = F2(
 	function (context, _v0) {
@@ -15046,10 +14997,13 @@ var $author$project$VisualEntities$makeVaryingVisualEntities = F2(
 				$ianmackenzie$elm_geometry$LineSegment3d$endPoint(rightEdge),
 				$ianmackenzie$elm_geometry$LineSegment3d$startPoint(rightEdge));
 		};
+		var nudges = A2($elm$core$List$map, bendElement, context.nudgedRoads);
 		var suggestedBend = A2($elm$core$List$map, bendElement, context.smoothedBend);
 		return _Utils_ap(
 			currentPositionDisc,
-			_Utils_ap(markedNode, suggestedBend));
+			_Utils_ap(
+				markedNode,
+				_Utils_ap(suggestedBend, nudges)));
 	});
 var $author$project$Main$deriveVaryingVisualEntities = function (model) {
 	var markedRoad = A2($author$project$Main$lookupRoad, model, model.markedNode);
@@ -15057,16 +15011,7 @@ var $author$project$Main$deriveVaryingVisualEntities = function (model) {
 	var _v0 = model.nodeBox;
 	if (_v0.$ === 'Just') {
 		var scale = _v0.a;
-		var context = {
-			currentNode: currentRoad,
-			displayOptions: model.displayOptions,
-			horizontalNudge: model.nudgeValue,
-			markedNode: markedRoad,
-			nodeBox: scale,
-			smoothedBend: _Utils_ap(model.smoothedRoads, model.nudgedNodeRoads),
-			verticalNudge: model.verticalNudgeValue,
-			viewingMode: model.viewingMode
-		};
+		var context = {currentNode: currentRoad, displayOptions: model.displayOptions, horizontalNudge: model.nudgeValue, markedNode: markedRoad, nodeBox: scale, nudgedRegionStart: model.nudgedRegionStart, nudgedRoads: model.nudgedNodeRoads, smoothedBend: model.smoothedRoads, verticalNudge: model.verticalNudgeValue, viewingMode: model.viewingMode};
 		return _Utils_update(
 			model,
 			{
@@ -24570,6 +24515,7 @@ var $author$project$Main$nudgeNodeRange = F5(
 				{
 					nudgeValue: 0.0,
 					nudgedNodeRoads: _List_Nil,
+					nudgedRegionStart: $elm$core$Maybe$Nothing,
 					trackPoints: _Utils_ap(
 						A2($elm$core$List$take, node1, model.trackPoints),
 						_Utils_ap(
@@ -25312,6 +25258,7 @@ var $author$project$Main$simulateNodeRangeNudge = F5(
 					nudgeValue: horizontal,
 					nudgedNodeRoads: $author$project$NodesAndRoads$deriveRoads(
 						A2($author$project$NodesAndRoads$deriveNodes, box, nudgedListForVisuals)),
+					nudgedRegionStart: $elm$core$Maybe$Just(node1),
 					verticalNudgeValue: vertical
 				});
 		} else {
@@ -27370,7 +27317,7 @@ var $author$project$Main$updatedAccordion = function (model) {
 };
 var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
-var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-19_\n\n> **Changes**\n> - The Map view will now allow you to move the map around and zoom in and out. Thanks to Mapbox for this.\n> _Warning_ this integration is more complex and might go awry. _Save your work_ often.\n\n> - Slightly smaller font allows for slightly neater buttons.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (thanks, Euclid). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\n**Map info** is not very useful at the moment but will develop.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
+var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-19_\n\n> **Changes**\n> - The Map view will now allow you to move the map around and zoom in and out. Thanks to Mapbox for this.\n> _Warning:_ this integration is more complex and might go awry. _Save your work_ more often.\n\n> - Slightly smaller font allows for slightly neater buttons.\n\n> - You can Nudge a range of nodes, as set by the Orange & Purple cones. Thanks, John Bytheway, for suggestion.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (thanks, Euclid). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\n**Map info** is not very useful at the moment but will develop.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
 var $mdgriffith$elm_ui$Internal$Model$Max = F2(

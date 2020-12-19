@@ -14,9 +14,11 @@ aboutText =
 
 > **Changes**
 > - The Map view will now allow you to move the map around and zoom in and out. Thanks to Mapbox for this.
-> _Warning_ this integration is more complex and might go awry. _Save your work_ often.
+> _Warning:_ this integration is more complex and might go awry. _Save your work_ more often.
 
 > - Slightly smaller font allows for slightly neater buttons.
+
+> - You can Nudge a range of nodes, as set by the Orange & Purple cones. Thanks, John Bytheway, for suggestion.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 

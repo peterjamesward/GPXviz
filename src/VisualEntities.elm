@@ -399,6 +399,9 @@ makeVaryingVisualEntities context _ =
         suggestedBend =
             List.map bendElement context.smoothedBend
 
+        nudges =
+            List.map bendElement context.nudgedRoads
+
         bendElement road =
             let
                 ( halfX, halfY ) =
@@ -434,6 +437,7 @@ makeVaryingVisualEntities context _ =
     currentPositionDisc
         ++ markedNode
         ++ suggestedBend
+        ++ nudges
 
 
 makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
@@ -477,49 +481,41 @@ makeVaryingProfileEntities context roadList =
                 _ ->
                     []
 
-        nudgedNode current =
-            -- Has the current node been nudged vertically?
-            if context.verticalNudge /= 0.0 then
-                case current of
-                    Just road ->
-                        let
-                            prevNode =
-                                -- Fugly way to get neighbouring nodes, but hey hp.
-                                List.head <| List.drop (road.index - 1) roadList
+        nudgedNodes =
+            -- Slightly tricky as we have to correlate nudged roads with the unrolled profile.
+            case context.nudgedRegionStart of
+                Just node1 ->
+                    let
+                        prevNode =
+                            -- Fugly way to get neighbouring nodes, but hey-ho.
+                            List.drop (node1 - 1) roadList
 
-                            nudgedHeight =
-                                Point3d.translateBy
-                                    (Vector3d.meters 0.0 0.0 context.verticalNudge)
-                                    road.profileStartsAt.location
-                        in
-                        (Scene3d.triangle (Material.color Color.lightYellow) <|
-                            Triangle3d.from
-                                road.profileStartsAt.location
-                                road.profileEndsAt.location
-                                nudgedHeight
-                        )
-                            :: (case prevNode of
-                                    Just prev ->
-                                        [ Scene3d.triangle (Material.color Color.lightYellow) <|
-                                            Triangle3d.from
-                                                road.profileStartsAt.location
-                                                nudgedHeight
-                                                prev.profileStartsAt.location
-                                        ]
+                        blendTheRoadData profile _ =
+                            Scene3d.quad (Material.color Color.lightYellow)
+                                 (profile.startsAt.location)
+                                 (Point3d.translateBy elevationVector profile.startsAt.location)
+                                 (Point3d.translateBy elevationVector profile.endsAt.location)
+                                 (profile.endsAt.location)
 
-                                    Nothing ->
-                                        []
-                               )
+                        elevationVector =
+                            Vector3d.meters 0.0 0.0 context.verticalNudge
 
-                    Nothing ->
-                        []
+                        nudgedRoads =
+                            -- Combine the nudged roads cleverly with our unrolled ones
+                            List.map2
+                                blendTheRoadData
+                                (List.drop node1 roadList)
+                                context.nudgedRoads
+                    in
+                    nudgedRoads
 
-            else
-                []
+                Nothing ->
+                    []
+
     in
     currentPositionDisc
         ++ markedNode
-        ++ nudgedNode context.currentNode
+        ++ nudgedNodes
 
 
 
