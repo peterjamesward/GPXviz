@@ -64,6 +64,7 @@ type Msg
     | ReverseTrack
     | SetMaxTrackpointSpacing Float
     | MapMessage E.Value
+    | MapRemoved String
 
 
 type NodeSplitDirection

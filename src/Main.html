@@ -35,12 +35,23 @@ function incomingMessageHandler(msg) {
                 makeTheMap(msg);
             }
             break;
+
         case 'Track':
             if (isMapCreated) {
                 addLineToMap(msg.data);
                 map.setCenter([msg.lon, msg.lat]);
             }
             break;
+
+        case 'Stop':
+            if (isMapCreated) {
+                console.log('removing the map');
+                map.remove();
+                map = null;
+                isMapCreated = false;
+                trackAdded = false;
+                app.ports.mapStopped.send('stopped');
+            }
     }
 };
 
@@ -52,12 +63,14 @@ function makeTheMap(msg) {
     if(typeof(element) != 'undefined' && element != null && !isMapCreated)
     {
         console.log('making the map now');
+
         map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/streets-v11',
             center: [msg.lon, msg.lat],
             zoom: msg.zoom
             });
+
         map.on('load', function () {
                 console.log('tell Elm the map is ready');
                 isMapCreated = true;
@@ -86,6 +99,7 @@ function addLineToMap(data) {
         'type': 'geojson',
         'data': data
         });
+
     map.addLayer({
         'id': 'route',
         'type': 'line',
@@ -101,10 +115,6 @@ function addLineToMap(data) {
     });
     trackAdded = true;
 };
-
-//socket.addEventListener("message", function(event) {
-//   app.ports.messageReceiver.send(event.data);
-//});
 
 </script>
 

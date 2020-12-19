@@ -7560,6 +7560,9 @@ var $author$project$Main$init = function (_v0) {
 var $author$project$Msg$MapMessage = function (a) {
 	return {$: 'MapMessage', a: a};
 };
+var $author$project$Msg$MapRemoved = function (a) {
+	return {$: 'MapRemoved', a: a};
+};
 var $author$project$Msg$Tick = function (a) {
 	return {$: 'Tick', a: a};
 };
@@ -7964,6 +7967,8 @@ var $elm$time$Time$every = F2(
 		return $elm$time$Time$subscription(
 			A2($elm$time$Time$Every, interval, tagger));
 	});
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$MapController$mapStopped = _Platform_incomingPort('mapStopped', $elm$json$Json$Decode$string);
 var $elm$json$Json$Decode$value = _Json_decodeValue;
 var $author$project$MapController$messageReceiver = _Platform_incomingPort('messageReceiver', $elm$json$Json$Decode$value);
 var $author$project$Main$subscriptions = function (model) {
@@ -7971,6 +7976,7 @@ var $author$project$Main$subscriptions = function (model) {
 		_List_fromArray(
 			[
 				$author$project$MapController$messageReceiver($author$project$Msg$MapMessage),
+				$author$project$MapController$mapStopped($author$project$Msg$MapRemoved),
 				A2($elm$time$Time$every, 10, $author$project$Msg$Tick)
 			]));
 };
@@ -7980,7 +7986,6 @@ var $author$project$Msg$GpxLoaded = function (a) {
 var $author$project$Msg$GpxSelected = function (a) {
 	return {$: 'GpxSelected', a: a};
 };
-var $author$project$MapController$WaitingForNode = {$: 'WaitingForNode'};
 var $author$project$Accordion$Contracted = {$: 'Contracted'};
 var $author$project$Accordion$Disabled = {$: 'Disabled'};
 var $author$project$Accordion$Expanded = {$: 'Expanded'};
@@ -8470,91 +8475,6 @@ var $author$project$Main$closeTheLoop = function (model) {
 		return model;
 	}
 };
-var $ianmackenzie$elm_units$Quantity$interpolateFrom = F3(
-	function (_v0, _v1, parameter) {
-		var start = _v0.a;
-		var end = _v1.a;
-		return (parameter <= 0.5) ? $ianmackenzie$elm_units$Quantity$Quantity(start + (parameter * (end - start))) : $ianmackenzie$elm_units$Quantity$Quantity(end + ((1 - parameter) * (start - end)));
-	});
-var $ianmackenzie$elm_geometry$BoundingBox3d$midX = function (_v0) {
-	var boundingBox = _v0.a;
-	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minX, boundingBox.maxX, 0.5);
-};
-var $ianmackenzie$elm_geometry$BoundingBox3d$midY = function (_v0) {
-	var boundingBox = _v0.a;
-	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minY, boundingBox.maxY, 0.5);
-};
-var $ianmackenzie$elm_geometry$BoundingBox3d$midZ = function (_v0) {
-	var boundingBox = _v0.a;
-	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minZ, boundingBox.maxZ, 0.5);
-};
-var $ianmackenzie$elm_geometry$Point3d$xyz = F3(
-	function (_v0, _v1, _v2) {
-		var x = _v0.a;
-		var y = _v1.a;
-		var z = _v2.a;
-		return $ianmackenzie$elm_geometry$Geometry$Types$Point3d(
-			{x: x, y: y, z: z});
-	});
-var $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint = function (boundingBox) {
-	return A3(
-		$ianmackenzie$elm_geometry$Point3d$xyz,
-		$ianmackenzie$elm_geometry$BoundingBox3d$midX(boundingBox),
-		$ianmackenzie$elm_geometry$BoundingBox3d$midY(boundingBox),
-		$ianmackenzie$elm_geometry$BoundingBox3d$midZ(boundingBox));
-};
-var $elm$json$Json$Encode$float = _Json_wrap;
-var $author$project$MapController$mapPort = _Platform_outgoingPort('mapPort', $elm$core$Basics$identity);
-var $author$project$MapboxKey$mapboxKey = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpdWswb3dsMm02bDMzcDMyNGw1bmh5aSJ9.Fk3ibin0PpeEGXlGsctP1g';
-var $elm$json$Json$Encode$object = function (pairs) {
-	return _Json_wrap(
-		A3(
-			$elm$core$List$foldl,
-			F2(
-				function (_v0, obj) {
-					var k = _v0.a;
-					var v = _v0.b;
-					return A3(_Json_addField, k, v, obj);
-				}),
-			_Json_emptyObject(_Utils_Tuple0),
-			pairs));
-};
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $ianmackenzie$elm_geometry$Point3d$xCoordinate = function (_v0) {
-	var p = _v0.a;
-	return $ianmackenzie$elm_units$Quantity$Quantity(p.x);
-};
-var $ianmackenzie$elm_geometry$Point3d$yCoordinate = function (_v0) {
-	var p = _v0.a;
-	return $ianmackenzie$elm_units$Quantity$Quantity(p.y);
-};
-var $author$project$MapController$createMap = function (info) {
-	var centre = $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(info.box);
-	return $author$project$MapController$mapPort(
-		$elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'Cmd',
-					$elm$json$Json$Encode$string('Init')),
-					_Utils_Tuple2(
-					'token',
-					$elm$json$Json$Encode$string($author$project$MapboxKey$mapboxKey)),
-					_Utils_Tuple2(
-					'lon',
-					$elm$json$Json$Encode$float(
-						$ianmackenzie$elm_units$Length$inMeters(
-							$ianmackenzie$elm_geometry$Point3d$xCoordinate(centre)))),
-					_Utils_Tuple2(
-					'lat',
-					$elm$json$Json$Encode$float(
-						$ianmackenzie$elm_units$Length$inMeters(
-							$ianmackenzie$elm_geometry$Point3d$yCoordinate(centre)))),
-					_Utils_Tuple2(
-					'zoom',
-					$elm$json$Json$Encode$float(12.0))
-				])));
-};
 var $elm$core$Maybe$map = F2(
 	function (f, maybe) {
 		if (maybe.$ === 'Just') {
@@ -8658,6 +8578,39 @@ var $author$project$Main$deleteZeroLengthSegments = function (model) {
 				A2($elm$core$List$filter, keepNonZero, model.trackPoints))
 		});
 };
+var $ianmackenzie$elm_units$Quantity$interpolateFrom = F3(
+	function (_v0, _v1, parameter) {
+		var start = _v0.a;
+		var end = _v1.a;
+		return (parameter <= 0.5) ? $ianmackenzie$elm_units$Quantity$Quantity(start + (parameter * (end - start))) : $ianmackenzie$elm_units$Quantity$Quantity(end + ((1 - parameter) * (start - end)));
+	});
+var $ianmackenzie$elm_geometry$BoundingBox3d$midX = function (_v0) {
+	var boundingBox = _v0.a;
+	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minX, boundingBox.maxX, 0.5);
+};
+var $ianmackenzie$elm_geometry$BoundingBox3d$midY = function (_v0) {
+	var boundingBox = _v0.a;
+	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minY, boundingBox.maxY, 0.5);
+};
+var $ianmackenzie$elm_geometry$BoundingBox3d$midZ = function (_v0) {
+	var boundingBox = _v0.a;
+	return A3($ianmackenzie$elm_units$Quantity$interpolateFrom, boundingBox.minZ, boundingBox.maxZ, 0.5);
+};
+var $ianmackenzie$elm_geometry$Point3d$xyz = F3(
+	function (_v0, _v1, _v2) {
+		var x = _v0.a;
+		var y = _v1.a;
+		var z = _v2.a;
+		return $ianmackenzie$elm_geometry$Geometry$Types$Point3d(
+			{x: x, y: y, z: z});
+	});
+var $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint = function (boundingBox) {
+	return A3(
+		$ianmackenzie$elm_geometry$Point3d$xyz,
+		$ianmackenzie$elm_geometry$BoundingBox3d$midX(boundingBox),
+		$ianmackenzie$elm_geometry$BoundingBox3d$midY(boundingBox),
+		$ianmackenzie$elm_geometry$BoundingBox3d$midZ(boundingBox));
+};
 var $elm$core$Basics$degrees = function (angleInDegrees) {
 	return (angleInDegrees * $elm$core$Basics$pi) / 180;
 };
@@ -8668,6 +8621,14 @@ var $ianmackenzie$elm_geometry$Point3d$meters = F3(
 			{x: x, y: y, z: z});
 	});
 var $elm$core$Basics$tan = _Basics_tan;
+var $ianmackenzie$elm_geometry$Point3d$xCoordinate = function (_v0) {
+	var p = _v0.a;
+	return $ianmackenzie$elm_units$Quantity$Quantity(p.x);
+};
+var $ianmackenzie$elm_geometry$Point3d$yCoordinate = function (_v0) {
+	var p = _v0.a;
+	return $ianmackenzie$elm_units$Quantity$Quantity(p.y);
+};
 var $ianmackenzie$elm_geometry$Point3d$zCoordinate = function (_v0) {
 	var p = _v0.a;
 	return $ianmackenzie$elm_units$Quantity$Quantity(p.z);
@@ -15274,6 +15235,7 @@ var $mdgriffith$elm_ui$Internal$Flag$alignBottom = $mdgriffith$elm_ui$Internal$F
 var $mdgriffith$elm_ui$Internal$Flag$alignRight = $mdgriffith$elm_ui$Internal$Flag$flag(40);
 var $mdgriffith$elm_ui$Internal$Flag$centerX = $mdgriffith$elm_ui$Internal$Flag$flag(42);
 var $mdgriffith$elm_ui$Internal$Flag$centerY = $mdgriffith$elm_ui$Internal$Flag$flag(43);
+var $elm$json$Json$Encode$string = _Json_wrap;
 var $elm$html$Html$Attributes$stringProperty = F2(
 	function (key, string) {
 		return A2(
@@ -17709,6 +17671,19 @@ var $elm$json$Json$Encode$list = F2(
 				_Json_emptyArray(_Utils_Tuple0),
 				entries));
 	});
+var $elm$json$Json$Encode$object = function (pairs) {
+	return _Json_wrap(
+		A3(
+			$elm$core$List$foldl,
+			F2(
+				function (_v0, obj) {
+					var k = _v0.a;
+					var v = _v0.b;
+					return A3(_Json_addField, k, v, obj);
+				}),
+			_Json_emptyObject(_Utils_Tuple0),
+			pairs));
+};
 var $mdgriffith$elm_ui$Internal$Model$fontName = function (font) {
 	switch (font.$) {
 		case 'Serif':
@@ -20566,7 +20541,6 @@ var $elm$html$Html$Events$preventDefaultOn = F2(
 			event,
 			$elm$virtual_dom$VirtualDom$MayPreventDefault(decoder));
 	});
-var $elm$json$Json$Decode$string = _Json_decodeString;
 var $mdgriffith$elm_ui$Element$Input$onKeyLookup = function (lookup) {
 	var decode = function (code) {
 		var _v0 = lookup(code);
@@ -24916,6 +24890,9 @@ var $author$project$Main$pauseFlythrough = function (model) {
 	}
 };
 var $author$project$MapController$MapLoaded = {$: 'MapLoaded'};
+var $author$project$MapController$WaitingForNode = {$: 'WaitingForNode'};
+var $elm$json$Json$Encode$float = _Json_wrap;
+var $author$project$MapController$mapPort = _Platform_outgoingPort('mapPort', $elm$core$Basics$identity);
 var $author$project$TrackPoint$trackToJSON = function (tps) {
 	var latLonPair = function (tp) {
 		return A2(
@@ -24972,6 +24949,34 @@ var $author$project$MapController$addTrackToMap = function (info) {
 					_Utils_Tuple2(
 					'data',
 					$author$project$TrackPoint$trackToJSON(info.points))
+				])));
+};
+var $author$project$MapboxKey$mapboxKey = 'pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpdWswb3dsMm02bDMzcDMyNGw1bmh5aSJ9.Fk3ibin0PpeEGXlGsctP1g';
+var $author$project$MapController$createMap = function (info) {
+	var centre = $ianmackenzie$elm_geometry$BoundingBox3d$centerPoint(info.box);
+	return $author$project$MapController$mapPort(
+		$elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'Cmd',
+					$elm$json$Json$Encode$string('Init')),
+					_Utils_Tuple2(
+					'token',
+					$elm$json$Json$Encode$string($author$project$MapboxKey$mapboxKey)),
+					_Utils_Tuple2(
+					'lon',
+					$elm$json$Json$Encode$float(
+						$ianmackenzie$elm_units$Length$inMeters(
+							$ianmackenzie$elm_geometry$Point3d$xCoordinate(centre)))),
+					_Utils_Tuple2(
+					'lat',
+					$elm$json$Json$Encode$float(
+						$ianmackenzie$elm_units$Length$inMeters(
+							$ianmackenzie$elm_geometry$Point3d$yCoordinate(centre)))),
+					_Utils_Tuple2(
+					'zoom',
+					$elm$json$Json$Encode$float(12.0))
 				])));
 };
 var $elm$json$Json$Decode$decodeValue = _Json_run;
@@ -25398,6 +25403,78 @@ var $author$project$Main$straightenStraight = F3(
 				A2($author$project$Main$addToUndoStack, undoMessage, model));
 		} else {
 			return model;
+		}
+	});
+var $author$project$MapController$MapStopping = {$: 'MapStopping'};
+var $author$project$ViewTypes$MapView = {$: 'MapView'};
+var $author$project$MapController$removeMap = $author$project$MapController$mapPort(
+	$elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'Cmd',
+				$elm$json$Json$Encode$string('Stop'))
+			])));
+var $ianmackenzie$elm_geometry$BoundingBox3d$singleton = function (point) {
+	return $ianmackenzie$elm_geometry$Geometry$Types$BoundingBox3d(
+		{
+			maxX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
+			maxY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
+			maxZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point),
+			minX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
+			minY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
+			minZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point)
+		});
+};
+var $author$project$Main$switchViewMode = F2(
+	function (model, mode) {
+		var newMapInfo = function (box) {
+			return {box: box, mapState: $author$project$MapController$WaitingForNode, nextView: $author$project$ViewTypes$MapView, points: model.trackPoints};
+		};
+		var _v0 = _Utils_Tuple3(model.viewingMode, mode, model.trackPointBox);
+		if (_v0.a.$ === 'MapView') {
+			if (_v0.b.$ === 'MapView') {
+				var _v1 = _v0.a;
+				var _v2 = _v0.b;
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+			} else {
+				var _v4 = _v0.a;
+				var changedMapInfo = {
+					box: $ianmackenzie$elm_geometry$BoundingBox3d$singleton($ianmackenzie$elm_geometry$Point3d$origin),
+					mapState: $author$project$MapController$MapStopping,
+					nextView: mode,
+					points: _List_Nil
+				};
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{
+							mapInfo: $elm$core$Maybe$Just(changedMapInfo)
+						}),
+					$author$project$MapController$removeMap);
+			}
+		} else {
+			if ((_v0.b.$ === 'MapView') && (_v0.c.$ === 'Just')) {
+				var _v3 = _v0.b;
+				var box = _v0.c.a;
+				return _Utils_Tuple2(
+					$author$project$Main$deriveVaryingVisualEntities(
+						_Utils_update(
+							model,
+							{
+								mapInfo: $elm$core$Maybe$Just(
+									newMapInfo(box)),
+								viewingMode: mode
+							})),
+					$author$project$MapController$createMap(
+						newMapInfo(box)));
+			} else {
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{viewingMode: mode}),
+					$elm$core$Platform$Cmd$none);
+			}
 		}
 	});
 var $elm$file$File$toString = _File_toString;
@@ -26241,30 +26318,19 @@ var $author$project$Main$update = F2(
 					$elm$core$Platform$Cmd$none);
 			case 'ChooseViewMode':
 				var mode = msg.a;
-				var mapInfo = function () {
-					var _v4 = _Utils_Tuple2(model.trackPointBox, mode);
-					if ((_v4.a.$ === 'Just') && (_v4.b.$ === 'MapView')) {
-						var box = _v4.a.a;
-						var _v5 = _v4.b;
-						return $elm$core$Maybe$Just(
-							{box: box, mapState: $author$project$MapController$WaitingForNode, points: model.trackPoints});
-					} else {
-						return $elm$core$Maybe$Nothing;
-					}
-				}();
-				return _Utils_Tuple2(
-					$author$project$Main$deriveVaryingVisualEntities(
+				return A2($author$project$Main$switchViewMode, model, mode);
+			case 'MapRemoved':
+				var _v3 = model.mapInfo;
+				if (_v3.$ === 'Just') {
+					var info = _v3.a;
+					return _Utils_Tuple2(
 						_Utils_update(
 							model,
-							{mapInfo: mapInfo, viewingMode: mode})),
-					function () {
-						if (mapInfo.$ === 'Just') {
-							var info = mapInfo.a;
-							return $author$project$MapController$createMap(info);
-						} else {
-							return $elm$core$Platform$Cmd$none;
-						}
-					}());
+							{mapInfo: $elm$core$Maybe$Nothing, viewingMode: info.nextView}),
+						$elm$core$Platform$Cmd$none);
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
 			case 'ZoomLevelOverview':
 				var level = msg.a;
 				return _Utils_Tuple2(
@@ -26301,9 +26367,9 @@ var $author$project$Main$update = F2(
 						{zoomLevelPlan: level}),
 					$elm$core$Platform$Cmd$none);
 			case 'ImageGrab':
-				var _v6 = msg.a;
-				var dx = _v6.a;
-				var dy = _v6.b;
+				var _v4 = msg.a;
+				var dx = _v4.a;
+				var dy = _v4.b;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
@@ -26313,14 +26379,14 @@ var $author$project$Main$update = F2(
 						}),
 					$elm$core$Platform$Cmd$none);
 			case 'ImageRotate':
-				var _v7 = msg.a;
-				var dx = _v7.a;
-				var dy = _v7.b;
-				var _v8 = model.orbiting;
-				if (_v8.$ === 'Just') {
-					var _v9 = _v8.a;
-					var startX = _v9.a;
-					var startY = _v9.b;
+				var _v5 = msg.a;
+				var dx = _v5.a;
+				var dy = _v5.b;
+				var _v6 = model.orbiting;
+				if (_v6.$ === 'Just') {
+					var _v7 = _v6.a;
+					var startX = _v7.a;
+					var startY = _v7.b;
 					var newElevation = $ianmackenzie$elm_units$Angle$degrees(
 						$ianmackenzie$elm_units$Angle$inDegrees(model.elevation) + (dy - startY));
 					var newAzimuth = $ianmackenzie$elm_units$Angle$degrees(
@@ -26462,10 +26528,10 @@ var $author$project$Main$update = F2(
 			case 'Undo':
 				return _Utils_Tuple2(
 					function () {
-						var _v10 = model.undoStack;
-						if (_v10.b) {
-							var action = _v10.a;
-							var undos = _v10.b;
+						var _v8 = model.undoStack;
+						if (_v8.b) {
+							var action = _v8.a;
+							var undos = _v8.b;
 							return $author$project$Main$clearTerrain(
 								$author$project$Main$deriveProblems(
 									$author$project$Main$deriveVaryingVisualEntities(
@@ -26494,10 +26560,10 @@ var $author$project$Main$update = F2(
 			case 'Redo':
 				return _Utils_Tuple2(
 					function () {
-						var _v11 = model.redoStack;
-						if (_v11.b) {
-							var action = _v11.a;
-							var redos = _v11.b;
+						var _v9 = model.redoStack;
+						if (_v9.b) {
+							var action = _v9.a;
+							var redos = _v9.b;
 							return $author$project$Main$clearTerrain(
 								$author$project$Main$deriveProblems(
 									$author$project$Main$deriveVaryingVisualEntities(
@@ -26531,8 +26597,8 @@ var $author$project$Main$update = F2(
 								model,
 								{
 									markedNode: function () {
-										var _v12 = model.markedNode;
-										if (_v12.$ === 'Just') {
+										var _v10 = model.markedNode;
+										if (_v10.$ === 'Just') {
 											return $elm$core$Maybe$Nothing;
 										} else {
 											return model.currentNode;
@@ -29487,12 +29553,8 @@ var $author$project$Main$view3D = F2(
 							$mdgriffith$elm_ui$Element$px(800)),
 							$mdgriffith$elm_ui$Element$height(
 							$mdgriffith$elm_ui$Element$px(500)),
-							$mdgriffith$elm_ui$Element$moveRight(80),
 							$mdgriffith$elm_ui$Element$alignLeft,
 							$mdgriffith$elm_ui$Element$alignTop,
-							$mdgriffith$elm_ui$Element$Border$width(1),
-							$mdgriffith$elm_ui$Element$Border$color(
-							A3($mdgriffith$elm_ui$Element$rgb255, 200, 200, 120)),
 							$mdgriffith$elm_ui$Element$htmlAttribute(
 							$elm$html$Html$Attributes$id('map'))
 						]),
@@ -29503,7 +29565,6 @@ var $author$project$Msg$ChooseViewMode = function (a) {
 	return {$: 'ChooseViewMode', a: a};
 };
 var $author$project$ViewTypes$FirstPersonView = {$: 'FirstPersonView'};
-var $author$project$ViewTypes$MapView = {$: 'MapView'};
 var $author$project$ViewTypes$PlanView = {$: 'PlanView'};
 var $author$project$ViewTypes$ProfileView = {$: 'ProfileView'};
 var $author$project$ViewTypes$ThirdPersonView = {$: 'ThirdPersonView'};

@@ -10,6 +10,7 @@ import Msg exposing (Msg(..))
 import NodesAndRoads exposing (GPXCoords)
 import Point3d
 import TrackPoint exposing (TrackPoint, trackToJSON)
+import ViewTypes exposing (ViewingMode)
 
 
 type MapState
@@ -31,9 +32,11 @@ type
 
 
 type alias MapInfo =
+    --TODO: Track Centre and Zoom for restore when map is re-created.
     { mapState : MapState
     , box : BoundingBox3d Length.Meters GPXCoords
     , points : List TrackPoint
+    , nextView : ViewingMode -- deferred view change while map is removed.
     }
 
 
@@ -41,6 +44,9 @@ port mapPort : E.Value -> Cmd msg
 
 
 port messageReceiver : (E.Value -> msg) -> Sub msg
+
+
+port mapStopped : (String -> msg) -> Sub msg
 
 
 createMap : MapInfo -> Cmd Msg
@@ -57,6 +63,11 @@ createMap info =
             , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate centre )
             , ( "zoom", E.float 12.0 )
             ]
+
+
+removeMap : Cmd Msg
+removeMap =
+    mapPort <| E.object [ ( "Cmd", E.string "Stop" ) ]
 
 
 addTrackToMap : MapInfo -> Cmd Msg

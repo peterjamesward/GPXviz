@@ -25,7 +25,7 @@ import Html.Attributes exposing (id)
 import Iso8601
 import Length
 import List exposing (drop, take)
-import MapController exposing (MapState(..), mapPort, messageReceiver)
+import MapController exposing (MapState(..), mapPort, mapStopped, messageReceiver)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -443,31 +443,16 @@ update msg model =
             )
 
         ChooseViewMode mode ->
-            let
-                mapInfo =
-                    case ( model.trackPointBox, mode ) of
-                        ( Just box, MapView ) ->
-                            Just
-                                { mapState = WaitingForNode
-                                , box = box
-                                , points = model.trackPoints
-                                }
+            switchViewMode model mode
 
-                        _ ->
-                            Nothing
-            in
-            ( { model
-                | viewingMode = mode
-                , mapInfo = mapInfo
-              }
-                |> deriveVaryingVisualEntities
-            , case mapInfo of
+        MapRemoved _ ->
+            case model.mapInfo of
                 Just info ->
-                    MapController.createMap info
+                    ({ model | viewingMode = info.nextView
+                    , mapInfo = Nothing
+                    }, Cmd.none)
 
-                Nothing ->
-                    Cmd.none
-            )
+                Nothing -> (model, Cmd.none)
 
         ZoomLevelOverview level ->
             ( { model | zoomLevelOverview = level }
@@ -824,6 +809,54 @@ update msg model =
             , Cmd.none
             )
 
+
+switchViewMode : Model -> ViewingMode -> ( Model, Cmd Msg )
+switchViewMode model mode =
+    -- When changing to the map, we must use ports to drive the new map.
+    -- When changing *from* the map, we must first remove the map (before we cxan destroy the DIV).
+    -- So this need some careful structuring.
+    let
+        newMapInfo box =
+            { mapState = WaitingForNode
+            , box = box
+            , points = model.trackPoints
+            , nextView = MapView
+            }
+    in
+    case ( model.viewingMode, mode, model.trackPointBox ) of
+        ( MapView, MapView, _ ) ->
+            -- Not changing mode, may need to refresh track, wait and see.
+            ( model, Cmd.none )
+
+        ( _, MapView, Just box ) ->
+            -- Switch to map view, need to wait for DOM node before creating map.
+            ( { model
+                | viewingMode = mode
+                , mapInfo = Just (newMapInfo box)
+              }
+                |> deriveVaryingVisualEntities
+            , MapController.createMap (newMapInfo box)
+            )
+
+        ( MapView, _, _ ) ->
+            -- Request map removal, do not destroy the DOM node yet.
+            let
+                changedMapInfo =
+                    { mapState = MapStopping
+                    , nextView = mode
+                    , points = []
+                    , box = BoundingBox3d.singleton Point3d.origin
+                    }
+            in
+            ( { model | mapInfo = Just changedMapInfo }
+            , MapController.removeMap
+            )
+
+        ( _, _, _ ) ->
+            -- Map not involved, happy days.
+            ( { model | viewingMode = mode }
+            , Cmd.none
+            )
 
 
 nudgeTrackPoint : TrackPoint -> Float -> Float -> Float -> TrackPoint
@@ -2082,63 +2115,11 @@ view3D scale model =
             el
                 [ width (px 800)
                 , height (px 500)
-                , moveRight 80
                 , alignLeft
                 , alignTop
-                , Border.width 1
-                , Border.color <| rgb255 200 200 120
                 , htmlAttribute (id "map")
                 ]
                 none
-
-
-
-{-
-   viewMap : Model -> Element Msg
-   viewMap model =
-       -- Use MapQuest static maps API.
-       -- Then work out how to project it.
-       let
-           {-
-              "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/[-77.043686,38.892035,-77.028923,38.904192]/400x400?access_token=pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
-           -}
-           baseUrl =
-               "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/"
-
-           mapboxAPIKey =
-               "pk.eyJ1IjoicGV0ZXJqYW1lc3dhcmQiLCJhIjoiY2tpcmpwem54MjdhbTJycWpvYjU2dmJpcSJ9.gysxozddlQQ0XaWnywEyJg"
-
-           url box =
-               let
-                   { minX, maxX, minY, maxY, minZ, maxZ } =
-                       BoundingBox3d.extrema box
-               in
-               baseUrl
-                   ++ "["
-                   ++ decimals6 (Length.inMeters minX)
-                   ++ ","
-                   ++ decimals6 (Length.inMeters minY)
-                   ++ ","
-                   ++ decimals6 (Length.inMeters maxX)
-                   ++ ","
-                   ++ decimals6 (Length.inMeters maxY)
-                   ++ "]/800x500@2x?access_token="
-                   ++ mapboxAPIKey
-       in
-       case ( model.trackPointBox, model.nodeBox ) of
-           ( Just box, Just scale ) ->
-               image
-                   [ width (px 800)
-                   , height (px 500)
-                   , inFront <| viewCentredPlanViewForMap scale model
-                   ]
-                   { src = url box
-                   , description = "Map"
-                   }
-
-           _ ->
-               text "Sorry, no bounding box."
--}
 
 
 viewInputError : Model -> Element Msg
@@ -3212,5 +3193,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
+        , mapStopped MapRemoved
         , Time.every 10 Tick
         ]
