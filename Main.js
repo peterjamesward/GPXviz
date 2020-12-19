@@ -14778,20 +14778,20 @@ var $avh4$elm_color$Color$lightYellow = A4($avh4$elm_color$Color$RgbaSpace, 255 
 var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
 	function (context, roadList) {
 		var nudgedNodes = function () {
-			var _v4 = context.nudgedRegionStart;
-			if (_v4.$ === 'Just') {
-				var node1 = _v4.a;
+			var _v2 = context.nudgedRegionStart;
+			if (_v2.$ === 'Just') {
+				var node1 = _v2.a;
 				var prevNode = A2($elm$core$List$drop, node1 - 1, roadList);
 				var elevationVector = A3($ianmackenzie$elm_geometry$Vector3d$meters, 0.0, 0.0, context.verticalNudge);
 				var blendTheRoadData = F2(
-					function (profile, _v5) {
+					function (profile, _v3) {
 						return A5(
 							$ianmackenzie$elm_3d_scene$Scene3d$quad,
 							$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$lightYellow),
-							profile.startsAt.location,
-							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.startsAt.location),
-							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.endsAt.location),
-							profile.endsAt.location);
+							profile.profileStartsAt.location,
+							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.profileStartsAt.location),
+							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.profileEndsAt.location),
+							profile.profileEndsAt.location);
 					});
 				var nudgedRoads = A3(
 					$elm$core$List$map2,
@@ -14804,10 +14804,9 @@ var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
 			}
 		}();
 		var markedNode = function () {
-			var _v2 = _Utils_Tuple2(context.markedNode, context.viewingMode);
-			if ((_v2.a.$ === 'Just') && (_v2.b.$ === 'ProfileView')) {
-				var road = _v2.a.a;
-				var _v3 = _v2.b;
+			var _v1 = context.markedNode;
+			if (_v1.$ === 'Just') {
+				var road = _v1.a;
 				return _List_fromArray(
 					[
 						A2(
@@ -14830,10 +14829,9 @@ var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
 			}
 		}();
 		var currentPositionDisc = function () {
-			var _v0 = _Utils_Tuple2(context.currentNode, context.viewingMode);
-			if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'ProfileView')) {
-				var road = _v0.a.a;
-				var _v1 = _v0.b;
+			var _v0 = context.currentNode;
+			if (_v0.$ === 'Just') {
+				var road = _v0.a;
 				return _List_fromArray(
 					[
 						A2(
@@ -14971,34 +14969,41 @@ var $author$project$VisualEntities$makeVaryingVisualEntities = F2(
 			}
 			return _List_Nil;
 		}();
-		var bendElement = function (road) {
-			var roadAsSegment = A2(
-				$ianmackenzie$elm_geometry$LineSegment3d$translateBy,
-				A3($ianmackenzie$elm_geometry$Vector3d$meters, 0.0, 0.0, 0.1),
-				$ianmackenzie$elm_geometry$LineSegment3d$fromEndpoints(
-					_Utils_Tuple2(road.startsAt.location, road.endsAt.location)));
-			var _v1 = _Utils_Tuple2(
-				1.0 * $elm$core$Basics$cos(road.bearing),
-				1.0 * $elm$core$Basics$sin(road.bearing));
-			var halfX = _v1.a;
-			var halfY = _v1.b;
-			var leftVector = A3($ianmackenzie$elm_geometry$Vector3d$meters, (-1.0) * halfX, halfY, 0.05);
-			var rightVector = $ianmackenzie$elm_geometry$Vector3d$reverse(leftVector);
-			var _v2 = _Utils_Tuple2(
-				A2($ianmackenzie$elm_geometry$LineSegment3d$translateBy, leftVector, roadAsSegment),
-				A2($ianmackenzie$elm_geometry$LineSegment3d$translateBy, rightVector, roadAsSegment));
-			var leftEdge = _v2.a;
-			var rightEdge = _v2.b;
-			return A5(
-				$ianmackenzie$elm_3d_scene$Scene3d$quad,
-				$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$lightYellow),
-				$ianmackenzie$elm_geometry$LineSegment3d$startPoint(leftEdge),
-				$ianmackenzie$elm_geometry$LineSegment3d$endPoint(leftEdge),
-				$ianmackenzie$elm_geometry$LineSegment3d$endPoint(rightEdge),
-				$ianmackenzie$elm_geometry$LineSegment3d$startPoint(rightEdge));
-		};
-		var nudges = A2($elm$core$List$map, bendElement, context.nudgedRoads);
-		var suggestedBend = A2($elm$core$List$map, bendElement, context.smoothedBend);
+		var bendElement = F2(
+			function (colour, road) {
+				var roadAsSegment = A2(
+					$ianmackenzie$elm_geometry$LineSegment3d$translateBy,
+					A3($ianmackenzie$elm_geometry$Vector3d$meters, 0.0, 0.0, 0.1),
+					$ianmackenzie$elm_geometry$LineSegment3d$fromEndpoints(
+						_Utils_Tuple2(road.startsAt.location, road.endsAt.location)));
+				var _v1 = _Utils_Tuple2(
+					1.0 * $elm$core$Basics$cos(road.bearing),
+					1.0 * $elm$core$Basics$sin(road.bearing));
+				var halfX = _v1.a;
+				var halfY = _v1.b;
+				var leftVector = A3($ianmackenzie$elm_geometry$Vector3d$meters, (-1.0) * halfX, halfY, 0.05);
+				var rightVector = $ianmackenzie$elm_geometry$Vector3d$reverse(leftVector);
+				var _v2 = _Utils_Tuple2(
+					A2($ianmackenzie$elm_geometry$LineSegment3d$translateBy, leftVector, roadAsSegment),
+					A2($ianmackenzie$elm_geometry$LineSegment3d$translateBy, rightVector, roadAsSegment));
+				var leftEdge = _v2.a;
+				var rightEdge = _v2.b;
+				return A5(
+					$ianmackenzie$elm_3d_scene$Scene3d$quad,
+					$ianmackenzie$elm_3d_scene$Scene3d$Material$color(colour),
+					$ianmackenzie$elm_geometry$LineSegment3d$startPoint(leftEdge),
+					$ianmackenzie$elm_geometry$LineSegment3d$endPoint(leftEdge),
+					$ianmackenzie$elm_geometry$LineSegment3d$endPoint(rightEdge),
+					$ianmackenzie$elm_geometry$LineSegment3d$startPoint(rightEdge));
+			});
+		var nudges = A2(
+			$elm$core$List$map,
+			bendElement($avh4$elm_color$Color$lightOrange),
+			context.nudgedRoads);
+		var suggestedBend = A2(
+			$elm$core$List$map,
+			bendElement($avh4$elm_color$Color$lightYellow),
+			context.smoothedBend);
 		return _Utils_ap(
 			currentPositionDisc,
 			_Utils_ap(

@@ -323,7 +323,6 @@ makeStaticProfileEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.profileEndsAt.location)
                 (Point3d.projectOnto Plane3d.xy road.profileStartsAt.location)
             ]
-
     in
     []
         ++ optionally context.displayOptions.roadPillars pillars
@@ -397,12 +396,12 @@ makeVaryingVisualEntities context _ =
                     []
 
         suggestedBend =
-            List.map bendElement context.smoothedBend
+            List.map (bendElement Color.lightYellow) context.smoothedBend
 
         nudges =
-            List.map bendElement context.nudgedRoads
+            List.map (bendElement Color.lightOrange) context.nudgedRoads
 
-        bendElement road =
+        bendElement colour road =
             let
                 ( halfX, halfY ) =
                     -- Width of the line.
@@ -428,7 +427,7 @@ makeVaryingVisualEntities context _ =
                     , LineSegment3d.translateBy rightVector roadAsSegment
                     )
             in
-            Scene3d.quad (Material.color Color.lightYellow)
+            Scene3d.quad (Material.color colour)
                 (LineSegment3d.startPoint leftEdge)
                 (LineSegment3d.endPoint leftEdge)
                 (LineSegment3d.endPoint rightEdge)
@@ -446,8 +445,8 @@ makeVaryingProfileEntities context roadList =
     -- We might draw things differently to suit the projection.
     let
         currentPositionDisc =
-            case ( context.currentNode, context.viewingMode ) of
-                ( Just road, ProfileView ) ->
+            case context.currentNode of
+                Just road ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
@@ -464,8 +463,8 @@ makeVaryingProfileEntities context roadList =
                     []
 
         markedNode =
-            case ( context.markedNode, context.viewingMode ) of
-                ( Just road, ProfileView ) ->
+            case context.markedNode of
+                Just road ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
@@ -492,10 +491,10 @@ makeVaryingProfileEntities context roadList =
 
                         blendTheRoadData profile _ =
                             Scene3d.quad (Material.color Color.lightYellow)
-                                 (profile.startsAt.location)
-                                 (Point3d.translateBy elevationVector profile.startsAt.location)
-                                 (Point3d.translateBy elevationVector profile.endsAt.location)
-                                 (profile.endsAt.location)
+                                profile.profileStartsAt.location
+                                (Point3d.translateBy elevationVector profile.profileStartsAt.location)
+                                (Point3d.translateBy elevationVector profile.profileEndsAt.location)
+                                profile.profileEndsAt.location
 
                         elevationVector =
                             Vector3d.meters 0.0 0.0 context.verticalNudge
@@ -511,7 +510,6 @@ makeVaryingProfileEntities context roadList =
 
                 Nothing ->
                     []
-
     in
     currentPositionDisc
         ++ markedNode
