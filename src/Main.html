@@ -90,16 +90,19 @@ function addLineToMap(data) {
     console.log(data);
 
     if (trackAdded) {
+        console.log('removing existing track');
         map.removeLayer('route');
         map.removeSource('route');
         trackAdded = false;
     }
 
+    console.log('adding geojson data');
     map.addSource('route', {
         'type': 'geojson',
         'data': data
         });
 
+    console.log('adding layer');
     map.addLayer({
         'id': 'route',
         'type': 'line',

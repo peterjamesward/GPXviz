@@ -25044,6 +25044,17 @@ var $author$project$Main$resetFlythrough = function (model) {
 		return model;
 	}
 };
+var $ianmackenzie$elm_geometry$BoundingBox3d$singleton = function (point) {
+	return $ianmackenzie$elm_geometry$Geometry$Types$BoundingBox3d(
+		{
+			maxX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
+			maxY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
+			maxZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point),
+			minX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
+			minY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
+			minZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point)
+		});
+};
 var $author$project$Main$resetViewSettings = function (model) {
 	var routeSize = A2($elm$core$Maybe$map, $ianmackenzie$elm_geometry$BoundingBox3d$dimensions, model.nodeBox);
 	var zoomLevel = function () {
@@ -25066,6 +25077,17 @@ var $author$project$Main$resetViewSettings = function (model) {
 			return 1.0;
 		}
 	}();
+	var newMapInfo = function (info) {
+		return _Utils_update(
+			info,
+			{
+				box: A2(
+					$elm$core$Maybe$withDefault,
+					$ianmackenzie$elm_geometry$BoundingBox3d$singleton($ianmackenzie$elm_geometry$Point3d$origin),
+					model.trackPointBox),
+				points: model.trackPoints
+			});
+	};
 	return _Utils_update(
 		model,
 		{
@@ -25073,6 +25095,7 @@ var $author$project$Main$resetViewSettings = function (model) {
 			currentNode: $elm$core$Maybe$Just(0),
 			elevation: $ianmackenzie$elm_units$Angle$degrees(30.0),
 			flythrough: $elm$core$Maybe$Nothing,
+			mapInfo: A2($elm$core$Maybe$map, newMapInfo, model.mapInfo),
 			markedNode: $elm$core$Maybe$Nothing,
 			redoStack: _List_Nil,
 			undoStack: _List_Nil,
@@ -25415,17 +25438,6 @@ var $author$project$MapController$removeMap = $author$project$MapController$mapP
 				'Cmd',
 				$elm$json$Json$Encode$string('Stop'))
 			])));
-var $ianmackenzie$elm_geometry$BoundingBox3d$singleton = function (point) {
-	return $ianmackenzie$elm_geometry$Geometry$Types$BoundingBox3d(
-		{
-			maxX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
-			maxY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
-			maxZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point),
-			minX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
-			minY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
-			minZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point)
-		});
-};
 var $author$project$Main$switchViewMode = F2(
 	function (model, mode) {
 		var newMapInfo = function (box) {
@@ -25433,12 +25445,21 @@ var $author$project$Main$switchViewMode = F2(
 		};
 		var _v0 = _Utils_Tuple3(model.viewingMode, mode, model.trackPointBox);
 		if (_v0.a.$ === 'MapView') {
-			if (_v0.b.$ === 'MapView') {
+			if ((_v0.b.$ === 'MapView') && (_v0.c.$ === 'Just')) {
 				var _v1 = _v0.a;
 				var _v2 = _v0.b;
-				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				var box = _v0.c.a;
+				var _v3 = model.mapInfo;
+				if (_v3.$ === 'Just') {
+					var info = _v3.a;
+					return _Utils_Tuple2(
+						model,
+						$author$project$MapController$addTrackToMap(info));
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
 			} else {
-				var _v4 = _v0.a;
+				var _v5 = _v0.a;
 				var changedMapInfo = {
 					box: $ianmackenzie$elm_geometry$BoundingBox3d$singleton($ianmackenzie$elm_geometry$Point3d$origin),
 					mapState: $author$project$MapController$MapStopping,
@@ -25455,7 +25476,7 @@ var $author$project$Main$switchViewMode = F2(
 			}
 		} else {
 			if ((_v0.b.$ === 'MapView') && (_v0.c.$ === 'Just')) {
-				var _v3 = _v0.b;
+				var _v4 = _v0.b;
 				var box = _v0.c.a;
 				return _Utils_Tuple2(
 					$author$project$Main$deriveVaryingVisualEntities(
@@ -26214,22 +26235,21 @@ var $author$project$Main$update = F2(
 						$elm$file$File$toString(file)));
 			case 'GpxLoaded':
 				var content = msg.a;
-				return _Utils_Tuple2(
-					$author$project$Main$resetViewSettings(
-						$author$project$Main$deriveVaryingVisualEntities(
-							$author$project$Main$deriveStaticVisualEntities(
-								$author$project$Main$initialiseAccordion(
-									$author$project$Main$clearTerrain(
-										$author$project$Main$deriveProblems(
-											$author$project$Main$deriveNodesAndRoads(
-												$author$project$Main$deleteZeroLengthSegments(
-													$author$project$Main$deriveProblems(
-														$author$project$Main$deriveNodesAndRoads(
-															A2(
-																$author$project$Main$parseGPXintoModel,
-																content,
-																$author$project$Main$clearTheModel(model)))))))))))),
-					$elm$core$Platform$Cmd$none);
+				var newModel = $author$project$Main$resetViewSettings(
+					$author$project$Main$deriveVaryingVisualEntities(
+						$author$project$Main$deriveStaticVisualEntities(
+							$author$project$Main$initialiseAccordion(
+								$author$project$Main$clearTerrain(
+									$author$project$Main$deriveProblems(
+										$author$project$Main$deriveNodesAndRoads(
+											$author$project$Main$deleteZeroLengthSegments(
+												$author$project$Main$deriveProblems(
+													$author$project$Main$deriveNodesAndRoads(
+														A2(
+															$author$project$Main$parseGPXintoModel,
+															content,
+															$author$project$Main$clearTheModel(model))))))))))));
+				return A2($author$project$Main$switchViewMode, newModel, newModel.viewingMode);
 			case 'UserMovedNodeSlider':
 				var node = msg.a;
 				return _Utils_Tuple2(

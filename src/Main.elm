@@ -25,7 +25,7 @@ import Html.Attributes exposing (id)
 import Iso8601
 import Length
 import List exposing (drop, take)
-import MapController exposing (MapState(..), mapPort, mapStopped, messageReceiver)
+import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -364,20 +364,23 @@ update msg model =
         GpxLoaded content ->
             -- TODO: Tidy up the removal of zero length segments,
             -- so as not to repeat ourselves here.
-            ( clearTheModel model
-                |> parseGPXintoModel content
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> deleteZeroLengthSegments
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> clearTerrain
-                |> initialiseAccordion
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> resetViewSettings
-            , Cmd.none
-            )
+            let
+                newModel =
+                    model
+                        |> clearTheModel
+                        |> parseGPXintoModel content
+                        |> deriveNodesAndRoads
+                        |> deriveProblems
+                        |> deleteZeroLengthSegments
+                        |> deriveNodesAndRoads
+                        |> deriveProblems
+                        |> clearTerrain
+                        |> initialiseAccordion
+                        |> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
+                        |> resetViewSettings
+            in
+            switchViewMode newModel newModel.viewingMode
 
         UserMovedNodeSlider node ->
             ( { model | currentNode = Just node }
@@ -448,11 +451,15 @@ update msg model =
         MapRemoved _ ->
             case model.mapInfo of
                 Just info ->
-                    ({ model | viewingMode = info.nextView
-                    , mapInfo = Nothing
-                    }, Cmd.none)
+                    ( { model
+                        | viewingMode = info.nextView
+                        , mapInfo = Nothing
+                      }
+                    , Cmd.none
+                    )
 
-                Nothing -> (model, Cmd.none)
+                Nothing ->
+                    ( model, Cmd.none )
 
         ZoomLevelOverview level ->
             ( { model | zoomLevelOverview = level }
@@ -824,9 +831,17 @@ switchViewMode model mode =
             }
     in
     case ( model.viewingMode, mode, model.trackPointBox ) of
-        ( MapView, MapView, _ ) ->
+        ( MapView, MapView, Just box ) ->
             -- Not changing mode, may need to refresh track, wait and see.
-            ( model, Cmd.none )
+            case model.mapInfo of
+                Just info ->
+                    ( model
+                    , MapController.addTrackToMap info
+                    )
+
+                Nothing ->
+                    -- Should not occur, mapView without a mapInfo!
+                    ( model, Cmd.none )
 
         ( _, MapView, Just box ) ->
             -- Switch to map view, need to wait for DOM node before creating map.
@@ -1765,6 +1780,16 @@ resetViewSettings model =
 
                 Nothing ->
                     1.0
+
+        newMapInfo : MapInfo -> MapInfo
+        newMapInfo info =
+            -- If route has changed, make sure mapinfo is up to date.
+            { info
+                | box = Maybe.withDefault
+                    (BoundingBox3d.singleton Point3d.origin) -- ugh.
+                    model.trackPointBox
+                , points = model.trackPoints
+            }
     in
     { model
         | zoomLevelOverview = zoomLevel
@@ -1779,13 +1804,7 @@ resetViewSettings model =
         , flythrough = Nothing
         , undoStack = []
         , redoStack = []
-
-        --, viewingMode =
-        --    if List.length model.trackPoints == 0 then
-        --        InputErrorView
-        --
-        --    else
-        --        model.viewingMode
+        , mapInfo = Maybe.map newMapInfo model.mapInfo
     }
 
 
