@@ -10,10 +10,13 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-17_
+> _This text updated 2020-12-19_
 
 > **Changes**
-> - Track Points allows you to intersperse new (properly interpolated) track points across a range of track bounded by the orange and purple markers. Use the slider to set a _maximum_ distance between track points. This does not mean they will necessarily all have that exact spacing.
+> - The Map view will now allow you to move the map around and zoom in and out. Thanks to Mapbox for this.
+> _Warning_ this integration is more complex and might go awry. _Save your work_ often.
+
+> - Slightly smaller font allows for slightly neater buttons.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
@@ -38,6 +41,8 @@ Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan
 **Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.
 
 **Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.
+
+**Map info** is not very useful at the moment but will develop.
 
 Click the blue button at the page top to choose a file.
 

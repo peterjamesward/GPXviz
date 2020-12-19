@@ -108,15 +108,15 @@ viewMapInfo : Maybe MapInfo -> Element Msg
 viewMapInfo mapInfo =
     case mapInfo of
         Just info ->
-            column [ padding 10, spacing 5, centerX ]
+            column [ padding 10, spacing 10, centerX ]
                 [ decodeState info.mapState
-                , row []
-                    [ column []
+                , row [ padding 10, spacing 10, centerX ]
+                    [ column [ padding 10, spacing 10, centerX ]
                         [ text "Longitude "
                         , text "Latitude "
                         , text "Zoom "
                         ]
-                    , column []
+                    , column [ padding 10, spacing 10, centerX ]
                         [ text <| showDecimal6 info.centreLon
                         , text <| showDecimal6 info.centreLat
                         , text <| showDecimal2 info.mapZoom
@@ -125,7 +125,8 @@ viewMapInfo mapInfo =
                 ]
 
         Nothing ->
-            text "There is no map information"
+            column [ padding 10, spacing 10, centerX ]
+                [ text "Map information is available only once a map has been loaded." ]
 
 
 processMapMessage : MapInfo -> E.Value -> ( MapInfo, Cmd Msg )

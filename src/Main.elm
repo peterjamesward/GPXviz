@@ -1796,16 +1796,15 @@ resetViewSettings model =
                 Nothing ->
                     1.0
 
-        newMapInfo : MapInfo -> MapInfo
-        newMapInfo info =
+        newMapInfo : MapInfo -> BoundingBox3d Length.Meters GPXCoords -> MapInfo
+        newMapInfo info box =
             -- If route has changed, make sure mapinfo is up to date.
             { info
-                | box =
-                    Maybe.withDefault
-                        (BoundingBox3d.singleton Point3d.origin)
-                        -- ugh.
-                        model.trackPointBox
+                | box = box
                 , points = model.trackPoints
+                , centreLat = Length.inMeters <| BoundingBox3d.midY box
+                , centreLon = Length.inMeters <| BoundingBox3d.midX box
+                , mapZoom = 12.0 -- TODO: Adjust for bounding box dimensions.
             }
     in
     { model
@@ -1821,7 +1820,7 @@ resetViewSettings model =
         , flythrough = Nothing
         , undoStack = []
         , redoStack = []
-        , mapInfo = Maybe.map newMapInfo model.mapInfo
+        , mapInfo = Maybe.map2 newMapInfo model.mapInfo model.trackPointBox
     }
 
 

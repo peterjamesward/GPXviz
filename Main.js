@@ -23302,7 +23302,7 @@ var $author$project$MapController$viewMapInfo = function (mapInfo) {
 			_List_fromArray(
 				[
 					$mdgriffith$elm_ui$Element$padding(10),
-					$mdgriffith$elm_ui$Element$spacing(5),
+					$mdgriffith$elm_ui$Element$spacing(10),
 					$mdgriffith$elm_ui$Element$centerX
 				]),
 			_List_fromArray(
@@ -23310,12 +23310,22 @@ var $author$project$MapController$viewMapInfo = function (mapInfo) {
 					$author$project$MapController$decodeState(info.mapState),
 					A2(
 					$mdgriffith$elm_ui$Element$row,
-					_List_Nil,
+					_List_fromArray(
+						[
+							$mdgriffith$elm_ui$Element$padding(10),
+							$mdgriffith$elm_ui$Element$spacing(10),
+							$mdgriffith$elm_ui$Element$centerX
+						]),
 					_List_fromArray(
 						[
 							A2(
 							$mdgriffith$elm_ui$Element$column,
-							_List_Nil,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$padding(10),
+									$mdgriffith$elm_ui$Element$spacing(10),
+									$mdgriffith$elm_ui$Element$centerX
+								]),
 							_List_fromArray(
 								[
 									$mdgriffith$elm_ui$Element$text('Longitude '),
@@ -23324,7 +23334,12 @@ var $author$project$MapController$viewMapInfo = function (mapInfo) {
 								])),
 							A2(
 							$mdgriffith$elm_ui$Element$column,
-							_List_Nil,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$padding(10),
+									$mdgriffith$elm_ui$Element$spacing(10),
+									$mdgriffith$elm_ui$Element$centerX
+								]),
 							_List_fromArray(
 								[
 									$mdgriffith$elm_ui$Element$text(
@@ -23337,7 +23352,18 @@ var $author$project$MapController$viewMapInfo = function (mapInfo) {
 						]))
 				]));
 	} else {
-		return $mdgriffith$elm_ui$Element$text('There is no map information');
+		return A2(
+			$mdgriffith$elm_ui$Element$column,
+			_List_fromArray(
+				[
+					$mdgriffith$elm_ui$Element$padding(10),
+					$mdgriffith$elm_ui$Element$spacing(10),
+					$mdgriffith$elm_ui$Element$centerX
+				]),
+			_List_fromArray(
+				[
+					$mdgriffith$elm_ui$Element$text('Map information is available only once a map has been loaded.')
+				]));
 	}
 };
 var $author$project$Msg$SetHorizontalNudgeFactor = F2(
@@ -25104,17 +25130,21 @@ var $author$project$Main$resetFlythrough = function (model) {
 		return model;
 	}
 };
-var $ianmackenzie$elm_geometry$BoundingBox3d$singleton = function (point) {
-	return $ianmackenzie$elm_geometry$Geometry$Types$BoundingBox3d(
-		{
-			maxX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
-			maxY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
-			maxZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point),
-			minX: $ianmackenzie$elm_geometry$Point3d$xCoordinate(point),
-			minY: $ianmackenzie$elm_geometry$Point3d$yCoordinate(point),
-			minZ: $ianmackenzie$elm_geometry$Point3d$zCoordinate(point)
-		});
-};
+var $elm$core$Maybe$map2 = F3(
+	function (func, ma, mb) {
+		if (ma.$ === 'Nothing') {
+			return $elm$core$Maybe$Nothing;
+		} else {
+			var a = ma.a;
+			if (mb.$ === 'Nothing') {
+				return $elm$core$Maybe$Nothing;
+			} else {
+				var b = mb.a;
+				return $elm$core$Maybe$Just(
+					A2(func, a, b));
+			}
+		}
+	});
 var $author$project$Main$resetViewSettings = function (model) {
 	var routeSize = A2($elm$core$Maybe$map, $ianmackenzie$elm_geometry$BoundingBox3d$dimensions, model.nodeBox);
 	var zoomLevel = function () {
@@ -25137,17 +25167,20 @@ var $author$project$Main$resetViewSettings = function (model) {
 			return 1.0;
 		}
 	}();
-	var newMapInfo = function (info) {
-		return _Utils_update(
-			info,
-			{
-				box: A2(
-					$elm$core$Maybe$withDefault,
-					$ianmackenzie$elm_geometry$BoundingBox3d$singleton($ianmackenzie$elm_geometry$Point3d$origin),
-					model.trackPointBox),
-				points: model.trackPoints
-			});
-	};
+	var newMapInfo = F2(
+		function (info, box) {
+			return _Utils_update(
+				info,
+				{
+					box: box,
+					centreLat: $ianmackenzie$elm_units$Length$inMeters(
+						$ianmackenzie$elm_geometry$BoundingBox3d$midY(box)),
+					centreLon: $ianmackenzie$elm_units$Length$inMeters(
+						$ianmackenzie$elm_geometry$BoundingBox3d$midX(box)),
+					mapZoom: 12.0,
+					points: model.trackPoints
+				});
+		});
 	return _Utils_update(
 		model,
 		{
@@ -25155,7 +25188,7 @@ var $author$project$Main$resetViewSettings = function (model) {
 			currentNode: $elm$core$Maybe$Just(0),
 			elevation: $ianmackenzie$elm_units$Angle$degrees(30.0),
 			flythrough: $elm$core$Maybe$Nothing,
-			mapInfo: A2($elm$core$Maybe$map, newMapInfo, model.mapInfo),
+			mapInfo: A3($elm$core$Maybe$map2, newMapInfo, model.mapInfo, model.trackPointBox),
 			markedNode: $elm$core$Maybe$Nothing,
 			redoStack: _List_Nil,
 			undoStack: _List_Nil,
@@ -27262,7 +27295,7 @@ var $author$project$Main$updatedAccordion = function (model) {
 };
 var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
-var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-17_\n\n> **Changes**\n> - Track Points allows you to intersperse new (properly interpolated) track points across a range of track bounded by the orange and purple markers. Use the slider to set a _maximum_ distance between track points. This does not mean they will necessarily all have that exact spacing.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (thanks, Euclid). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
+var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-19_\n\n> **Changes**\n> - The Map view will now allow you to move the map around and zoom in and out. Thanks to Mapbox for this.\n> _Warning_ this integration is more complex and might go awry. _Save your work_ often.\n\n> - Slightly smaller font allows for slightly neater buttons.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**File** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful to, um, smooth gradients. You can just insert track points (nodes) before or after the current point. Often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked (thanks, Euclid). Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\n**Map info** is not very useful at the moment but will develop.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
 var $mdgriffith$elm_ui$Internal$Model$Max = F2(

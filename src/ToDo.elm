@@ -2,8 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Nudge node could easily work on selection. (John Bytheway)
 
---TODO: Track map centre and zoom; persist over tab change.
-
 --TODO: Add smoothedBend and markers to map, allowing editing (!).
 
 --TODO: Understand Jason Hurst's UI feedback.
