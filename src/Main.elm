@@ -903,84 +903,138 @@ nudgeTrackPoint baseTP roadBearing horizontal vertical =
 
 simulateNudgeNode : Model -> Int -> Float -> Float -> Model
 simulateNudgeNode model nodeNum horizontal vertical =
+    case ( model.currentNode, model.markedNode ) of
+        ( Just cNode, Just mNode ) ->
+            let
+                ( firstNudgeNode, lastNudgeNode ) =
+                    ( min cNode mNode, max cNode mNode )
+            in
+            simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
+
+        ( Just cNode, Nothing ) ->
+            let
+                ( firstNudgeNode, lastNudgeNode ) =
+                    ( cNode, cNode )
+            in
+            simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
+
+        _ ->
+            { model | nudgedNodeRoads = [] }
+
+
+simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
+simulateNodeRangeNudge model node1 nodeN horizontal vertical =
     let
-        targetRoad =
-            Array.get nodeNum model.roadArray
+        targetRoads =
+            List.drop node1 <| List.take (nodeN + 1) model.roads
+
+        unmovedEndPoint =
+            List.map (.endsAt >> .trackPoint) <| List.take 1 <| List.reverse targetRoads
 
         prevNode =
-            Array.get (nodeNum - 1) model.roadArray
-    in
-    case targetRoad of
-        Nothing ->
-            model
+            Array.get (node1 - 1) model.roadArray
 
-        Just road ->
-            let
-                nudgedTrackPoint =
+        nudgedStartPoints =
+            List.map
+                (\road ->
                     nudgeTrackPoint
                         road.startsAt.trackPoint
                         road.bearing
                         horizontal
                         vertical
+                )
+                targetRoads
 
-                nudgedListForVisuals =
-                    (case prevNode of
-                        Nothing ->
-                            []
+        nudgedListForVisuals =
+            (case prevNode of
+                Nothing ->
+                    []
 
-                        Just prev ->
-                            [ prev.startsAt.trackPoint ]
-                    )
-                        ++ [ nudgedTrackPoint
-                           , road.endsAt.trackPoint
-                           ]
-            in
-            case model.trackPointBox of
-                Just box ->
-                    { model
-                        | nudgeValue = horizontal
-                        , verticalNudgeValue = vertical
-                        , nudgedNodeRoads =
-                            deriveRoads <|
-                                deriveNodes box <|
-                                    nudgedListForVisuals
-                    }
+                Just prev ->
+                    [ prev.startsAt.trackPoint ]
+            )
+                ++ nudgedStartPoints
+                ++ unmovedEndPoint
+    in
+    case model.trackPointBox of
+        Just box ->
+            { model
+                | nudgeValue = horizontal
+                , verticalNudgeValue = vertical
+                , nudgedNodeRoads =
+                    deriveRoads <|
+                        deriveNodes box <|
+                            nudgedListForVisuals
+            }
 
-                _ ->
-                    { model | nudgedNodeRoads = [] }
+        Nothing ->
+            { model | nudgedNodeRoads = [] }
 
 
 nudgeNode : Model -> Int -> Float -> Float -> Model
 nudgeNode model node horizontal vertical =
+    case ( model.currentNode, model.markedNode ) of
+        ( Just cNode, Just mNode ) ->
+            let
+                ( firstNudgeNode, lastNudgeNode ) =
+                    ( min cNode mNode, max cNode mNode )
+            in
+            nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
+
+        ( Just cNode, Nothing ) ->
+            let
+                ( firstNudgeNode, lastNudgeNode ) =
+                    ( cNode, cNode )
+            in
+            nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
+
+        _ ->
+            { model | nudgedNodeRoads = [] }
+
+
+nudgeNodeRange : Model -> Int -> Int -> Float -> Float -> Model
+nudgeNodeRange model node1 nodeN horizontal vertical =
     -- Apply the nudge factor permanently.
     let
-        targetRoad =
-            Array.get node model.roadArray
-
         undoMessage =
-            "Nudge at " ++ String.fromInt node
-    in
-    case targetRoad of
-        Nothing ->
-            model
+            if nodeN > node1 then
+                "Nudge " ++ String.fromInt node1 ++ " to " ++ String.fromInt nodeN
 
-        Just road ->
-            let
-                nudgedTrackPoint =
-                    nudgeTrackPoint road.startsAt.trackPoint road.bearing horizontal vertical
-            in
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                List.take node model.trackPoints
-                                    ++ [ nudgedTrackPoint ]
-                                    ++ List.drop (node + 1) model.trackPoints
-                            , nudgedNodeRoads = []
-                            , nudgeValue = 0.0
-                            , verticalNudgeValue = 0.0
-                        }
-                   )
+            else
+                "Nudge node " ++ String.fromInt node1
+
+        targetRoads =
+            List.drop node1 <| List.take (nodeN + 1) model.roads
+
+        unmovedEndPoint =
+            List.map (.endsAt >> .trackPoint) <| List.take 1 <| List.reverse targetRoads
+
+        prevNode =
+            Array.get (node1 - 1) model.roadArray
+
+        nudgedStartPoints =
+            List.map
+                (\road ->
+                    nudgeTrackPoint
+                        road.startsAt.trackPoint
+                        road.bearing
+                        horizontal
+                        vertical
+                )
+                targetRoads
+    in
+    addToUndoStack undoMessage model
+        |> (\m ->
+                { m
+                    | trackPoints =
+                        List.take node1 model.trackPoints
+                            ++ nudgedStartPoints
+                            ++ List.drop (nodeN + 1) model.trackPoints
+                    , nudgedNodeRoads = []
+                    , nudgeValue = 0.0
+                    , verticalNudgeValue = 0.0
+                }
+           )
 
 
 splitRoad : Model -> Int -> Model
@@ -2840,7 +2894,8 @@ viewNudgeTools model =
     case model.currentNode of
         Just c ->
             column [ padding 5, spacing 10, centerX ]
-                [ row [ spacing 10, centerX ]
+                [ markerButton model
+                , row [ spacing 10, centerX ]
                     [ verticalNudgeSlider c model.verticalNudgeValue
                     , horizontalNudgeSlider c model.nudgeValue
                     ]
@@ -2891,7 +2946,7 @@ markerButton model =
 
 
 undoButton model =
-    column [ spacing 5, Border.width 1 ]
+    row [ spacing 5, Border.width 1, Border.rounded 5 ]
         [ button
             prettyButtonStyles
             { onPress =

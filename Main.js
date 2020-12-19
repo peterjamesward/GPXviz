@@ -22865,11 +22865,12 @@ var $author$project$Msg$Redo = {$: 'Redo'};
 var $author$project$Msg$Undo = {$: 'Undo'};
 var $author$project$Main$undoButton = function (model) {
 	return A2(
-		$mdgriffith$elm_ui$Element$column,
+		$mdgriffith$elm_ui$Element$row,
 		_List_fromArray(
 			[
 				$mdgriffith$elm_ui$Element$spacing(5),
-				$mdgriffith$elm_ui$Element$Border$width(1)
+				$mdgriffith$elm_ui$Element$Border$width(1),
+				$mdgriffith$elm_ui$Element$Border$rounded(5)
 			]),
 		_List_fromArray(
 			[
@@ -23482,6 +23483,7 @@ var $author$project$Main$viewNudgeTools = function (model) {
 				]),
 			_List_fromArray(
 				[
+					$author$project$Main$markerButton(model),
 					A2(
 					$mdgriffith$elm_ui$Element$row,
 					_List_fromArray(
@@ -24534,31 +24536,75 @@ var $author$project$Main$nudgeTrackPoint = F4(
 					$ianmackenzie$elm_geometry$Point2d$xCoordinate(nudgedTrackPoint2d))
 			});
 	});
+var $author$project$Main$nudgeNodeRange = F5(
+	function (model, node1, nodeN, horizontal, vertical) {
+		var undoMessage = (_Utils_cmp(nodeN, node1) > 0) ? ('Nudge ' + ($elm$core$String$fromInt(node1) + (' to ' + $elm$core$String$fromInt(nodeN)))) : ('Nudge node ' + $elm$core$String$fromInt(node1));
+		var targetRoads = A2(
+			$elm$core$List$drop,
+			node1,
+			A2($elm$core$List$take, nodeN + 1, model.roads));
+		var unmovedEndPoint = A2(
+			$elm$core$List$map,
+			A2(
+				$elm$core$Basics$composeR,
+				function ($) {
+					return $.endsAt;
+				},
+				function ($) {
+					return $.trackPoint;
+				}),
+			A2(
+				$elm$core$List$take,
+				1,
+				$elm$core$List$reverse(targetRoads)));
+		var prevNode = A2($elm$core$Array$get, node1 - 1, model.roadArray);
+		var nudgedStartPoints = A2(
+			$elm$core$List$map,
+			function (road) {
+				return A4($author$project$Main$nudgeTrackPoint, road.startsAt.trackPoint, road.bearing, horizontal, vertical);
+			},
+			targetRoads);
+		return function (m) {
+			return _Utils_update(
+				m,
+				{
+					nudgeValue: 0.0,
+					nudgedNodeRoads: _List_Nil,
+					trackPoints: _Utils_ap(
+						A2($elm$core$List$take, node1, model.trackPoints),
+						_Utils_ap(
+							nudgedStartPoints,
+							A2($elm$core$List$drop, nodeN + 1, model.trackPoints))),
+					verticalNudgeValue: 0.0
+				});
+		}(
+			A2($author$project$Main$addToUndoStack, undoMessage, model));
+	});
 var $author$project$Main$nudgeNode = F4(
 	function (model, node, horizontal, vertical) {
-		var undoMessage = 'Nudge at ' + $elm$core$String$fromInt(node);
-		var targetRoad = A2($elm$core$Array$get, node, model.roadArray);
-		if (targetRoad.$ === 'Nothing') {
-			return model;
+		var _v0 = _Utils_Tuple2(model.currentNode, model.markedNode);
+		if (_v0.a.$ === 'Just') {
+			if (_v0.b.$ === 'Just') {
+				var cNode = _v0.a.a;
+				var mNode = _v0.b.a;
+				var _v1 = _Utils_Tuple2(
+					A2($elm$core$Basics$min, cNode, mNode),
+					A2($elm$core$Basics$max, cNode, mNode));
+				var firstNudgeNode = _v1.a;
+				var lastNudgeNode = _v1.b;
+				return A5($author$project$Main$nudgeNodeRange, model, firstNudgeNode, lastNudgeNode, horizontal, vertical);
+			} else {
+				var cNode = _v0.a.a;
+				var _v2 = _v0.b;
+				var _v3 = _Utils_Tuple2(cNode, cNode);
+				var firstNudgeNode = _v3.a;
+				var lastNudgeNode = _v3.b;
+				return A5($author$project$Main$nudgeNodeRange, model, firstNudgeNode, lastNudgeNode, horizontal, vertical);
+			}
 		} else {
-			var road = targetRoad.a;
-			var nudgedTrackPoint = A4($author$project$Main$nudgeTrackPoint, road.startsAt.trackPoint, road.bearing, horizontal, vertical);
-			return function (m) {
-				return _Utils_update(
-					m,
-					{
-						nudgeValue: 0.0,
-						nudgedNodeRoads: _List_Nil,
-						trackPoints: _Utils_ap(
-							A2($elm$core$List$take, node, model.trackPoints),
-							_Utils_ap(
-								_List_fromArray(
-									[nudgedTrackPoint]),
-								A2($elm$core$List$drop, node + 1, model.trackPoints))),
-						verticalNudgeValue: 0.0
-					});
-			}(
-				A2($author$project$Main$addToUndoStack, undoMessage, model));
+			return _Utils_update(
+				model,
+				{nudgedNodeRoads: _List_Nil});
 		}
 	});
 var $rtfeldman$elm_iso8601_date_strings$Iso8601$fromMonth = function (month) {
@@ -25219,43 +25265,86 @@ var $author$project$Main$reverseTrack = function (model) {
 	}(
 		A2($author$project$Main$addToUndoStack, undoMessage, model));
 };
+var $author$project$Main$simulateNodeRangeNudge = F5(
+	function (model, node1, nodeN, horizontal, vertical) {
+		var targetRoads = A2(
+			$elm$core$List$drop,
+			node1,
+			A2($elm$core$List$take, nodeN + 1, model.roads));
+		var unmovedEndPoint = A2(
+			$elm$core$List$map,
+			A2(
+				$elm$core$Basics$composeR,
+				function ($) {
+					return $.endsAt;
+				},
+				function ($) {
+					return $.trackPoint;
+				}),
+			A2(
+				$elm$core$List$take,
+				1,
+				$elm$core$List$reverse(targetRoads)));
+		var prevNode = A2($elm$core$Array$get, node1 - 1, model.roadArray);
+		var nudgedStartPoints = A2(
+			$elm$core$List$map,
+			function (road) {
+				return A4($author$project$Main$nudgeTrackPoint, road.startsAt.trackPoint, road.bearing, horizontal, vertical);
+			},
+			targetRoads);
+		var nudgedListForVisuals = _Utils_ap(
+			function () {
+				if (prevNode.$ === 'Nothing') {
+					return _List_Nil;
+				} else {
+					var prev = prevNode.a;
+					return _List_fromArray(
+						[prev.startsAt.trackPoint]);
+				}
+			}(),
+			_Utils_ap(nudgedStartPoints, unmovedEndPoint));
+		var _v0 = model.trackPointBox;
+		if (_v0.$ === 'Just') {
+			var box = _v0.a;
+			return _Utils_update(
+				model,
+				{
+					nudgeValue: horizontal,
+					nudgedNodeRoads: $author$project$NodesAndRoads$deriveRoads(
+						A2($author$project$NodesAndRoads$deriveNodes, box, nudgedListForVisuals)),
+					verticalNudgeValue: vertical
+				});
+		} else {
+			return _Utils_update(
+				model,
+				{nudgedNodeRoads: _List_Nil});
+		}
+	});
 var $author$project$Main$simulateNudgeNode = F4(
 	function (model, nodeNum, horizontal, vertical) {
-		var targetRoad = A2($elm$core$Array$get, nodeNum, model.roadArray);
-		var prevNode = A2($elm$core$Array$get, nodeNum - 1, model.roadArray);
-		if (targetRoad.$ === 'Nothing') {
-			return model;
-		} else {
-			var road = targetRoad.a;
-			var nudgedTrackPoint = A4($author$project$Main$nudgeTrackPoint, road.startsAt.trackPoint, road.bearing, horizontal, vertical);
-			var nudgedListForVisuals = _Utils_ap(
-				function () {
-					if (prevNode.$ === 'Nothing') {
-						return _List_Nil;
-					} else {
-						var prev = prevNode.a;
-						return _List_fromArray(
-							[prev.startsAt.trackPoint]);
-					}
-				}(),
-				_List_fromArray(
-					[nudgedTrackPoint, road.endsAt.trackPoint]));
-			var _v1 = model.trackPointBox;
-			if (_v1.$ === 'Just') {
-				var box = _v1.a;
-				return _Utils_update(
-					model,
-					{
-						nudgeValue: horizontal,
-						nudgedNodeRoads: $author$project$NodesAndRoads$deriveRoads(
-							A2($author$project$NodesAndRoads$deriveNodes, box, nudgedListForVisuals)),
-						verticalNudgeValue: vertical
-					});
+		var _v0 = _Utils_Tuple2(model.currentNode, model.markedNode);
+		if (_v0.a.$ === 'Just') {
+			if (_v0.b.$ === 'Just') {
+				var cNode = _v0.a.a;
+				var mNode = _v0.b.a;
+				var _v1 = _Utils_Tuple2(
+					A2($elm$core$Basics$min, cNode, mNode),
+					A2($elm$core$Basics$max, cNode, mNode));
+				var firstNudgeNode = _v1.a;
+				var lastNudgeNode = _v1.b;
+				return A5($author$project$Main$simulateNodeRangeNudge, model, firstNudgeNode, lastNudgeNode, horizontal, vertical);
 			} else {
-				return _Utils_update(
-					model,
-					{nudgedNodeRoads: _List_Nil});
+				var cNode = _v0.a.a;
+				var _v2 = _v0.b;
+				var _v3 = _Utils_Tuple2(cNode, cNode);
+				var firstNudgeNode = _v3.a;
+				var lastNudgeNode = _v3.b;
+				return A5($author$project$Main$simulateNodeRangeNudge, model, firstNudgeNode, lastNudgeNode, horizontal, vertical);
 			}
+		} else {
+			return _Utils_update(
+				model,
+				{nudgedNodeRoads: _List_Nil});
 		}
 	});
 var $author$project$Main$smoothBend = function (model) {
