@@ -528,44 +528,39 @@ update msg model =
             )
 
         ToggleCones _ ->
-            ( { model
+            { model
                 | displayOptions = { options | roadCones = not options.roadCones }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         TogglePillars _ ->
-            ( { model
+            { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         ToggleRoad _ ->
-            ( { model
+            { model
                 | displayOptions = { options | roadTrack = not options.roadTrack }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         ToggleCentreLine _ ->
-            ( { model
+            { model
                 | displayOptions = { options | centreLine = not options.centreLine }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetCurtainStyle style ->
-            ( { model
+            { model
                 | displayOptions = { options | curtainStyle = style }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetGradientChangeThreshold threshold ->
             ( { model
@@ -591,12 +586,11 @@ update msg model =
             )
 
         DeleteZeroLengthSegments ->
-            ( deleteZeroLengthSegments model
+            deleteZeroLengthSegments model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveProblems
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         OutputGPX ->
             ( { model | hasBeenChanged = False }
@@ -604,28 +598,26 @@ update msg model =
             )
 
         SmoothGradient s f g ->
-            ( smoothGradient model s f g
+            smoothGradient model s f g
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SmoothBend ->
-            ( model
+            model
                 |> smoothBend
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         Undo ->
-            ( case model.undoStack of
+            case model.undoStack of
                 action :: undos ->
                     { model
                         | trackPoints = action.trackPoints
@@ -640,14 +632,13 @@ update msg model =
                         |> deriveVaryingVisualEntities
                         |> deriveProblems
                         |> clearTerrain
+                        |> synchroniseMap
 
                 _ ->
-                    model
-            , Cmd.none
-            )
+                    ( model, Cmd.none )
 
         Redo ->
-            ( case model.redoStack of
+            case model.redoStack of
                 action :: redos ->
                     { model
                         | trackPoints = action.trackPoints
@@ -662,11 +653,10 @@ update msg model =
                         |> deriveVaryingVisualEntities
                         |> deriveProblems
                         |> clearTerrain
+                        |> synchroniseMap
 
                 _ ->
-                    model
-            , Cmd.none
-            )
+                    ( model, Cmd.none )
 
         ToggleMarker ->
             ( { model
@@ -703,7 +693,7 @@ update msg model =
             )
 
         InsertBeforeOrAfter node direction ->
-            ( insertTrackPoint node model
+            insertTrackPoint node model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveProblems
@@ -720,28 +710,25 @@ update msg model =
                         }
                    )
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         DeleteCurrentPoint c ->
-            ( deleteTrackPoint c model
+            deleteTrackPoint c model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveProblems
                 |> clearTerrain
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         ChangeLoopStart c ->
-            ( changeLoopStart c model
+            changeLoopStart c model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveProblems
                 |> clearTerrain
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         MakeTerrain ->
             ( deriveTerrain model
@@ -754,71 +741,70 @@ update msg model =
             )
 
         CloseTheLoop ->
-            ( closeTheLoop model
+            closeTheLoop model
                 |> clearTerrain
                 |> deriveNodesAndRoads
                 |> deriveProblems
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         ReverseTrack ->
-            ( reverseTrack model
+            reverseTrack model
                 |> clearTerrain
                 |> deriveNodesAndRoads
                 |> deriveProblems
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         StraightenStraight c m ->
-            ( straightenStraight c m model
+            straightenStraight c m model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetHorizontalNudgeFactor current horizontal ->
-            ( simulateNudgeNode model current horizontal model.verticalNudgeValue
+            simulateNudgeNode model current horizontal model.verticalNudgeValue
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetVerticalNudgeFactor current vertical ->
-            ( simulateNudgeNode model current model.nudgeValue vertical
+            simulateNudgeNode model current model.nudgeValue vertical
                 |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         NudgeNode node horizontal vertical ->
-            ( nudgeNode model node horizontal vertical
+            nudgeNode model node horizontal vertical
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SplitRoad node ->
-            ( splitRoad model node
+            splitRoad model node
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
                 |> deriveProblems
                 |> clearTerrain
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetMaxTrackpointSpacing f ->
             ( { model | maxSegmentSplitSize = f }
             , Cmd.none
             )
+
+
+synchroniseMap : Model -> ( Model, Cmd Msg )
+synchroniseMap model =
+    -- This may not be optimal.
+    switchViewMode model model.viewingMode
 
 
 switchViewMode : Model -> ViewingMode -> ( Model, Cmd Msg )
@@ -1951,6 +1937,13 @@ trackPointGap t1 t2 =
 deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
+    let
+        newMapInfo =
+            Maybe.map updateMapInfo model.mapInfo
+
+        updateMapInfo info =
+            { info | points = model.trackPoints }
+    in
     case model.nodeBox of
         Just scale ->
             let
@@ -1969,6 +1962,7 @@ deriveStaticVisualEntities model =
                 | staticVisualEntities = makeStatic3DEntities context model.roads
                 , staticProfileEntities = makeStaticProfileEntities context model.roads
                 , mapVisualEntities = makeMapEntities context model.roads
+                , mapInfo = newMapInfo
             }
 
         Nothing ->

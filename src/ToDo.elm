@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Map not reflecting edits.
+
 --TODO: Nudge node could easily work on selection. (John Bytheway)
 
 --TODO: Add smoothedBend and markers to map, allowing editing (!).

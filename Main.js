@@ -13174,6 +13174,12 @@ var $author$project$VisualEntities$makeStaticProfileEntities = F2(
 						curtains))));
 	});
 var $author$project$Main$deriveStaticVisualEntities = function (model) {
+	var updateMapInfo = function (info) {
+		return _Utils_update(
+			info,
+			{points: model.trackPoints});
+	};
+	var newMapInfo = A2($elm$core$Maybe$map, updateMapInfo, model.mapInfo);
 	var _v0 = model.nodeBox;
 	if (_v0.$ === 'Just') {
 		var scale = _v0.a;
@@ -13190,6 +13196,7 @@ var $author$project$Main$deriveStaticVisualEntities = function (model) {
 		return _Utils_update(
 			model,
 			{
+				mapInfo: newMapInfo,
 				mapVisualEntities: A2($author$project$VisualEntities$makeMapEntities, context, model.roads),
 				staticProfileEntities: A2($author$project$VisualEntities$makeStaticProfileEntities, context, model.roads),
 				staticVisualEntities: A2($author$project$VisualEntities$makeStatic3DEntities, context, model.roads)
@@ -25610,6 +25617,9 @@ var $author$project$Main$switchViewMode = F2(
 			}
 		}
 	});
+var $author$project$Main$synchroniseMap = function (model) {
+	return A2($author$project$Main$switchViewMode, model, model.viewingMode);
+};
 var $elm$file$File$toString = _File_toString;
 var $author$project$Geometry101$distance = F2(
 	function (p1, p2) {
@@ -26549,7 +26559,7 @@ var $author$project$Main$update = F2(
 						{orbiting: $elm$core$Maybe$Nothing}),
 					$elm$core$Platform$Cmd$none);
 			case 'ToggleCones':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveStaticVisualEntities(
 						_Utils_update(
 							model,
@@ -26557,10 +26567,9 @@ var $author$project$Main$update = F2(
 								displayOptions: _Utils_update(
 									options,
 									{roadCones: !options.roadCones})
-							})),
-					$elm$core$Platform$Cmd$none);
+							})));
 			case 'TogglePillars':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveStaticVisualEntities(
 						_Utils_update(
 							model,
@@ -26568,10 +26577,9 @@ var $author$project$Main$update = F2(
 								displayOptions: _Utils_update(
 									options,
 									{roadPillars: !options.roadPillars})
-							})),
-					$elm$core$Platform$Cmd$none);
+							})));
 			case 'ToggleRoad':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveStaticVisualEntities(
 						_Utils_update(
 							model,
@@ -26579,10 +26587,9 @@ var $author$project$Main$update = F2(
 								displayOptions: _Utils_update(
 									options,
 									{roadTrack: !options.roadTrack})
-							})),
-					$elm$core$Platform$Cmd$none);
+							})));
 			case 'ToggleCentreLine':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveStaticVisualEntities(
 						_Utils_update(
 							model,
@@ -26590,11 +26597,10 @@ var $author$project$Main$update = F2(
 								displayOptions: _Utils_update(
 									options,
 									{centreLine: !options.centreLine})
-							})),
-					$elm$core$Platform$Cmd$none);
+							})));
 			case 'SetCurtainStyle':
 				var style = msg.a;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveStaticVisualEntities(
 						_Utils_update(
 							model,
@@ -26602,8 +26608,7 @@ var $author$project$Main$update = F2(
 								displayOptions: _Utils_update(
 									options,
 									{curtainStyle: style})
-							})),
-					$elm$core$Platform$Cmd$none);
+							})));
 			case 'SetGradientChangeThreshold':
 				var threshold = msg.a;
 				return _Utils_Tuple2(
@@ -26630,12 +26635,11 @@ var $author$project$Main$update = F2(
 						{flythroughSpeed: speed}),
 					$elm$core$Platform$Cmd$none);
 			case 'DeleteZeroLengthSegments':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveProblems(
 						$author$project$Main$deriveStaticVisualEntities(
 							$author$project$Main$deriveNodesAndRoads(
-								$author$project$Main$deleteZeroLengthSegments(model)))),
-					$elm$core$Platform$Cmd$none);
+								$author$project$Main$deleteZeroLengthSegments(model)))));
 			case 'OutputGPX':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -26646,87 +26650,79 @@ var $author$project$Main$update = F2(
 				var s = msg.a;
 				var f = msg.b;
 				var g = msg.c;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$clearTerrain(
 						$author$project$Main$deriveProblems(
 							$author$project$Main$deriveVaryingVisualEntities(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										A4($author$project$Main$smoothGradient, model, s, f, g)))))),
-					$elm$core$Platform$Cmd$none);
+										A4($author$project$Main$smoothGradient, model, s, f, g)))))));
 			case 'SmoothBend':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$clearTerrain(
 						$author$project$Main$deriveProblems(
 							$author$project$Main$deriveVaryingVisualEntities(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										$author$project$Main$smoothBend(model)))))),
-					$elm$core$Platform$Cmd$none);
+										$author$project$Main$smoothBend(model)))))));
 			case 'Undo':
-				return _Utils_Tuple2(
-					function () {
-						var _v8 = model.undoStack;
-						if (_v8.b) {
-							var action = _v8.a;
-							var undos = _v8.b;
-							return $author$project$Main$clearTerrain(
-								$author$project$Main$deriveProblems(
-									$author$project$Main$deriveVaryingVisualEntities(
-										$author$project$Main$deriveStaticVisualEntities(
-											$author$project$Main$tryBendSmoother(
-												$author$project$Main$deriveNodesAndRoads(
-													_Utils_update(
-														model,
-														{
-															currentNode: action.currentNode,
-															markedNode: action.markedNode,
-															redoStack: A2(
-																$elm$core$List$cons,
-																_Utils_update(
-																	action,
-																	{trackPoints: model.trackPoints}),
-																model.redoStack),
-															trackPoints: action.trackPoints,
-															undoStack: undos
-														})))))));
-						} else {
-							return model;
-						}
-					}(),
-					$elm$core$Platform$Cmd$none);
+				var _v8 = model.undoStack;
+				if (_v8.b) {
+					var action = _v8.a;
+					var undos = _v8.b;
+					return $author$project$Main$synchroniseMap(
+						$author$project$Main$clearTerrain(
+							$author$project$Main$deriveProblems(
+								$author$project$Main$deriveVaryingVisualEntities(
+									$author$project$Main$deriveStaticVisualEntities(
+										$author$project$Main$tryBendSmoother(
+											$author$project$Main$deriveNodesAndRoads(
+												_Utils_update(
+													model,
+													{
+														currentNode: action.currentNode,
+														markedNode: action.markedNode,
+														redoStack: A2(
+															$elm$core$List$cons,
+															_Utils_update(
+																action,
+																{trackPoints: model.trackPoints}),
+															model.redoStack),
+														trackPoints: action.trackPoints,
+														undoStack: undos
+													}))))))));
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
 			case 'Redo':
-				return _Utils_Tuple2(
-					function () {
-						var _v9 = model.redoStack;
-						if (_v9.b) {
-							var action = _v9.a;
-							var redos = _v9.b;
-							return $author$project$Main$clearTerrain(
-								$author$project$Main$deriveProblems(
-									$author$project$Main$deriveVaryingVisualEntities(
-										$author$project$Main$deriveStaticVisualEntities(
-											$author$project$Main$tryBendSmoother(
-												$author$project$Main$deriveNodesAndRoads(
-													_Utils_update(
-														model,
-														{
-															currentNode: action.currentNode,
-															markedNode: action.markedNode,
-															redoStack: redos,
-															trackPoints: action.trackPoints,
-															undoStack: A2(
-																$elm$core$List$cons,
-																_Utils_update(
-																	action,
-																	{trackPoints: model.trackPoints}),
-																model.undoStack)
-														})))))));
-						} else {
-							return model;
-						}
-					}(),
-					$elm$core$Platform$Cmd$none);
+				var _v9 = model.redoStack;
+				if (_v9.b) {
+					var action = _v9.a;
+					var redos = _v9.b;
+					return $author$project$Main$synchroniseMap(
+						$author$project$Main$clearTerrain(
+							$author$project$Main$deriveProblems(
+								$author$project$Main$deriveVaryingVisualEntities(
+									$author$project$Main$deriveStaticVisualEntities(
+										$author$project$Main$tryBendSmoother(
+											$author$project$Main$deriveNodesAndRoads(
+												_Utils_update(
+													model,
+													{
+														currentNode: action.currentNode,
+														markedNode: action.markedNode,
+														redoStack: redos,
+														trackPoints: action.trackPoints,
+														undoStack: A2(
+															$elm$core$List$cons,
+															_Utils_update(
+																action,
+																{trackPoints: model.trackPoints}),
+															model.undoStack)
+													}))))))));
+				} else {
+					return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
+				}
 			case 'ToggleMarker':
 				return _Utils_Tuple2(
 					$author$project$Main$deriveVaryingVisualEntities(
@@ -26763,7 +26759,7 @@ var $author$project$Main$update = F2(
 			case 'InsertBeforeOrAfter':
 				var node = msg.a;
 				var direction = msg.b;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
 						function (m) {
 							return _Utils_update(
@@ -26787,28 +26783,25 @@ var $author$project$Main$update = F2(
 								$author$project$Main$deriveProblems(
 									$author$project$Main$deriveStaticVisualEntities(
 										$author$project$Main$deriveNodesAndRoads(
-											A2($author$project$Main$insertTrackPoint, node, model))))))),
-					$elm$core$Platform$Cmd$none);
+											A2($author$project$Main$insertTrackPoint, node, model))))))));
 			case 'DeleteCurrentPoint':
 				var c = msg.a;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
 						$author$project$Main$clearTerrain(
 							$author$project$Main$deriveProblems(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										A2($author$project$Main$deleteTrackPoint, c, model)))))),
-					$elm$core$Platform$Cmd$none);
+										A2($author$project$Main$deleteTrackPoint, c, model)))))));
 			case 'ChangeLoopStart':
 				var c = msg.a;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
 						$author$project$Main$clearTerrain(
 							$author$project$Main$deriveProblems(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										A2($author$project$Main$changeLoopStart, c, model)))))),
-					$elm$core$Platform$Cmd$none);
+										A2($author$project$Main$changeLoopStart, c, model)))))));
 			case 'MakeTerrain':
 				return _Utils_Tuple2(
 					$author$project$Main$deriveTerrain(model),
@@ -26818,70 +26811,63 @@ var $author$project$Main$update = F2(
 					$author$project$Main$clearTerrain(model),
 					$elm$core$Platform$Cmd$none);
 			case 'CloseTheLoop':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
 						$author$project$Main$deriveStaticVisualEntities(
 							$author$project$Main$deriveProblems(
 								$author$project$Main$deriveNodesAndRoads(
 									$author$project$Main$clearTerrain(
-										$author$project$Main$closeTheLoop(model)))))),
-					$elm$core$Platform$Cmd$none);
+										$author$project$Main$closeTheLoop(model)))))));
 			case 'ReverseTrack':
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
 						$author$project$Main$deriveStaticVisualEntities(
 							$author$project$Main$deriveProblems(
 								$author$project$Main$deriveNodesAndRoads(
 									$author$project$Main$clearTerrain(
-										$author$project$Main$reverseTrack(model)))))),
-					$elm$core$Platform$Cmd$none);
+										$author$project$Main$reverseTrack(model)))))));
 			case 'StraightenStraight':
 				var c = msg.a;
 				var m = msg.b;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$clearTerrain(
 						$author$project$Main$deriveProblems(
 							$author$project$Main$deriveVaryingVisualEntities(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										A3($author$project$Main$straightenStraight, c, m, model)))))),
-					$elm$core$Platform$Cmd$none);
+										A3($author$project$Main$straightenStraight, c, m, model)))))));
 			case 'SetHorizontalNudgeFactor':
 				var current = msg.a;
 				var horizontal = msg.b;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
-						A4($author$project$Main$simulateNudgeNode, model, current, horizontal, model.verticalNudgeValue)),
-					$elm$core$Platform$Cmd$none);
+						A4($author$project$Main$simulateNudgeNode, model, current, horizontal, model.verticalNudgeValue)));
 			case 'SetVerticalNudgeFactor':
 				var current = msg.a;
 				var vertical = msg.b;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$deriveVaryingVisualEntities(
-						A4($author$project$Main$simulateNudgeNode, model, current, model.nudgeValue, vertical)),
-					$elm$core$Platform$Cmd$none);
+						A4($author$project$Main$simulateNudgeNode, model, current, model.nudgeValue, vertical)));
 			case 'NudgeNode':
 				var node = msg.a;
 				var horizontal = msg.b;
 				var vertical = msg.c;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$clearTerrain(
 						$author$project$Main$deriveProblems(
 							$author$project$Main$deriveVaryingVisualEntities(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										A4($author$project$Main$nudgeNode, model, node, horizontal, vertical)))))),
-					$elm$core$Platform$Cmd$none);
+										A4($author$project$Main$nudgeNode, model, node, horizontal, vertical)))))));
 			case 'SplitRoad':
 				var node = msg.a;
-				return _Utils_Tuple2(
+				return $author$project$Main$synchroniseMap(
 					$author$project$Main$clearTerrain(
 						$author$project$Main$deriveProblems(
 							$author$project$Main$deriveVaryingVisualEntities(
 								$author$project$Main$deriveStaticVisualEntities(
 									$author$project$Main$deriveNodesAndRoads(
-										A2($author$project$Main$splitRoad, model, node)))))),
-					$elm$core$Platform$Cmd$none);
+										A2($author$project$Main$splitRoad, model, node)))))));
 			default:
 				var f = msg.a;
 				return _Utils_Tuple2(
