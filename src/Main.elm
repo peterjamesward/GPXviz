@@ -21,6 +21,7 @@ import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
+import Geometry101
 import Html.Attributes exposing (id)
 import Iso8601
 import Json.Decode as E exposing (decodeValue, field, float)
@@ -356,18 +357,18 @@ makeNearestNodeCurrent model lon lat =
     -- Not sure what tolerance we need here.
     -- I reckon 3 metres, being half the road width.
     let
-        _ =
-            Debug.log "click handling in Elm"
-
         nearbyPoints =
-            List.filter isClose model.trackPoints
+            List.sortBy distance
+            model.roads
 
-        isClose point =
-            abs (lon - point.lon) < 0.05 && abs (lat - point.lat) < 0.05
+        distance point =
+            Geometry101.distance
+                { x = point.startsAt.trackPoint.lon, y = point.startsAt.trackPoint.lat }
+                { x = lon, y = lat }
     in
     case nearbyPoints of
         n :: _ ->
-            { model | currentNode = Just n.idx }
+            { model | currentNode = Just n.index }
 
         _ ->
             { model | currentNode = Nothing }

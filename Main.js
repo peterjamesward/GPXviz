@@ -24434,20 +24434,27 @@ var $author$project$Main$insertTrackPoint = F2(
 	});
 var $elm$json$Json$Decode$decodeValue = _Json_run;
 var $elm$json$Json$Decode$float = _Json_decodeFloat;
-var $elm$core$Debug$log = _Debug_log;
+var $author$project$Geometry101$distance = F2(
+	function (p1, p2) {
+		return $elm$core$Basics$sqrt(
+			A2($elm$core$Basics$pow, p1.x - p2.x, 2.0) + A2($elm$core$Basics$pow, p1.y - p2.y, 2.0));
+	});
+var $elm$core$List$sortBy = _List_sortBy;
 var $author$project$Main$makeNearestNodeCurrent = F3(
 	function (model, lon, lat) {
-		var isClose = function (point) {
-			return ($elm$core$Basics$abs(lon - point.lon) < 0.05) && ($elm$core$Basics$abs(lat - point.lat) < 0.05);
+		var distance = function (point) {
+			return A2(
+				$author$project$Geometry101$distance,
+				{x: point.startsAt.trackPoint.lon, y: point.startsAt.trackPoint.lat},
+				{x: lon, y: lat});
 		};
-		var nearbyPoints = A2($elm$core$List$filter, isClose, model.trackPoints);
-		var _v0 = $elm$core$Debug$log('click handling in Elm');
+		var nearbyPoints = A2($elm$core$List$sortBy, distance, model.roads);
 		if (nearbyPoints.b) {
 			var n = nearbyPoints.a;
 			return _Utils_update(
 				model,
 				{
-					currentNode: $elm$core$Maybe$Just(n.idx)
+					currentNode: $elm$core$Maybe$Just(n.index)
 				});
 		} else {
 			return _Utils_update(
@@ -25724,11 +25731,6 @@ var $author$project$Main$synchroniseMap = function (model) {
 	return A2($author$project$Main$switchViewMode, model, model.viewingMode);
 };
 var $elm$file$File$toString = _File_toString;
-var $author$project$Geometry101$distance = F2(
-	function (p1, p2) {
-		return $elm$core$Basics$sqrt(
-			A2($elm$core$Basics$pow, p1.x - p2.x, 2.0) + A2($elm$core$Basics$pow, p1.y - p2.y, 2.0));
-	});
 var $author$project$Geometry101$findIncircle = F3(
 	function (pA, pB, pC) {
 		var _v0 = _Utils_Tuple3(
