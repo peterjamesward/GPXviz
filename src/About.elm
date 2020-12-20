@@ -10,15 +10,16 @@ import Msg exposing (Msg)
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-19_
+> _This text updated 2020-12-20_
 
 > **Changes**
-> - The Map view will now allow you to move the map around and zoom in and out. Thanks to Mapbox for this.
-> _Warning:_ this integration is more complex and might go awry. _Save your work_ more often.
+> - The Map view now allows you to move the map around and zoom in and out. Thanks to Mapbox for this.
+> _Warning:_ this integration is more complex and might go awry. It's like a battle for control of the screen being harnessed into something creative, somewhat like fireworks.
+> _Save your work_ more often.
 
 > - Slightly smaller font allows for slightly neater buttons.
 
-> - You can Nudge a range of nodes, as set by the Orange & Purple cones. Thanks, John Bytheway, for suggestion.
+> - You can Nudge a range of nodes, as set by the Orange & Purple cones. Thanks, John Bytheway, for suggestion. It's great for adjust bend radius, IMHO.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
