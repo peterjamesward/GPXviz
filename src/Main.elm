@@ -23,9 +23,10 @@ import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Html.Attributes exposing (id)
 import Iso8601
+import Json.Decode as E exposing (decodeValue, field, float)
 import Length
 import List exposing (drop, take)
-import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver)
+import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
@@ -315,6 +316,56 @@ clearTheModel model =
         , nudgedNodeRoads = []
     }
 
+locallyHandleMapMessage : Model -> E.Value -> Model
+locallyHandleMapMessage model json =
+    -- So we don't need to keep going to the MapController.
+    -- These will be Model-domain messages.
+    let
+        msg =
+            decodeValue msgDecoder json
+
+        lat =
+            decodeValue (field "lat" float) json
+
+        lon =
+            decodeValue (field "lon" float) json
+
+        zoom =
+            decodeValue (field "zoom" float) json
+    in
+    case msg of
+        Ok "click" ->
+             --{ 'msg' : 'click'
+             --, 'lat' : e.lat()
+             --, 'lon' : e.lon()
+             --} );
+            case ( lat, lon ) of
+                ( Ok lat1, Ok lon1 ) ->
+                    makeNearestNodeCurrent model lon1 lat1
+
+                _ ->
+                    model
+
+        _ ->
+            model
+
+makeNearestNodeCurrent : Model -> Float -> Float -> Model
+makeNearestNodeCurrent model lon lat =
+    -- Not sure what tolerance we need here.
+    -- I reckon 3 metres, being half the road width.
+    let
+        nearbyPoints =
+            List.filter isClose model.trackPoints
+
+        isClose point =
+            abs (lon - point.lon) < 0.05 && abs (lat - point.lat ) < 0.05
+    in
+    case nearbyPoints of
+        ( n :: _ ) ->
+            { model | currentNode = Just n.idx }
+
+        _ ->
+            { model | currentNode = Nothing }
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -326,13 +377,14 @@ update msg model =
         MapMessage jsonMsg ->
             case model.mapInfo of
                 Just mapInfo ->
-                    let
-                        ( newInfo, cmd ) =
-                            MapController.processMapMessage mapInfo jsonMsg
-                    in
-                    ( { model | mapInfo = Just newInfo }
-                    , cmd
-                    )
+                    case MapController.processMapMessage mapInfo jsonMsg of
+                        Just ( newInfo, cmd ) ->
+                            ( { model | mapInfo = Just newInfo }
+                            , cmd
+                            )
+
+                        Nothing ->
+                            ( locallyHandleMapMessage model jsonMsg, Cmd.none )
 
                 Nothing ->
                     ( model, Cmd.none )

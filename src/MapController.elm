@@ -129,24 +129,28 @@ viewMapInfo mapInfo =
                 [ text "Map information is available only once a map has been loaded." ]
 
 
-processMapMessage : MapInfo -> E.Value -> ( MapInfo, Cmd Msg )
+processMapMessage : MapInfo -> E.Value -> Maybe ( MapInfo, Cmd Msg )
 processMapMessage info json =
+    -- If we return Nothing, it means we're not interested and Main should handle it.
     let
         msg =
             decodeValue msgDecoder json
     in
     case msg of
         Ok "no node" ->
-            ( { info | mapState = WaitingForNode }
-            , createMap info
-            )
+            Just
+                ( { info | mapState = WaitingForNode }
+                , createMap info
+                )
 
         Ok "map ready" ->
-            ( { info | mapState = MapLoaded }
-            , addTrackToMap info
-            )
+            Just
+                ( { info | mapState = MapLoaded }
+                , addTrackToMap info
+                )
 
         Ok "move" ->
+            -- User is dragging/zooming the map
             --( { 'msg' : 'move'
             --  , 'lat' : map.getCentre().lat
             --  , 'lon' : map.getCentre().lon
@@ -164,19 +168,20 @@ processMapMessage info json =
             in
             case ( lat, lon, zoom ) of
                 ( Ok lat1, Ok lon1, Ok zoom1 ) ->
-                    ( { info
-                        | centreLon = lon1
-                        , centreLat = lat1
-                        , mapZoom = zoom1
-                      }
-                    , Cmd.none
-                    )
+                    Just
+                        ( { info
+                            | centreLon = lon1
+                            , centreLat = lat1
+                            , mapZoom = zoom1
+                          }
+                        , Cmd.none
+                        )
 
                 _ ->
-                    ( info, Cmd.none )
+                    Just ( info, Cmd.none )
 
         _ ->
-            ( info, Cmd.none )
+            Nothing
 
 
 msgDecoder : Decoder String
