@@ -14773,6 +14773,9 @@ var $author$project$Main$deriveTerrain = function (model) {
 		return model;
 	}
 };
+var $ianmackenzie$elm_geometry$Point3d$fromMeters = function (givenCoordinates) {
+	return $ianmackenzie$elm_geometry$Geometry$Types$Point3d(givenCoordinates);
+};
 var $avh4$elm_color$Color$lightOrange = A4($avh4$elm_color$Color$RgbaSpace, 252 / 255, 175 / 255, 62 / 255, 1.0);
 var $avh4$elm_color$Color$lightYellow = A4($avh4$elm_color$Color$RgbaSpace, 255 / 255, 233 / 255, 79 / 255, 1.0);
 var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
@@ -14781,23 +14784,29 @@ var $author$project$VisualEntities$makeVaryingProfileEntities = F2(
 			var _v2 = context.nudgedRegionStart;
 			if (_v2.$ === 'Just') {
 				var node1 = _v2.a;
+				var segmentsInvolved = (!node1) ? roadList : A2($elm$core$List$drop, node1 - 1, roadList);
 				var prevNode = A2($elm$core$List$drop, node1 - 1, roadList);
 				var elevationVector = A3($ianmackenzie$elm_geometry$Vector3d$meters, 0.0, 0.0, context.verticalNudge);
+				var baselineWithElevationFromNudged = F2(
+					function (baseline, nudged) {
+						var nudgedRecord = $ianmackenzie$elm_geometry$Point3d$toMeters(nudged);
+						var baselineRecord = $ianmackenzie$elm_geometry$Point3d$toMeters(baseline);
+						return $ianmackenzie$elm_geometry$Point3d$fromMeters(
+							_Utils_update(
+								baselineRecord,
+								{z: nudgedRecord.z}));
+					});
 				var blendTheRoadData = F2(
-					function (profile, _v3) {
+					function (baseline, nudged) {
 						return A5(
 							$ianmackenzie$elm_3d_scene$Scene3d$quad,
 							$ianmackenzie$elm_3d_scene$Scene3d$Material$color($avh4$elm_color$Color$lightYellow),
-							profile.profileStartsAt.location,
-							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.profileStartsAt.location),
-							A2($ianmackenzie$elm_geometry$Point3d$translateBy, elevationVector, profile.profileEndsAt.location),
-							profile.profileEndsAt.location);
+							baseline.profileStartsAt.location,
+							A2(baselineWithElevationFromNudged, baseline.profileStartsAt.location, nudged.startsAt.location),
+							A2(baselineWithElevationFromNudged, baseline.profileEndsAt.location, nudged.endsAt.location),
+							baseline.profileEndsAt.location);
 					});
-				var nudgedRoads = A3(
-					$elm$core$List$map2,
-					blendTheRoadData,
-					A2($elm$core$List$drop, node1, roadList),
-					context.nudgedRoads);
+				var nudgedRoads = A3($elm$core$List$map2, blendTheRoadData, segmentsInvolved, context.nudgedRoads);
 				return nudgedRoads;
 			} else {
 				return _List_Nil;

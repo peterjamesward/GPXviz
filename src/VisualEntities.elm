@@ -9,7 +9,7 @@ import Direction3d exposing (negativeZ, positiveZ)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import LineSegment3d
-import NodesAndRoads exposing (DrawingNode, DrawingRoad, LocalCoords)
+import NodesAndRoads exposing (DrawingNode, DrawingRoad, GPXCoords(..), LocalCoords)
 import Plane3d
 import Point3d
 import Quantity
@@ -489,21 +489,51 @@ makeVaryingProfileEntities context roadList =
                             -- Fugly way to get neighbouring nodes, but hey-ho.
                             List.drop (node1 - 1) roadList
 
-                        blendTheRoadData profile _ =
+                        baselineWithElevationFromNudged baseline nudged =
+                            let
+                                baselineRecord =
+                                    Point3d.toMeters baseline
+
+                                nudgedRecord =
+                                    Point3d.toMeters nudged
+                            in
+                            Point3d.fromMeters
+                                { baselineRecord | z = nudgedRecord.z }
+
+                        blendTheRoadData baseline nudged =
                             Scene3d.quad (Material.color Color.lightYellow)
-                                profile.profileStartsAt.location
-                                (Point3d.translateBy elevationVector profile.profileStartsAt.location)
-                                (Point3d.translateBy elevationVector profile.profileEndsAt.location)
-                                profile.profileEndsAt.location
+                                baseline.profileStartsAt.location
+                                (baselineWithElevationFromNudged
+                                    baseline.profileStartsAt.location
+                                    nudged.startsAt.location
+                                )
+                                (baselineWithElevationFromNudged
+                                    baseline.profileEndsAt.location
+                                    nudged.endsAt.location
+                                )
+                                --(Point3d.translateBy elevationVector baseline.profileStartsAt.location)
+                                --(Point3d.translateBy elevationVector baseline.profileEndsAt.location)
+                                baseline.profileEndsAt.location
 
                         elevationVector =
                             Vector3d.meters 0.0 0.0 context.verticalNudge
+
+                        segmentsInvolved =
+                            -- If the lowest marker is not at zero, then
+                            -- the nudged roads includes the "on-ramp" from
+                            -- the previous node, as well as the "off-ramp"
+                            -- after the second node.
+                            if node1 == 0 then
+                                roadList
+
+                            else
+                                List.drop (node1 - 1) roadList
 
                         nudgedRoads =
                             -- Combine the nudged roads cleverly with our unrolled ones
                             List.map2
                                 blendTheRoadData
-                                (List.drop node1 roadList)
+                                segmentsInvolved
                                 context.nudgedRoads
                     in
                     nudgedRoads
