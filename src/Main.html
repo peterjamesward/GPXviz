@@ -93,8 +93,8 @@ function makeTheMap(msg) {
             console.log('A click event has occurred at ' + e.lngLat);
                 app.ports.messageReceiver.send(
                  { 'msg' : 'click'
-                 , 'lat' : e.lngLat[1]
-                 , 'lon' : e.lngLat[0]
+                 , 'lat' : e.lngLat.lat
+                 , 'lon' : e.lngLat.lng
                  } );
         });
 

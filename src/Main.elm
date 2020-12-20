@@ -316,6 +316,7 @@ clearTheModel model =
         , nudgedNodeRoads = []
     }
 
+
 locallyHandleMapMessage : Model -> E.Value -> Model
 locallyHandleMapMessage model json =
     -- So we don't need to keep going to the MapController.
@@ -335,10 +336,10 @@ locallyHandleMapMessage model json =
     in
     case msg of
         Ok "click" ->
-             --{ 'msg' : 'click'
-             --, 'lat' : e.lat()
-             --, 'lon' : e.lon()
-             --} );
+            --{ 'msg' : 'click'
+            --, 'lat' : e.lat()
+            --, 'lon' : e.lon()
+            --} );
             case ( lat, lon ) of
                 ( Ok lat1, Ok lon1 ) ->
                     makeNearestNodeCurrent model lon1 lat1
@@ -349,23 +350,28 @@ locallyHandleMapMessage model json =
         _ ->
             model
 
+
 makeNearestNodeCurrent : Model -> Float -> Float -> Model
 makeNearestNodeCurrent model lon lat =
     -- Not sure what tolerance we need here.
     -- I reckon 3 metres, being half the road width.
     let
+        _ =
+            Debug.log "click handling in Elm"
+
         nearbyPoints =
             List.filter isClose model.trackPoints
 
         isClose point =
-            abs (lon - point.lon) < 0.05 && abs (lat - point.lat ) < 0.05
+            abs (lon - point.lon) < 0.05 && abs (lat - point.lat) < 0.05
     in
     case nearbyPoints of
-        ( n :: _ ) ->
+        n :: _ ->
             { model | currentNode = Just n.idx }
 
         _ ->
             { model | currentNode = Nothing }
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =

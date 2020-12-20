@@ -24434,12 +24434,14 @@ var $author$project$Main$insertTrackPoint = F2(
 	});
 var $elm$json$Json$Decode$decodeValue = _Json_run;
 var $elm$json$Json$Decode$float = _Json_decodeFloat;
+var $elm$core$Debug$log = _Debug_log;
 var $author$project$Main$makeNearestNodeCurrent = F3(
 	function (model, lon, lat) {
 		var isClose = function (point) {
 			return ($elm$core$Basics$abs(lon - point.lon) < 0.05) && ($elm$core$Basics$abs(lat - point.lat) < 0.05);
 		};
 		var nearbyPoints = A2($elm$core$List$filter, isClose, model.trackPoints);
+		var _v0 = $elm$core$Debug$log('click handling in Elm');
 		if (nearbyPoints.b) {
 			var n = nearbyPoints.a;
 			return _Utils_update(
