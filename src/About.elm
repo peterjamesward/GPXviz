@@ -19,7 +19,7 @@ aboutText =
 
 > - Slightly smaller font allows for slightly neater buttons.
 
-> - You can Nudge a range of nodes, as set by the Orange & Purple cones. Thanks, John Bytheway, for suggestion. It's great for adjust bend radius, IMHO.
+> - You can Nudge a range of nodes, as set by the Orange & Purple cones. Thanks, John Bytheway, for suggestion. It's great for adjusting bend radius, IMHO.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 

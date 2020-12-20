@@ -1,6 +1,8 @@
 module ToDo exposing (..)
 
---TODO: Show nudge suggestion in profile.
+--TODO: Scroll wheel zoom?
+
+--TODO: Scale of some kind on graphics.
 
 --TODO: Show yellow smoothed bend option on map.
 
@@ -8,9 +10,9 @@ module ToDo exposing (..)
 
 --TODO: Result of above, editing should work on map.
 
---TODO: Understand Jason Hurst's UI feedback.
+--TODO: Re-grouping of controls (see Jason Hurst input).
 
---HOLD: Feat? Clicking & Dragging on Plan & Elevation views.
+--TODO: Feat? Clicking & Dragging on Plan & Elevation views.
 --Ian MacKenzie (himself) says Camera3d.ray will be useful here!
 
 --HOLD: Feat. Say if filename is too long for Magic Roads. (50 chars.)
