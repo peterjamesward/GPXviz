@@ -70,8 +70,8 @@ type alias AbruptChange =
 type alias UndoEntry =
     { label : String
     , trackPoints : List TrackPoint
-    , currentNode :  Int
-    , markedNode :  Int
+    , currentNode : Int
+    , markedNode : Maybe Int
     }
 
 
@@ -103,10 +103,10 @@ type alias Model =
     , varyingProfileEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
     , mapVisualEntities : List (Entity LocalCoords) -- for map image only
-    , currentNode :  Int
-    , markedNode :  Int
+    , currentNode : Int
+    , markedNode : Maybe Int
     , viewingMode : ViewingMode
-    , summary :  Maybe SummaryData
+    , summary : Maybe SummaryData
     , nodeArray : Array DrawingNode
     , roadArray : Array DrawingRoad
     , zoomLevelOverview : Float
@@ -133,7 +133,7 @@ type alias Model =
     , loopiness : Loopiness
     , nudgeValue : Float
     , nudgedNodeRoads : List DrawingRoad
-    , nudgedRegionStart : Maybe Int -- so we can correlate nudgedNodeRoads in profile view (ugh).
+    , nudgedRegionStart : Int -- so we can correlate nudgedNodeRoads in profile view (ugh).
     , verticalNudgeValue : Float
     , accordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
@@ -165,7 +165,7 @@ init _ =
       , mapVisualEntities = []
       , terrainEntities = []
       , currentNode = 0
-      , markedNode = 0
+      , markedNode = Nothing
       , viewingMode = AboutView
       , summary = Nothing
       , nodeArray = Array.empty
@@ -194,7 +194,7 @@ init _ =
       , loopiness = NotALoop 0.0
       , nudgeValue = 0.0
       , nudgedNodeRoads = []
-      , nudgedRegionStart = Nothing
+      , nudgedRegionStart = 0
       , verticalNudgeValue = 0.0
       , accordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
@@ -297,7 +297,7 @@ clearTheModel model =
         , varyingProfileEntities = []
         , terrainEntities = []
         , currentNode = 0
-        , markedNode = 0
+        , markedNode = Nothing
         , summary = Nothing
         , nodeArray = Array.empty
         , roadArray = Array.empty
@@ -441,7 +441,7 @@ update msg model =
             switchViewMode newModel newModel.viewingMode
 
         UserMovedNodeSlider node ->
-            ( { model | currentNode =  node }
+            ( { model | currentNode = node }
                 |> cancelFlythrough
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -477,7 +477,10 @@ update msg model =
 
         MarkerForwardOne ->
             ( { model
-                | markedNode = modBy (List.length model.nodes) (model.markedNode + 1)
+                | markedNode =
+                    Maybe.map
+                        (\m -> modBy (List.length model.nodes) (m + 1))
+                        model.markedNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -486,7 +489,10 @@ update msg model =
 
         MarkerBackOne ->
             ( { model
-                | markedNode = modBy (List.length model.nodes) (model.markedNode - 1)
+                | markedNode =
+                    Maybe.map
+                        (\m -> modBy (List.length model.nodes) (m - 1))
+                        model.markedNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -655,8 +661,8 @@ update msg model =
             , outputGPX model
             )
 
-        SmoothGradient s f g ->
-            smoothGradient model s f g
+        SmoothGradient g ->
+            smoothGradient model g
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
@@ -724,7 +730,7 @@ update msg model =
                             Nothing
 
                         Nothing ->
-                            model.currentNode
+                            Just model.currentNode
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -764,7 +770,7 @@ update msg model =
                                         model.currentNode
 
                                     InsertNodeBefore ->
-                                        Maybe.map (\n -> n + 1) model.currentNode
+                                        model.currentNode + 1
                         }
                    )
                 |> deriveVaryingVisualEntities
@@ -816,8 +822,8 @@ update msg model =
                 |> deriveVaryingVisualEntities
                 |> synchroniseMap
 
-        StraightenStraight c m ->
-            straightenStraight c m model
+        StraightenStraight ->
+            straightenStraight model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
@@ -825,18 +831,18 @@ update msg model =
                 |> clearTerrain
                 |> synchroniseMap
 
-        SetHorizontalNudgeFactor current horizontal ->
-            simulateNudgeNode model current horizontal model.verticalNudgeValue
+        SetHorizontalNudgeFactor horizontal ->
+            simulateNudgeNode model horizontal model.verticalNudgeValue
                 |> deriveVaryingVisualEntities
                 |> synchroniseMap
 
-        SetVerticalNudgeFactor current vertical ->
-            simulateNudgeNode model current model.nudgeValue vertical
+        SetVerticalNudgeFactor vertical ->
+            simulateNudgeNode model model.nudgeValue vertical
                 |> deriveVaryingVisualEntities
                 |> synchroniseMap
 
-        NudgeNode node horizontal vertical ->
-            nudgeNode model node horizontal vertical
+        NudgeNode horizontal vertical ->
+            nudgeNode model horizontal vertical
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
@@ -844,8 +850,8 @@ update msg model =
                 |> clearTerrain
                 |> synchroniseMap
 
-        SplitRoad node ->
-            splitRoad model node
+        SplitRoad ->
+            splitRoad model
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
@@ -881,8 +887,8 @@ switchViewMode model mode =
             , mapZoom = 12.0
             }
     in
-    case ( model.viewingMode, mode, model.trackPointBox ) of
-        ( MapView, MapView, Just box ) ->
+    case ( model.viewingMode, mode ) of
+        ( MapView, MapView ) ->
             -- Not changing mode, may need to refresh track, wait and see.
             case model.mapInfo of
                 Just info ->
@@ -894,7 +900,7 @@ switchViewMode model mode =
                     -- Should not occur, mapView without a mapInfo!
                     ( model, Cmd.none )
 
-        ( _, MapView, Just box ) ->
+        ( _, MapView ) ->
             -- Switch to map view
             case model.mapInfo of
                 Just mapInfo ->
@@ -907,13 +913,13 @@ switchViewMode model mode =
                     -- If the map state is Stopped, need to wait for DOM node before creating map.
                     ( { model
                         | viewingMode = mode
-                        , mapInfo = Just (newMapInfo box)
+                        , mapInfo = Just (newMapInfo model.trackPointBox)
                       }
                         |> deriveVaryingVisualEntities
-                    , MapController.createMap (newMapInfo box)
+                    , MapController.createMap (newMapInfo model.trackPointBox)
                     )
 
-        ( MapView, _, _ ) ->
+        ( MapView, _ ) ->
             -- Request map removal, do not destroy the DOM node yet.
             let
                 changedMapInfo info =
@@ -926,7 +932,7 @@ switchViewMode model mode =
             , MapController.removeMap
             )
 
-        ( _, _, _ ) ->
+        ( _, _ ) ->
             -- Map not involved, happy days.
             ( { model | viewingMode = mode }
             , Cmd.none
@@ -959,25 +965,18 @@ nudgeTrackPoint baseTP roadBearing horizontal vertical =
     }
 
 
-simulateNudgeNode : Model -> Int -> Float -> Float -> Model
-simulateNudgeNode model nodeNum horizontal vertical =
-    case ( model.currentNode, model.markedNode ) of
-        ( Just cNode, Just mNode ) ->
-            let
-                ( firstNudgeNode, lastNudgeNode ) =
-                    ( min cNode mNode, max cNode mNode )
-            in
-            simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
+simulateNudgeNode : Model -> Float -> Float -> Model
+simulateNudgeNode model horizontal vertical =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
 
-        ( Just cNode, Nothing ) ->
-            let
-                ( firstNudgeNode, lastNudgeNode ) =
-                    ( cNode, cNode )
-            in
-            simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
-
-        _ ->
-            { model | nudgedNodeRoads = [] }
+        ( firstNudgeNode, lastNudgeNode ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+    in
+    simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
 
 
 simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
@@ -1014,41 +1013,29 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
                 ++ nudgedStartPoints
                 ++ unmovedEndPoint
     in
-    case model.trackPointBox of
-        Just box ->
-            { model
-                | nudgeValue = horizontal
-                , verticalNudgeValue = vertical
-                , nudgedRegionStart = Just node1
-                , nudgedNodeRoads =
-                    deriveRoads <|
-                        deriveNodes box <|
-                            nudgedListForVisuals
-            }
-
-        Nothing ->
-            { model | nudgedNodeRoads = [] }
+    { model
+        | nudgeValue = horizontal
+        , verticalNudgeValue = vertical
+        , nudgedRegionStart = node1
+        , nudgedNodeRoads =
+            deriveRoads <|
+                deriveNodes model.trackPointBox <|
+                    nudgedListForVisuals
+    }
 
 
-nudgeNode : Model -> Int -> Float -> Float -> Model
-nudgeNode model node horizontal vertical =
-    case ( model.currentNode, model.markedNode ) of
-        ( Just cNode, Just mNode ) ->
-            let
-                ( firstNudgeNode, lastNudgeNode ) =
-                    ( min cNode mNode, max cNode mNode )
-            in
-            nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
+nudgeNode : Model -> Float -> Float -> Model
+nudgeNode model horizontal vertical =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
 
-        ( Just cNode, Nothing ) ->
-            let
-                ( firstNudgeNode, lastNudgeNode ) =
-                    ( cNode, cNode )
-            in
-            nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
-
-        _ ->
-            { model | nudgedNodeRoads = [] }
+        ( firstNudgeNode, lastNudgeNode ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+    in
+    nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
 
 
 nudgeNodeRange : Model -> Int -> Int -> Float -> Float -> Model
@@ -1090,24 +1077,27 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
                             ++ nudgedStartPoints
                             ++ List.drop (nodeN + 1) model.trackPoints
                     , nudgedNodeRoads = []
-                    , nudgedRegionStart = Nothing
+                    , nudgedRegionStart = 0
                     , nudgeValue = 0.0
                     , verticalNudgeValue = 0.0
                 }
            )
 
 
-splitRoad : Model -> Int -> Model
-splitRoad model node =
+splitRoad : Model -> Model
+splitRoad model =
+    -- Introduce additional trackpoints in all segments **between** markers.
     let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( startNode, endNode ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+
         undoMessage =
-            "Split at " ++ String.fromInt node
-
-        currentSegment =
-            lookupRoad model model.currentNode
-
-        markedSegment =
-            lookupRoad model model.markedNode
+            "Split between " ++ String.fromInt startNode ++ " and " ++ String.fromInt endNode
 
         newPointsIn segment =
             let
@@ -1125,74 +1115,46 @@ splitRoad model node =
                 )
                 (List.range 1 trackPointsNeeded)
 
-        updatedTrackPointsForSegment seg m =
-            List.take (seg.index + 1) m.trackPoints
-                ++ newPointsIn seg
-                ++ List.drop (seg.index + 1) m.trackPoints
-
         totalTrackPointsBefore =
             List.length model.trackPoints
+
+        segmentsToInterpolate =
+            model.roads |> List.take endNode |> List.drop startNode
+
+        allNewTrackPoints =
+            List.concatMap
+                newPointsIn
+                segmentsToInterpolate
+
+        precedingTrackPoints =
+            List.take startNode model.trackPoints
+
+        subsequentTrackPoints =
+            List.drop (endNode + 1) model.trackPoints
+
+        newTrackPointList =
+            precedingTrackPoints ++ allNewTrackPoints ++ subsequentTrackPoints
+
+        makeItSo mdl =
+            { mdl
+                | trackPoints = reindexTrackpoints newTrackPointList
+                , currentNode =
+                    if mdl.currentNode == endNode then
+                        mdl.currentNode + List.length newTrackPointList - totalTrackPointsBefore
+
+                    else
+                        mdl.currentNode
+                , markedNode =
+                    Maybe.map
+                        (\v -> v + List.length newTrackPointList - totalTrackPointsBefore)
+                        model.markedNode
+            }
     in
-    case ( currentSegment, markedSegment ) of
-        ( Just road, Nothing ) ->
-            -- Current segment only (== legacy mode!)
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                reindexTrackpoints <|
-                                    updatedTrackPointsForSegment road m
-                        }
-                   )
+    if startNode < endNode then
+        model |> addToUndoStack undoMessage |> makeItSo
 
-        ( Just road1, Just road2 ) ->
-            -- Applies to all segments *between* the flags
-            -- Lazy way is to just map with the single segment case.
-            let
-                ( firstSegment, lastSegment ) =
-                    ( min road1.index road2.index
-                    , max road1.index road2.index
-                    )
-
-                segmentsToInterpolate =
-                    model.roads |> List.take lastSegment |> List.drop firstSegment
-
-                allNewTrackPoints =
-                    List.concatMap
-                        newPointsIn
-                        segmentsToInterpolate
-
-                precedingTrackPoints =
-                    List.take (firstSegment + 1) model.trackPoints
-
-                subsequentTrackPoints =
-                    List.drop (lastSegment + 1) model.trackPoints
-
-                newTrackPointList =
-                    precedingTrackPoints ++ allNewTrackPoints ++ subsequentTrackPoints
-            in
-            addToUndoStack undoMessage model
-                |> (\m3 ->
-                        -- Adjust marked node positions.
-                        { m3
-                            | trackPoints = reindexTrackpoints newTrackPointList
-                            , currentNode =
-                                if road1.index > road2.index then
-                                    Just (road1.index + List.length newTrackPointList - totalTrackPointsBefore)
-
-                                else
-                                    m3.currentNode
-                            , markedNode =
-                                if road2.index > road1.index then
-                                    Just (road2.index + List.length newTrackPointList - totalTrackPointsBefore)
-
-                                else
-                                    m3.markedNode
-                        }
-                   )
-
-        _ ->
-            model
+    else
+        model
 
 
 closeTheLoop : Model -> Model
@@ -1321,14 +1283,14 @@ deleteTrackPoint n model =
 
         newTPs =
             precedingTPs ++ remainingTPs
+
+        makeItSo m =
+            { m
+                | trackPoints = reindexTrackpoints newTPs
+                , currentNode = min n (List.length newTPs - 2)
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints = reindexTrackpoints newTPs
-                    , currentNode = Just <| min n (List.length newTPs - 2)
-                }
-           )
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
 changeLoopStart : Int -> Model -> Model
@@ -1350,14 +1312,14 @@ changeLoopStart n model =
         newTPs =
             -- Make sure loop remains closed.
             remainingTPs ++ precedingTPs ++ newStart
+
+        makeItSo m =
+            { m
+                | trackPoints = reindexTrackpoints newTPs
+                , currentNode = 0
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints = reindexTrackpoints newTPs
-                    , currentNode = Just 0
-                }
-           )
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
 reverseTrack : Model -> Model
@@ -1365,21 +1327,26 @@ reverseTrack model =
     let
         undoMessage =
             "reverse track"
+
+        makeItSo m =
+            { m
+                | trackPoints = reindexTrackpoints <| List.reverse model.trackPoints
+                , currentNode = 0
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints = reindexTrackpoints <| List.reverse model.trackPoints
-                    , currentNode = Just 0
-                }
-           )
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
-straightenStraight : Int -> Int -> Model -> Model
-straightenStraight c m model =
+straightenStraight : Model -> Model
+straightenStraight model =
     let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
         ( n1, n2 ) =
-            ( min c m, max c m )
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
 
         ( firstSeg, lastSeg ) =
             ( Array.get n1 model.roadArray
@@ -1511,33 +1478,31 @@ advanceFlythrough newTime model =
 
 resetFlythrough : Model -> Model
 resetFlythrough model =
-    case model.currentNode of
-        Just node ->
-            case Array.get node model.roadArray of
-                Just road ->
-                    { model
-                        | flythrough =
-                            Just
-                                { metresFromRouteStart = road.startDistance
-                                , running = False
-                                , cameraPosition =
-                                    Point3d.translateBy
-                                        (Vector3d.meters 0.0 0.0 eyeHeight)
-                                        road.startsAt.location
-                                , focusPoint =
-                                    Point3d.translateBy
-                                        (Vector3d.meters 0.0 0.0 eyeHeight)
-                                        road.endsAt.location
-                                , lastUpdated = model.time
-                                , segment = road
-                                }
-                    }
+    let
+        segment =
+            lookupRoad model model.currentNode
+    in
+    case segment of
+        Just seg ->
+            { model
+                | flythrough =
+                    Just
+                        { metresFromRouteStart = seg.startDistance
+                        , running = False
+                        , cameraPosition =
+                            Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 eyeHeight)
+                                seg.startsAt.location
+                        , focusPoint =
+                            Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 eyeHeight)
+                                seg.endsAt.location
+                        , lastUpdated = model.time
+                        , segment = seg
+                        }
+            }
 
-                Nothing ->
-                    -- Why no road? Something amiss.
-                    { model | flythrough = Nothing }
-
-        _ ->
+        Nothing ->
             model
 
 
@@ -1554,72 +1519,76 @@ tryBendSmoother model =
                 , nudgeValue = 0.0
                 , verticalNudgeValue = 0.0
             }
+
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( n1, n2 ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+
+        entrySegment =
+            Array.get n1 model.roadArray
+
+        exitSegment =
+            Array.get (n2 - 1) model.roadArray
     in
-    case ( model.currentNode, model.markedNode ) of
-        ( Nothing, _ ) ->
-            failed
+    if n2 >= n1 + 2 then
+        case ( entrySegment, exitSegment ) of
+            ( Just road1, Just road2 ) ->
+                let
+                    ( pa, pb ) =
+                        ( road1.startsAt.trackPoint
+                        , road1.endsAt.trackPoint
+                        )
 
-        ( _, Nothing ) ->
-            failed
+                    ( pc, pd ) =
+                        ( road2.startsAt.trackPoint
+                        , road2.endsAt.trackPoint
+                        )
 
-        ( Just c, Just m ) ->
-            let
-                ( n1, n2 ) =
-                    ( min c m, max c m )
+                    newTrack =
+                        bendIncircle model.numLineSegmentsForBend pa pb pc pd
+                in
+                case newTrack of
+                    Just track ->
+                        { model
+                            | smoothedBend = newTrack
+                            , smoothedRoads =
+                                deriveRoads <|
+                                    deriveNodes model.trackPointBox <|
+                                        track.trackPoints
+                            , nudgedNodeRoads = []
+                            , nudgeValue = 0.0
+                            , verticalNudgeValue = 0.0
+                        }
 
-                entrySegment =
-                    Array.get n1 model.roadArray
-
-                exitSegment =
-                    Array.get (n2 - 1) model.roadArray
-            in
-            if n2 >= n1 + 2 then
-                case ( entrySegment, exitSegment ) of
-                    ( Just road1, Just road2 ) ->
-                        let
-                            ( pa, pb ) =
-                                ( road1.startsAt.trackPoint
-                                , road1.endsAt.trackPoint
-                                )
-
-                            ( pc, pd ) =
-                                ( road2.startsAt.trackPoint
-                                , road2.endsAt.trackPoint
-                                )
-
-                            newTrack =
-                                bendIncircle model.numLineSegmentsForBend pa pb pc pd
-                        in
-                        case ( newTrack, model.trackPointBox ) of
-                            ( Just track, Just box ) ->
-                                { model
-                                    | smoothedBend = newTrack
-                                    , smoothedRoads =
-                                        deriveRoads <|
-                                            deriveNodes box <|
-                                                track.trackPoints
-                                    , nudgedNodeRoads = []
-                                    , nudgeValue = 0.0
-                                    , verticalNudgeValue = 0.0
-                                }
-
-                            _ ->
-                                failed
-
-                    _ ->
+                    Nothing ->
                         failed
 
-            else
+            _ ->
                 failed
 
+    else
+        failed
 
-smoothGradient : Model -> Int -> Int -> Float -> Model
-smoothGradient model start finish gradient =
+
+smoothGradient : Model -> Float -> Model
+smoothGradient model gradient =
     -- This feels like a simple foldl, creating a new list of TrackPoints
     -- which we then splice into the model.
     -- It's a fold because we must keep track of the current elevation
     -- which will increase with each segment.
     let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( start, finish ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+
         segments =
             model.roads |> List.take (finish - 1) |> List.drop start
 
@@ -1710,51 +1679,48 @@ smoothBend model =
                 ++ showDecimal2 bend.radius
                 ++ " metres."
 
-        ( current, marker ) =
-            ( model.currentNode, model.markedNode )
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
     in
-    case ( model.smoothedBend, current, marker ) of
-        ( Just bend, Just curr, Just mark ) ->
+    case model.smoothedBend of
+        Just bend ->
             let
                 numCurrentPoints =
-                    abs (curr - mark)
+                    abs (model.currentNode - marker)
 
                 numNewPoints =
                     List.length bend.trackPoints
 
                 newCurrent =
-                    if curr > bend.startIndex then
-                        curr - numCurrentPoints + numNewPoints - 2
+                    if model.currentNode > bend.startIndex then
+                        model.currentNode - numCurrentPoints + numNewPoints - 2
 
                     else
-                        curr
+                        model.currentNode
 
                 newMark =
-                    if mark > bend.startIndex then
-                        mark - numCurrentPoints + numNewPoints - 2
+                    if marker > bend.startIndex then
+                        marker - numCurrentPoints + numNewPoints - 2
 
                     else
-                        mark
+                        marker
 
-                -- Why?
+                makeItSo m =
+                    { m
+                        | trackPoints =
+                            reindexTrackpoints <|
+                                List.take bend.startIndex m.trackPoints
+                                    ++ bend.trackPoints
+                                    ++ List.drop bend.endIndex m.trackPoints
+                        , smoothedBend = Nothing
+                        , smoothedRoads = []
+                        , currentNode = newCurrent
+                        , markedNode = Just newMark
+                    }
             in
-            addToUndoStack (undoMessage bend) model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                reindexTrackpoints <|
-                                    List.take bend.startIndex m.trackPoints
-                                        ++ bend.trackPoints
-                                        ++ List.drop bend.endIndex m.trackPoints
-                            , smoothedBend = Nothing
-                            , smoothedRoads = []
-                            , currentNode = Just newCurrent
-                            , markedNode = Nothing
-                        }
-                   )
+            model |> addToUndoStack (undoMessage bend) |> makeItSo
 
         _ ->
-            -- shouldn't happen
             model
 
 
@@ -1831,25 +1797,31 @@ deriveNodesAndRoads model =
             Point3d.meters tp.lon tp.lat tp.ele
 
         withNodes m =
-            case m.trackPointBox of
-                Just box ->
-                    { m | nodes = deriveNodes box m.trackPoints }
-
-                Nothing ->
-                    m
+            { m | nodes = deriveNodes m.trackPointBox m.trackPoints }
 
         withTrackPointScaling m =
             { m
                 | trackPointBox =
-                    BoundingBox3d.hullN <|
-                        List.map trackPointAsPoint m.trackPoints
+                    -- This is a good reason for the bbox to be a Maybe B~
+                    case m.trackPoints of
+                        tp1 :: tps ->
+                            BoundingBox3d.hull
+                                (trackPointAsPoint tp1)
+                                (List.map trackPointAsPoint tps)
+
+                        _ ->
+                            BoundingBox3d.singleton Point3d.origin
             }
 
         withNodeScaling m =
             { m
                 | nodeBox =
-                    BoundingBox3d.hullN <|
-                        List.map .location m.nodes
+                    case m.nodes of
+                        node1 :: nodes ->
+                            BoundingBox3d.hull node1.location <| List.map .location nodes
+
+                        _ ->
+                            BoundingBox3d.singleton Point3d.origin
             }
 
         withRoads m =
@@ -1882,22 +1854,17 @@ deriveNodesAndRoads model =
 resetViewSettings : Model -> Model
 resetViewSettings model =
     let
-        routeSize =
-            Maybe.map BoundingBox3d.dimensions model.nodeBox
+        ( x, y, z ) =
+            BoundingBox3d.dimensions model.nodeBox
 
         zoomLevel =
-            case routeSize of
-                Just ( x, y, _ ) ->
-                    -- Empirical!
-                    clamp 1.0 4.0 <|
-                        5.0
-                            - logBase 10 (max (Length.inMeters x) (Length.inMeters y))
+            -- Empirical!
+            clamp 1.0 4.0 <|
+                5.0
+                    - logBase 10 (max (Length.inMeters x) (Length.inMeters y))
 
-                Nothing ->
-                    1.0
-
-        newMapInfo : MapInfo -> BoundingBox3d Length.Meters GPXCoords -> MapInfo
-        newMapInfo info box =
+        newMapInfo : BoundingBox3d Length.Meters GPXCoords -> MapInfo -> MapInfo
+        newMapInfo box info =
             -- If route has changed, make sure mapinfo is up to date.
             { info
                 | box = box
@@ -1915,12 +1882,12 @@ resetViewSettings model =
         , zoomLevelPlan = zoomLevel
         , azimuth = Angle.degrees 0.0
         , elevation = Angle.degrees 30.0
-        , currentNode = Just 0
+        , currentNode = 0
         , markedNode = Nothing
         , flythrough = Nothing
         , undoStack = []
         , redoStack = []
-        , mapInfo = Maybe.map2 newMapInfo model.mapInfo model.trackPointBox
+        , mapInfo = Maybe.map (newMapInfo model.trackPointBox) model.mapInfo
     }
 
 
@@ -2057,59 +2024,66 @@ deriveStaticVisualEntities model =
 
         updateMapInfo info =
             { info | points = model.trackPoints }
-    in
-    case model.nodeBox of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = lookupRoad model model.currentNode
-                    , markedNode = lookupRoad model model.markedNode
-                    , nodeBox = scale
-                    , viewingMode = model.viewingMode
-                    , smoothedBend = model.smoothedRoads
-                    , horizontalNudge = model.nudgeValue
-                    , verticalNudge = model.verticalNudgeValue
-                    , nudgedRoads = model.nudgedNodeRoads
-                    , nudgedRegionStart = model.nudgedRegionStart
-                    }
-            in
-            { model
-                | staticVisualEntities = makeStatic3DEntities context model.roads
-                , staticProfileEntities = makeStaticProfileEntities context model.roads
-                , mapVisualEntities = makeMapEntities context model.roads
-                , mapInfo = newMapInfo
-            }
 
-        Nothing ->
-            model
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        context =
+            { displayOptions = model.displayOptions
+            , currentNode = Array.get model.currentNode model.nodeArray
+            , markedNode =
+                case model.markedNode of
+                    Just n ->
+                        Array.get n model.nodeArray
+
+                    Nothing ->
+                        Nothing
+            , nodeBox = model.nodeBox
+            , viewingMode = model.viewingMode
+            , smoothedBend = model.smoothedRoads
+            , horizontalNudge = model.nudgeValue
+            , verticalNudge = model.verticalNudgeValue
+            , nudgedRoads = model.nudgedNodeRoads
+            , nudgedRegionStart = Just model.nudgedRegionStart
+            }
+    in
+    { model
+        | staticVisualEntities = makeStatic3DEntities context model.roads
+        , staticProfileEntities = makeStaticProfileEntities context model.roads
+        , mapVisualEntities = makeMapEntities context model.roads
+        , mapInfo = newMapInfo
+    }
 
 
 deriveTerrain : Model -> Model
 deriveTerrain model =
     -- Terrain building is O(n^2). Not to be undertaken lightly.
-    case model.nodeBox of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = lookupRoad model model.currentNode
-                    , markedNode = lookupRoad model model.markedNode
-                    , nodeBox = scale
-                    , viewingMode = model.viewingMode
-                    , smoothedBend = model.smoothedRoads
-                    , horizontalNudge = model.nudgeValue
-                    , verticalNudge = model.verticalNudgeValue
-                    , nudgedRoads = model.nudgedNodeRoads
-                    , nudgedRegionStart = model.nudgedRegionStart
-                    }
-            in
-            { model
-                | terrainEntities = makeTerrain context model.roads
-            }
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
 
-        Nothing ->
-            model
+        context =
+            { displayOptions = model.displayOptions
+            , currentNode = Array.get model.currentNode model.nodeArray
+            , markedNode =
+                case model.markedNode of
+                    Just n ->
+                        Array.get n model.nodeArray
+
+                    Nothing ->
+                        Nothing
+            , nodeBox = model.nodeBox
+            , viewingMode = model.viewingMode
+            , smoothedBend = model.smoothedRoads
+            , horizontalNudge = model.nudgeValue
+            , verticalNudge = model.verticalNudgeValue
+            , nudgedRoads = model.nudgedNodeRoads
+            , nudgedRegionStart = Just model.nudgedRegionStart
+            }
+    in
+    { model
+        | terrainEntities = makeTerrain context model.roads
+    }
 
 
 deriveVaryingVisualEntities : Model -> Model
@@ -2120,38 +2094,62 @@ deriveVaryingVisualEntities model =
         currentRoad =
             lookupRoad model model.currentNode
 
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
         markedRoad =
-            lookupRoad model model.markedNode
-    in
-    case model.nodeBox of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = currentRoad
-                    , markedNode = markedRoad
-                    , nodeBox = scale
-                    , viewingMode = model.viewingMode
-                    , smoothedBend = model.smoothedRoads
-                    , nudgedRoads = model.nudgedNodeRoads
-                    , nudgedRegionStart = model.nudgedRegionStart
-                    , horizontalNudge = model.nudgeValue
-                    , verticalNudge = model.verticalNudgeValue
-                    }
-            in
-            { model
-                | varyingVisualEntities =
-                    makeVaryingVisualEntities
-                        context
-                        model.roadArray
-                , varyingProfileEntities =
-                    makeVaryingProfileEntities
-                        context
-                        model.roads
+            lookupRoad model marker
+
+        context =
+            { displayOptions = model.displayOptions
+            , currentNode = Array.get model.currentNode model.nodeArray
+            , markedNode =
+                case model.markedNode of
+                    Just n ->
+                        Array.get n model.nodeArray
+
+                    Nothing ->
+                        Nothing
+            , nodeBox = model.nodeBox
+            , viewingMode = model.viewingMode
+            , smoothedBend = model.smoothedRoads
+            , nudgedRoads = model.nudgedNodeRoads
+            , nudgedRegionStart = Just model.nudgedRegionStart
+            , horizontalNudge = model.nudgeValue
+            , verticalNudge = model.verticalNudgeValue
             }
 
-        Nothing ->
-            model
+        profileContext =
+            { context
+                | currentNode =
+                    if model.currentNode < Array.length model.roadArray then
+                        Maybe.map .profileStartsAt <| Array.get model.currentNode model.roadArray
+
+                    else
+                        Maybe.map .profileEndsAt <| Array.get (Array.length model.roadArray - 1) model.roadArray
+                , markedNode =
+                    case model.markedNode of
+                        Just n ->
+                            if n < Array.length model.roadArray then
+                                Maybe.map .profileStartsAt <| Array.get n model.roadArray
+
+                            else
+                                Maybe.map .profileEndsAt <| Array.get (Array.length model.roadArray - 1) model.roadArray
+
+                        Nothing ->
+                            Nothing
+            }
+    in
+    { model
+        | varyingVisualEntities =
+            makeVaryingVisualEntities
+                context
+                model.roadArray
+        , varyingProfileEntities =
+            makeVaryingProfileEntities
+                profileContext
+                model.roads
+    }
 
 
 viewGenericNew : Model -> Browser.Document Msg
@@ -2183,14 +2181,15 @@ viewGenericNew model =
                 , row [ alignLeft, moveRight 100 ]
                     [ viewModeChoices model
                     ]
-                , case ( model.gpx, model.nodeBox ) of
-                    ( _, Just scale ) ->
+                , case ( model.gpx, model.trackPoints ) of
+                    ( _, tp1 :: _ ) ->
+                        -- Must have at least one track point.
                         row [ alignLeft, alignTop ]
-                            [ view3D scale model
+                            [ view3D model.nodeBox model
                             , accordionView (updatedAccordion model) AccordionMessage
                             ]
 
-                    ( Just _, Nothing ) ->
+                    ( Just _, [] ) ->
                         viewInputError model
 
                     _ ->
@@ -2240,10 +2239,10 @@ view3D scale model =
     -- The only differences are (should be) which zoom slider and which projection to use.
     case model.viewingMode of
         FirstPersonView ->
-            viewFirstPerson scale model
+            viewFirstPerson model
 
         ThirdPersonView ->
-            viewThirdPerson scale model
+            viewThirdPerson model
 
         ProfileView ->
             viewProfileView model
@@ -2255,7 +2254,7 @@ view3D scale model =
             viewInputError model
 
         PlanView ->
-            viewPlanView scale model
+            viewPlanView model
 
         MapView ->
             -- We merely create the placeholder, the work is done by messages through the map port.
@@ -2370,7 +2369,7 @@ viewBearingChanges model =
 
 buttonHighlightCurrent : Int -> Model -> List (Attribute msg)
 buttonHighlightCurrent index model =
-    if Just index == model.currentNode then
+    if index == model.currentNode then
         [ Background.color <| rgb255 114 159 207, alignRight ]
 
     else
@@ -2608,16 +2607,16 @@ viewLoopTools model =
                 }
     in
     el [ spacing 10, padding 20, centerX ] <|
-        case ( model.loopiness, model.currentNode ) of
-            ( IsALoop, Just c ) ->
+        case model.loopiness of
+            IsALoop ->
                 column [ spacing 10 ]
                     [ text "This track is a loop."
-                    , changeStartButton c
+                    , changeStartButton model.currentNode
                     , reverseButton
                     , undoButton model
                     ]
 
-            ( AlmostLoop gap, _ ) ->
+            AlmostLoop gap ->
                 column [ spacing 10 ]
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
@@ -2625,16 +2624,13 @@ viewLoopTools model =
                     , undoButton model
                     ]
 
-            ( NotALoop gap, Just c ) ->
+            NotALoop gap ->
                 column [ spacing 10 ]
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
                     , reverseButton
                     , undoButton model
                     ]
-
-            _ ->
-                text "Unable to determine current node."
 
 
 positionControls model =
@@ -2690,25 +2686,32 @@ positionSlider model =
         , min = 1.0
         , max = toFloat <| List.length model.roads - 1
         , step = Just 1
-        , value = toFloat <| Maybe.withDefault 0 model.currentNode
+        , value = toFloat model.currentNode
         , thumb = Input.defaultThumb
         }
 
 
-viewFirstPerson scale model =
-    case lookupRoad model model.currentNode of
-        Nothing ->
-            text "We don't seem to have a current position. That's weird."
+viewFirstPerson model =
+    let
+        nodeNum =
+            min model.currentNode (List.length model.nodes - 2)
 
-        Just road ->
+        node =
+            lookupRoad model nodeNum
+    in
+    case node of
+        Just realNode ->
             row [ alignTop ]
                 [ column
                     [ alignTop
                     ]
-                    [ viewRoadSegment scale model road
+                    [ viewRoadSegment model realNode
                     , positionControls model
                     ]
                 ]
+
+        Nothing ->
+            text "Something wrong here."
 
 
 flythroughControls : Model -> Element Msg
@@ -2786,8 +2789,8 @@ flythroughControls model =
         ]
 
 
-viewRoadSegment : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingRoad -> Element Msg
-viewRoadSegment _ model road =
+viewRoadSegment : Model -> DrawingRoad -> Element Msg
+viewRoadSegment model road =
     let
         eyePoint =
             case model.flythrough of
@@ -2846,10 +2849,10 @@ viewRoadSegment _ model road =
         ]
 
 
-viewThirdPerson : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewThirdPerson scale model =
+viewThirdPerson : Model -> Element Msg
+viewThirdPerson model =
     -- Let's the user spin around and zoom in on selected road point.
-    case lookupRoad model model.currentNode of
+    case Array.get model.currentNode model.nodeArray of
         Nothing ->
             none
 
@@ -2858,15 +2861,15 @@ viewThirdPerson scale model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNode scale model node.startsAt
+                    [ viewCurrentNode model node
                     , positionControls model
                     ]
                 ]
 
 
-viewPlanView : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewPlanView scale model =
-    case lookupRoad model model.currentNode of
+viewPlanView : Model -> Element Msg
+viewPlanView model =
+    case Array.get model.currentNode model.nodeArray of
         Nothing ->
             none
 
@@ -2875,7 +2878,7 @@ viewPlanView scale model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNodePlanView scale model node.startsAt
+                    [ viewCurrentNodePlanView model node
                     , positionControls model
                     ]
                 ]
@@ -2885,24 +2888,26 @@ viewProfileView : Model -> Element Msg
 viewProfileView model =
     -- Let's the user spin around and zoom in on selected road point.
     let
-        getRoad =
-            case model.currentNode of
-                Just n ->
-                    model.roads |> List.drop n |> List.head
+        getNode =
+            -- Sadly, only roads have the profile locations, so we need to finesse the last node.
+            if model.currentNode < Array.length model.roadArray then
+                Maybe.map .profileStartsAt <|
+                    Array.get model.currentNode model.roadArray
 
-                Nothing ->
-                    Nothing
+            else
+                Maybe.map .profileEndsAt <|
+                    Array.get (Array.length model.roadArray - 1) model.roadArray
     in
-    case getRoad of
+    case getNode of
         Nothing ->
             none
 
-        Just road ->
+        Just node ->
             row [ alignTop ]
                 [ column
                     [ alignTop
                     ]
-                    [ viewRouteProfile model road
+                    [ viewRouteProfile model node
                     , positionControls model
                     ]
                 ]
@@ -2923,14 +2928,14 @@ viewBendFixerPane model =
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ markerButton model
-        , case ( model.currentNode, model.smoothedBend ) of
-            ( Just _, Just smooth ) ->
+        , case model.smoothedBend of
+            Just smooth ->
                 column [ spacing 10, padding 10, alignTop ]
                     [ fixBendButton smooth
                     , bendSmoothnessSlider model
                     ]
 
-            _ ->
+            Nothing ->
                 none
         , undoButton model
         , viewBearingChanges model
@@ -2939,14 +2944,17 @@ viewBendFixerPane model =
 
 viewStraightenTools : Model -> Element Msg
 viewStraightenTools model =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+    in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ markerButton model
-        , case ( model.currentNode, model.markedNode ) of
-            ( Just c, Just m ) ->
-                straightenButton c m
+        , if model.currentNode /= marker then
+            straightenButton
 
-            _ ->
-                none
+          else
+            none
         , undoButton model
         ]
 
@@ -2954,20 +2962,15 @@ viewStraightenTools model =
 viewNudgeTools : Model -> Element Msg
 viewNudgeTools model =
     --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
-    case model.currentNode of
-        Just c ->
-            column [ padding 5, spacing 10, centerX ]
-                [ markerButton model
-                , row [ spacing 10, centerX ]
-                    [ verticalNudgeSlider c model.verticalNudgeValue
-                    , horizontalNudgeSlider c model.nudgeValue
-                    ]
-                , nudgeButton c model.nudgeValue model.verticalNudgeValue
-                , undoButton model
-                ]
-
-        Nothing ->
-            none
+    column [ padding 5, spacing 10, centerX ]
+        [ markerButton model
+        , row [ spacing 10, centerX ]
+            [ verticalNudgeSlider model.verticalNudgeValue
+            , horizontalNudgeSlider model.nudgeValue
+            ]
+        , nudgeButton model.nudgeValue model.verticalNudgeValue
+        , undoButton model
+        ]
 
 
 markerButton model =
@@ -3050,38 +3053,32 @@ undoButton model =
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
     let
+        markedNode =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        start =
+            min model.currentNode markedNode
+
+        finish =
+            max model.currentNode markedNode
+
+        avg =
+            averageGradient model start finish
+
         gradientSmoothControls =
-            case ( model.currentNode, model.markedNode ) of
-                ( Just c, Just m ) ->
-                    let
-                        start =
-                            min c m
-
-                        finish =
-                            max c m
-
-                        avg =
-                            averageGradient model start finish
-                    in
-                    case avg of
-                        Just gradient ->
-                            column [ Border.width 1, spacing 5, padding 5 ]
-                                [ button
-                                    prettyButtonStyles
-                                    { onPress = Just <| SmoothGradient start finish gradient
-                                    , label =
-                                        text <|
-                                            "Smooth between markers\nAverage gradient "
-                                                ++ showDecimal2 gradient
-                                    }
-                                , smoothnessSlider model
-                                ]
-
-                        _ ->
-                            none
-
-                ( Just c, Nothing ) ->
-                    insertNodeOptionsBox c
+            case avg of
+                Just gradient ->
+                    column [ Border.width 1, spacing 5, padding 5 ]
+                        [ button
+                            prettyButtonStyles
+                            { onPress = Just <| SmoothGradient gradient
+                            , label =
+                                text <|
+                                    "Smooth between markers\nAverage gradient "
+                                        ++ showDecimal2 gradient
+                            }
+                        , smoothnessSlider model
+                        ]
 
                 _ ->
                     none
@@ -3095,18 +3092,13 @@ viewGradientFixerPane model =
 
 
 viewTrackPointTools model =
-    case model.currentNode of
-        Just c ->
-            column [ spacing 10, centerX ] <|
-                [ insertNodeOptionsBox c
-                , markerButton model
-                , splitSegmentOptions c model.maxSegmentSplitSize
-                , deleteNodeButton c
-                , undoButton model
-                ]
-
-        Nothing ->
-            text "Odd. There's no current node."
+    column [ spacing 10, centerX ] <|
+        [ insertNodeOptionsBox model.currentNode
+        , markerButton model
+        , splitSegmentOptions model.currentNode model.maxSegmentSplitSize
+        , deleteNodeButton model.currentNode
+        , undoButton model
+        ]
 
 
 insertNodeOptionsBox c =
@@ -3142,19 +3134,13 @@ smoothnessSlider model =
         }
 
 
-lookupRoad : Model -> Maybe Int -> Maybe DrawingRoad
+lookupRoad : Model -> Int -> Maybe DrawingRoad
 lookupRoad model idx =
-    -- Have I not written this already?
-    case idx of
-        Just i ->
-            Array.get i model.roadArray
-
-        _ ->
-            Nothing
+    Array.get idx model.roadArray
 
 
-viewCurrentNode : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg
-viewCurrentNode scale model node =
+viewCurrentNode : Model -> DrawingNode -> Element Msg
+viewCurrentNode model node =
     let
         focus =
             case model.flythrough of
@@ -3200,8 +3186,8 @@ viewCurrentNode scale model node =
         ]
 
 
-viewCurrentNodePlanView : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg
-viewCurrentNodePlanView scale model node =
+viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
+viewCurrentNodePlanView model node =
     let
         focus =
             Point3d.projectOnto Plane3d.xy
@@ -3293,18 +3279,18 @@ viewCentredPlanViewForMap box model =
                 }
 
 
-viewRouteProfile : Model -> DrawingRoad -> Element Msg
-viewRouteProfile model road =
+viewRouteProfile : Model -> DrawingNode -> Element Msg
+viewRouteProfile model node =
     let
         focus =
             Point3d.projectOnto
                 Plane3d.yz
-                road.profileStartsAt.location
+                node.location
 
         eyePoint =
             Point3d.translateBy
                 (Vector3d.meters 100.0 0.0 0.0)
-                road.profileStartsAt.location
+                node.location
 
         camera =
             Camera3d.orthographic

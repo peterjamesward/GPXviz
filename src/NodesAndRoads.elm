@@ -30,16 +30,17 @@ type alias DrawingNode =
 
 
 type alias DrawingRoad =
+    -- Everything about the gap between track points, aka road segment.
     { startsAt : DrawingNode
     , endsAt : DrawingNode
     , profileStartsAt : DrawingNode -- x coord is metres from track start.
     , profileEndsAt : DrawingNode
     , length : Float
     , bearing : Float
-    , gradient : Float -- percent
+    , gradient : Float -- (percent == rise/run == tangent of slope, if you want to know)
     , startDistance : Float
     , endDistance : Float
-    , index : Int
+    , index : Int -- N.B. Will be same index as starting track point.
     }
 
 

@@ -2,12 +2,21 @@ module ToDo exposing (..)
 
 --TODO: Priority. Make so we can nudge or delete the last TP. This should involve going back to TP basics (roads are merely visual artefacts). Might be able to get rid of many Maybe tests in the process.
 
+-- marker not showing on last node
+-- can't nudge last node.
+
 --TODO: Show yellow smoothed bend option on map. and nudge line.
 
 --TODO: Set & Show current and marked node on map.
 --      (Click to set Orange position, Shift-click for Purple?)
 
 --TODO: Result of above, editing should work on map.
+
+--TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
+
+--TODO: Use "track point" not "node".
+
+--TODO: "Preview" the insert track points operation?
 
 --TODO: Direct editing on map (may be easier than in elm-3d-scene).
 

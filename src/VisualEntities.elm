@@ -334,12 +334,12 @@ makeVaryingVisualEntities context _ =
     let
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
-                ( Just road, ThirdPersonView ) ->
+                ( Just node, ThirdPersonView ) ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 3.0
@@ -347,12 +347,12 @@ makeVaryingVisualEntities context _ =
                             }
                     ]
 
-                ( Just road, PlanView ) ->
+                ( Just node, PlanView ) ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 1.5
@@ -365,12 +365,12 @@ makeVaryingVisualEntities context _ =
 
         markedNode =
             case ( context.markedNode, context.viewingMode ) of
-                ( Just road, ThirdPersonView ) ->
+                ( Just node, ThirdPersonView ) ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 3.5
@@ -378,12 +378,12 @@ makeVaryingVisualEntities context _ =
                             }
                     ]
 
-                ( Just road, PlanView ) ->
+                ( Just node, PlanView ) ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 1.6
@@ -445,12 +445,12 @@ makeVaryingProfileEntities context roadList =
     let
         currentPositionDisc =
             case context.currentNode of
-                Just road ->
+                Just node ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 2.0)
-                                road.profileStartsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters 0.3
@@ -463,12 +463,12 @@ makeVaryingProfileEntities context roadList =
 
         markedNode =
             case context.markedNode of
-                Just road ->
+                Just node ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 2.1)
-                                road.profileStartsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters 0.25

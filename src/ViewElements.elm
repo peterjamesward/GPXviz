@@ -207,21 +207,21 @@ commonShortVerticalSliderStyles =
             Element.none
     ]
 
-
-straightenButton c m =
+straightenButton : Element Msg
+straightenButton =
     button
         prettyButtonStyles
-        { onPress = Just (StraightenStraight c m)
+        { onPress = Just (StraightenStraight)
         , label =
             text <|
                 "Straighten between markers"
         }
 
-
-nudgeButton c horizontalValue verticalValue =
+nudgeButton : Float -> Float -> Element Msg
+nudgeButton horizontalValue verticalValue =
     button
         prettyButtonStyles
-        { onPress = Just (NudgeNode c horizontalValue verticalValue)
+        { onPress = Just (NudgeNode horizontalValue verticalValue)
         , label =
             text <|
                 "Apply nudge"
@@ -251,7 +251,7 @@ splitSegmentOptions c maxSegLength =
         [ splitSlider maxSegLength
         , button
             prettyButtonStyles
-            { onPress = Just (SplitRoad c)
+            { onPress = Just SplitRoad
             , label =
                 text <|
                     "Add track points"
@@ -269,10 +269,10 @@ deleteNodeButton c =
         }
 
 
-horizontalNudgeSlider c value =
+horizontalNudgeSlider value =
     Input.slider
         commonShortHorizontalSliderStyles
-        { onChange = SetHorizontalNudgeFactor c
+        { onChange = SetHorizontalNudgeFactor
         , label =
             Input.labelBelow [] <|
                 text <|
@@ -287,11 +287,11 @@ horizontalNudgeSlider c value =
         }
 
 
-verticalNudgeSlider c value =
+verticalNudgeSlider value =
     el [ width <| px 100, centerX ] <|
         Input.slider
             commonShortVerticalSliderStyles
-            { onChange = SetVerticalNudgeFactor c
+            { onChange = SetVerticalNudgeFactor
             , label =
                 Input.labelBelow [ centerX ] <|
                     text <|

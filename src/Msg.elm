@@ -37,7 +37,7 @@ type Msg
     | Tick Time.Posix
     | AdjustTimeZone Time.Zone
     | SetSmoothingEnd Int
-    | SmoothGradient Int Int Float
+    | SmoothGradient Float
     | SmoothBend
     | Undo
     | Redo
@@ -53,11 +53,11 @@ type Msg
     | MakeTerrain
     | ClearTerrain
     | CloseTheLoop
-    | StraightenStraight Int Int
-    | SetHorizontalNudgeFactor Int Float
-    | SetVerticalNudgeFactor Int Float
-    | NudgeNode Int Float Float -- Horizontal, Vertical
-    | SplitRoad Int
+    | StraightenStraight
+    | SetHorizontalNudgeFactor  Float
+    | SetVerticalNudgeFactor  Float
+    | NudgeNode Float Float -- Horizontal, Vertical
+    | SplitRoad
     | AccordionMessage (AccordionEntry Msg)
     | DeleteCurrentPoint Int
     | ChangeLoopStart Int
