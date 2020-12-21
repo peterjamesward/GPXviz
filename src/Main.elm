@@ -982,25 +982,44 @@ simulateNudgeNode model horizontal vertical =
 simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
 simulateNodeRangeNudge model node1 nodeN horizontal vertical =
     let
-        targetRoads =
-            List.drop node1 <| List.take (nodeN + 1) model.roads
+        targetNodes =
+            List.drop node1 <| List.take (nodeN + 1) model.nodes
+
+        getBearingForNode : DrawingNode -> Float
+        getBearingForNode node =
+            -- We need roads only to get the bearing that we use to nudge sideways.
+            if node.trackPoint.idx < Array.length model.roadArray then
+                Array.get node.trackPoint.idx model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
+
+            else
+                Array.get (Array.length model.roadArray - 1) model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
 
         unmovedEndPoint =
-            List.map (.endsAt >> .trackPoint) <| List.take 1 <| List.reverse targetRoads
+            -- Only if we are not at the end of the track.
+            case Array.get (nodeN + 1) model.nodeArray of
+                Just endNode ->
+                    [ endNode.trackPoint ]
+
+                Nothing ->
+                    []
 
         prevNode =
-            Array.get (node1 - 1) model.roadArray
+            Array.get (node1 - 1) model.nodeArray
 
         nudgedStartPoints =
             List.map
-                (\road ->
+                (\node ->
                     nudgeTrackPoint
-                        road.startsAt.trackPoint
-                        road.bearing
+                        node.trackPoint
+                        (getBearingForNode node)
                         horizontal
                         vertical
                 )
-                targetRoads
+                targetNodes
 
         nudgedListForVisuals =
             (case prevNode of
@@ -1008,7 +1027,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
                     []
 
                 Just prev ->
-                    [ prev.startsAt.trackPoint ]
+                    [ prev.trackPoint ]
             )
                 ++ nudgedStartPoints
                 ++ unmovedEndPoint
@@ -1041,6 +1060,7 @@ nudgeNode model horizontal vertical =
 nudgeNodeRange : Model -> Int -> Int -> Float -> Float -> Model
 nudgeNodeRange model node1 nodeN horizontal vertical =
     -- Apply the nudge factor permanently.
+    -- TODO: Serious code duplication going on here.
     let
         undoMessage =
             if nodeN > node1 then
@@ -1049,26 +1069,57 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
             else
                 "Nudge node " ++ String.fromInt node1
 
-        targetRoads =
-            List.drop node1 <| List.take (nodeN + 1) model.roads
+        targetNodes =
+            List.drop node1 <| List.take (nodeN + 1) model.nodes
+
+        getBearingForNode : DrawingNode -> Float
+        getBearingForNode node =
+            -- We need roads only to get the bearing that we use to nudge sideways.
+            if node.trackPoint.idx < Array.length model.roadArray then
+                Array.get node.trackPoint.idx model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
+
+            else
+                Array.get (Array.length model.roadArray - 1) model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
 
         unmovedEndPoint =
-            List.map (.endsAt >> .trackPoint) <| List.take 1 <| List.reverse targetRoads
+            -- Only if we are not at the end of the track.
+            case Array.get (nodeN + 1) model.nodeArray of
+                Just endNode ->
+                    [ endNode.trackPoint ]
+
+                Nothing ->
+                    []
 
         prevNode =
-            Array.get (node1 - 1) model.roadArray
+            Array.get (node1 - 1) model.nodeArray
 
         nudgedStartPoints =
             List.map
-                (\road ->
+                (\node ->
                     nudgeTrackPoint
-                        road.startsAt.trackPoint
-                        road.bearing
+                        node.trackPoint
+                        (getBearingForNode node)
                         horizontal
                         vertical
                 )
-                targetRoads
+                targetNodes
+
+        nudgedListForVisuals =
+            (case prevNode of
+                Nothing ->
+                    []
+
+                Just prev ->
+                    [ prev.trackPoint ]
+            )
+                ++ nudgedStartPoints
+                ++ unmovedEndPoint
     in
+
     addToUndoStack undoMessage model
         |> (\m ->
                 { m
