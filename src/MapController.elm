@@ -7,9 +7,7 @@ import Json.Encode as E
 import Length
 import MapboxKey exposing (mapboxKey)
 import Msg exposing (Msg(..))
-import NodesAndRoads exposing (GPXCoords)
-import Point3d
-import TrackPoint exposing (TrackPoint, trackToJSON)
+import TrackPoint exposing (GPXCoords, TrackPoint, trackToJSON)
 import Utils exposing (showDecimal2, showDecimal6)
 import ViewTypes exposing (ViewingMode)
 

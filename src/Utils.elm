@@ -103,11 +103,3 @@ showDecimal6 x =
             { usLocale | decimals = Exact 6 }
     in
     format locale x
-
-
-incrementMaybeModulo modulo mx =
-    Maybe.map (\x -> modBy modulo (x + 1)) mx
-
-
-decrementMaybeModulo modulo mx =
-    Maybe.map (\x -> modBy modulo (x - 1)) mx

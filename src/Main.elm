@@ -70,8 +70,8 @@ type alias AbruptChange =
 type alias UndoEntry =
     { label : String
     , trackPoints : List TrackPoint
-    , currentNode : Maybe Int
-    , markedNode : Maybe Int
+    , currentNode :  Int
+    , markedNode :  Int
     }
 
 
@@ -84,16 +84,16 @@ type Loopiness
 type alias Model =
     { gpx : Maybe String
     , filename : Maybe String
+    , trackName : Maybe String
     , time : Time.Posix
     , zone : Time.Zone
     , timeOfLastSave : Time.Posix
     , gpxUrl : String
     , trackPoints : List TrackPoint
-    , trackPointBox : Maybe (BoundingBox3d Length.Meters GPXCoords)
-    , nodeBox : Maybe (BoundingBox3d Length.Meters LocalCoords)
+    , trackPointBox : BoundingBox3d Length.Meters GPXCoords
+    , nodeBox : BoundingBox3d Length.Meters LocalCoords
     , nodes : List DrawingNode
     , roads : List DrawingRoad
-    , trackName : Maybe String
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
@@ -103,11 +103,10 @@ type alias Model =
     , varyingProfileEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
     , mapVisualEntities : List (Entity LocalCoords) -- for map image only
-    , httpError : Maybe String
-    , currentNode : Maybe Int
-    , markedNode : Maybe Int
+    , currentNode :  Int
+    , markedNode :  Int
     , viewingMode : ViewingMode
-    , summary : Maybe SummaryData
+    , summary :  Maybe SummaryData
     , nodeArray : Array DrawingNode
     , roadArray : Array DrawingRoad
     , zoomLevelOverview : Float
@@ -151,8 +150,8 @@ init _ =
       , timeOfLastSave = Time.millisToPosix 0
       , gpxUrl = ""
       , trackPoints = []
-      , trackPointBox = Nothing
-      , nodeBox = Nothing
+      , trackPointBox = BoundingBox3d.singleton Point3d.origin
+      , nodeBox = BoundingBox3d.singleton Point3d.origin
       , nodes = []
       , roads = []
       , trackName = Nothing
@@ -165,9 +164,8 @@ init _ =
       , varyingProfileEntities = []
       , mapVisualEntities = []
       , terrainEntities = []
-      , httpError = Nothing
-      , currentNode = Nothing
-      , markedNode = Nothing
+      , currentNode = 0
+      , markedNode = 0
       , viewingMode = AboutView
       , summary = Nothing
       , nodeArray = Array.empty
@@ -287,8 +285,8 @@ clearTheModel model =
         | gpx = Nothing
         , timeOfLastSave = Time.millisToPosix 0
         , trackPoints = []
-        , trackPointBox = Nothing
-        , nodeBox = Nothing
+        , trackPointBox = BoundingBox3d.singleton Point3d.origin
+        , nodeBox = BoundingBox3d.singleton Point3d.origin
         , nodes = []
         , roads = []
         , trackName = Nothing
@@ -298,8 +296,8 @@ clearTheModel model =
         , staticProfileEntities = []
         , varyingProfileEntities = []
         , terrainEntities = []
-        , currentNode = Nothing
-        , markedNode = Nothing
+        , currentNode = 0
+        , markedNode = 0
         , summary = Nothing
         , nodeArray = Array.empty
         , roadArray = Array.empty
@@ -354,12 +352,11 @@ locallyHandleMapMessage model json =
 
 makeNearestNodeCurrent : Model -> Float -> Float -> Model
 makeNearestNodeCurrent model lon lat =
-    -- Not sure what tolerance we need here.
-    -- I reckon 3 metres, being half the road width.
+    -- Searching like this may be too slow. Wait and see.
     let
         nearbyPoints =
             List.sortBy distance
-            model.roads
+                model.roads
 
         distance point =
             Geometry101.distance
@@ -368,10 +365,10 @@ makeNearestNodeCurrent model lon lat =
     in
     case nearbyPoints of
         n :: _ ->
-            { model | currentNode = Just n.index }
+            { model | currentNode = n.index }
 
         _ ->
-            { model | currentNode = Nothing }
+            model
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -444,7 +441,7 @@ update msg model =
             switchViewMode newModel newModel.viewingMode
 
         UserMovedNodeSlider node ->
-            ( { model | currentNode = Just node }
+            ( { model | currentNode =  node }
                 |> cancelFlythrough
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -460,7 +457,7 @@ update msg model =
 
         PositionForwardOne ->
             ( { model
-                | currentNode = incrementMaybeModulo (List.length model.roads) model.currentNode
+                | currentNode = modBy (List.length model.nodes) (model.currentNode + 1)
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -470,7 +467,7 @@ update msg model =
 
         PositionBackOne ->
             ( { model
-                | currentNode = decrementMaybeModulo (List.length model.roads) model.currentNode
+                | currentNode = modBy (List.length model.nodes) (model.currentNode - 1)
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -480,7 +477,7 @@ update msg model =
 
         MarkerForwardOne ->
             ( { model
-                | markedNode = incrementMaybeModulo (List.length model.roads) model.markedNode
+                | markedNode = modBy (List.length model.nodes) (model.markedNode + 1)
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
@@ -489,7 +486,7 @@ update msg model =
 
         MarkerBackOne ->
             ( { model
-                | markedNode = decrementMaybeModulo (List.length model.roads) model.markedNode
+                | markedNode = modBy (List.length model.nodes) (model.markedNode - 1)
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities

@@ -7,16 +7,13 @@ import Element exposing (centerX, column, none, padding, row, spacing, text)
 import Length
 import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
-import TrackPoint exposing (TrackPoint)
+import TrackPoint exposing (GPXCoords, TrackPoint)
 import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
 
 
 type LocalCoords
     = LocalCoords
 
-
-type GPXCoords
-    = GPXCoords
 
 
 type alias ScalingInfo =
@@ -26,9 +23,9 @@ type alias ScalingInfo =
 
 
 type alias DrawingNode =
-    -- We draw in a rectangular space using metre units.
+    -- Track point with Web Mercator projection.
     { trackPoint : TrackPoint
-    , location : Point3d Length.Meters LocalCoords
+    , location : Point3d.Point3d Length.Meters LocalCoords
     }
 
 
@@ -55,7 +52,6 @@ type alias SummaryData =
     , totalClimbing : Float
     , totalDescending : Float
     }
-
 
 deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters LocalCoords
 deriveTrackPointBox tps =

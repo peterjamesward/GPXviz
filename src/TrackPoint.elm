@@ -1,11 +1,16 @@
 module TrackPoint exposing (..)
 
+import BoundingBox3d
 import Element exposing (..)
 import Json.Encode as E
 import Msg exposing (..)
+import Point3d
 import Regex
 import Utils exposing (asRegex)
 
+
+type GPXCoords
+    = GPXCoords
 
 type alias TrackPoint =
     -- This is the basic info we extract from a GPX file.
@@ -15,6 +20,11 @@ type alias TrackPoint =
     , idx : Int
     }
 
+singleton = { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
+
+singletonPoint = Point3d.origin
+
+singletonBox = BoundingBox3d.singleton singletonPoint
 
 interpolateSegment : Float -> TrackPoint -> TrackPoint -> TrackPoint
 interpolateSegment w startTP endTP =

@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Priority. Make so we can nudge or delete the last TP. This should involve going back to TP basics (roads are merely visual artefacts). Might be able to get rid of many Maybe tests in the process.
+
 --TODO: Show yellow smoothed bend option on map. and nudge line.
 
 --TODO: Set & Show current and marked node on map.
