@@ -80,13 +80,23 @@ addTrackToMap info =
             ]
 
 
-addMarkerToMap : Float -> Float -> Cmd Msg
-addMarkerToMap lon lat =
+addMarkersToMap : ( Float, Float ) -> ( Float, Float ) -> Cmd Msg
+addMarkersToMap ( currentLon, currentLat ) ( markerLon, markerLat ) =
+    let
+        orangePos =
+            E.object [ ( "lon", E.float currentLon )
+                     , ( "lat", E.float currentLat )
+                     ]
+        purplePos =
+            E.object [ ( "lon", E.float markerLon )
+                     , ( "lat", E.float markerLat )
+                     ]
+    in
     mapPort <|
         E.object
             [ ( "Cmd", E.string "Mark" )
-            , ( "lon", E.float lon )
-            , ( "lat", E.float lat )
+            , ( "orange", orangePos )
+            , ( "purple", purplePos )
             ]
 
 

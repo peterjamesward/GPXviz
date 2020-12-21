@@ -56,6 +56,7 @@ function incomingMessageHandler(msg) {
 
         case 'Mark':
             if (isMapCreated) {
+                console.log('adding marker');
                 placeMarker(msg);
             }
     }
@@ -145,13 +146,15 @@ function addLineToMap(data) {
     trackAdded = true;
 };
 
-var orangeMarker;
-var purpleMarker;
+var orangeMarker = new mapboxgl.Marker({ color: "#FFA500" });
+var purpleMarker = new mapboxgl.Marker({ color: "#800080" });
 
 function placeMarker(msg) {
-    // Set options
-    orangeMarker = new mapboxgl.Marker({ color: "#FFA500" })
-        .setLngLat([msg.lon, msg.lat])
+    orangeMarker
+        .setLngLat([msg.orange.lon, msg.orange.lat])
+        .addTo(map);
+    orangeMarker
+        .setLngLat([msg.purple.lon, msg.purple.lat])
         .addTo(map);
 };
 

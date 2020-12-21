@@ -2,6 +2,7 @@ module ToDo exposing (..)
 
 --TODO: Set & Show current and marked node on map.
 --      (Click to set Orange position, Shift-click for Purple?)
+-- + Bend smoother options hidden in map mode?
 
 --TODO: Show yellow smoothed bend option on map. and nudge line.
 

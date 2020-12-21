@@ -388,7 +388,8 @@ update msg model =
                             )
 
                         Nothing ->
-                            ( locallyHandleMapMessage model jsonMsg, Cmd.none )
+                            ( locallyHandleMapMessage model jsonMsg
+                            , updateMapVaryingElements model )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -445,14 +446,14 @@ update msg model =
                 |> cancelFlythrough
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         SetSmoothingEnd idx ->
             ( { model | smoothingEndIndex = Just idx }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         PositionForwardOne ->
@@ -462,7 +463,7 @@ update msg model =
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
                 |> cancelFlythrough
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         PositionBackOne ->
@@ -472,7 +473,7 @@ update msg model =
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
                 |> cancelFlythrough
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         MarkerForwardOne ->
@@ -484,7 +485,7 @@ update msg model =
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         MarkerBackOne ->
@@ -496,7 +497,7 @@ update msg model =
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         SetMaxTurnPerSegment turn ->
@@ -506,7 +507,7 @@ update msg model =
                 |> tryBendSmoother
                 --|> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         ChooseViewMode mode ->
@@ -709,7 +710,7 @@ update msg model =
               }
                 |> tryBendSmoother
                 |> deriveVaryingVisualEntities
-            , Cmd.none
+            , updateMapVaryingElements model
             )
 
         SetBumpinessFactor factor ->
@@ -766,14 +767,16 @@ update msg model =
                 |> trackHasChanged
 
         SetHorizontalNudgeFactor horizontal ->
-            simulateNudgeNode model horizontal model.verticalNudgeValue
+            ( simulateNudgeNode model horizontal model.verticalNudgeValue
                 |> deriveVaryingVisualEntities
-                |> synchroniseMap
+            , updateMapVaryingElements model
+            )
 
         SetVerticalNudgeFactor vertical ->
-            simulateNudgeNode model model.nudgeValue vertical
+            ( simulateNudgeNode model model.nudgeValue vertical
                 |> deriveVaryingVisualEntities
-                |> synchroniseMap
+            , updateMapVaryingElements model
+            )
 
         NudgeNode horizontal vertical ->
             nudgeNode model horizontal vertical
@@ -796,6 +799,28 @@ trackHasChanged model =
         |> clearTerrain
         |> deriveVaryingVisualEntities
         |> synchroniseMap
+
+
+updateMapVaryingElements : Model -> Cmd Msg
+updateMapVaryingElements model =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        currentNode =
+            Array.get model.currentNode model.nodeArray
+
+        markedNode =
+            Array.get marker model.nodeArray
+    in
+    case (currentNode, markedNode) of
+        (Just node1, Just node2) ->
+            MapController.addMarkersToMap
+                (node1.trackPoint.lon, node1.trackPoint.lat)
+                (node2.trackPoint.lon, node2.trackPoint.lat)
+
+        _ ->
+            Cmd.none
 
 
 synchroniseMap : Model -> ( Model, Cmd Msg )
