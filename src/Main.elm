@@ -651,10 +651,7 @@ update msg model =
 
         DeleteZeroLengthSegments ->
             deleteZeroLengthSegments model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> synchroniseMap
+                |> trackHasChanged
 
         OutputGPX ->
             ( { model | hasBeenChanged = False }
@@ -663,22 +660,12 @@ update msg model =
 
         SmoothGradient g ->
             smoothGradient model g
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> synchroniseMap
+                |> trackHasChanged
 
         SmoothBend ->
             model
                 |> smoothBend
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> synchroniseMap
+                |> trackHasChanged
 
         Undo ->
             case model.undoStack of
@@ -690,13 +677,7 @@ update msg model =
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                     }
-                        |> deriveNodesAndRoads
-                        |> tryBendSmoother
-                        |> deriveStaticVisualEntities
-                        |> deriveVaryingVisualEntities
-                        |> deriveProblems
-                        |> clearTerrain
-                        |> synchroniseMap
+                        |> trackHasChanged
 
                 _ ->
                     ( model, Cmd.none )
@@ -711,13 +692,7 @@ update msg model =
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                     }
-                        |> deriveNodesAndRoads
-                        |> tryBendSmoother
-                        |> deriveStaticVisualEntities
-                        |> deriveVaryingVisualEntities
-                        |> deriveProblems
-                        |> clearTerrain
-                        |> synchroniseMap
+                        |> trackHasChanged
 
                 _ ->
                     ( model, Cmd.none )
@@ -758,41 +733,15 @@ update msg model =
 
         InsertBeforeOrAfter node direction ->
             insertTrackPoint node model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> (\m ->
-                        { m
-                            | currentNode =
-                                case direction of
-                                    InsertNodeAfter ->
-                                        model.currentNode
-
-                                    InsertNodeBefore ->
-                                        model.currentNode + 1
-                        }
-                   )
-                |> deriveVaryingVisualEntities
-                |> synchroniseMap
+                |> trackHasChanged
 
         DeleteCurrentPoint c ->
             deleteTrackPoint c model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> deriveVaryingVisualEntities
-                |> synchroniseMap
+                |> trackHasChanged
 
         ChangeLoopStart c ->
             changeLoopStart c model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> deriveVaryingVisualEntities
-                |> synchroniseMap
+                |> trackHasChanged
 
         MakeTerrain ->
             ( deriveTerrain model
@@ -806,30 +755,15 @@ update msg model =
 
         CloseTheLoop ->
             closeTheLoop model
-                |> clearTerrain
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> synchroniseMap
+                |> trackHasChanged
 
         ReverseTrack ->
             reverseTrack model
-                |> clearTerrain
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> synchroniseMap
+                |> trackHasChanged
 
         StraightenStraight ->
             straightenStraight model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> synchroniseMap
+                |> trackHasChanged
 
         SetHorizontalNudgeFactor horizontal ->
             simulateNudgeNode model horizontal model.verticalNudgeValue
@@ -843,26 +777,25 @@ update msg model =
 
         NudgeNode horizontal vertical ->
             nudgeNode model horizontal vertical
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> synchroniseMap
+                |> trackHasChanged
 
         SplitRoad ->
-            splitRoad model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> synchroniseMap
+            model |> splitRoad |> trackHasChanged
 
         SetMaxTrackpointSpacing f ->
             ( { model | maxSegmentSplitSize = f }
             , Cmd.none
             )
+
+
+trackHasChanged model =
+    model
+        |> deriveNodesAndRoads
+        |> deriveStaticVisualEntities
+        |> deriveProblems
+        |> clearTerrain
+        |> deriveVaryingVisualEntities
+        |> synchroniseMap
 
 
 synchroniseMap : Model -> ( Model, Cmd Msg )
@@ -1119,7 +1052,6 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
                 ++ nudgedStartPoints
                 ++ unmovedEndPoint
     in
-
     addToUndoStack undoMessage model
         |> (\m ->
                 { m
@@ -1269,7 +1201,7 @@ clearTerrain model =
 insertTrackPoint : Int -> Model -> Model
 insertTrackPoint n model =
     -- Replace the current node with two close nodes that each have half the gradient change.
-    -- 'Close' being perhaps the lesser of one metre and a third segment length.
+    -- 'Close' being perhaps the lesser of one metre and half segment length.
     -- Lat and Lon to be linear interpolation.
     let
         undoMessage =

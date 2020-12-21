@@ -80,6 +80,16 @@ addTrackToMap info =
             ]
 
 
+addMarkerToMap : Float -> Float -> Cmd Msg
+addMarkerToMap lon lat =
+    mapPort <|
+        E.object
+            [ ( "Cmd", E.string "Mark" )
+            , ( "lon", E.float lon )
+            , ( "lat", E.float lat )
+            ]
+
+
 decodeState state =
     text <|
         case state of
