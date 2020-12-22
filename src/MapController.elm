@@ -82,11 +82,12 @@ addTrackToMap info =
             ]
 
 
-addMarkersToMap : ( Float, Float )
-    -> Maybe ( Float, Float )
-    -> List TrackPoint
+addMarkersToMap : ( Float, Float ) -- current track point
+    -> Maybe ( Float, Float ) -- dropped marker
+    -> List TrackPoint -- bend smoothing suggestion
+    -> List TrackPoint -- node nudging preview
     -> Cmd Msg
-addMarkersToMap current marker smoothBend =
+addMarkersToMap current marker smoothBend nudged =
     let
         encodePos ( lon, lat ) =
             E.object
@@ -104,6 +105,7 @@ addMarkersToMap current marker smoothBend =
                     , ( "orange", encodePos current )
                     , ( "purple", encodePos mark )
                     , ( "bend", trackToJSON smoothBend )
+                    , ( "nudge", trackToJSON nudged )
                     ]
 
             Nothing ->
@@ -111,6 +113,7 @@ addMarkersToMap current marker smoothBend =
                     [ ( "Cmd", E.string "Mark" )
                     , ( "orange", encodePos current )
                     , ( "bend", trackToJSON smoothBend )
+                    , ( "nudge", trackToJSON nudged )
                     ]
 
 
@@ -184,7 +187,7 @@ processMapMessage info json =
         Ok "track ready" ->
             Just
                 ( { info | mapState = MapLoaded }
-                , addMarkersToMap info.current info.marker []
+                , addMarkersToMap info.current info.marker [] []
                 )
 
         Ok "move" ->

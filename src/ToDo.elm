@@ -1,12 +1,8 @@
 module ToDo exposing (..)
 
---TODO: Show yellow smoothed bend option on map. and nudge line.
-
---TODO: Result of above, editing should work on map.
-
 --TODO: Re-grouping of controls (see Jason Hurst input).
 
---TODO: Popup tool help on all panes.
+--TODO: Popup tool help on all panes?
 
 --TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
 

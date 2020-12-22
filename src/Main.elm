@@ -342,6 +342,7 @@ locallyHandleMapMessage model json =
             case ( lat, lon ) of
                 ( Ok lat1, Ok lon1 ) ->
                     makeNearestNodeCurrent model lon1 lat1
+                        |> tryBendSmoother
 
                 _ ->
                     model
@@ -859,6 +860,10 @@ updateMapVaryingElements model =
 
         markedNode =
             Array.get marker model.nodeArray
+
+        nudgedTrackPoints =
+            List.map (.startsAt >> .trackPoint) (List.take 1 model.nudgedNodeRoads)
+                ++ List.map (.endsAt >> .trackPoint) model.nudgedNodeRoads
     in
     case ( currentNode, markedNode ) of
         ( Just node1, Just node2 ) ->
@@ -866,12 +871,14 @@ updateMapVaryingElements model =
                 ( node1.trackPoint.lon, node1.trackPoint.lat )
                 (Just ( node2.trackPoint.lon, node2.trackPoint.lat ))
                 (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
+                nudgedTrackPoints
 
         ( Just node1, Nothing ) ->
             MapController.addMarkersToMap
                 ( node1.trackPoint.lon, node1.trackPoint.lat )
                 Nothing
                 (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
+                nudgedTrackPoints
 
         _ ->
             Cmd.none
@@ -1381,7 +1388,10 @@ insertTrackPoint n model =
             in
             addToUndoStack undoMessage model
                 |> (\m ->
-                        { m | trackPoints = reindexTrackpoints newTPs }
+                        { m
+                            | trackPoints = reindexTrackpoints newTPs
+                            , currentNode = model.currentNode + 1
+                        }
                    )
 
         _ ->
@@ -1813,14 +1823,14 @@ smoothBend model =
 
                 newCurrent =
                     if model.currentNode > bend.startIndex then
-                        model.currentNode - numCurrentPoints + numNewPoints - 2
+                        model.currentNode - numCurrentPoints + numNewPoints
 
                     else
                         model.currentNode
 
                 newMark =
                     if marker > bend.startIndex then
-                        marker - numCurrentPoints + numNewPoints - 2
+                        marker - numCurrentPoints + numNewPoints
 
                     else
                         marker

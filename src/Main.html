@@ -190,6 +190,31 @@ function addOptionals(msg) {
             }
         });
     };
+
+    if (map.getLayer('nudge')) map.removeLayer('nudge');
+    if (map.getSource('nudge')) map.removeSource('nudge');
+
+    if (typeof(msg.nudge) != 'undefined') {
+        map.addSource('nudge', {
+            'type': 'geojson',
+            'data': msg.nudge
+            });
+
+        console.log('adding nudge');
+        map.addLayer({
+            'id': 'nudge',
+            'type': 'line',
+            'source': 'nudge',
+            'layout': {
+            'line-join': 'round',
+            'line-cap': 'round'
+            },
+            'paint': {
+                'line-color': '#FFA500',
+                'line-width': 5
+            }
+        });
+    };
 };
 
 </script>
