@@ -558,6 +558,7 @@ update msg model =
                         | viewingMode = info.nextView
                         , mapInfo = Just newInfo
                       }
+                        |> deriveVaryingVisualEntities
                     , Cmd.none
                     )
 
@@ -995,12 +996,13 @@ switchViewMode model mode =
                     }
             in
             ( { model | mapInfo = Maybe.map changedMapInfo model.mapInfo }
+                |> deriveVaryingVisualEntities
             , MapController.removeMap
             )
 
         ( _, _ ) ->
             -- Map not involved, happy days.
-            ( { model | viewingMode = mode }
+            ( { model | viewingMode = mode } |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
