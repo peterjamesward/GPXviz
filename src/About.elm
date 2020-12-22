@@ -14,13 +14,15 @@ aboutText =
 
 > **Changes**
 
-> - Editing on the Map view. You should see the yellow preview for Bend Smoothing and the orange preview for Node Nudge on the map. All the edit controls work. Please note that updating previews on the map is slower; this is beyond my control.
+> - Editing on the Map view. You should see the yellow preview for Bend Smoothing and the orange preview for Node Nudge on the map. More info in the main text below. Please note that updating previews on the map is slower; this is beyond my control.
 > _Standard warning:_ this integration is more complex and might go awry.
 > _Save your work_ more often.
 
 > - There are minor changes to harmonise the behaviour of tools, particularly at the start and end of a route. You may or may not notice this. Apologies if it causes a problem. It's in preparation for some upcoming changes.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
+
+**Map view** You can now click on the track to select a track point. When you first do this, you will probably see an Orange marker and a smaller purple marker superimposed. These remain together until you "Drop" the marker, after which clicking will move the Orange marker only until you "Clear" the purple marker. This makes for rapid selection of a section of route -- just click once to place both pointers, drop the purple one, click somewhere else. You can then use Nudge, Straighten, Bend smoothing (anything, in fact) on that range.
 
 **File** summarises the GPX information. This provides error messages if the file is not what we're expecting.
 
