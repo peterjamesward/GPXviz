@@ -39,6 +39,8 @@ type alias MapInfo =
     , centreLon : Float -- track values from user map interactions.
     , centreLat : Float -- track values from user map interactions.
     , mapZoom : Float -- track values from user map interactions.
+    , current : ( Float, Float ) -- orange cone
+    , marker : Maybe ( Float, Float ) -- purple cone
     }
 
 
@@ -80,24 +82,29 @@ addTrackToMap info =
             ]
 
 
-addMarkersToMap : ( Float, Float ) -> ( Float, Float ) -> Cmd Msg
-addMarkersToMap ( currentLon, currentLat ) ( markerLon, markerLat ) =
+addMarkersToMap : ( Float, Float ) -> Maybe ( Float, Float ) -> Cmd Msg
+addMarkersToMap current marker =
     let
-        orangePos =
-            E.object [ ( "lon", E.float currentLon )
-                     , ( "lat", E.float currentLat )
-                     ]
-        purplePos =
-            E.object [ ( "lon", E.float markerLon )
-                     , ( "lat", E.float markerLat )
-                     ]
+        encodePos ( lon, lat ) =
+            E.object
+                [ ( "lon", E.float lon )
+                , ( "lat", E.float lat )
+                ]
     in
     mapPort <|
-        E.object
-            [ ( "Cmd", E.string "Mark" )
-            , ( "orange", orangePos )
-            , ( "purple", purplePos )
-            ]
+        case marker of
+            Just mark ->
+                E.object
+                    [ ( "Cmd", E.string "Mark" )
+                    , ( "orange", encodePos current )
+                    , ( "purple", encodePos mark )
+                    ]
+
+            Nothing ->
+                E.object
+                    [ ( "Cmd", E.string "Mark" )
+                    , ( "orange", encodePos current )
+                    ]
 
 
 decodeState state =
@@ -165,6 +172,12 @@ processMapMessage info json =
             Just
                 ( { info | mapState = MapLoaded }
                 , addTrackToMap info
+                )
+
+        Ok "track ready" ->
+            Just
+                ( { info | mapState = MapLoaded }
+                , addMarkersToMap info.current info.marker
                 )
 
         Ok "move" ->

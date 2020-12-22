@@ -1,26 +1,32 @@
 module ToDo exposing (..)
 
---TODO: Set & Show current and marked node on map.
---      (Click to set Orange position, Shift-click for Purple?)
--- + Bend smoother options hidden in map mode?
+--TODO: BUG. Set & Show current and marked node on map.
+ -- Dodgy protocol. Ugly. Everything needs to go through MapInfo?
+ -- Pointer not visible when switching out of map view.
 
 --TODO: Show yellow smoothed bend option on map. and nudge line.
 
 --TODO: Result of above, editing should work on map.
 
+--TODO: Re-grouping of controls (see Jason Hurst input).
+
+--TODO: Popup tool help on all panes.
+
 --TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
+
+--TODO: Split track to show yellow icon warning if segments less than the maximum width.
 
 --TODO: Use "track point" not "node".
 
---TODO: "Preview" the insert track points operation?
+--TODO: Direct editing by dragging on map (may be easier than in elm-3d-scene).
 
---TODO: Direct editing on map (may be easier than in elm-3d-scene).
+--TODO: Really slick motion fly-through with map ??
 
---TODO: Re-grouping of controls (see Jason Hurst input).
+--TODO: Optimise use of screen space, knowing viewport.
 
 --TODO: SVG overlay - like an HUD? (elm example available)
 
---TODO: Scale of some kind on graphics. (Probably o nmap already.)
+--TODO: Scale of some kind on graphics. (Probably on map already.)
 
 --TODO: Feat? Clicking & Dragging on Plan & Elevation views.
 --Ian MacKenzie (himself) says Camera3d.ray will be useful here!

@@ -388,8 +388,14 @@ update msg model =
                             )
 
                         Nothing ->
-                            ( locallyHandleMapMessage model jsonMsg
-                            , updateMapVaryingElements model )
+                            let
+                                newModel =
+                                    locallyHandleMapMessage model jsonMsg
+                                        |> deriveVaryingVisualEntities
+                            in
+                            ( newModel
+                            , updateMapVaryingElements newModel
+                            )
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -813,11 +819,16 @@ updateMapVaryingElements model =
         markedNode =
             Array.get marker model.nodeArray
     in
-    case (currentNode, markedNode) of
-        (Just node1, Just node2) ->
+    case ( currentNode, markedNode ) of
+        ( Just node1, Just node2 ) ->
             MapController.addMarkersToMap
-                (node1.trackPoint.lon, node1.trackPoint.lat)
-                (node2.trackPoint.lon, node2.trackPoint.lat)
+                ( node1.trackPoint.lon, node1.trackPoint.lat )
+                (Just ( node2.trackPoint.lon, node2.trackPoint.lat ))
+
+        ( Just node1, Nothing ) ->
+            MapController.addMarkersToMap
+                ( node1.trackPoint.lon, node1.trackPoint.lat )
+                Nothing
 
         _ ->
             Cmd.none
@@ -835,6 +846,17 @@ switchViewMode model mode =
     -- When changing *from* the map, we must first remove the map (before we cxan destroy the DIV).
     -- So this need some careful structuring.
     let
+        current =
+            Array.get model.currentNode model.nodeArray
+
+        marked =
+            case model.markedNode of
+                Just m ->
+                    Array.get m model.nodeArray
+
+                Nothing ->
+                    Nothing
+
         newMapInfo box =
             { mapState = WaitingForNode
             , box = box
@@ -843,6 +865,20 @@ switchViewMode model mode =
             , centreLon = Length.inMeters <| BoundingBox3d.midX box
             , centreLat = Length.inMeters <| BoundingBox3d.midY box
             , mapZoom = 12.0
+            , current =
+                case current of
+                    Just m ->
+                        ( m.trackPoint.lon, m.trackPoint.lat )
+
+                    Nothing ->
+                        ( 0.0, 0.0 )
+            , marker =
+                case marked of
+                    Just m ->
+                        Just ( m.trackPoint.lon, m.trackPoint.lat )
+
+                    Nothing ->
+                        Nothing
             }
     in
     case ( model.viewingMode, mode ) of
@@ -1135,7 +1171,7 @@ splitRoad model =
                 segmentsToInterpolate
 
         precedingTrackPoints =
-            List.take startNode model.trackPoints
+            List.take (startNode + 1) model.trackPoints
 
         subsequentTrackPoints =
             List.drop (endNode + 1) model.trackPoints
@@ -2268,7 +2304,7 @@ view3D scale model =
             -- We merely create the placeholder, the work is done by messages through the map port.
             el
                 [ width (px 880)
-                , height (px 500)
+                , height (px 650)
                 , alignLeft
                 , alignTop
                 , htmlAttribute (id "map")
@@ -3114,13 +3150,13 @@ insertNodeOptionsBox c =
         [ button
             prettyButtonStyles
             { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
-            , label = text "Insert a node\nafter this one"
+            , label = text "Put two trackpoints in\nplace of this one"
             }
-        , button
-            prettyButtonStyles
-            { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
-            , label = text "Insert a node\nbefore this one"
-            }
+        --, button
+        --    prettyButtonStyles
+        --    { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
+        --    , label = text "Insert a node\nbefore this one"
+        --    }
         ]
 
 
