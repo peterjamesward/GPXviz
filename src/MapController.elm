@@ -82,14 +82,19 @@ addTrackToMap info =
             ]
 
 
-addMarkersToMap : ( Float, Float ) -> Maybe ( Float, Float ) -> Cmd Msg
-addMarkersToMap current marker =
+addMarkersToMap : ( Float, Float )
+    -> Maybe ( Float, Float )
+    -> List TrackPoint
+    -> Cmd Msg
+addMarkersToMap current marker smoothBend =
     let
         encodePos ( lon, lat ) =
             E.object
                 [ ( "lon", E.float lon )
                 , ( "lat", E.float lat )
                 ]
+
+
     in
     mapPort <|
         case marker of
@@ -98,12 +103,14 @@ addMarkersToMap current marker =
                     [ ( "Cmd", E.string "Mark" )
                     , ( "orange", encodePos current )
                     , ( "purple", encodePos mark )
+                    , ( "bend", trackToJSON smoothBend )
                     ]
 
             Nothing ->
                 E.object
                     [ ( "Cmd", E.string "Mark" )
                     , ( "orange", encodePos current )
+                    , ( "bend", trackToJSON smoothBend )
                     ]
 
 
@@ -177,7 +184,7 @@ processMapMessage info json =
         Ok "track ready" ->
             Just
                 ( { info | mapState = MapLoaded }
-                , addMarkersToMap info.current info.marker
+                , addMarkersToMap info.current info.marker []
                 )
 
         Ok "move" ->

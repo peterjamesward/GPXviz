@@ -865,11 +865,13 @@ updateMapVaryingElements model =
             MapController.addMarkersToMap
                 ( node1.trackPoint.lon, node1.trackPoint.lat )
                 (Just ( node2.trackPoint.lon, node2.trackPoint.lat ))
+                (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
 
         ( Just node1, Nothing ) ->
             MapController.addMarkersToMap
                 ( node1.trackPoint.lon, node1.trackPoint.lat )
                 Nothing
+                (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
 
         _ ->
             Cmd.none

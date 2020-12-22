@@ -215,6 +215,7 @@ makeMapEntities :
     -> List DrawingRoad
     -> List (Entity LocalCoords)
 makeMapEntities context roadList =
+    -- This is for the "old" static map, not the Mapbox GL JSv2 map.
     let
         roadSurfaces =
             List.concat <|

@@ -1,9 +1,5 @@
 module ToDo exposing (..)
 
---TODO: BUG. Set & Show current and marked node on map.
- -- Dodgy protocol. Ugly. Everything needs to go through MapInfo?
- -- Pointer not visible when switching out of map view.
-
 --TODO: Show yellow smoothed bend option on map. and nudge line.
 
 --TODO: Result of above, editing should work on map.
@@ -17,6 +13,8 @@ module ToDo exposing (..)
 --TODO: Split track to show yellow icon warning if segments less than the maximum width.
 
 --TODO: Use "track point" not "node".
+
+--TODO: Map terrain option (switch map style).
 
 --TODO: Direct editing by dragging on map (may be easier than in elm-3d-scene).
 

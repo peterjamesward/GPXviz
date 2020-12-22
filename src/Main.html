@@ -167,12 +167,12 @@ function addOptionals(msg) {
 
     // Map API calls not idempotent.
     if (map.getLayer('bend')) map.removeLayer('bend');
-    if (map.getSource('bend')) map.renoveSource('bend');
+    if (map.getSource('bend')) map.removeSource('bend');
 
     if (typeof(msg.bend) != 'undefined') {
         map.addSource('bend', {
             'type': 'geojson',
-            'data': data
+            'data': msg.bend
             });
 
         console.log('adding bend');
