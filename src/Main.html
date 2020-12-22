@@ -148,7 +148,7 @@ function addLineToMap(data) {
 };
 
 var orangeMarker = new mapboxgl.Marker({ color: "#FFA500" });
-var purpleMarker = new mapboxgl.Marker({ color: "#800080" });
+var purpleMarker = new mapboxgl.Marker({ color: "#800080", scale: 0.8 });
 
 function addOptionals(msg) {
     if (typeof(msg.orange) != 'undefined') {

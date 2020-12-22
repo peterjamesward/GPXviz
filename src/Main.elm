@@ -448,72 +448,100 @@ update msg model =
             switchViewMode newModel newModel.viewingMode
 
         UserMovedNodeSlider node ->
-            ( { model | currentNode = node }
-                |> cancelFlythrough
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model | currentNode = node }
+                        |> cancelFlythrough
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetSmoothingEnd idx ->
-            ( { model | smoothingEndIndex = Just idx }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model | smoothingEndIndex = Just idx }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         PositionForwardOne ->
-            ( { model
-                | currentNode = modBy (List.length model.nodes) (model.currentNode + 1)
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-                |> cancelFlythrough
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model
+                        | currentNode = modBy (List.length model.nodes) (model.currentNode + 1)
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                        |> cancelFlythrough
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         PositionBackOne ->
-            ( { model
-                | currentNode = modBy (List.length model.nodes) (model.currentNode - 1)
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-                |> cancelFlythrough
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model
+                        | currentNode = modBy (List.length model.nodes) (model.currentNode - 1)
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                        |> cancelFlythrough
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         MarkerForwardOne ->
-            ( { model
-                | markedNode =
-                    Maybe.map
-                        (\m -> modBy (List.length model.nodes) (m + 1))
-                        model.markedNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model
+                        | markedNode =
+                            Maybe.map
+                                (\m -> modBy (List.length model.nodes) (m + 1))
+                                model.markedNode
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         MarkerBackOne ->
-            ( { model
-                | markedNode =
-                    Maybe.map
-                        (\m -> modBy (List.length model.nodes) (m - 1))
-                        model.markedNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model
+                        | markedNode =
+                            Maybe.map
+                                (\m -> modBy (List.length model.nodes) (m - 1))
+                                model.markedNode
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetMaxTurnPerSegment turn ->
-            ( { model
-                | numLineSegmentsForBend = turn
-              }
-                |> tryBendSmoother
-                --|> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    { model
+                        | numLineSegmentsForBend = turn
+                    }
+                        |> tryBendSmoother
+                        --|> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         ChooseViewMode mode ->
@@ -705,18 +733,22 @@ update msg model =
                     ( model, Cmd.none )
 
         ToggleMarker ->
-            ( { model
-                | markedNode =
-                    case model.markedNode of
-                        Just _ ->
-                            Nothing
+            let
+                newModel =
+                    { model
+                        | markedNode =
+                            case model.markedNode of
+                                Just _ ->
+                                    Nothing
 
-                        Nothing ->
-                            Just model.currentNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+                                Nothing ->
+                                    Just model.currentNode
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetBumpinessFactor factor ->
@@ -773,15 +805,23 @@ update msg model =
                 |> trackHasChanged
 
         SetHorizontalNudgeFactor horizontal ->
-            ( simulateNudgeNode model horizontal model.verticalNudgeValue
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    simulateNudgeNode model horizontal model.verticalNudgeValue
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetVerticalNudgeFactor vertical ->
-            ( simulateNudgeNode model model.nudgeValue vertical
-                |> deriveVaryingVisualEntities
-            , updateMapVaryingElements model
+            let
+                newModel =
+                    simulateNudgeNode model model.nudgeValue vertical
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         NudgeNode horizontal vertical ->
@@ -880,6 +920,24 @@ switchViewMode model mode =
                     Nothing ->
                         Nothing
             }
+
+        updatedMapInfo info =
+            { info
+                | current =
+                    case current of
+                        Just m ->
+                            ( m.trackPoint.lon, m.trackPoint.lat )
+
+                        Nothing ->
+                            ( 0.0, 0.0 )
+                , marker =
+                    case marked of
+                        Just m ->
+                            Just ( m.trackPoint.lon, m.trackPoint.lat )
+
+                        Nothing ->
+                            Nothing
+            }
     in
     case ( model.viewingMode, mode ) of
         ( MapView, MapView ) ->
@@ -899,18 +957,32 @@ switchViewMode model mode =
             case model.mapInfo of
                 Just mapInfo ->
                     -- We have a residual map state, we need to restore the map in correct position.
-                    ( { model | viewingMode = mode }
-                    , MapController.createMap mapInfo
+                    let
+                        newInfo =
+                            updatedMapInfo mapInfo
+
+                        newModel =
+                            { model
+                                | viewingMode = mode
+                                , mapInfo = Just newInfo
+                            }
+                    in
+                    ( newModel
+                    , MapController.createMap newInfo
                     )
 
                 Nothing ->
                     -- If the map state is Stopped, need to wait for DOM node before creating map.
-                    ( { model
-                        | viewingMode = mode
-                        , mapInfo = Just (newMapInfo model.trackPointBox)
-                      }
-                        |> deriveVaryingVisualEntities
-                    , MapController.createMap (newMapInfo model.trackPointBox)
+                    let
+                        newModel =
+                            { model
+                                | viewingMode = mode
+                                , mapInfo = Just (newMapInfo model.trackPointBox)
+                            }
+                                |> deriveVaryingVisualEntities
+                    in
+                    ( newModel
+                    , MapController.createMap (newMapInfo newModel.trackPointBox)
                     )
 
         ( MapView, _ ) ->
@@ -1715,7 +1787,7 @@ smoothBend model =
     -- so we need only splice them in.
     let
         undoMessage bend =
-            "bend smoothing from "
+            "bend smoothing\nfrom "
                 ++ String.fromInt bend.startIndex
                 ++ " to "
                 ++ String.fromInt bend.endIndex
@@ -3152,6 +3224,7 @@ insertNodeOptionsBox c =
             { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
             , label = text "Put two trackpoints in\nplace of this one"
             }
+
         --, button
         --    prettyButtonStyles
         --    { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
