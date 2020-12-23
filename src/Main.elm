@@ -1,6 +1,5 @@
 module Main exposing (main)
 
-import Html.Events.Extra.Wheel
 import About exposing (viewAboutText)
 import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
@@ -8,7 +7,7 @@ import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import BoundingBox3d exposing (BoundingBox3d)
 import Browser
-import Camera3d
+import Camera3d exposing (Camera3d)
 import Color
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
@@ -24,6 +23,8 @@ import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
+import Html.Events.Extra.Mouse as Mouse exposing (Event)
+import Html.Events.Extra.Wheel as Wheel
 import Iso8601
 import Json.Decode as E exposing (decodeValue, field, float)
 import Length
@@ -139,7 +140,8 @@ type alias Model =
     , accordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
     , mapInfo : Maybe MapController.MapInfo
-    , deltaY : Float -- testing mouse wheel events
+
+    --, currentSceneCamera : Camera3d.Camera3d Length.Meters LocalCoords
     }
 
 
@@ -201,7 +203,8 @@ init _ =
       , accordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
       , mapInfo = Nothing
-      , deltaY = 0.0
+
+      --, currentSceneCamera = Camera3d.orthographic {
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -357,6 +360,8 @@ locallyHandleMapMessage model json =
 makeNearestNodeCurrent : Model -> Float -> Float -> Model
 makeNearestNodeCurrent model lon lat =
     -- Searching like this may be too slow. Wait and see.
+    -- Speed up 1 - do approximate filter then exact on subset.
+    -- Speed up 2 - use quadtree structure (!)
     let
         nearbyPoints =
             List.sortBy distance
@@ -373,6 +378,62 @@ makeNearestNodeCurrent model lon lat =
 
         _ ->
             model
+
+
+detectHit : Model -> Mouse.Event -> Model
+detectHit model event =
+    -- Same but in our local coord, not map coords.
+    -- Need assistance from elm-3d-scene.
+    let
+        ( x, y ) =
+            event.offsetPos
+
+        nearbyPoints =
+            []
+    in
+    model
+
+
+
+-- placeholder
+{-
+   Here's some handy stuff from 'unsoundscapes' via slack.
+   (decodeMouseRay camera width height MouseDown)
+
+   decodeMouseRay :
+       Camera3d Meters WorldCoordinates
+       -> Quantity Float Pixels
+       -> Quantity Float Pixels
+       -> (Axis3d Meters WorldCoordinates -> msg)
+       -> Decoder msg
+   decodeMouseRay camera3d width height rayToMsg =
+       Json.Decode.map2
+           (\x y ->
+               rayToMsg
+                   (Camera3d.ray
+                       camera3d
+                       (Rectangle2d.with
+                           { x1 = pixels 0
+                           , y1 = height
+                           , x2 = width
+                           , y2 = pixels 0
+                           }
+                       )
+                       (Point2d.pixels x y)
+                   )
+           )
+           (Json.Decode.field "pageX" Json.Decode.float)
+           (Json.Decode.field "pageY" Json.Decode.float)
+
+           ...
+
+           MouseDown mouseRay ->
+               { model
+                   | selection =
+                       World.raycast mouseRay world
+                           |> Maybe.map (\{ body } -> Body.data body)
+               }
+-}
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -594,14 +655,18 @@ update msg model =
             , Cmd.none
             )
 
-        ImageGrab ( dx, dy ) ->
+        ImageGrab event ->
             -- Mouse behaviour depends which view is in use...
             -- Need to add intersection test for Profile & Plan views.
-            ( { model | orbiting = Just ( dx, dy ) }
+            ( { model | orbiting = Just event.offsetPos }
             , Cmd.none
             )
 
-        ImageRotate ( dx, dy ) ->
+        ImageRotate event ->
+            let
+                ( dx, dy ) =
+                    event.offsetPos
+            in
             case model.orbiting of
                 Just ( startX, startY ) ->
                     let
@@ -843,18 +908,29 @@ update msg model =
 
         MouseWheel deltaY ->
             let
-                factor = -0.001
+                factor =
+                    -0.001
             in
             ( case model.viewingMode of
                 FirstPersonView ->
                     { model | zoomLevelFirstPerson = model.zoomLevelFirstPerson + deltaY * factor }
+
                 ThirdPersonView ->
                     { model | zoomLevelThirdPerson = model.zoomLevelThirdPerson + deltaY * factor }
+
                 ProfileView ->
                     { model | zoomLevelProfile = model.zoomLevelProfile + deltaY * factor }
+
                 PlanView ->
                     { model | zoomLevelPlan = model.zoomLevelPlan + deltaY * factor }
-                _ -> model
+
+                _ ->
+                    model
+            , Cmd.none
+            )
+
+        MouseClick event ->
+            ( detectHit model event
             , Cmd.none
             )
 
@@ -2329,7 +2405,6 @@ viewGenericNew model =
                         Nothing ->
                             none
                     , saveButtonIfChanged model
-                    , text <| showDecimal6 model.deltaY
                     ]
                 , row [ alignLeft, moveRight 100 ]
                     [ viewModeChoices model
@@ -2845,26 +2920,14 @@ positionSlider model =
 
 
 viewFirstPerson model =
-    let
-        nodeNum =
-            min model.currentNode (List.length model.nodes - 2)
-
-        node =
-            lookupRoad model nodeNum
-    in
-    case node of
-        Just realNode ->
-            row [ alignTop ]
-                [ column
-                    [ alignTop
-                    ]
-                    [ viewRoadSegment model realNode
-                    , positionControls model
-                    ]
-                ]
-
-        Nothing ->
-            text "Something wrong here."
+    row [ alignTop ]
+        [ column
+            [ alignTop
+            ]
+            [ viewRoadSegment model
+            , positionControls model
+            ]
+        ]
 
 
 flythroughControls : Model -> Element Msg
@@ -2942,8 +3005,8 @@ flythroughControls model =
         ]
 
 
-viewRoadSegment : Model -> DrawingRoad -> Element Msg
-viewRoadSegment model road =
+firstPersonCamera : Model -> DrawingRoad -> Camera3d Length.Meters LocalCoords
+firstPersonCamera model road =
     let
         eyePoint =
             case model.flythrough of
@@ -2973,33 +3036,51 @@ viewRoadSegment model road =
                         , focalPoint = flying.focusPoint
                         , upDirection = Direction3d.positiveZ
                         }
-
-        camera =
-            Camera3d.perspective
-                { viewpoint = cameraViewpoint
-                , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
-                }
     in
-    row []
-        [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters 1.0
-                    , entities =
-                        model.varyingVisualEntities
-                            ++ model.staticVisualEntities
-                            ++ model.terrainEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
+    Camera3d.perspective
+        { viewpoint = cameraViewpoint
+        , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
+        }
+
+
+viewRoadSegment : Model -> Element Msg
+viewRoadSegment model =
+    let
+        nodeNum =
+            min model.currentNode (List.length model.nodes - 2)
+
+        node =
+            lookupRoad model nodeNum
+    in
+    case node of
+        Nothing ->
+            none
+
+        Just realNode ->
+            let
+                camera =
+                    firstPersonCamera model realNode
+            in
+            row []
+                [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
+                , el
+                    withMouseCapture
+                  <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , background = Scene3d.backgroundColor Color.lightBlue
+                            , clipDepth = Length.meters 1.0
+                            , entities =
+                                model.varyingVisualEntities
+                                    ++ model.staticVisualEntities
+                                    ++ model.terrainEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
 
 
 viewThirdPerson : Model -> Element Msg
@@ -3293,8 +3374,8 @@ lookupRoad model idx =
     Array.get idx model.roadArray
 
 
-viewCurrentNode : Model -> DrawingNode -> Element Msg
-viewCurrentNode model node =
+thirdPersonCamera : Model -> DrawingNode -> Camera3d Length.Meters LocalCoords
+thirdPersonCamera model node =
     let
         focus =
             case model.flythrough of
@@ -3318,6 +3399,15 @@ viewCurrentNode model node =
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
                 }
     in
+    camera
+
+
+viewCurrentNode : Model -> DrawingNode -> Element Msg
+viewCurrentNode model node =
+    let
+        camera =
+            thirdPersonCamera model node
+    in
     row []
         [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
         , el
@@ -3340,8 +3430,8 @@ viewCurrentNode model node =
         ]
 
 
-viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
-viewCurrentNodePlanView model node =
+planCamera : Model -> DrawingNode -> Camera3d Length.Meters LocalCoords
+planCamera model node =
     let
         focus =
             Point3d.projectOnto Plane3d.xy
@@ -3363,10 +3453,18 @@ viewCurrentNodePlanView model node =
                 , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
                 }
     in
+    camera
+
+
+viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
+viewCurrentNodePlanView model node =
+    let
+        camera =
+            planCamera model node
+    in
     row []
         [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-        , el withMouseCapture
-          <|
+        , el withMouseCapture <|
             html <|
                 Scene3d.sunny
                     { camera = camera
@@ -3432,8 +3530,8 @@ viewCentredPlanViewForMap box model =
                 }
 
 
-viewRouteProfile : Model -> DrawingNode -> Element Msg
-viewRouteProfile model node =
+profileCamera : Model -> DrawingNode -> Camera3d Length.Meters LocalCoords
+profileCamera model node =
     let
         focus =
             Point3d.projectOnto
@@ -3456,10 +3554,19 @@ viewRouteProfile model node =
                 , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
                 }
     in
+    camera
+
+
+viewRouteProfile : Model -> DrawingNode -> Element Msg
+viewRouteProfile model node =
+    let
+        camera =
+            profileCamera model node
+    in
     row []
         [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
         , el
-          withMouseCapture
+            withMouseCapture
           <|
             html <|
                 Scene3d.sunny

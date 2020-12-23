@@ -6,16 +6,17 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
-import Html.Events.Extra.Pointer as Pointer
+import Html.Events.Extra.Mouse as Mouse
 import Html.Events.Extra.Wheel as Wheel
 import Msg exposing (Msg(..))
 import Utils exposing (showDecimal2)
 
 
 withMouseCapture =
-    [ htmlAttribute <| Pointer.onDown (\event -> ImageGrab event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onMove (\event -> ImageRotate event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onUp (\event -> ImageRelease event.pointer.offsetPos)
+    [ htmlAttribute <| Mouse.onDown (\event -> ImageGrab event)
+    , htmlAttribute <| Mouse.onMove (\event -> ImageRotate event)
+    , htmlAttribute <| Mouse.onUp (\event -> ImageRelease event)
+    , htmlAttribute <| Mouse.onClick (\event -> ImageRelease event)
     , htmlAttribute <| Wheel.onWheel (\event -> MouseWheel event.deltaY)
     , htmlAttribute <| style "touch-action" "none"
     , width fill
@@ -209,15 +210,17 @@ commonShortVerticalSliderStyles =
             Element.none
     ]
 
+
 straightenButton : Element Msg
 straightenButton =
     button
         prettyButtonStyles
-        { onPress = Just (StraightenStraight)
+        { onPress = Just StraightenStraight
         , label =
             text <|
                 "Straighten between markers"
         }
+
 
 nudgeButton : Float -> Float -> Element Msg
 nudgeButton horizontalValue verticalValue =

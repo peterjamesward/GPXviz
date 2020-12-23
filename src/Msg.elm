@@ -7,6 +7,7 @@ import Json.Encode as E
 import Time
 import Utils exposing (Point)
 import ViewTypes exposing (ViewingMode)
+import Html.Events.Extra.Mouse as Mouse
 
 
 type Msg
@@ -22,9 +23,6 @@ type Msg
     | ZoomLevelThirdPerson Float
     | ZoomLevelPlan Float
     | ZoomLevelProfile Float
-    | ImageGrab Point
-    | ImageRotate Point
-    | ImageRelease Point
     | TogglePillars Bool
     | ToggleRoad Bool
     | ToggleCones Bool
@@ -66,6 +64,10 @@ type Msg
     | MapMessage E.Value
     | MapRemoved String
     | MouseWheel Float
+    | MouseClick Mouse.Event
+    | ImageGrab Mouse.Event
+    | ImageRotate Mouse.Event
+    | ImageRelease Mouse.Event
 
 
 type NodeSplitDirection
