@@ -45,6 +45,7 @@ import Task
 import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
+import Tuple exposing (first, second)
 import Utils exposing (..)
 import Vector2d
 import Vector3d
@@ -2832,7 +2833,7 @@ viewPointCloud scale model =
             html <|
                 Scene3d.sunny
                     { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                    , dimensions = view3dDimensions
                     , background = Scene3d.backgroundColor Color.lightBlue
                     , clipDepth = Length.meters 1.0 -- * scale.metresToClipSpace)
                     , entities =
@@ -3143,7 +3144,7 @@ viewRoadSegment model =
                     html <|
                         Scene3d.sunny
                             { camera = camera
-                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.lightBlue
                             , clipDepth = Length.meters 1.0
                             , entities =
@@ -3544,7 +3545,7 @@ viewCurrentNodePlanView model node =
                     html <|
                         Scene3d.sunny
                             { camera = camera
-                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.darkGreen
                             , clipDepth = Length.meters 1.0
                             , entities = model.varyingVisualEntities ++ model.staticVisualEntities
@@ -3580,7 +3581,7 @@ viewCentredPlanViewForMap box model =
             Length.meters <|
                 max
                     (Length.inMeters ySize)
-                    (Length.inMeters xSize * 500.0 / 800.0)
+                    ((Length.inMeters xSize) * view3dHeight / view3dWidth)
 
         camera =
             Camera3d.orthographic
@@ -3599,7 +3600,7 @@ viewCentredPlanViewForMap box model =
         html <|
             Scene3d.sunny
                 { camera = camera
-                , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                , dimensions = view3dDimensions
                 , background = Scene3d.transparentBackground
                 , clipDepth = Length.meters 1.0
                 , entities = model.mapVisualEntities
@@ -3648,7 +3649,7 @@ viewRouteProfile model node =
                     html <|
                         Scene3d.sunny
                             { camera = camera
-                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.lightCharcoal
                             , clipDepth = Length.meters 1.0
                             , entities = model.varyingProfileEntities ++ model.staticProfileEntities
