@@ -3562,18 +3562,18 @@ profileCamera model =
                 (Vector3d.meters 100.0 0.0 0.0)
                 node.location
 
-        camera node =
+        camera road =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt
-                        { focalPoint = focus node
-                        , eyePoint = eyePoint node
+                        { focalPoint = focus road.profileStartsAt
+                        , eyePoint = eyePoint road.profileStartsAt
                         , upDirection = positiveZ
                         }
                 , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
                 }
     in
-    Maybe.map camera (Array.get model.currentNode model.nodeArray)
+    Maybe.map camera (Array.get model.currentNode model.roadArray)
 
 
 viewRouteProfile : Model -> DrawingNode -> Element Msg
