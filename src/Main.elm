@@ -140,8 +140,7 @@ type alias Model =
     , accordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
     , mapInfo : Maybe MapController.MapInfo
-
-    --, currentSceneCamera : Camera3d.Camera3d Length.Meters LocalCoords
+    , currentSceneCamera : Maybe (Camera3d.Camera3d Length.Meters LocalCoords)
     }
 
 
@@ -203,8 +202,7 @@ init _ =
       , accordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
       , mapInfo = Nothing
-
-      --, currentSceneCamera = Camera3d.orthographic {
+      , currentSceneCamera = Nothing
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -468,6 +466,8 @@ update msg model =
         Tick newTime ->
             ( { model | time = newTime }
                 |> advanceFlythrough newTime
+                |> checkSceneCamera
+              -- can I just get away with this for all cases?
             , Cmd.none
             )
 
@@ -2117,6 +2117,28 @@ resetViewSettings model =
         , redoStack = []
         , mapInfo = Maybe.map (newMapInfo model.trackPointBox) model.mapInfo
     }
+        |> checkSceneCamera
+
+
+checkSceneCamera model =
+    { model
+        | currentSceneCamera =
+            case model.viewingMode of
+                FirstPersonView ->
+                    firstPersonCamera model
+
+                ThirdPersonView ->
+                    thirdPersonCamera model
+
+                ProfileView ->
+                    profileCamera model
+
+                PlanView ->
+                    planCamera model
+
+                _ ->
+                    Nothing
+    }
 
 
 deriveProblems : Model -> Model
@@ -3005,10 +3027,10 @@ flythroughControls model =
         ]
 
 
-firstPersonCamera : Model -> DrawingRoad -> Camera3d Length.Meters LocalCoords
-firstPersonCamera model road =
+firstPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+firstPersonCamera model =
     let
-        eyePoint =
+        eyePoint road =
             case model.flythrough of
                 Nothing ->
                     Point3d.translateBy
@@ -3018,11 +3040,11 @@ firstPersonCamera model road =
                 Just flying ->
                     flying.cameraPosition
 
-        cameraViewpoint =
+        cameraViewpoint road =
             case model.flythrough of
                 Nothing ->
                     Viewpoint3d.lookAt
-                        { eyePoint = eyePoint
+                        { eyePoint = eyePoint road
                         , focalPoint =
                             Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 eyeHeight)
@@ -3032,35 +3054,27 @@ firstPersonCamera model road =
 
                 Just flying ->
                     Viewpoint3d.lookAt
-                        { eyePoint = eyePoint
+                        { eyePoint = eyePoint road
                         , focalPoint = flying.focusPoint
                         , upDirection = Direction3d.positiveZ
                         }
     in
-    Camera3d.perspective
-        { viewpoint = cameraViewpoint
-        , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
-        }
+    case Array.get model.currentNode model.roadArray of
+        Just road ->
+            Just <|
+                Camera3d.perspective
+                    { viewpoint = cameraViewpoint road
+                    , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
+                    }
+
+        Nothing ->
+            Nothing
 
 
 viewRoadSegment : Model -> Element Msg
 viewRoadSegment model =
-    let
-        nodeNum =
-            min model.currentNode (List.length model.nodes - 2)
-
-        node =
-            lookupRoad model nodeNum
-    in
-    case node of
-        Nothing ->
-            none
-
-        Just realNode ->
-            let
-                camera =
-                    firstPersonCamera model realNode
-            in
+    case model.currentSceneCamera of
+        Just camera ->
             row []
                 [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
                 , el
@@ -3082,6 +3096,9 @@ viewRoadSegment model =
                             }
                 ]
 
+        Nothing ->
+            none
+
 
 viewThirdPerson : Model -> Element Msg
 viewThirdPerson model =
@@ -3095,7 +3112,7 @@ viewThirdPerson model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNode model node
+                    [ viewCurrentNode model
                     , positionControls model
                     ]
                 ]
@@ -3374,10 +3391,10 @@ lookupRoad model idx =
     Array.get idx model.roadArray
 
 
-thirdPersonCamera : Model -> DrawingNode -> Camera3d Length.Meters LocalCoords
-thirdPersonCamera model node =
+thirdPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+thirdPersonCamera model =
     let
-        focus =
+        focus node =
             case model.flythrough of
                 Just fly ->
                     fly.cameraPosition
@@ -3385,11 +3402,11 @@ thirdPersonCamera model node =
                 Nothing ->
                     node.location
 
-        camera =
+        camera node =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
-                        { focalPoint = focus
+                        { focalPoint = focus node
                         , azimuth = model.azimuth
                         , elevation = model.elevation
                         , distance =
@@ -3399,84 +3416,86 @@ thirdPersonCamera model node =
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
                 }
     in
-    camera
+    Maybe.map camera (Array.get model.currentNode model.nodeArray)
 
 
-viewCurrentNode : Model -> DrawingNode -> Element Msg
-viewCurrentNode model node =
+viewCurrentNode : Model -> Element Msg
+viewCurrentNode model  =
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
+                , el
+                    withMouseCapture
+                  <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , background = Scene3d.backgroundColor Color.lightBlue
+                            , clipDepth = Length.meters 1.0
+                            , entities =
+                                model.varyingVisualEntities
+                                    ++ model.staticVisualEntities
+                                    ++ model.terrainEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
+
+
+planCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+planCamera model =
     let
-        camera =
-            thirdPersonCamera model node
-    in
-    row []
-        [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters 1.0
-                    , entities =
-                        model.varyingVisualEntities
-                            ++ model.staticVisualEntities
-                            ++ model.terrainEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
-
-
-planCamera : Model -> DrawingNode -> Camera3d Length.Meters LocalCoords
-planCamera model node =
-    let
-        focus =
+        focus node =
             Point3d.projectOnto Plane3d.xy
                 node.location
 
-        eyePoint =
+        eyePoint node =
             Point3d.translateBy
                 (Vector3d.meters 0.0 0.0 5000.0)
                 node.location
 
-        camera =
+        camera node =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt
-                        { focalPoint = focus
-                        , eyePoint = eyePoint
+                        { focalPoint = focus node
+                        , eyePoint = eyePoint node
                         , upDirection = positiveY
                         }
                 , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
                 }
     in
-    camera
+    Maybe.map camera (Array.get model.currentNode model.nodeArray)
 
 
 viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView model node =
-    let
-        camera =
-            planCamera model node
-    in
-    row []
-        [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-        , el withMouseCapture <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.darkGreen
-                    , clipDepth = Length.meters 1.0
-                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
+                , el withMouseCapture <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , background = Scene3d.backgroundColor Color.darkGreen
+                            , clipDepth = Length.meters 1.0
+                            , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
 
 
 viewCentredPlanViewForMap : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
@@ -3530,56 +3549,57 @@ viewCentredPlanViewForMap box model =
                 }
 
 
-profileCamera : Model -> DrawingNode -> Camera3d Length.Meters LocalCoords
-profileCamera model node =
+profileCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+profileCamera model =
     let
-        focus =
+        focus node =
             Point3d.projectOnto
                 Plane3d.yz
                 node.location
 
-        eyePoint =
+        eyePoint node =
             Point3d.translateBy
                 (Vector3d.meters 100.0 0.0 0.0)
                 node.location
 
-        camera =
+        camera node =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt
-                        { focalPoint = focus
-                        , eyePoint = eyePoint
+                        { focalPoint = focus node
+                        , eyePoint = eyePoint node
                         , upDirection = positiveZ
                         }
                 , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
                 }
     in
-    camera
+    Maybe.map camera (Array.get model.currentNode model.nodeArray)
 
 
 viewRouteProfile : Model -> DrawingNode -> Element Msg
 viewRouteProfile model node =
-    let
-        camera =
-            profileCamera model node
-    in
-    row []
-        [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightCharcoal
-                    , clipDepth = Length.meters 1.0
-                    , entities = model.varyingProfileEntities ++ model.staticProfileEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
+                , el
+                    withMouseCapture
+                  <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , background = Scene3d.backgroundColor Color.lightCharcoal
+                            , clipDepth = Length.meters 1.0
+                            , entities = model.varyingProfileEntities ++ model.staticProfileEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
 
 
 subscriptions : Model -> Sub Msg
