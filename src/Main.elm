@@ -398,7 +398,6 @@ detectHit model event =
             Point2d.pixels x y
 
         screenRectangle =
-            --TODO: Promote this everywhere as single source of size for DIVs etc.
             Rectangle2d.with
                 { x1 = Pixels.pixels 0
                 , y1 = Pixels.pixels 600

@@ -37,7 +37,6 @@ type
 
 
 type alias MapInfo =
-    --TODO: Track Centre and Zoom for restore when map is re-created.
     { mapState : MapState
     , box : BoundingBox3d Length.Meters GPXCoords
     , points : List TrackPoint
