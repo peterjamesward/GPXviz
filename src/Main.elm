@@ -3492,7 +3492,7 @@ viewCurrentNode model =
                     html <|
                         Scene3d.sunny
                             { camera = camera
-                            , dimensions = ( Pixels.int 800, Pixels.int 600 )
+                            , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.lightBlue
                             , clipDepth = Length.meters 1.0
                             , entities =
@@ -3595,7 +3595,7 @@ viewCentredPlanViewForMap box model =
                 }
     in
     el
-        [ width (px 800), height (px 500), alignLeft, alignTop ]
+        [ alignLeft, alignTop ]
     <|
         html <|
             Scene3d.sunny
