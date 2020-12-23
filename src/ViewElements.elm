@@ -16,7 +16,7 @@ withMouseCapture =
     [ htmlAttribute <| Mouse.onDown (\event -> ImageGrab event)
     , htmlAttribute <| Mouse.onMove (\event -> ImageRotate event)
     , htmlAttribute <| Mouse.onUp (\event -> ImageRelease event)
-    , htmlAttribute <| Mouse.onClick (\event -> ImageRelease event)
+    , htmlAttribute <| Mouse.onClick (\event -> MouseClick event)
     , htmlAttribute <| Wheel.onWheel (\event -> MouseWheel event.deltaY)
     , htmlAttribute <| style "touch-action" "none"
     , width fill

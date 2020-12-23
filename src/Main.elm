@@ -4,6 +4,7 @@ import About exposing (viewAboutText)
 import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
+import Axis3d exposing (intersectionWithSphere)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import BoundingBox3d exposing (BoundingBox3d)
 import Browser
@@ -35,8 +36,10 @@ import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
-import Point3d
+import Point3d exposing (distanceFromAxis)
+import Rectangle2d
 import Scene3d exposing (Entity)
+import Sphere3d exposing (Sphere3d)
 import Spherical exposing (metresPerDegree)
 import Task
 import Terrain exposing (makeTerrain)
@@ -141,6 +144,7 @@ type alias Model =
     , maxSegmentSplitSize : Float
     , mapInfo : Maybe MapController.MapInfo
     , currentSceneCamera : Maybe (Camera3d.Camera3d Length.Meters LocalCoords)
+    , clickData : ( Float, Float )
     }
 
 
@@ -203,6 +207,7 @@ init _ =
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
       , mapInfo = Nothing
       , currentSceneCamera = Nothing
+      , clickData = ( 0.0, 0.0 )
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -386,10 +391,58 @@ detectHit model event =
         ( x, y ) =
             event.offsetPos
 
-        nearbyPoints =
-            []
+        screenPoint =
+            Point2d.pixels x y
+
+        screenRectangle =
+            --TODO: Promote this everywhere as single source of size for DIVs etc.
+            Rectangle2d.with
+                { x1 = Pixels.pixels 0
+                , y1 = Pixels.pixels 600
+                , x2 = Pixels.pixels 800
+                , y2 = Pixels.pixels 0
+                }
+
+        profileNodes =
+            -- Probably something worth having in the model
+            List.map .profileStartsAt (List.take 1 model.roads)
+                ++ List.map .profileEndsAt model.roads
+
+        nodeList =
+            case model.viewingMode of
+                ProfileView ->
+                    profileNodes
+
+                _ ->
+                    model.nodes
     in
-    model
+    case model.currentSceneCamera of
+        Just camera ->
+            let
+                ray =
+                    Camera3d.ray camera screenRectangle screenPoint
+
+                distances =
+                    List.map
+                        (\node ->
+                            ( node.trackPoint.idx
+                            , Length.inMeters <| distanceFromAxis ray node.location
+                            )
+                        )
+                        nodeList
+
+                inDistanceOrder =
+                    List.sortBy Tuple.second distances
+            in
+            case List.head inDistanceOrder of
+                Just ( idx, _ ) ->
+                    { model | currentNode = idx }
+
+                Nothing ->
+                    model
+
+        Nothing ->
+            model
 
 
 
@@ -930,7 +983,7 @@ update msg model =
             )
 
         MouseClick event ->
-            ( detectHit model event
+            ( detectHit model event |> deriveVaryingVisualEntities
             , Cmd.none
             )
 
@@ -2430,6 +2483,13 @@ viewGenericNew model =
                     ]
                 , row [ alignLeft, moveRight 100 ]
                     [ viewModeChoices model
+
+                    --, text <|
+                    --    "("
+                    --        ++ String.fromFloat (Tuple.first model.clickData)
+                    --        ++ ", "
+                    --        ++ String.fromFloat (Tuple.second model.clickData)
+                    --        ++ ")"
                     ]
                 , case ( model.gpx, model.trackPoints ) of
                     ( _, tp1 :: _ ) ->
@@ -3420,7 +3480,7 @@ thirdPersonCamera model =
 
 
 viewCurrentNode : Model -> Element Msg
-viewCurrentNode model  =
+viewCurrentNode model =
     case model.currentSceneCamera of
         Just camera ->
             row []
@@ -3431,7 +3491,7 @@ viewCurrentNode model  =
                     html <|
                         Scene3d.sunny
                             { camera = camera
-                            , dimensions = ( Pixels.int 800, Pixels.int 500 )
+                            , dimensions = ( Pixels.int 800, Pixels.int 600 )
                             , background = Scene3d.backgroundColor Color.lightBlue
                             , clipDepth = Length.meters 1.0
                             , entities =

@@ -16,7 +16,7 @@ import Quantity
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
-import Sphere3d
+import Sphere3d exposing (Sphere3d)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
 import ViewTypes exposing (ViewingMode(..))
@@ -29,6 +29,17 @@ optionally test element =
 
     else
         []
+
+
+makeHitDetectionEntities : List DrawingNode -> List (Int, Sphere3d Length.Meters LocalCoords)
+makeHitDetectionEntities nodes =
+    let
+        trackpoint node =
+            ( node.trackPoint.idx
+            , Sphere3d.atPoint node.location (Length.meters 10.0)
+            )
+    in
+    List.map trackpoint nodes
 
 
 makeStatic3DEntities :
