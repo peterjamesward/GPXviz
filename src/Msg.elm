@@ -65,6 +65,7 @@ type Msg
     | SetMaxTrackpointSpacing Float
     | MapMessage E.Value
     | MapRemoved String
+    | MouseWheel Float
 
 
 type NodeSplitDirection

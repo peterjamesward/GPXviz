@@ -7,6 +7,7 @@ import Element.Font as Font
 import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
 import Html.Events.Extra.Pointer as Pointer
+import Html.Events.Extra.Wheel as Wheel
 import Msg exposing (Msg(..))
 import Utils exposing (showDecimal2)
 
@@ -15,6 +16,7 @@ withMouseCapture =
     [ htmlAttribute <| Pointer.onDown (\event -> ImageGrab event.pointer.offsetPos)
     , htmlAttribute <| Pointer.onMove (\event -> ImageRotate event.pointer.offsetPos)
     , htmlAttribute <| Pointer.onUp (\event -> ImageRelease event.pointer.offsetPos)
+    , htmlAttribute <| Wheel.onWheel (\event -> MouseWheel event.deltaY)
     , htmlAttribute <| style "touch-action" "none"
     , width fill
     , pointer

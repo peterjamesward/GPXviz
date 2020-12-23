@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Html.Events.Extra.Wheel
 import About exposing (viewAboutText)
 import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
@@ -138,6 +139,7 @@ type alias Model =
     , accordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
     , mapInfo : Maybe MapController.MapInfo
+    , deltaY : Float -- testing mouse wheel events
     }
 
 
@@ -199,6 +201,7 @@ init _ =
       , accordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
       , mapInfo = Nothing
+      , deltaY = 0.0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -838,6 +841,23 @@ update msg model =
             , Cmd.none
             )
 
+        MouseWheel deltaY ->
+            let
+                factor = -0.001
+            in
+            ( case model.viewingMode of
+                FirstPersonView ->
+                    { model | zoomLevelFirstPerson = model.zoomLevelFirstPerson + deltaY * factor }
+                ThirdPersonView ->
+                    { model | zoomLevelThirdPerson = model.zoomLevelThirdPerson + deltaY * factor }
+                ProfileView ->
+                    { model | zoomLevelProfile = model.zoomLevelProfile + deltaY * factor }
+                PlanView ->
+                    { model | zoomLevelPlan = model.zoomLevelPlan + deltaY * factor }
+                _ -> model
+            , Cmd.none
+            )
+
 
 trackHasChanged model =
     model
@@ -1385,14 +1405,16 @@ insertTrackPoint n model =
                     precedingTPs
                         ++ [ firstTP, secondTP ]
                         ++ remainingTPs
+
+                updateModel m =
+                    { m
+                        | trackPoints = reindexTrackpoints newTPs
+                        , currentNode = model.currentNode + 1
+                    }
             in
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m
-                            | trackPoints = reindexTrackpoints newTPs
-                            , currentNode = model.currentNode + 1
-                        }
-                   )
+            model
+                |> addToUndoStack undoMessage
+                |> updateModel
 
         _ ->
             model
@@ -2307,6 +2329,7 @@ viewGenericNew model =
                         Nothing ->
                             none
                     , saveButtonIfChanged model
+                    , text <| showDecimal6 model.deltaY
                     ]
                 , row [ alignLeft, moveRight 100 ]
                     [ viewModeChoices model
@@ -3066,7 +3089,7 @@ viewBendFixerPane model =
                     ]
 
             Nothing ->
-                none
+                text "Sorry, failed to find a nice bend."
         , undoButton model
         , viewBearingChanges model
         ]
@@ -3342,8 +3365,7 @@ viewCurrentNodePlanView model node =
     in
     row []
         [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-        , el
-            []
+        , el withMouseCapture
           <|
             html <|
                 Scene3d.sunny
@@ -3437,8 +3459,7 @@ viewRouteProfile model node =
     row []
         [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
         , el
-            []
-          --withMouseCapture
+          withMouseCapture
           <|
             html <|
                 Scene3d.sunny

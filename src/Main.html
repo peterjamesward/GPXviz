@@ -143,6 +143,7 @@ function addLineToMap(data) {
             'line-width': 8
         }
     });
+
     trackAdded = true;
     app.ports.messageReceiver.send({ 'msg' : 'track ready' });
 };

@@ -1,12 +1,20 @@
 module ToDo exposing (..)
 
+--TODO: Mouse wheel events for zooming
+
+--TODO: Hit detection on 3d scenes
+--TODO: Feat? Clicking & Dragging on Plan & Elevation views.
+--Ian MacKenzie (himself) says Camera3d.ray will be useful here!
+
+
+--TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
+-- this is the single node version of the bend smoother.
+
 --TODO: Re-grouping of controls (see Jason Hurst input).
 
 --TODO: Popup tool help on all panes?
 
---TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
-
---TODO: Split track to show yellow icon warning if segments less than the maximum width.
+--TODO: Split track to show yellow icon warning if segments less than the maximum segment?
 
 --TODO: Use "track point" not "node".
 
@@ -21,9 +29,6 @@ module ToDo exposing (..)
 --TODO: SVG overlay - like an HUD? (elm example available)
 
 --TODO: Scale of some kind on graphics. (Probably on map already.)
-
---TODO: Feat? Clicking & Dragging on Plan & Elevation views.
---Ian MacKenzie (himself) says Camera3d.ray will be useful here!
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 

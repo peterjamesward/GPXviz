@@ -12,6 +12,12 @@ import Utils exposing (showDecimal2, showDecimal6)
 import ViewTypes exposing (ViewingMode)
 
 
+type MapStyle
+    = MapStyleStreets
+    | MapStyleOutdoors
+    | MapStyleSatellite
+
+
 type MapState
     = WaitingForNode
     | WaitingForMapLoad
@@ -82,7 +88,8 @@ addTrackToMap info =
             ]
 
 
-addMarkersToMap : ( Float, Float ) -- current track point
+addMarkersToMap :
+    ( Float, Float ) -- current track point
     -> Maybe ( Float, Float ) -- dropped marker
     -> List TrackPoint -- bend smoothing suggestion
     -> List TrackPoint -- node nudging preview
@@ -94,8 +101,6 @@ addMarkersToMap current marker smoothBend nudged =
                 [ ( "lon", E.float lon )
                 , ( "lat", E.float lat )
                 ]
-
-
     in
     mapPort <|
         case marker of
