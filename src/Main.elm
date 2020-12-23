@@ -146,6 +146,7 @@ type alias Model =
     , mapInfo : Maybe MapController.MapInfo
     , currentSceneCamera : Maybe (Camera3d.Camera3d Length.Meters LocalCoords)
     , clickData : ( Float, Float )
+    , mouseDownTime : Time.Posix
     }
 
 
@@ -209,6 +210,7 @@ init _ =
       , mapInfo = Nothing
       , currentSceneCamera = Nothing
       , clickData = ( 0.0, 0.0 )
+      , mouseDownTime = Time.millisToPosix 0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -712,7 +714,10 @@ update msg model =
         ImageGrab event ->
             -- Mouse behaviour depends which view is in use...
             -- Need to add intersection test for Profile & Plan views.
-            ( { model | orbiting = Just event.offsetPos }
+            ( { model
+                | orbiting = Just event.offsetPos
+                , mouseDownTime = model.time -- to disambinguate click and mouse-up. maybe.
+              }
             , Cmd.none
             )
 
@@ -984,7 +989,11 @@ update msg model =
             )
 
         MouseClick event ->
-            ( detectHit model event |> deriveVaryingVisualEntities
+            ( if Time.posixToMillis model.time < (Time.posixToMillis model.mouseDownTime) + 250 then
+                detectHit model event |> deriveVaryingVisualEntities
+
+              else
+                model
             , Cmd.none
             )
 
@@ -3581,7 +3590,7 @@ viewCentredPlanViewForMap box model =
             Length.meters <|
                 max
                     (Length.inMeters ySize)
-                    ((Length.inMeters xSize) * view3dHeight / view3dWidth)
+                    (Length.inMeters xSize * view3dHeight / view3dWidth)
 
         camera =
             Camera3d.orthographic

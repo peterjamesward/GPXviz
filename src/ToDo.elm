@@ -1,11 +1,6 @@
 module ToDo exposing (..)
 
---TODO: Mouse wheel events for zooming
-
---TODO: Hit detection on 3d scenes
---TODO: Feat? Clicking & Dragging on Plan & Elevation views.
---Ian MacKenzie (himself) says Camera3d.ray will be useful here!
-
+--TODO: Change dragging effect on images. Simple drag to move, ctrl-drag to rotate/tilt.
 
 --TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
 -- this is the single node version of the bend smoother.
