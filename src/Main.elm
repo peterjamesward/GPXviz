@@ -91,6 +91,7 @@ type DragAction
     = DragNone
     | DragRotate
     | DragPan
+    | DragProfile
 
 
 type alias Model =
@@ -155,7 +156,7 @@ type alias Model =
     , clickData : ( Float, Float )
     , mouseDownTime : Time.Posix -- seems needed to distinguish click from any other mouse-up event.
     , cameraFocusThirdPerson : Point3d Length.Meters LocalCoords
-    , cameraFocusProfile : Point3d Length.Meters LocalCoords
+    , cameraFocusProfileNode : Int
     }
 
 
@@ -222,7 +223,7 @@ init _ =
       , clickData = ( 0.0, 0.0 )
       , mouseDownTime = Time.millisToPosix 0
       , cameraFocusThirdPerson = Point3d.origin
-      , cameraFocusProfile = Point3d.origin
+      , cameraFocusProfileNode = 0
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -743,7 +744,7 @@ update msg model =
                             DragRotate
 
                         ( ProfileView, _ ) ->
-                            DragPan
+                            DragProfile
 
                         _ ->
                             DragNone
@@ -752,7 +753,7 @@ update msg model =
             , Cmd.none
             )
 
-        ImageRotate event ->
+        ImageDrag event ->
             --TODO: Update the model's camera here.
             let
                 ( dx, dy ) =
@@ -791,20 +792,17 @@ update msg model =
                         yDirection =
                             Viewpoint3d.yDirection currentViewpoint
 
-                        currentEyePoint =
-                            Viewpoint3d.eyePoint currentViewpoint
-
                         currentFocus =
                             model.cameraFocusThirdPerson
 
                         xMovement =
-                            --TODO: Include zoom level in calculation.
+                            --TODO: Include zoom level in calculation?
                             Vector3d.withLength
                                 (Length.meters (startX - dx))
                                 xDirection
 
                         yMovement =
-                            --TODO: Include zoom level in calculation.
+                            --TODO: Include zoom level in calculation?
                             Vector3d.withLength
                                 (Length.meters (dy - startY))
                                 yDirection
@@ -817,6 +815,27 @@ update msg model =
                     in
                     ( { model
                         | cameraFocusThirdPerson = newFocus
+                        , orbiting = Just ( dx, dy )
+                      }
+                        |> checkSceneCamera
+                    , Cmd.none
+                    )
+
+                ( DragProfile, Just ( startX, startY ), Just camera ) ->
+                    let
+                        currentViewpoint =
+                            Camera3d.viewpoint camera
+
+                        xMovement =
+                            truncate <| (startX - dx) / abs (startX - dx)
+
+                        newFocus =
+                            clamp 0 (Array.length model.roadArray - 1) <|
+                                model.cameraFocusProfileNode
+                                    + xMovement
+                    in
+                    ( { model
+                        | cameraFocusProfileNode = newFocus
                         , orbiting = Just ( dx, dy )
                       }
                         |> checkSceneCamera
@@ -1060,7 +1079,7 @@ update msg model =
                         ThirdPersonView ->
                             { model
                                 | zoomLevelThirdPerson =
-                                    clamp 1.0 5.0 <|
+                                    clamp 0.0 6.0 <|
                                         model.zoomLevelThirdPerson
                                             + deltaY
                                             * factor
@@ -1100,6 +1119,14 @@ update msg model =
             , Cmd.none
             )
 
+        MouseDoubleClick event ->
+            ( detectHit model event
+                |> deriveVaryingVisualEntities
+                |> centreViewOnCurrentNode
+                |> checkSceneCamera
+            , Cmd.none
+            )
+
 
 trackHasChanged model =
     model
@@ -1109,6 +1136,15 @@ trackHasChanged model =
         |> clearTerrain
         |> deriveVaryingVisualEntities
         |> synchroniseMap
+
+
+centreViewOnCurrentNode model =
+    case Array.get model.currentNode model.nodeArray of
+        Just node ->
+            { model | cameraFocusThirdPerson = node.location }
+
+        Nothing ->
+            model
 
 
 updateMapVaryingElements : Model -> Cmd Msg
@@ -2289,7 +2325,7 @@ resetViewSettings model =
         , redoStack = []
         , mapInfo = Maybe.map (newMapInfo model.trackPointBox) model.mapInfo
         , cameraFocusThirdPerson = focus
-        , cameraFocusProfile = Point3d.origin -- ? Profile is such a pain.
+        , cameraFocusProfileNode = 0
     }
         |> checkSceneCamera
 
@@ -2931,43 +2967,6 @@ bendSmoothnessSlider model =
         }
 
 
-viewPointCloud : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewPointCloud scale model =
-    let
-        camera =
-            Camera3d.perspective
-                { viewpoint =
-                    Viewpoint3d.orbitZ
-                        { focalPoint = Point3d.meters 0.0 0.0 0.0
-                        , azimuth = model.azimuth
-                        , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom model.zoomLevelOverview
-                        }
-                , verticalFieldOfView = Angle.degrees 30
-                }
-    in
-    row [ alignTop, width fill ]
-        [ zoomSlider model.zoomLevelOverview ZoomLevelOverview
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = view3dDimensions
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters 1.0 -- * scale.metresToClipSpace)
-                    , entities =
-                        model.varyingVisualEntities
-                            ++ model.staticVisualEntities
-                            ++ model.terrainEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
-
-
 updatedAccordion model =
     -- We have to reapply the accordion update functions with the current model,
     let
@@ -3585,9 +3584,10 @@ thirdPersonCamera model =
                         , elevation = model.elevation
                         , distance =
                             Length.meters <|
-                                distanceFromZoom model.zoomLevelThirdPerson
+                                10.0
+                                    ^ (5.0 - model.zoomLevelThirdPerson)
                         }
-                , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
+                , verticalFieldOfView = Angle.degrees 30.0
                 }
     in
     Just camera
@@ -3747,7 +3747,7 @@ profileCamera model =
                 , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
                 }
     in
-    Maybe.map camera (Array.get model.currentNode model.roadArray)
+    Maybe.map camera (Array.get model.cameraFocusProfileNode model.roadArray)
 
 
 viewRouteProfile : Model -> DrawingNode -> Element Msg

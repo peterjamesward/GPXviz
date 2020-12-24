@@ -65,8 +65,9 @@ type Msg
     | MapRemoved String
     | MouseWheel Float
     | MouseClick Mouse.Event
+    | MouseDoubleClick Mouse.Event
     | ImageGrab Mouse.Event
-    | ImageRotate Mouse.Event
+    | ImageDrag Mouse.Event
     | ImageRelease Mouse.Event
     | NoOpMsg
 

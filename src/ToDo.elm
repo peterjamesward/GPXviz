@@ -1,7 +1,6 @@
 module ToDo exposing (..)
 
---TODO: Change dragging effect on images.
---      Simple drag to move, ctrl-drag to rotate/tilt.
+--TODO: What is using all the power??
 
 --TODO: Re-grouping of controls (see Jason Hurst input). (Problems remain on view.)
 -- 1. Large image space on left;

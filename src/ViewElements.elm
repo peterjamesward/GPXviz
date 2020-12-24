@@ -16,15 +16,17 @@ import Utils exposing (showDecimal2)
 
 withMouseCapture =
     [ htmlAttribute <| Mouse.onDown (\event -> ImageGrab event)
-    , htmlAttribute <| Mouse.onMove (\event -> ImageRotate event)
+    , htmlAttribute <| Mouse.onMove (\event -> ImageDrag event)
     , htmlAttribute <| Mouse.onUp (\event -> ImageRelease event)
     , htmlAttribute <| Mouse.onClick (\event -> MouseClick event)
+    , htmlAttribute <| Mouse.onDoubleClick (\event -> MouseDoubleClick event)
     , htmlAttribute <| Wheel.onWheel (\event -> MouseWheel event.deltaY)
     , htmlAttribute <| style "touch-action" "none"
     , onContextMenu NoOpMsg
     , width fill
     , pointer
     ]
+
 
 onContextMenu : Msg -> Element.Attribute Msg
 onContextMenu msg =
@@ -37,6 +39,7 @@ onContextMenu msg =
         )
         |> htmlAttribute
 
+
 displayName n =
     case n of
         Just s ->
@@ -45,11 +48,6 @@ displayName n =
 
         _ ->
             none
-
-
-distanceFromZoom : Float -> Float
-distanceFromZoom zoomLevel =
-    10.0 ^ (5.0 - zoomLevel)
 
 
 type ButtonPosition
@@ -109,31 +107,32 @@ radioButton position label state =
 
 
 zoomSlider value msg =
-    Input.slider
-        [ height <| px 400
-        , width <| px 80
-        , alignTop
-        , behindContent <|
-            -- Slider track
-            el
-                [ width <| px 30
-                , height <| px 400
-                , alignTop
-                , centerX
-                , Background.color <| rgb255 114 159 207
-                , Border.rounded 6
-                ]
-                Element.none
-        ]
-        { onChange = msg
-        , label =
-            Input.labelHidden "Zoom"
-        , min = 1.0
-        , max = 4.0
-        , step = Nothing
-        , value = value
-        , thumb = Input.defaultThumb
-        }
+    none
+    --Input.slider
+    --    [ height <| px 400
+    --    , width <| px 80
+    --    , alignTop
+    --    , behindContent <|
+    --        -- Slider track
+    --        el
+    --            [ width <| px 30
+    --            , height <| px 400
+    --            , alignTop
+    --            , centerX
+    --            , Background.color <| rgb255 114 159 207
+    --            , Border.rounded 6
+    --            ]
+    --            Element.none
+    --    ]
+    --    { onChange = msg
+    --    , label =
+    --        Input.labelHidden "Zoom"
+    --    , min = 1.0
+    --    , max = 4.0
+    --    , step = Nothing
+    --    , value = value
+    --    , thumb = Input.defaultThumb
+    --    }
 
 
 prettyButtonStyles =
