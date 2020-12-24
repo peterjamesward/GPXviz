@@ -681,6 +681,7 @@ update msg model =
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
                         |> cancelFlythrough
+                        |> checkSceneCamera
             in
             ( newModel
             , updateMapVaryingElements newModel
@@ -695,6 +696,7 @@ update msg model =
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
                         |> cancelFlythrough
+                        |> checkSceneCamera
             in
             ( newModel
             , updateMapVaryingElements newModel
@@ -2894,9 +2896,9 @@ viewGradientChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20, centerX ]
+    column [ spacing 10, padding 20 ]
         [ gradientChangeThresholdSlider model
-        , wrappedRow [ width <| px 300 ] <|
+        , wrappedRow [ width fill, centerX ] <|
             List.map linkButton model.abruptGradientChanges
         ]
 
@@ -2913,9 +2915,9 @@ viewBearingChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20, centerX ]
+    column [ spacing 10, padding 20 ]
         [ bearingChangeThresholdSlider model
-        , wrappedRow [ width <| px 300 ] <|
+        , wrappedRow [ width fill, centerX ] <|
             List.map linkButton model.abruptBearingChanges
         ]
 
@@ -2936,6 +2938,7 @@ viewOptions model =
         , alignTop
         , spacing 10
         , centerX
+        , Font.size 14
         ]
         [ if model.terrainEntities == [] then
             button prettyButtonStyles
@@ -2952,34 +2955,39 @@ minutes and will be lost if I make changes)"""
                 }
         , paragraph
             [ padding 10
-            , Font.size 24
             ]
           <|
             [ text "Select view elements" ]
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleRoad
-            , icon = checkboxIcon
-            , checked = model.displayOptions.roadTrack
-            , label = Input.labelRight [] (text "Road surface")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = TogglePillars
-            , icon = checkboxIcon
-            , checked = model.displayOptions.roadPillars
-            , label = Input.labelRight [] (text "Road support pillars")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleCones
-            , icon = checkboxIcon
-            , checked = model.displayOptions.roadCones
-            , label = Input.labelRight [] (text "Trackpoint cones")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleCentreLine
-            , icon = checkboxIcon
-            , checked = model.displayOptions.centreLine
-            , label = Input.labelRight [] (text "Centre line")
-            }
+        , row []
+            [ column []
+                [ Input.checkbox []
+                    { onChange = ToggleRoad
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.roadTrack
+                    , label = Input.labelRight [ centerY ] (text "Road surface")
+                    }
+                , Input.checkbox []
+                    { onChange = ToggleCentreLine
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.centreLine
+                    , label = Input.labelRight [ centerY ] (text "Centre line")
+                    }
+                ]
+            , column []
+                [ Input.checkbox []
+                    { onChange = TogglePillars
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.roadPillars
+                    , label = Input.labelRight [ centerY ] (text "Road support pillars")
+                    }
+                , Input.checkbox []
+                    { onChange = ToggleCones
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.roadCones
+                    , label = Input.labelRight [ centerY ] (text "Trackpoint cones")
+                    }
+                ]
+            ]
         , Input.radioRow
             [ Border.rounded 6
             , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
@@ -3213,8 +3221,6 @@ viewFirstPerson model =
             [ alignTop
             ]
             [ viewRoadSegment model
-
-            --, positionControls model
             ]
         ]
 
@@ -3294,6 +3300,21 @@ flythroughControls model =
             , flythroughSpeedSlider
             ]
         , positionControls model
+        , case model.flythrough of
+            Just flythrough ->
+                row [ spacing 10 ]
+                    [ column [ spacing 10 ]
+                        [ text "Segment "
+                        , text "Metres from start "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text <| String.fromInt flythrough.segment.index
+                        , text <| showDecimal2 flythrough.metresFromRouteStart
+                        ]
+                    ]
+
+            Nothing ->
+                none
         ]
 
 
