@@ -1173,7 +1173,9 @@ update msg model =
 
         MouseClick event ->
             ( if Time.posixToMillis model.time < Time.posixToMillis model.mouseDownTime + 250 then
-                detectHit model event |> deriveVaryingVisualEntities
+                detectHit model event
+                |> tryBendSmoother
+                |> deriveVaryingVisualEntities
 
               else
                 model
@@ -1182,6 +1184,7 @@ update msg model =
 
         MouseDoubleClick event ->
             ( detectHit model event
+                |> tryBendSmoother
                 |> deriveVaryingVisualEntities
                 |> centreViewOnCurrentNode
                 |> checkSceneCamera
