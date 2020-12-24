@@ -68,6 +68,7 @@ type Msg
     | ImageGrab Mouse.Event
     | ImageRotate Mouse.Event
     | ImageRelease Mouse.Event
+    | NoOpMsg
 
 
 type NodeSplitDirection

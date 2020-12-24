@@ -14,11 +14,15 @@ aboutText =
 
 > **Changes**
 
-> - Editing on the Map view. You should see the yellow preview for Bend Smoothing and the orange preview for Node Nudge on the map. More info in the main text below. Please note that updating previews on the map is slower; this is beyond my control.
-> _Standard warning:_ this integration is more complex and might go awry.
-> _Save your work_ more often.
+> - Views are a bit larger.
 
-> - There are minor changes to harmonise the behaviour of tools, particularly at the start and end of a route. You may or may not notice this. Apologies if it causes a problem. It's in preparation for some upcoming changes.
+> - You can mouse click on any view to select a trackpoint. Just like on the map.
+
+> - Mouse wheel should zoom in and out, just like the map.
+
+> - Plan is gone now the map seems stable.
+
+> _Standard warning: Save your work_ often.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
@@ -66,6 +70,7 @@ viewAboutText =
         , Border.color <| rgb255 50 50 50
         , clipY
         , scrollbarY
+        , height fill
         ]
         [ paragraph
             [ width <| px 800

@@ -6,8 +6,10 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
+import Html.Events as HE
 import Html.Events.Extra.Mouse as Mouse
 import Html.Events.Extra.Wheel as Wheel
+import Json.Decode as D
 import Msg exposing (Msg(..))
 import Utils exposing (showDecimal2)
 
@@ -19,10 +21,21 @@ withMouseCapture =
     , htmlAttribute <| Mouse.onClick (\event -> MouseClick event)
     , htmlAttribute <| Wheel.onWheel (\event -> MouseWheel event.deltaY)
     , htmlAttribute <| style "touch-action" "none"
+    , onContextMenu NoOpMsg
     , width fill
     , pointer
     ]
 
+onContextMenu : Msg -> Element.Attribute Msg
+onContextMenu msg =
+    HE.custom "contextmenu"
+        (D.succeed
+            { message = msg
+            , stopPropagation = True
+            , preventDefault = True
+            }
+        )
+        |> htmlAttribute
 
 displayName n =
     case n of

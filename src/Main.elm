@@ -24,7 +24,7 @@ import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
-import Html.Events.Extra.Mouse as Mouse exposing (Event)
+import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Html.Events.Extra.Wheel as Wheel
 import Iso8601
 import Json.Decode as E exposing (decodeValue, field, float)
@@ -36,7 +36,7 @@ import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
-import Point3d exposing (distanceFromAxis)
+import Point3d exposing (Point3d, distanceFromAxis)
 import Rectangle2d
 import Scene3d exposing (Entity)
 import Sphere3d exposing (Sphere3d)
@@ -87,6 +87,12 @@ type Loopiness
     | AlmostLoop Float -- if, say, less than 200m back to start.
 
 
+type DragAction
+    = DragNone
+    | DragRotate
+    | DragPan
+
+
 type alias Model =
     { gpx : Maybe String
     , filename : Maybe String
@@ -103,6 +109,7 @@ type alias Model =
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
+    , dragAction : DragAction
     , staticVisualEntities : List (Entity LocalCoords) -- our 3D world
     , staticProfileEntities : List (Entity LocalCoords) -- an unrolled 3D world for the profile view.
     , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
@@ -146,7 +153,9 @@ type alias Model =
     , mapInfo : Maybe MapController.MapInfo
     , currentSceneCamera : Maybe (Camera3d.Camera3d Length.Meters LocalCoords)
     , clickData : ( Float, Float )
-    , mouseDownTime : Time.Posix
+    , mouseDownTime : Time.Posix -- seems needed to distinguish click from any other mouse-up event.
+    , cameraFocusThirdPerson : Point3d Length.Meters LocalCoords
+    , cameraFocusProfile : Point3d Length.Meters LocalCoords
     }
 
 
@@ -167,6 +176,7 @@ init _ =
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
       , orbiting = Nothing
+      , dragAction = DragNone
       , staticVisualEntities = []
       , varyingVisualEntities = []
       , staticProfileEntities = []
@@ -211,6 +221,8 @@ init _ =
       , currentSceneCamera = Nothing
       , clickData = ( 0.0, 0.0 )
       , mouseDownTime = Time.millisToPosix 0
+      , cameraFocusThirdPerson = Point3d.origin
+      , cameraFocusProfile = Point3d.origin
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -496,6 +508,9 @@ update msg model =
             model.displayOptions
     in
     case msg of
+        NoOpMsg ->
+            ( model, Cmd.none ) -- Mainly to suppress the context menu on the pictures!
+
         MapMessage jsonMsg ->
             case model.mapInfo of
                 Just mapInfo ->
@@ -712,21 +727,39 @@ update msg model =
 
         ImageGrab event ->
             -- Mouse behaviour depends which view is in use...
-            -- Need to add intersection test for Profile & Plan views.
+            -- Right-click or ctrl-click to mean rotate; otherwise pan.
+            let
+                alternate =
+                    event.keys.ctrl || event.button == SecondButton
+            in
             ( { model
                 | orbiting = Just event.offsetPos
+                , dragAction =
+                    case ( model.viewingMode, alternate ) of
+                        ( ThirdPersonView, False ) ->
+                            DragPan
+
+                        ( ThirdPersonView, True ) ->
+                            DragRotate
+
+                        ( ProfileView, _ ) ->
+                            DragPan
+
+                        _ ->
+                            DragNone
                 , mouseDownTime = model.time -- to disambinguate click and mouse-up. maybe.
               }
             , Cmd.none
             )
 
         ImageRotate event ->
+            --TODO: Update the model's camera here.
             let
                 ( dx, dy ) =
                     event.offsetPos
             in
-            case model.orbiting of
-                Just ( startX, startY ) ->
+            case ( model.dragAction, model.orbiting ) of
+                ( DragRotate, Just ( startX, startY ) ) ->
                     let
                         newAzimuth =
                             Angle.degrees <|
@@ -743,14 +776,15 @@ update msg model =
                         , elevation = newElevation
                         , orbiting = Just ( dx, dy )
                       }
+                        |> checkSceneCamera
                     , Cmd.none
                     )
 
-                Nothing ->
+                _ ->
                     ( model, Cmd.none )
 
         ImageRelease _ ->
-            ( { model | orbiting = Nothing }
+            ( { model | orbiting = Nothing, dragAction = DragNone }
             , Cmd.none
             )
 
@@ -988,7 +1022,7 @@ update msg model =
             )
 
         MouseClick event ->
-            ( if Time.posixToMillis model.time < (Time.posixToMillis model.mouseDownTime) + 250 then
+            ( if Time.posixToMillis model.time < Time.posixToMillis model.mouseDownTime + 250 then
                 detectHit model event |> deriveVaryingVisualEntities
 
               else
@@ -2147,6 +2181,9 @@ resetViewSettings model =
         ( x, y, z ) =
             BoundingBox3d.dimensions model.nodeBox
 
+        focus =
+            BoundingBox3d.centerPoint model.nodeBox
+
         zoomLevel =
             -- Empirical!
             clamp 1.0 4.0 <|
@@ -2178,6 +2215,8 @@ resetViewSettings model =
         , undoStack = []
         , redoStack = []
         , mapInfo = Maybe.map (newMapInfo model.trackPointBox) model.mapInfo
+        , cameraFocusThirdPerson = focus
+        , cameraFocusProfile = Point3d.origin -- ? Profile is such a pain.
     }
         |> checkSceneCamera
 
@@ -2473,6 +2512,7 @@ viewGenericNew model =
             , padding 20
             , spacing 20
             , Font.size 16
+            , height fill
             ]
           <|
             column
@@ -3463,19 +3503,19 @@ lookupRoad model idx =
 thirdPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 thirdPersonCamera model =
     let
-        focus node =
-            case model.flythrough of
-                Just fly ->
-                    fly.cameraPosition
-
-                Nothing ->
-                    node.location
-
+        --focus node =
+        --    case model.flythrough of
+        --        Just fly ->
+        --            fly.cameraPosition
+        --
+        --        Nothing ->
+        --            node.location
+        --
         camera node =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
-                        { focalPoint = focus node
+                        { focalPoint = model.cameraFocusThirdPerson
                         , azimuth = model.azimuth
                         , elevation = model.elevation
                         , distance =
