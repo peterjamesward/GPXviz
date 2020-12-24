@@ -2,10 +2,7 @@ module ToDo exposing (..)
 
 --TODO: What is using all the power??
 
---TODO: Re-grouping of controls (see Jason Hurst input). (Problems remain on view.)
--- 1. Large image space on left;
--- 2. Upper right, tools accordion;
--- 3. Lower right, information (problems and data) accordion.
+--TODO: Profile dragging to use metres, not index.
 
 --TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
 -- this is the single node version of the bend smoother.

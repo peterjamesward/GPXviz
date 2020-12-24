@@ -236,17 +236,17 @@ toolsAccordion model =
       , state = Contracted
       , content = viewLoopTools model
       }
+    , { label = "Smooth bend"
+      , state = Contracted
+      , content = viewBendFixerPane model
+      }
     , { label = "Smooth gradient"
       , state = Contracted
       , content = viewGradientFixerPane model
       }
-    , { label = "Nudge node"
+    , { label = "Nudge "
       , state = Contracted
       , content = viewNudgeTools model
-      }
-    , { label = "Smooth bend"
-      , state = Contracted
-      , content = viewBendFixerPane model
       }
     , { label = "Straighten"
       , state = Contracted
@@ -256,25 +256,25 @@ toolsAccordion model =
       , state = Contracted
       , content = viewTrackPointTools model
       }
+    , { label = "Fly-through"
+      , state = Contracted
+      , content = flythroughControls model
+      }
     ]
 
 
 infoAccordion model =
-    [ { label = "File"
+    [ { label = "Summary"
       , state = Expanded
       , content = overviewSummary model
       }
-    , { label = "Road data"
+    , { label = "Road segment data"
       , state = Contracted
       , content = summaryData (lookupRoad model model.currentNode)
       }
     , { label = "Visual styles"
       , state = Contracted
       , content = viewOptions model
-      }
-    , { label = "Fly-through"
-      , state = Contracted
-      , content = flythroughControls model
       }
     , { label = "Gradient problems"
       , state = Contracted
@@ -865,12 +865,12 @@ update msg model =
 
                         xMovement =
                             Vector3d.withLength
-                                (Length.meters (startX - dx))
+                                (Length.meters <| 0.5 * (startX - dx))
                                 xDirection
 
                         yMovement =
                             Vector3d.withLength
-                                (Length.meters (dy - startY))
+                                (Length.meters <| 0.5 * (dy - startY))
                                 yDirection
 
                         netMovement =
@@ -889,13 +889,7 @@ update msg model =
 
                 ( DragProfile, Just ( startX, startY ), Just camera ) ->
                     let
-                        xMovement =
-                            truncate <|
-                                0.3
-                                    * (6.0 - model.zoomLevelProfile)
-                                    ^ 2.0
-                                    * (startX - dx)
-                                    / abs (startX - dx)
+                        xMovement = round <| 0.2 * (startX - dx)
 
                         newFocus =
                             clamp 0 (Array.length model.roadArray - 1) <|
@@ -3349,8 +3343,11 @@ firstPersonCamera model =
                         , focalPoint = flying.focusPoint
                         , upDirection = Direction3d.positiveZ
                         }
+
+        cappedNodeNumber =
+            min model.currentNode (List.length model.nodes - 2)
     in
-    case Array.get model.currentNode model.roadArray of
+    case Array.get cappedNodeNumber model.roadArray of
         Just road ->
             Just <|
                 Camera3d.perspective
