@@ -424,6 +424,7 @@ locallyHandleMapMessage model json =
             case ( lat, lon ) of
                 ( Ok lat1, Ok lon1 ) ->
                     makeNearestNodeCurrent model lon1 lat1
+                        |> centreViewOnCurrentNode
                         |> tryBendSmoother
 
                 _ ->
