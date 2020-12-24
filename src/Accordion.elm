@@ -77,8 +77,16 @@ accordionToggle entries entry =
 
             else
                 { e | state = Contracted }
+
+        isEntry e =
+            e.label == entry.label
     in
-    List.map toggleMatching entries
+    case List.filter isEntry entries of
+        ( e :: _ ) ->
+            List.map toggleMatching entries
+
+        _ ->
+            entries
 
 
 accordionView :

@@ -11,11 +11,11 @@ module ToDo exposing (..)
 -- this is the single node version of the bend smoother.
 -- fairly simple arc fit; see notebook.
 
+--TODO: Split track to show yellow icon warning if segments less than the maximum segment?
+
 --TODO: Map terrain option (switch map style).
 
 --TODO: Popup tool help on all accordion tabs?
-
---TODO: Split track to show yellow icon warning if segments less than the maximum segment?
 
 --TODO: Remove excessive track points (like the inverse of split track but cleverer). (Jarle Steffenson).
 
@@ -30,5 +30,5 @@ module ToDo exposing (..)
 
 --TODO: Debt. Improve removal of zero lengths so we don't have to repeat ourselves!
 
---TODO: Feat. Say if filename is too long for Magic Roads. (50 chars.)
+--TODO: Say if filename is too long for Magic Roads. (50 chars.)
 

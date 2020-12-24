@@ -149,7 +149,8 @@ type alias Model =
     , nudgedNodeRoads : List DrawingRoad
     , nudgedRegionStart : Int -- so we can correlate nudgedNodeRoads in profile view (ugh).
     , verticalNudgeValue : Float
-    , accordion : List (AccordionEntry Msg)
+    , toolsAccordion : List (AccordionEntry Msg)
+    , infoAccordion : List (AccordionEntry Msg)
     , maxSegmentSplitSize : Float
     , mapInfo : Maybe MapController.MapInfo
     , currentSceneCamera : Maybe (Camera3d.Camera3d Length.Meters LocalCoords)
@@ -216,7 +217,8 @@ init _ =
       , nudgedNodeRoads = []
       , nudgedRegionStart = 0
       , verticalNudgeValue = 0.0
-      , accordion = []
+      , toolsAccordion = []
+      , infoAccordion = []
       , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
       , mapInfo = Nothing
       , currentSceneCamera = Nothing
@@ -342,9 +344,11 @@ genericAccordion model =
     ]
 
 
+initialiseAccordion : Model -> Model
 initialiseAccordion model =
     { model
-        | accordion = genericAccordion model
+        | toolsAccordion = toolsAccordion model
+        , infoAccordion = infoAccordion model
     }
 
 
@@ -600,7 +604,10 @@ update msg model =
             )
 
         AccordionMessage entry ->
-            ( { model | accordion = accordionToggle model.accordion entry }
+            ( { model
+                | toolsAccordion = accordionToggle model.toolsAccordion entry
+                , infoAccordion = accordionToggle model.infoAccordion entry
+              }
             , Cmd.none
             )
 
@@ -814,7 +821,6 @@ update msg model =
             )
 
         ImageDrag event ->
-            --TODO: Update the model's camera here.
             let
                 ( dx, dy ) =
                     event.offsetPos
@@ -856,13 +862,11 @@ update msg model =
                             model.cameraFocusThirdPerson
 
                         xMovement =
-                            --TODO: Include zoom level in calculation?
                             Vector3d.withLength
                                 (Length.meters (startX - dx))
                                 xDirection
 
                         yMovement =
-                            --TODO: Include zoom level in calculation?
                             Vector3d.withLength
                                 (Length.meters (dy - startY))
                                 yDirection
@@ -2726,7 +2730,15 @@ viewGenericNew model =
                         -- Must have at least one track point.
                         row [ alignLeft, alignTop ]
                             [ view3D model.nodeBox model
-                            , accordionView (updatedAccordion model) AccordionMessage
+                            , column
+                                [ width fill, spacing 20, alignTop ]
+                                [ accordionView
+                                    (updatedAccordion model model.toolsAccordion toolsAccordion)
+                                    AccordionMessage
+                                , accordionView
+                                    (updatedAccordion model model.infoAccordion infoAccordion)
+                                    AccordionMessage
+                                ]
                             ]
 
                     ( Just _, [] ) ->
@@ -2777,36 +2789,36 @@ viewModeChoices model =
 
 view3D : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 view3D scale model =
-    -- The only differences are (should be) which zoom slider and which projection to use.
-    case model.viewingMode of
-        FirstPersonView ->
-            viewFirstPerson model
+    el [ alignTop, alignLeft ] <|
+        case model.viewingMode of
+            FirstPersonView ->
+                viewFirstPerson model
 
-        ThirdPersonView ->
-            viewThirdPerson model
+            ThirdPersonView ->
+                viewThirdPerson model
 
-        ProfileView ->
-            viewProfileView model
+            ProfileView ->
+                viewProfileView model
 
-        AboutView ->
-            viewAboutText
+            AboutView ->
+                viewAboutText
 
-        InputErrorView ->
-            viewInputError model
+            InputErrorView ->
+                viewInputError model
 
-        PlanView ->
-            viewPlanView model
+            PlanView ->
+                viewPlanView model
 
-        MapView ->
-            -- We merely create the placeholder, the work is done by messages through the map port.
-            el
-                [ width <| px <| truncate view3dWidth
-                , height <| px <| truncate view3dHeight
-                , alignLeft
-                , alignTop
-                , htmlAttribute (id "map")
-                ]
-                none
+            MapView ->
+                -- We merely create the placeholder, the work is done by messages through the map port.
+                el
+                    [ width <| px <| truncate view3dWidth
+                    , height <| px <| truncate view3dHeight
+                    , alignLeft
+                    , alignTop
+                    , htmlAttribute (id "map")
+                    ]
+                    none
 
 
 viewInputError : Model -> Element Msg
@@ -3040,7 +3052,7 @@ bendSmoothnessSlider model =
         }
 
 
-updatedAccordion model =
+updatedAccordion model currentAccordion referenceAccordion =
     -- We have to reapply the accordion update functions with the current model,
     let
         blendAccordionStatus currentAccordionState refreshedContent =
@@ -3048,8 +3060,8 @@ updatedAccordion model =
     in
     List.map2
         blendAccordionStatus
-        model.accordion
-        (genericAccordion model)
+        currentAccordion
+        (referenceAccordion model)
 
 
 overviewSummary model =
@@ -3450,7 +3462,6 @@ viewBendFixerPane model =
             Nothing ->
                 text "Sorry, failed to find a nice bend."
         , undoButton model
-        , viewBearingChanges model
         ]
 
 
@@ -3599,7 +3610,6 @@ viewGradientFixerPane model =
         [ markerButton model
         , gradientSmoothControls
         , undoButton model
-        , viewGradientChanges model
         ]
 
 
