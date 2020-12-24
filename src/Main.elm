@@ -823,11 +823,11 @@ update msg model =
 
                 ( DragProfile, Just ( startX, startY ), Just camera ) ->
                     let
-                        currentViewpoint =
-                            Camera3d.viewpoint camera
-
                         xMovement =
-                            truncate <| (startX - dx) / abs (startX - dx)
+                            truncate <|
+                                0.3 * (6.0 - model.zoomLevelProfile) ^ 2.0
+                                    * (startX - dx)
+                                    / abs (startX - dx)
 
                         newFocus =
                             clamp 0 (Array.length model.roadArray - 1) <|
