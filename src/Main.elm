@@ -509,8 +509,9 @@ update msg model =
     in
     case msg of
         NoOpMsg ->
-            ( model, Cmd.none ) -- Mainly to suppress the context menu on the pictures!
+            ( model, Cmd.none )
 
+        -- Mainly to suppress the context menu on the pictures!
         MapMessage jsonMsg ->
             case model.mapInfo of
                 Just mapInfo ->
@@ -536,8 +537,6 @@ update msg model =
         Tick newTime ->
             ( { model | time = newTime }
                 |> advanceFlythrough newTime
-                |> checkSceneCamera
-              -- can I just get away with this for all cases?
             , Cmd.none
             )
 
@@ -694,6 +693,7 @@ update msg model =
                         , mapInfo = Just newInfo
                       }
                         |> deriveVaryingVisualEntities
+                        |> checkSceneCamera
                     , Cmd.none
                     )
 
@@ -758,8 +758,8 @@ update msg model =
                 ( dx, dy ) =
                     event.offsetPos
             in
-            case ( model.dragAction, model.orbiting ) of
-                ( DragRotate, Just ( startX, startY ) ) ->
+            case ( model.dragAction, model.orbiting, model.currentSceneCamera ) of
+                ( DragRotate, Just ( startX, startY ), Just camera ) ->
                     let
                         newAzimuth =
                             Angle.degrees <|
@@ -774,6 +774,49 @@ update msg model =
                     ( { model
                         | azimuth = newAzimuth
                         , elevation = newElevation
+                        , orbiting = Just ( dx, dy )
+                      }
+                        |> checkSceneCamera
+                    , Cmd.none
+                    )
+
+                ( DragPan, Just ( startX, startY ), Just camera ) ->
+                    let
+                        currentViewpoint =
+                            Camera3d.viewpoint camera
+
+                        xDirection =
+                            Viewpoint3d.xDirection currentViewpoint
+
+                        yDirection =
+                            Viewpoint3d.yDirection currentViewpoint
+
+                        currentEyePoint =
+                            Viewpoint3d.eyePoint currentViewpoint
+
+                        currentFocus =
+                            model.cameraFocusThirdPerson
+
+                        xMovement =
+                            --TODO: Include zoom level in calculation.
+                            Vector3d.withLength
+                                (Length.meters (startX - dx))
+                                xDirection
+
+                        yMovement =
+                            --TODO: Include zoom level in calculation.
+                            Vector3d.withLength
+                                (Length.meters (dy - startY))
+                                yDirection
+
+                        netMovement =
+                            Vector3d.plus xMovement yMovement
+
+                        newFocus =
+                            Point3d.translateBy netMovement currentFocus
+                    in
+                    ( { model
+                        | cameraFocusThirdPerson = newFocus
                         , orbiting = Just ( dx, dy )
                       }
                         |> checkSceneCamera
@@ -1002,22 +1045,49 @@ update msg model =
             let
                 factor =
                     -0.001
+
+                newModel =
+                    case model.viewingMode of
+                        FirstPersonView ->
+                            { model
+                                | zoomLevelFirstPerson =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelFirstPerson
+                                            + deltaY
+                                            * factor
+                            }
+
+                        ThirdPersonView ->
+                            { model
+                                | zoomLevelThirdPerson =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelThirdPerson
+                                            + deltaY
+                                            * factor
+                            }
+
+                        ProfileView ->
+                            { model
+                                | zoomLevelProfile =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelProfile
+                                            + deltaY
+                                            * factor
+                            }
+
+                        PlanView ->
+                            { model
+                                | zoomLevelPlan =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelPlan
+                                            + deltaY
+                                            * factor
+                            }
+
+                        _ ->
+                            model
             in
-            ( case model.viewingMode of
-                FirstPersonView ->
-                    { model | zoomLevelFirstPerson = model.zoomLevelFirstPerson + deltaY * factor }
-
-                ThirdPersonView ->
-                    { model | zoomLevelThirdPerson = model.zoomLevelThirdPerson + deltaY * factor }
-
-                ProfileView ->
-                    { model | zoomLevelProfile = model.zoomLevelProfile + deltaY * factor }
-
-                PlanView ->
-                    { model | zoomLevelPlan = model.zoomLevelPlan + deltaY * factor }
-
-                _ ->
-                    model
+            ( newModel |> checkSceneCamera
             , Cmd.none
             )
 
@@ -1198,12 +1268,15 @@ switchViewMode model mode =
             in
             ( { model | mapInfo = Maybe.map changedMapInfo model.mapInfo }
                 |> deriveVaryingVisualEntities
+                |> checkSceneCamera
             , MapController.removeMap
             )
 
         ( _, _ ) ->
             -- Map not involved, happy days.
-            ( { model | viewingMode = mode } |> deriveVaryingVisualEntities
+            ( { model | viewingMode = mode }
+                |> deriveVaryingVisualEntities
+                |> checkSceneCamera
             , Cmd.none
             )
 
@@ -3503,15 +3576,7 @@ lookupRoad model idx =
 thirdPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 thirdPersonCamera model =
     let
-        --focus node =
-        --    case model.flythrough of
-        --        Just fly ->
-        --            fly.cameraPosition
-        --
-        --        Nothing ->
-        --            node.location
-        --
-        camera node =
+        camera =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
@@ -3525,7 +3590,7 @@ thirdPersonCamera model =
                 , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
                 }
     in
-    Maybe.map camera (Array.get model.currentNode model.nodeArray)
+    Just camera
 
 
 viewCurrentNode : Model -> Element Msg
