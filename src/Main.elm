@@ -1174,8 +1174,8 @@ update msg model =
         MouseClick event ->
             ( if Time.posixToMillis model.time < Time.posixToMillis model.mouseDownTime + 250 then
                 detectHit model event
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
+                    |> tryBendSmoother
+                    |> deriveVaryingVisualEntities
 
               else
                 model
@@ -1980,7 +1980,8 @@ advanceFlythrough newTime model =
                             flying
                             model.flythroughSpeed
                             model.roads
-            } |> checkSceneCamera
+            }
+                |> checkSceneCamera
 
         Nothing ->
             model
@@ -3145,40 +3146,36 @@ positionControls model =
             FeatherIcons.skipBack
                 |> FeatherIcons.toHtml []
     in
-    none
-
-
-
---row
---    [ spacing 5
---    , padding 5
---    , centerX
---    , centerY
---    ]
---    [ positionSlider model
---    , button
---        prettyButtonStyles
---        { onPress = Just PositionBackOne
---        , label = html backwards
---        }
---    , button
---        prettyButtonStyles
---        { onPress = Just PositionForwardOne
---        , label = html forwards
---        }
---    ]
+    row
+        [ spacing 5
+        , padding 5
+        , centerX
+        , centerY
+        ]
+        [ positionSlider model
+        , button
+            prettyButtonStyles
+            { onPress = Just PositionBackOne
+            , label = html backwards
+            }
+        , button
+            prettyButtonStyles
+            { onPress = Just PositionForwardOne
+            , label = html forwards
+            }
+        ]
 
 
 positionSlider model =
     Input.slider
-        [ height <| px 80
-        , width <| px 500
+        [ height <| px 20
+        , width <| px 300
         , centerY
         , behindContent <|
             -- Slider track
             el
-                [ width <| px 500
-                , height <| px 30
+                [ width <| px 300
+                , height <| px 20
                 , centerY
                 , centerX
                 , Background.color <| rgb255 114 159 207
@@ -3203,7 +3200,8 @@ viewFirstPerson model =
             [ alignTop
             ]
             [ viewRoadSegment model
-            , positionControls model
+
+            --, positionControls model
             ]
         ]
 
@@ -3276,10 +3274,13 @@ flythroughControls model =
                     else
                         playButton
     in
-    row [ padding 10, spacing 10, centerX ]
-        [ resetButton
-        , playPauseButton
-        , flythroughSpeedSlider
+    column [ padding 10, spacing 10, centerX ]
+        [ row [ padding 10, spacing 10, centerX ]
+            [ resetButton
+            , playPauseButton
+            , flythroughSpeedSlider
+            ]
+        , positionControls model
         ]
 
 
@@ -3369,7 +3370,8 @@ viewThirdPerson model =
                     [ alignTop
                     ]
                     [ viewCurrentNode model
-                    , positionControls model
+
+                    --, positionControls model
                     ]
                 ]
 
@@ -3386,7 +3388,8 @@ viewPlanView model =
                     [ alignTop
                     ]
                     [ viewCurrentNodePlanView model node
-                    , positionControls model
+
+                    --, positionControls model
                     ]
                 ]
 
@@ -3415,7 +3418,8 @@ viewProfileView model =
                     [ alignTop
                     ]
                     [ viewRouteProfile model node
-                    , positionControls model
+
+                    --, positionControls model
                     ]
                 ]
 
@@ -3856,5 +3860,5 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-        , Time.every 10 Tick
+        , Time.every 50 Tick
         ]

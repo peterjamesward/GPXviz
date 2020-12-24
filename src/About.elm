@@ -31,6 +31,8 @@ aboutText =
 
 > - Plan is gone now the map seems stable.
 
+> - The track slider is now in the Fly-through tab, so you can use it manually.
+
 > _Standard warning: Save your work_ often.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
