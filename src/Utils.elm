@@ -90,7 +90,7 @@ parseTrackName xml =
 
 
 view3dDimensions =
-    ( Pixels.int 800, Pixels.int 600 )
+    ( Pixels.int 900, Pixels.int 600 )
 
 view3dWidth = toFloat <| Pixels.inPixels (Tuple.first view3dDimensions)
 

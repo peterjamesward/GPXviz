@@ -229,8 +229,64 @@ init _ =
     )
 
 
-genericAccordion model =
+toolsAccordion model =
+    [ { label = "Loop maker"
+      , state = Contracted
+      , content = viewLoopTools model
+      }
+    , { label = "Smooth gradient"
+      , state = Contracted
+      , content = viewGradientFixerPane model
+      }
+    , { label = "Nudge node"
+      , state = Contracted
+      , content = viewNudgeTools model
+      }
+    , { label = "Smooth bend"
+      , state = Contracted
+      , content = viewBendFixerPane model
+      }
+    , { label = "Straighten"
+      , state = Contracted
+      , content = viewStraightenTools model
+      }
+    , { label = "Trackpoints"
+      , state = Contracted
+      , content = viewTrackPointTools model
+      }
+    ]
+
+
+infoAccordion model =
     [ { label = "File"
+      , state = Expanded
+      , content = overviewSummary model
+      }
+    , { label = "Road data"
+      , state = Contracted
+      , content = summaryData (lookupRoad model model.currentNode)
+      }
+    , { label = "Visual styles"
+      , state = Contracted
+      , content = viewOptions model
+      }
+    , { label = "Fly-through"
+      , state = Contracted
+      , content = flythroughControls model
+      }
+    , { label = "Gradient problems"
+      , state = Contracted
+      , content = viewGradientChanges model
+      }
+    , { label = "Bend problems"
+      , state = Contracted
+      , content = viewBearingChanges model
+      }
+    ]
+
+
+genericAccordion model =
+    [ { label = "Summary"
       , state = Expanded
       , content = overviewSummary model
       }
@@ -278,10 +334,11 @@ genericAccordion model =
       , state = Contracted
       , content = viewBearingChanges model
       }
-    , { label = "Map Info"
-      , state = Contracted
-      , content = MapController.viewMapInfo model.mapInfo
-      }
+
+    --, { label = "Map Info"
+    --  , state = Contracted
+    --  , content = MapController.viewMapInfo model.mapInfo
+    --  }
     ]
 
 
@@ -413,8 +470,8 @@ detectHit model event =
         screenRectangle =
             Rectangle2d.with
                 { x1 = Pixels.pixels 0
-                , y1 = Pixels.pixels 600
-                , x2 = Pixels.pixels 800
+                , y1 = Pixels.pixels view3dHeight
+                , x2 = Pixels.pixels view3dWidth
                 , y2 = Pixels.pixels 0
                 }
 
@@ -589,6 +646,8 @@ update msg model =
                         |> cancelFlythrough
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
+                        |> centreViewOnCurrentNode
+                        |> checkSceneCamera
             in
             ( newModel
             , updateMapVaryingElements newModel
@@ -825,7 +884,9 @@ update msg model =
                     let
                         xMovement =
                             truncate <|
-                                0.3 * (6.0 - model.zoomLevelProfile) ^ 2.0
+                                0.3
+                                    * (6.0 - model.zoomLevelProfile)
+                                    ^ 2.0
                                     * (startX - dx)
                                     / abs (startX - dx)
 
@@ -1139,11 +1200,24 @@ trackHasChanged model =
 
 
 centreViewOnCurrentNode model =
-    case Array.get model.currentNode model.nodeArray of
-        Just node ->
-            { model | cameraFocusThirdPerson = node.location }
+    case
+        ( Array.get model.currentNode model.nodeArray
+        , Array.get model.currentNode model.roadArray
+        )
+    of
+        ( Just node, Just road ) ->
+            { model
+                | cameraFocusThirdPerson = node.location
+                , cameraFocusProfileNode = model.currentNode
+            }
 
-        Nothing ->
+        ( Just node, Nothing ) ->
+            { model
+                | cameraFocusThirdPerson = node.location
+                , cameraFocusProfileNode = model.currentNode - 1
+            }
+
+        _ ->
             model
 
 
@@ -1903,7 +1977,7 @@ advanceFlythrough newTime model =
                             flying
                             model.flythroughSpeed
                             model.roads
-            }
+            } |> checkSceneCamera
 
         Nothing ->
             model
@@ -2618,19 +2692,19 @@ viewGenericNew model =
     , body =
         [ layout
             [ width fill
-            , padding 20
-            , spacing 20
+            , padding 10
+            , spacing 10
             , Font.size 16
             , height fill
             ]
           <|
             column
                 []
-                [ row [ centerX, spaceEvenly, spacing 20, padding 10 ]
+                [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
                     [ loadButton
                     , case model.filename of
                         Just name ->
-                            column []
+                            column [ Font.size 14 ]
                                 [ displayName model.trackName
                                 , text <| "Filename: " ++ name
                                 ]
@@ -2639,15 +2713,8 @@ viewGenericNew model =
                             none
                     , saveButtonIfChanged model
                     ]
-                , row [ alignLeft, moveRight 100 ]
+                , row [ alignLeft, moveRight 200 ]
                     [ viewModeChoices model
-
-                    --, text <|
-                    --    "("
-                    --        ++ String.fromFloat (Tuple.first model.clickData)
-                    --        ++ ", "
-                    --        ++ String.fromFloat (Tuple.second model.clickData)
-                    --        ++ ")"
                     ]
                 , case ( model.gpx, model.trackPoints ) of
                     ( _, tp1 :: _ ) ->
@@ -2695,7 +2762,8 @@ viewModeChoices model =
             [ Input.optionWith ThirdPersonView <| radioButton First "Third person"
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
-            , Input.optionWith PlanView <| radioButton Mid "Plan"
+
+            --, Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith MapView <| radioButton Mid "Map"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
@@ -2727,8 +2795,8 @@ view3D scale model =
         MapView ->
             -- We merely create the placeholder, the work is done by messages through the map port.
             el
-                [ width (px 880)
-                , height (px 650)
+                [ width <| px <| truncate view3dWidth
+                , height <| px <| truncate view3dHeight
                 , alignLeft
                 , alignTop
                 , htmlAttribute (id "map")
@@ -2748,8 +2816,8 @@ viewInputError model =
         , scrollbarY
         ]
         [ el
-            [ width <| px 800
-            , height <| maximum 600 fill
+            [ width <| px <| truncate view3dWidth
+            , height <| maximum (truncate view3dHeight) fill
             ]
           <|
             if List.length model.trackPoints == 0 then
@@ -3074,24 +3142,28 @@ positionControls model =
             FeatherIcons.skipBack
                 |> FeatherIcons.toHtml []
     in
-    row
-        [ spacing 5
-        , padding 5
-        , centerX
-        , centerY
-        ]
-        [ positionSlider model
-        , button
-            prettyButtonStyles
-            { onPress = Just PositionBackOne
-            , label = html backwards
-            }
-        , button
-            prettyButtonStyles
-            { onPress = Just PositionForwardOne
-            , label = html forwards
-            }
-        ]
+    none
+
+
+
+--row
+--    [ spacing 5
+--    , padding 5
+--    , centerX
+--    , centerY
+--    ]
+--    [ positionSlider model
+--    , button
+--        prettyButtonStyles
+--        { onPress = Just PositionBackOne
+--        , label = html backwards
+--        }
+--    , button
+--        prettyButtonStyles
+--        { onPress = Just PositionForwardOne
+--        , label = html forwards
+--        }
+--    ]
 
 
 positionSlider model =
