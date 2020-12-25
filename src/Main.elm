@@ -1,44 +1,51 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import About exposing (viewAboutText)
 import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
 import Array exposing (Array)
+import Axis3d exposing (intersectionWithSphere)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import BoundingBox3d exposing (BoundingBox3d)
 import Browser
-import Camera3d
+import Camera3d exposing (Camera3d)
 import Color
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Font as Font exposing (heavy)
+import Element.Font as Font
 import Element.Input as Input exposing (button)
+import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
-import Html.Attributes exposing (class, id)
+import Geometry101
+import Html.Attributes exposing (id)
+import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
+import Html.Events.Extra.Wheel as Wheel
 import Iso8601
-import Json.Encode as E
+import Json.Decode as E exposing (decodeValue, field, float)
 import Length
 import List exposing (drop, take)
-import MapboxKey exposing (mapboxKey)
+import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
-import Point3d
-import Quantity
+import Point3d exposing (Point3d, distanceFromAxis)
+import Rectangle2d
 import Scene3d exposing (Entity)
+import Sphere3d exposing (Sphere3d)
 import Spherical exposing (metresPerDegree)
 import Task
 import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
+import Tuple exposing (first, second)
 import Utils exposing (..)
 import Vector2d
 import Vector3d
@@ -47,12 +54,6 @@ import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
 import WriteGPX exposing (decimals6, writeGPX)
-
-
-port mapPort : E.Value -> Cmd msg
-
-
-port mapMoved : (MapInfo -> msg) -> Sub msg
 
 
 main : Program () Model Msg
@@ -65,61 +66,6 @@ main =
         }
 
 
-positionMap : Model -> Cmd Msg
-positionMap model =
-    let
-        centre box =
-            BoundingBox3d.centerPoint box
-    in
-    case model.trackPointBox of
-        Just box ->
-            mapPort <|
-                E.object
-                    [ ( "Cmd", E.string "Init" )
-                    , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
-                    , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
-                    , ( "zoom", E.float 12.0 )
-                    , ( "data", trackToJSON model.trackPoints )
-                    , ( "token", E.string mapboxKey )
-                    ]
-
-        Nothing ->
-            mapPort <|
-                E.object
-                    [ ( "Cmd", E.string "Init" )
-                    , ( "lon", E.float 0.0 )
-                    , ( "lat", E.float 52.0 )
-                    , ( "zoom", E.float 12.0 )
-                    ]
-
-
-addTrackToMap : Model -> Cmd Msg
-addTrackToMap model =
-    let
-        centre box =
-            BoundingBox3d.centerPoint box
-    in
-    case model.trackPointBox of
-        Just box ->
-            mapPort <|
-                E.object
-                    [ ( "Cmd", E.string "Track" )
-                    , ( "lon", E.float <| Length.inMeters <| Point3d.xCoordinate <| centre box )
-                    , ( "lat", E.float <| Length.inMeters <| Point3d.yCoordinate <| centre box )
-                    , ( "zoom", E.float 12.0 )
-                    , ( "data", trackToJSON model.trackPoints )
-                    ]
-
-        Nothing ->
-            mapPort <|
-                E.object
-                    [ ( "Cmd", E.string "Init" )
-                    , ( "lon", E.float 0.0 )
-                    , ( "lat", E.float 52.0 )
-                    , ( "zoom", E.float 12.0 )
-                    ]
-
-
 type alias AbruptChange =
     { node : DrawingNode
     , before : DrawingRoad
@@ -130,7 +76,7 @@ type alias AbruptChange =
 type alias UndoEntry =
     { label : String
     , trackPoints : List TrackPoint
-    , currentNode : Maybe Int
+    , currentNode : Int
     , markedNode : Maybe Int
     }
 
@@ -141,31 +87,37 @@ type Loopiness
     | AlmostLoop Float -- if, say, less than 200m back to start.
 
 
+type DragAction
+    = DragNone
+    | DragRotate
+    | DragPan
+    | DragProfile
+
+
 type alias Model =
     { gpx : Maybe String
     , filename : Maybe String
+    , trackName : Maybe String
     , time : Time.Posix
     , zone : Time.Zone
     , timeOfLastSave : Time.Posix
     , gpxUrl : String
     , trackPoints : List TrackPoint
-    , trackPointBox : Maybe (BoundingBox3d Length.Meters GPXCoords)
-    , nodeBox : Maybe (BoundingBox3d Length.Meters LocalCoords)
+    , trackPointBox : BoundingBox3d Length.Meters GPXCoords
+    , nodeBox : BoundingBox3d Length.Meters LocalCoords
     , nodes : List DrawingNode
     , roads : List DrawingRoad
-    , trackName : Maybe String
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
     , orbiting : Maybe Point -- Capture mouse down position (when clicking on the 3D control)
+    , dragAction : DragAction
     , staticVisualEntities : List (Entity LocalCoords) -- our 3D world
     , staticProfileEntities : List (Entity LocalCoords) -- an unrolled 3D world for the profile view.
     , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
     , varyingProfileEntities : List (Entity LocalCoords)
-    , mapStaticEntities : List (Entity LocalCoords) -- we must use different projection for map
-    , mapVaryingEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
-    , httpError : Maybe String
-    , currentNode : Maybe Int
+    , mapVisualEntities : List (Entity LocalCoords) -- for map image only
+    , currentNode : Int
     , markedNode : Maybe Int
     , viewingMode : ViewingMode
     , summary : Maybe SummaryData
@@ -194,11 +146,18 @@ type alias Model =
     , flythrough : Maybe Flythrough
     , loopiness : Loopiness
     , nudgeValue : Float
-    , nudgedNodeRoads : List DrawingRoad -- actually only two but this is consistent with smoothedRoads.
+    , nudgedNodeRoads : List DrawingRoad
+    , nudgedRegionStart : Int -- so we can correlate nudgedNodeRoads in profile view (ugh).
     , verticalNudgeValue : Float
-    , accordion : List (AccordionEntry Msg)
-    , mapCentre : TrackPoint
-    , mapZoom : Float
+    , toolsAccordion : List (AccordionEntry Msg)
+    , infoAccordion : List (AccordionEntry Msg)
+    , maxSegmentSplitSize : Float
+    , mapInfo : Maybe MapController.MapInfo
+    , currentSceneCamera : Maybe (Camera3d.Camera3d Length.Meters LocalCoords)
+    , clickData : ( Float, Float )
+    , mouseDownTime : Time.Posix -- seems needed to distinguish click from any other mouse-up event.
+    , cameraFocusThirdPerson : Point3d Length.Meters LocalCoords
+    , cameraFocusProfileNode : Int
     }
 
 
@@ -211,21 +170,22 @@ init _ =
       , timeOfLastSave = Time.millisToPosix 0
       , gpxUrl = ""
       , trackPoints = []
-      , trackPointBox = Nothing
-      , nodeBox = Nothing
+      , trackPointBox = BoundingBox3d.singleton Point3d.origin
+      , nodeBox = BoundingBox3d.singleton Point3d.origin
       , nodes = []
       , roads = []
       , trackName = Nothing
       , azimuth = Angle.degrees 45
       , elevation = Angle.degrees 30
       , orbiting = Nothing
+      , dragAction = DragNone
       , staticVisualEntities = []
       , varyingVisualEntities = []
       , staticProfileEntities = []
       , varyingProfileEntities = []
+      , mapVisualEntities = []
       , terrainEntities = []
-      , httpError = Nothing
-      , currentNode = Nothing
+      , currentNode = 0
       , markedNode = Nothing
       , viewingMode = AboutView
       , summary = Nothing
@@ -255,19 +215,80 @@ init _ =
       , loopiness = NotALoop 0.0
       , nudgeValue = 0.0
       , nudgedNodeRoads = []
+      , nudgedRegionStart = 0
       , verticalNudgeValue = 0.0
-      , accordion = []
-      , mapStaticEntities = []
-      , mapVaryingEntities = []
-      , mapCentre = { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
-      , mapZoom = 1.0
+      , toolsAccordion = []
+      , infoAccordion = []
+      , maxSegmentSplitSize = 30.0 -- When we split a segment, how close should the track points be.
+      , mapInfo = Nothing
+      , currentSceneCamera = Nothing
+      , clickData = ( 0.0, 0.0 )
+      , mouseDownTime = Time.millisToPosix 0
+      , cameraFocusThirdPerson = Point3d.origin
+      , cameraFocusProfileNode = 0
       }
     , Task.perform AdjustTimeZone Time.here
     )
 
 
-accordionTabs model =
-    [ { label = "File"
+toolsAccordion model =
+    [ { label = "Loop maker"
+      , state = Contracted
+      , content = viewLoopTools model
+      }
+    , { label = "Smooth bend"
+      , state = Contracted
+      , content = viewBendFixerPane model
+      }
+    , { label = "Smooth gradient"
+      , state = Contracted
+      , content = viewGradientFixerPane model
+      }
+    , { label = "Nudge "
+      , state = Contracted
+      , content = viewNudgeTools model
+      }
+    , { label = "Straighten"
+      , state = Contracted
+      , content = viewStraightenTools model
+      }
+    , { label = "Trackpoints"
+      , state = Contracted
+      , content = viewTrackPointTools model
+      }
+    , { label = "Fly-through"
+      , state = Contracted
+      , content = flythroughControls model
+      }
+    ]
+
+
+infoAccordion model =
+    [ { label = "Summary"
+      , state = Expanded
+      , content = overviewSummary model
+      }
+    , { label = "Road segment data"
+      , state = Contracted
+      , content = summaryData (lookupRoad model model.currentNode)
+      }
+    , { label = "Visual styles"
+      , state = Contracted
+      , content = viewOptions model
+      }
+    , { label = "Gradient problems"
+      , state = Contracted
+      , content = viewGradientChanges model
+      }
+    , { label = "Bend problems"
+      , state = Contracted
+      , content = viewBearingChanges model
+      }
+    ]
+
+
+genericAccordion model =
+    [ { label = "Summary"
       , state = Expanded
       , content = overviewSummary model
       }
@@ -315,12 +336,19 @@ accordionTabs model =
       , state = Contracted
       , content = viewBearingChanges model
       }
+
+    --, { label = "Map Info"
+    --  , state = Contracted
+    --  , content = MapController.viewMapInfo model.mapInfo
+    --  }
     ]
 
 
+initialiseAccordion : Model -> Model
 initialiseAccordion model =
     { model
-        | accordion = accordionTabs model
+        | toolsAccordion = toolsAccordion model
+        , infoAccordion = infoAccordion model
     }
 
 
@@ -343,8 +371,8 @@ clearTheModel model =
         | gpx = Nothing
         , timeOfLastSave = Time.millisToPosix 0
         , trackPoints = []
-        , trackPointBox = Nothing
-        , nodeBox = Nothing
+        , trackPointBox = BoundingBox3d.singleton Point3d.origin
+        , nodeBox = BoundingBox3d.singleton Point3d.origin
         , nodes = []
         , roads = []
         , trackName = Nothing
@@ -354,7 +382,7 @@ clearTheModel model =
         , staticProfileEntities = []
         , varyingProfileEntities = []
         , terrainEntities = []
-        , currentNode = Nothing
+        , currentNode = 0
         , markedNode = Nothing
         , summary = Nothing
         , nodeArray = Array.empty
@@ -374,6 +402,168 @@ clearTheModel model =
     }
 
 
+locallyHandleMapMessage : Model -> E.Value -> Model
+locallyHandleMapMessage model json =
+    -- So we don't need to keep going to the MapController.
+    -- These will be Model-domain messages.
+    let
+        msg =
+            decodeValue msgDecoder json
+
+        lat =
+            decodeValue (field "lat" float) json
+
+        lon =
+            decodeValue (field "lon" float) json
+
+        zoom =
+            decodeValue (field "zoom" float) json
+    in
+    case msg of
+        Ok "click" ->
+            --{ 'msg' : 'click'
+            --, 'lat' : e.lat()
+            --, 'lon' : e.lon()
+            --} );
+            case ( lat, lon ) of
+                ( Ok lat1, Ok lon1 ) ->
+                    makeNearestNodeCurrent model lon1 lat1
+                        |> centreViewOnCurrentNode
+                        |> tryBendSmoother
+
+                _ ->
+                    model
+
+        _ ->
+            model
+
+
+makeNearestNodeCurrent : Model -> Float -> Float -> Model
+makeNearestNodeCurrent model lon lat =
+    -- Searching like this may be too slow. Wait and see.
+    -- Speed up 1 - do approximate filter then exact on subset.
+    -- Speed up 2 - use quadtree structure (!)
+    let
+        nearbyPoints =
+            List.sortBy distance
+                model.roads
+
+        distance point =
+            Geometry101.distance
+                { x = point.startsAt.trackPoint.lon, y = point.startsAt.trackPoint.lat }
+                { x = lon, y = lat }
+    in
+    case nearbyPoints of
+        n :: _ ->
+            { model | currentNode = n.index }
+
+        _ ->
+            model
+
+
+detectHit : Model -> Mouse.Event -> Model
+detectHit model event =
+    -- Same but in our local coord, not map coords.
+    -- Need assistance from elm-3d-scene.
+    let
+        ( x, y ) =
+            event.offsetPos
+
+        screenPoint =
+            Point2d.pixels x y
+
+        screenRectangle =
+            Rectangle2d.with
+                { x1 = Pixels.pixels 0
+                , y1 = Pixels.pixels view3dHeight
+                , x2 = Pixels.pixels view3dWidth
+                , y2 = Pixels.pixels 0
+                }
+
+        profileNodes =
+            -- Probably something worth having in the model
+            List.map .profileStartsAt (List.take 1 model.roads)
+                ++ List.map .profileEndsAt model.roads
+
+        nodeList =
+            case model.viewingMode of
+                ProfileView ->
+                    profileNodes
+
+                _ ->
+                    model.nodes
+    in
+    case model.currentSceneCamera of
+        Just camera ->
+            let
+                ray =
+                    Camera3d.ray camera screenRectangle screenPoint
+
+                distances =
+                    List.map
+                        (\node ->
+                            ( node.trackPoint.idx
+                            , Length.inMeters <| distanceFromAxis ray node.location
+                            )
+                        )
+                        nodeList
+
+                inDistanceOrder =
+                    List.sortBy Tuple.second distances
+            in
+            case List.head inDistanceOrder of
+                Just ( idx, _ ) ->
+                    { model | currentNode = idx }
+
+                Nothing ->
+                    model
+
+        Nothing ->
+            model
+
+
+
+-- placeholder
+{-
+   Here's some handy stuff from 'unsoundscapes' via slack.
+   (decodeMouseRay camera width height MouseDown)
+
+   decodeMouseRay :
+       Camera3d Meters WorldCoordinates
+       -> Quantity Float Pixels
+       -> Quantity Float Pixels
+       -> (Axis3d Meters WorldCoordinates -> msg)
+       -> Decoder msg
+   decodeMouseRay camera3d width height rayToMsg =
+       Json.Decode.map2
+           (\x y ->
+               rayToMsg
+                   (Camera3d.ray
+                       camera3d
+                       (Rectangle2d.with
+                           { x1 = pixels 0
+                           , y1 = height
+                           , x2 = width
+                           , y2 = pixels 0
+                           }
+                       )
+                       (Point2d.pixels x y)
+                   )
+           )
+           (Json.Decode.field "pageX" Json.Decode.float)
+           (Json.Decode.field "pageY" Json.Decode.float)
+
+           ...
+
+           MouseDown mouseRay ->
+               { model
+                   | selection =
+                       World.raycast mouseRay world
+                           |> Maybe.map (\{ body } -> Body.data body)
+               }
+-}
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -381,18 +571,31 @@ update msg model =
             model.displayOptions
     in
     case msg of
-        MapMoved mapView ->
-            ( { model
-                | mapCentre =
-                    { lon = mapView.center.lon
-                    , lat = mapView.center.lat
-                    , ele = 0.0
-                    , idx = 0
-                    }
-                , mapZoom = mapView.zoom
-              }
-            , Cmd.none
-            )
+        NoOpMsg ->
+            ( model, Cmd.none )
+
+        -- Mainly to suppress the context menu on the pictures!
+        MapMessage jsonMsg ->
+            case model.mapInfo of
+                Just mapInfo ->
+                    case MapController.processMapMessage mapInfo jsonMsg of
+                        Just ( newInfo, cmd ) ->
+                            ( { model | mapInfo = Just newInfo }
+                            , cmd
+                            )
+
+                        Nothing ->
+                            let
+                                newModel =
+                                    locallyHandleMapMessage model jsonMsg
+                                        |> deriveVaryingVisualEntities
+                            in
+                            ( newModel
+                            , updateMapVaryingElements newModel
+                            )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         Tick newTime ->
             ( { model | time = newTime }
@@ -401,7 +604,10 @@ update msg model =
             )
 
         AccordionMessage entry ->
-            ( { model | accordion = accordionToggle model.accordion entry }
+            ( { model
+                | toolsAccordion = accordionToggle model.toolsAccordion entry
+                , infoAccordion = accordionToggle model.infoAccordion entry
+              }
             , Cmd.none
             )
 
@@ -439,87 +645,130 @@ update msg model =
                         |> deriveVaryingVisualEntities
                         |> resetViewSettings
             in
-            ( newModel
-            , positionMap newModel
-            )
+            switchViewMode newModel newModel.viewingMode
 
         UserMovedNodeSlider node ->
-            ( { model | currentNode = Just node }
-                |> cancelFlythrough
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , Cmd.none
+            let
+                newModel =
+                    { model | currentNode = node }
+                        |> cancelFlythrough
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                        |> centreViewOnCurrentNode
+                        |> checkSceneCamera
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetSmoothingEnd idx ->
-            ( { model | smoothingEndIndex = Just idx }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , Cmd.none
+            let
+                newModel =
+                    { model | smoothingEndIndex = Just idx }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         PositionForwardOne ->
-            ( { model
-                | currentNode = incrementMaybeModulo (List.length model.roads) model.currentNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-                |> cancelFlythrough
-            , Cmd.none
+            let
+                newModel =
+                    { model
+                        | currentNode = modBy (List.length model.nodes) (model.currentNode + 1)
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                        |> cancelFlythrough
+                        |> checkSceneCamera
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         PositionBackOne ->
-            ( { model
-                | currentNode = decrementMaybeModulo (List.length model.roads) model.currentNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-                |> cancelFlythrough
-            , Cmd.none
+            let
+                newModel =
+                    { model
+                        | currentNode = modBy (List.length model.nodes) (model.currentNode - 1)
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                        |> cancelFlythrough
+                        |> checkSceneCamera
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         MarkerForwardOne ->
-            ( { model
-                | markedNode = incrementMaybeModulo (List.length model.roads) model.markedNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , Cmd.none
+            let
+                newModel =
+                    { model
+                        | markedNode =
+                            Maybe.map
+                                (\m -> modBy (List.length model.nodes) (m + 1))
+                                model.markedNode
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         MarkerBackOne ->
-            ( { model
-                | markedNode = decrementMaybeModulo (List.length model.roads) model.markedNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , Cmd.none
+            let
+                newModel =
+                    { model
+                        | markedNode =
+                            Maybe.map
+                                (\m -> modBy (List.length model.nodes) (m - 1))
+                                model.markedNode
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetMaxTurnPerSegment turn ->
-            ( { model
-                | numLineSegmentsForBend = turn
-              }
-                |> tryBendSmoother
-                --|> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-            , Cmd.none
+            let
+                newModel =
+                    { model
+                        | numLineSegmentsForBend = turn
+                    }
+                        |> tryBendSmoother
+                        --|> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         ChooseViewMode mode ->
-            ( { model | viewingMode = mode }
-                |> deriveVaryingVisualEntities
-            , if mode == MapView then
-                addTrackToMap model
+            switchViewMode model mode
 
-              else
-                Cmd.none
-            )
+        MapRemoved _ ->
+            case model.mapInfo of
+                Just info ->
+                    let
+                        newInfo =
+                            { info | mapState = MapStopped }
+                    in
+                    ( { model
+                        | viewingMode = info.nextView
+                        , mapInfo = Just newInfo
+                      }
+                        |> deriveVaryingVisualEntities
+                        |> checkSceneCamera
+                    , Cmd.none
+                    )
 
-        ConfirmMapView ->
-            ( model
-            , Cmd.none
-            )
+                Nothing ->
+                    ( model, Cmd.none )
 
         ZoomLevelOverview level ->
             ( { model | zoomLevelOverview = level }
@@ -546,16 +795,40 @@ update msg model =
             , Cmd.none
             )
 
-        ImageGrab ( dx, dy ) ->
+        ImageGrab event ->
             -- Mouse behaviour depends which view is in use...
-            -- Need to add intersection test for Profile & Plan views.
-            ( { model | orbiting = Just ( dx, dy ) }
+            -- Right-click or ctrl-click to mean rotate; otherwise pan.
+            let
+                alternate =
+                    event.keys.ctrl || event.button == SecondButton
+            in
+            ( { model
+                | orbiting = Just event.offsetPos
+                , dragAction =
+                    case ( model.viewingMode, alternate ) of
+                        ( ThirdPersonView, False ) ->
+                            DragPan
+
+                        ( ThirdPersonView, True ) ->
+                            DragRotate
+
+                        ( ProfileView, _ ) ->
+                            DragProfile
+
+                        _ ->
+                            DragNone
+                , mouseDownTime = model.time -- to disambinguate click and mouse-up. maybe.
+              }
             , Cmd.none
             )
 
-        ImageRotate ( dx, dy ) ->
-            case model.orbiting of
-                Just ( startX, startY ) ->
+        ImageDrag event ->
+            let
+                ( dx, dy ) =
+                    event.offsetPos
+            in
+            case ( model.dragAction, model.orbiting, model.currentSceneCamera ) of
+                ( DragRotate, Just ( startX, startY ), Just camera ) ->
                     let
                         newAzimuth =
                             Angle.degrees <|
@@ -572,56 +845,107 @@ update msg model =
                         , elevation = newElevation
                         , orbiting = Just ( dx, dy )
                       }
+                        |> checkSceneCamera
                     , Cmd.none
                     )
 
-                Nothing ->
+                ( DragPan, Just ( startX, startY ), Just camera ) ->
+                    let
+                        currentViewpoint =
+                            Camera3d.viewpoint camera
+
+                        xDirection =
+                            Viewpoint3d.xDirection currentViewpoint
+
+                        yDirection =
+                            Viewpoint3d.yDirection currentViewpoint
+
+                        currentFocus =
+                            model.cameraFocusThirdPerson
+
+                        xMovement =
+                            Vector3d.withLength
+                                (Length.meters <| 0.5 * (startX - dx))
+                                xDirection
+
+                        yMovement =
+                            Vector3d.withLength
+                                (Length.meters <| 0.5 * (dy - startY))
+                                yDirection
+
+                        netMovement =
+                            Vector3d.plus xMovement yMovement
+
+                        newFocus =
+                            Point3d.translateBy netMovement currentFocus
+                    in
+                    ( { model
+                        | cameraFocusThirdPerson = newFocus
+                        , orbiting = Just ( dx, dy )
+                      }
+                        |> checkSceneCamera
+                    , Cmd.none
+                    )
+
+                ( DragProfile, Just ( startX, startY ), Just camera ) ->
+                    let
+                        xMovement = round <| 0.2 * (startX - dx)
+
+                        newFocus =
+                            clamp 0 (Array.length model.roadArray - 1) <|
+                                model.cameraFocusProfileNode
+                                    + xMovement
+                    in
+                    ( { model
+                        | cameraFocusProfileNode = newFocus
+                        , orbiting = Just ( dx, dy )
+                      }
+                        |> checkSceneCamera
+                    , Cmd.none
+                    )
+
+                _ ->
                     ( model, Cmd.none )
 
         ImageRelease _ ->
-            ( { model | orbiting = Nothing }
+            ( { model | orbiting = Nothing, dragAction = DragNone }
             , Cmd.none
             )
 
         ToggleCones _ ->
-            ( { model
+            { model
                 | displayOptions = { options | roadCones = not options.roadCones }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         TogglePillars _ ->
-            ( { model
+            { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         ToggleRoad _ ->
-            ( { model
+            { model
                 | displayOptions = { options | roadTrack = not options.roadTrack }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         ToggleCentreLine _ ->
-            ( { model
+            { model
                 | displayOptions = { options | centreLine = not options.centreLine }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetCurtainStyle style ->
-            ( { model
+            { model
                 | displayOptions = { options | curtainStyle = style }
-              }
+            }
                 |> deriveStaticVisualEntities
-            , Cmd.none
-            )
+                |> synchroniseMap
 
         SetGradientChangeThreshold threshold ->
             ( { model
@@ -647,41 +971,25 @@ update msg model =
             )
 
         DeleteZeroLengthSegments ->
-            ( deleteZeroLengthSegments model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-            , Cmd.none
-            )
+            deleteZeroLengthSegments model
+                |> trackHasChanged
 
         OutputGPX ->
             ( { model | hasBeenChanged = False }
             , outputGPX model
             )
 
-        SmoothGradient s f g ->
-            ( smoothGradient model s f g
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-            , Cmd.none
-            )
+        SmoothGradient g ->
+            smoothGradient model g
+                |> trackHasChanged
 
         SmoothBend ->
-            ( model
+            model
                 |> smoothBend
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-            , Cmd.none
-            )
+                |> trackHasChanged
 
         Undo ->
-            ( case model.undoStack of
+            case model.undoStack of
                 action :: undos ->
                     { model
                         | trackPoints = action.trackPoints
@@ -690,20 +998,13 @@ update msg model =
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                     }
-                        |> deriveNodesAndRoads
-                        |> tryBendSmoother
-                        |> deriveStaticVisualEntities
-                        |> deriveVaryingVisualEntities
-                        |> deriveProblems
-                        |> clearTerrain
+                        |> trackHasChanged
 
                 _ ->
-                    model
-            , Cmd.none
-            )
+                    ( model, Cmd.none )
 
         Redo ->
-            ( case model.redoStack of
+            case model.redoStack of
                 action :: redos ->
                     { model
                         | trackPoints = action.trackPoints
@@ -712,31 +1013,28 @@ update msg model =
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                     }
-                        |> deriveNodesAndRoads
-                        |> tryBendSmoother
-                        |> deriveStaticVisualEntities
-                        |> deriveVaryingVisualEntities
-                        |> deriveProblems
-                        |> clearTerrain
+                        |> trackHasChanged
 
                 _ ->
-                    model
-            , Cmd.none
-            )
+                    ( model, Cmd.none )
 
         ToggleMarker ->
-            ( { model
-                | markedNode =
-                    case model.markedNode of
-                        Just _ ->
-                            Nothing
+            let
+                newModel =
+                    { model
+                        | markedNode =
+                            case model.markedNode of
+                                Just _ ->
+                                    Nothing
 
-                        Nothing ->
-                            model.currentNode
-              }
-                |> tryBendSmoother
-                |> deriveVaryingVisualEntities
-            , Cmd.none
+                                Nothing ->
+                                    Just model.currentNode
+                    }
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
             )
 
         SetBumpinessFactor factor ->
@@ -759,45 +1057,16 @@ update msg model =
             )
 
         InsertBeforeOrAfter node direction ->
-            ( insertTrackPoint node model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> (\m ->
-                        { m
-                            | currentNode =
-                                case direction of
-                                    InsertNodeAfter ->
-                                        model.currentNode
-
-                                    InsertNodeBefore ->
-                                        Maybe.map (\n -> n + 1) model.currentNode
-                        }
-                   )
-                |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+            insertTrackPoint node model
+                |> trackHasChanged
 
         DeleteCurrentPoint c ->
-            ( deleteTrackPoint c model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+            deleteTrackPoint c model
+                |> trackHasChanged
 
         ChangeLoopStart c ->
-            ( changeLoopStart c model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-                |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+            changeLoopStart c model
+                |> trackHasChanged
 
         MakeTerrain ->
             ( deriveTerrain model
@@ -810,64 +1079,318 @@ update msg model =
             )
 
         CloseTheLoop ->
-            ( closeTheLoop model
-                |> clearTerrain
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-            , Cmd.none
-            )
+            closeTheLoop model
+                |> trackHasChanged
 
         ReverseTrack ->
-            ( reverseTrack model
-                |> clearTerrain
-                |> deriveNodesAndRoads
-                |> deriveProblems
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
+            reverseTrack model
+                |> trackHasChanged
+
+        StraightenStraight ->
+            straightenStraight model
+                |> trackHasChanged
+
+        SetHorizontalNudgeFactor horizontal ->
+            let
+                newModel =
+                    simulateNudgeNode model horizontal model.verticalNudgeValue
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
+            )
+
+        SetVerticalNudgeFactor vertical ->
+            let
+                newModel =
+                    simulateNudgeNode model model.nudgeValue vertical
+                        |> deriveVaryingVisualEntities
+            in
+            ( newModel
+            , updateMapVaryingElements newModel
+            )
+
+        NudgeNode horizontal vertical ->
+            nudgeNode model horizontal vertical
+                |> trackHasChanged
+
+        SplitRoad ->
+            model |> splitRoad |> trackHasChanged
+
+        SetMaxTrackpointSpacing f ->
+            ( { model | maxSegmentSplitSize = f }
             , Cmd.none
             )
 
-        StraightenStraight c m ->
-            ( straightenStraight c m model
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
+        MouseWheel deltaY ->
+            let
+                factor =
+                    -0.001
+
+                newModel =
+                    case model.viewingMode of
+                        FirstPersonView ->
+                            { model
+                                | zoomLevelFirstPerson =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelFirstPerson
+                                            + deltaY
+                                            * factor
+                            }
+
+                        ThirdPersonView ->
+                            { model
+                                | zoomLevelThirdPerson =
+                                    clamp 0.0 6.0 <|
+                                        model.zoomLevelThirdPerson
+                                            + deltaY
+                                            * factor
+                            }
+
+                        ProfileView ->
+                            { model
+                                | zoomLevelProfile =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelProfile
+                                            + deltaY
+                                            * factor
+                            }
+
+                        PlanView ->
+                            { model
+                                | zoomLevelPlan =
+                                    clamp 1.0 5.0 <|
+                                        model.zoomLevelPlan
+                                            + deltaY
+                                            * factor
+                            }
+
+                        _ ->
+                            model
+            in
+            ( newModel |> checkSceneCamera
             , Cmd.none
             )
 
-        SetHorizontalNudgeFactor current horizontal ->
-            ( simulateNudgeNode model current horizontal model.verticalNudgeValue
-                |> deriveVaryingVisualEntities
+        MouseClick event ->
+            ( if Time.posixToMillis model.time < Time.posixToMillis model.mouseDownTime + 250 then
+                detectHit model event
+                    |> tryBendSmoother
+                    |> deriveVaryingVisualEntities
+
+              else
+                model
             , Cmd.none
             )
 
-        SetVerticalNudgeFactor current vertical ->
-            ( simulateNudgeNode model current model.nudgeValue vertical
+        MouseDoubleClick event ->
+            ( detectHit model event
+                |> tryBendSmoother
                 |> deriveVaryingVisualEntities
+                |> centreViewOnCurrentNode
+                |> checkSceneCamera
             , Cmd.none
             )
 
-        NudgeNode node horizontal vertical ->
-            ( nudgeNode model node horizontal vertical
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
+
+trackHasChanged model =
+    model
+        |> deriveNodesAndRoads
+        |> deriveStaticVisualEntities
+        |> deriveProblems
+        |> clearTerrain
+        |> deriveVaryingVisualEntities
+        |> synchroniseMap
+
+
+centreViewOnCurrentNode model =
+    case
+        ( Array.get model.currentNode model.nodeArray
+        , Array.get model.currentNode model.roadArray
+        )
+    of
+        ( Just node, Just road ) ->
+            { model
+                | cameraFocusThirdPerson = node.location
+                , cameraFocusProfileNode = model.currentNode
+            }
+
+        ( Just node, Nothing ) ->
+            { model
+                | cameraFocusThirdPerson = node.location
+                , cameraFocusProfileNode = model.currentNode - 1
+            }
+
+        _ ->
+            model
+
+
+updateMapVaryingElements : Model -> Cmd Msg
+updateMapVaryingElements model =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        currentNode =
+            Array.get model.currentNode model.nodeArray
+
+        markedNode =
+            Array.get marker model.nodeArray
+
+        nudgedTrackPoints =
+            List.map (.startsAt >> .trackPoint) (List.take 1 model.nudgedNodeRoads)
+                ++ List.map (.endsAt >> .trackPoint) model.nudgedNodeRoads
+    in
+    case ( currentNode, markedNode ) of
+        ( Just node1, Just node2 ) ->
+            MapController.addMarkersToMap
+                ( node1.trackPoint.lon, node1.trackPoint.lat )
+                (Just ( node2.trackPoint.lon, node2.trackPoint.lat ))
+                (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
+                nudgedTrackPoints
+
+        ( Just node1, Nothing ) ->
+            MapController.addMarkersToMap
+                ( node1.trackPoint.lon, node1.trackPoint.lat )
+                Nothing
+                (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
+                nudgedTrackPoints
+
+        _ ->
+            Cmd.none
+
+
+synchroniseMap : Model -> ( Model, Cmd Msg )
+synchroniseMap model =
+    -- This may not be optimal.
+    switchViewMode model model.viewingMode
+
+
+switchViewMode : Model -> ViewingMode -> ( Model, Cmd Msg )
+switchViewMode model mode =
+    -- When changing to the map, we must use ports to drive the new map.
+    -- When changing *from* the map, we must first remove the map (before we cxan destroy the DIV).
+    -- So this need some careful structuring.
+    let
+        current =
+            Array.get model.currentNode model.nodeArray
+
+        marked =
+            case model.markedNode of
+                Just m ->
+                    Array.get m model.nodeArray
+
+                Nothing ->
+                    Nothing
+
+        newMapInfo box =
+            { mapState = WaitingForNode
+            , box = box
+            , points = model.trackPoints
+            , nextView = MapView
+            , centreLon = Length.inMeters <| BoundingBox3d.midX box
+            , centreLat = Length.inMeters <| BoundingBox3d.midY box
+            , mapZoom = 12.0
+            , current =
+                case current of
+                    Just m ->
+                        ( m.trackPoint.lon, m.trackPoint.lat )
+
+                    Nothing ->
+                        ( 0.0, 0.0 )
+            , marker =
+                case marked of
+                    Just m ->
+                        Just ( m.trackPoint.lon, m.trackPoint.lat )
+
+                    Nothing ->
+                        Nothing
+            }
+
+        updatedMapInfo info =
+            { info
+                | current =
+                    case current of
+                        Just m ->
+                            ( m.trackPoint.lon, m.trackPoint.lat )
+
+                        Nothing ->
+                            ( 0.0, 0.0 )
+                , marker =
+                    case marked of
+                        Just m ->
+                            Just ( m.trackPoint.lon, m.trackPoint.lat )
+
+                        Nothing ->
+                            Nothing
+            }
+    in
+    case ( model.viewingMode, mode ) of
+        ( MapView, MapView ) ->
+            -- Not changing mode, may need to refresh track, wait and see.
+            case model.mapInfo of
+                Just info ->
+                    ( model
+                    , MapController.addTrackToMap info
+                    )
+
+                Nothing ->
+                    -- Should not occur, mapView without a mapInfo!
+                    ( model, Cmd.none )
+
+        ( _, MapView ) ->
+            -- Switch to map view
+            case model.mapInfo of
+                Just mapInfo ->
+                    -- We have a residual map state, we need to restore the map in correct position.
+                    let
+                        newInfo =
+                            updatedMapInfo mapInfo
+
+                        newModel =
+                            { model
+                                | viewingMode = mode
+                                , mapInfo = Just newInfo
+                            }
+                    in
+                    ( newModel
+                    , MapController.createMap newInfo
+                    )
+
+                Nothing ->
+                    -- If the map state is Stopped, need to wait for DOM node before creating map.
+                    let
+                        newModel =
+                            { model
+                                | viewingMode = mode
+                                , mapInfo = Just (newMapInfo model.trackPointBox)
+                            }
+                                |> deriveVaryingVisualEntities
+                    in
+                    ( newModel
+                    , MapController.createMap (newMapInfo newModel.trackPointBox)
+                    )
+
+        ( MapView, _ ) ->
+            -- Request map removal, do not destroy the DOM node yet.
+            let
+                changedMapInfo info =
+                    { info
+                        | mapState = MapStopping
+                        , nextView = mode
+                    }
+            in
+            ( { model | mapInfo = Maybe.map changedMapInfo model.mapInfo }
                 |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
-            , Cmd.none
+                |> checkSceneCamera
+            , MapController.removeMap
             )
 
-        SplitRoad node ->
-            ( splitRoad model node
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
+        ( _, _ ) ->
+            -- Map not involved, happy days.
+            ( { model | viewingMode = mode }
                 |> deriveVaryingVisualEntities
-                |> deriveProblems
-                |> clearTerrain
+                |> checkSceneCamera
             , Cmd.none
             )
 
@@ -898,116 +1421,246 @@ nudgeTrackPoint baseTP roadBearing horizontal vertical =
     }
 
 
-simulateNudgeNode : Model -> Int -> Float -> Float -> Model
-simulateNudgeNode model nodeNum horizontal vertical =
+simulateNudgeNode : Model -> Float -> Float -> Model
+simulateNudgeNode model horizontal vertical =
     let
-        targetRoad =
-            Array.get nodeNum model.roadArray
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( firstNudgeNode, lastNudgeNode ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+    in
+    simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
+
+
+simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
+simulateNodeRangeNudge model node1 nodeN horizontal vertical =
+    let
+        targetNodes =
+            List.drop node1 <| List.take (nodeN + 1) model.nodes
+
+        getBearingForNode : DrawingNode -> Float
+        getBearingForNode node =
+            -- We need roads only to get the bearing that we use to nudge sideways.
+            if node.trackPoint.idx < Array.length model.roadArray then
+                Array.get node.trackPoint.idx model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
+
+            else
+                Array.get (Array.length model.roadArray - 1) model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
+
+        unmovedEndPoint =
+            -- Only if we are not at the end of the track.
+            case Array.get (nodeN + 1) model.nodeArray of
+                Just endNode ->
+                    [ endNode.trackPoint ]
+
+                Nothing ->
+                    []
 
         prevNode =
-            Array.get (nodeNum - 1) model.roadArray
-    in
-    case targetRoad of
-        Nothing ->
-            model
+            Array.get (node1 - 1) model.nodeArray
 
-        Just road ->
-            let
-                nudgedTrackPoint =
+        nudgedStartPoints =
+            List.map
+                (\node ->
                     nudgeTrackPoint
-                        road.startsAt.trackPoint
-                        road.bearing
+                        node.trackPoint
+                        (getBearingForNode node)
                         horizontal
                         vertical
+                )
+                targetNodes
 
-                nudgedListForVisuals =
-                    (case prevNode of
-                        Nothing ->
-                            []
+        nudgedListForVisuals =
+            (case prevNode of
+                Nothing ->
+                    []
 
-                        Just prev ->
-                            [ prev.startsAt.trackPoint ]
-                    )
-                        ++ [ nudgedTrackPoint
-                           , road.endsAt.trackPoint
-                           ]
-            in
-            case model.trackPointBox of
-                Just box ->
-                    { model
-                        | nudgeValue = horizontal
-                        , verticalNudgeValue = vertical
-                        , nudgedNodeRoads =
-                            deriveRoads <|
-                                deriveNodes box <|
-                                    nudgedListForVisuals
-                    }
-
-                _ ->
-                    { model | nudgedNodeRoads = [] }
+                Just prev ->
+                    [ prev.trackPoint ]
+            )
+                ++ nudgedStartPoints
+                ++ unmovedEndPoint
+    in
+    { model
+        | nudgeValue = horizontal
+        , verticalNudgeValue = vertical
+        , nudgedRegionStart = node1
+        , nudgedNodeRoads =
+            deriveRoads <|
+                deriveNodes model.trackPointBox <|
+                    nudgedListForVisuals
+    }
 
 
-nudgeNode : Model -> Int -> Float -> Float -> Model
-nudgeNode model node horizontal vertical =
+nudgeNode : Model -> Float -> Float -> Model
+nudgeNode model horizontal vertical =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( firstNudgeNode, lastNudgeNode ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+    in
+    nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
+
+
+nudgeNodeRange : Model -> Int -> Int -> Float -> Float -> Model
+nudgeNodeRange model node1 nodeN horizontal vertical =
     -- Apply the nudge factor permanently.
+    -- TODO: Serious code duplication going on here.
     let
-        targetRoad =
-            Array.get node model.roadArray
+        undoMessage =
+            if nodeN > node1 then
+                "Nudge " ++ String.fromInt node1 ++ " to " ++ String.fromInt nodeN
+
+            else
+                "Nudge node " ++ String.fromInt node1
+
+        targetNodes =
+            List.drop node1 <| List.take (nodeN + 1) model.nodes
+
+        getBearingForNode : DrawingNode -> Float
+        getBearingForNode node =
+            -- We need roads only to get the bearing that we use to nudge sideways.
+            if node.trackPoint.idx < Array.length model.roadArray then
+                Array.get node.trackPoint.idx model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
+
+            else
+                Array.get (Array.length model.roadArray - 1) model.roadArray
+                    |> Maybe.map .bearing
+                    |> Maybe.withDefault 0.0
+
+        unmovedEndPoint =
+            -- Only if we are not at the end of the track.
+            case Array.get (nodeN + 1) model.nodeArray of
+                Just endNode ->
+                    [ endNode.trackPoint ]
+
+                Nothing ->
+                    []
+
+        prevNode =
+            Array.get (node1 - 1) model.nodeArray
+
+        nudgedStartPoints =
+            List.map
+                (\node ->
+                    nudgeTrackPoint
+                        node.trackPoint
+                        (getBearingForNode node)
+                        horizontal
+                        vertical
+                )
+                targetNodes
+
+        nudgedListForVisuals =
+            (case prevNode of
+                Nothing ->
+                    []
+
+                Just prev ->
+                    [ prev.trackPoint ]
+            )
+                ++ nudgedStartPoints
+                ++ unmovedEndPoint
+    in
+    addToUndoStack undoMessage model
+        |> (\m ->
+                { m
+                    | trackPoints =
+                        List.take node1 model.trackPoints
+                            ++ nudgedStartPoints
+                            ++ List.drop (nodeN + 1) model.trackPoints
+                    , nudgedNodeRoads = []
+                    , nudgedRegionStart = 0
+                    , nudgeValue = 0.0
+                    , verticalNudgeValue = 0.0
+                }
+           )
+
+
+splitRoad : Model -> Model
+splitRoad model =
+    -- Introduce additional trackpoints in all segments **between** markers.
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( startNode, endNode ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
 
         undoMessage =
-            "Nudge at " ++ String.fromInt node
-    in
-    case targetRoad of
-        Nothing ->
-            model
+            "Split between " ++ String.fromInt startNode ++ " and " ++ String.fromInt endNode
 
-        Just road ->
+        newPointsIn segment =
             let
-                nudgedTrackPoint =
-                    nudgeTrackPoint road.startsAt.trackPoint road.bearing horizontal vertical
+                trackPointsNeeded =
+                    -- Including the final one.
+                    -- Replacing this should make it easier for the multiple segment case.
+                    ceiling <| segment.length / model.maxSegmentSplitSize
             in
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                List.take node model.trackPoints
-                                    ++ [ nudgedTrackPoint ]
-                                    ++ List.drop (node + 1) model.trackPoints
-                            , nudgedNodeRoads = []
-                            , nudgeValue = 0.0
-                            , verticalNudgeValue = 0.0
-                        }
-                   )
+            List.map
+                (\i ->
+                    interpolateSegment
+                        (toFloat i / toFloat trackPointsNeeded)
+                        segment.startsAt.trackPoint
+                        segment.endsAt.trackPoint
+                )
+                (List.range 1 trackPointsNeeded)
 
+        totalTrackPointsBefore =
+            List.length model.trackPoints
 
-splitRoad : Model -> Int -> Model
-splitRoad model node =
-    let
-        targetRoad =
-            Array.get node model.roadArray
+        segmentsToInterpolate =
+            model.roads |> List.take endNode |> List.drop startNode
 
-        undoMessage =
-            "Split at " ++ String.fromInt node
+        allNewTrackPoints =
+            List.concatMap
+                newPointsIn
+                segmentsToInterpolate
+
+        precedingTrackPoints =
+            List.take (startNode + 1) model.trackPoints
+
+        subsequentTrackPoints =
+            List.drop (endNode + 1) model.trackPoints
+
+        newTrackPointList =
+            precedingTrackPoints ++ allNewTrackPoints ++ subsequentTrackPoints
+
+        makeItSo mdl =
+            { mdl
+                | trackPoints = reindexTrackpoints newTrackPointList
+                , currentNode =
+                    if mdl.currentNode == endNode then
+                        mdl.currentNode + List.length newTrackPointList - totalTrackPointsBefore
+
+                    else
+                        mdl.currentNode
+                , markedNode =
+                    Maybe.map
+                        (\v -> v + List.length newTrackPointList - totalTrackPointsBefore)
+                        model.markedNode
+            }
     in
-    case targetRoad of
-        Nothing ->
-            model
+    if startNode < endNode then
+        model |> addToUndoStack undoMessage |> makeItSo
 
-        Just road ->
-            let
-                insertedTrackPoint =
-                    interpolateSegment 0.5 road.startsAt.trackPoint road.endsAt.trackPoint
-            in
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                reindexTrackpoints <|
-                                    List.take (node + 1) model.trackPoints
-                                        ++ [ insertedTrackPoint ]
-                                        ++ List.drop (node + 1) model.trackPoints
-                        }
-                   )
+    else
+        model
 
 
 closeTheLoop : Model -> Model
@@ -1071,7 +1724,7 @@ clearTerrain model =
 insertTrackPoint : Int -> Model -> Model
 insertTrackPoint n model =
     -- Replace the current node with two close nodes that each have half the gradient change.
-    -- 'Close' being perhaps the lesser of one metre and a third segment length.
+    -- 'Close' being perhaps the lesser of one metre and half segment length.
     -- Lat and Lon to be linear interpolation.
     let
         undoMessage =
@@ -1111,11 +1764,16 @@ insertTrackPoint n model =
                     precedingTPs
                         ++ [ firstTP, secondTP ]
                         ++ remainingTPs
+
+                updateModel m =
+                    { m
+                        | trackPoints = reindexTrackpoints newTPs
+                        , currentNode = model.currentNode + 1
+                    }
             in
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m | trackPoints = reindexTrackpoints newTPs }
-                   )
+            model
+                |> addToUndoStack undoMessage
+                |> updateModel
 
         _ ->
             model
@@ -1136,14 +1794,14 @@ deleteTrackPoint n model =
 
         newTPs =
             precedingTPs ++ remainingTPs
+
+        makeItSo m =
+            { m
+                | trackPoints = reindexTrackpoints newTPs
+                , currentNode = min n (List.length newTPs - 2)
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints = reindexTrackpoints newTPs
-                    , currentNode = Just <| min n (List.length newTPs - 2)
-                }
-           )
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
 changeLoopStart : Int -> Model -> Model
@@ -1165,14 +1823,14 @@ changeLoopStart n model =
         newTPs =
             -- Make sure loop remains closed.
             remainingTPs ++ precedingTPs ++ newStart
+
+        makeItSo m =
+            { m
+                | trackPoints = reindexTrackpoints newTPs
+                , currentNode = 0
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints = reindexTrackpoints newTPs
-                    , currentNode = Just 0
-                }
-           )
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
 reverseTrack : Model -> Model
@@ -1180,21 +1838,26 @@ reverseTrack model =
     let
         undoMessage =
             "reverse track"
+
+        makeItSo m =
+            { m
+                | trackPoints = reindexTrackpoints <| List.reverse model.trackPoints
+                , currentNode = 0
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints = reindexTrackpoints <| List.reverse model.trackPoints
-                    , currentNode = Just 0
-                }
-           )
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
-straightenStraight : Int -> Int -> Model -> Model
-straightenStraight c m model =
+straightenStraight : Model -> Model
+straightenStraight model =
     let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
         ( n1, n2 ) =
-            ( min c m, max c m )
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
 
         ( firstSeg, lastSeg ) =
             ( Array.get n1 model.roadArray
@@ -1319,6 +1982,7 @@ advanceFlythrough newTime model =
                             model.flythroughSpeed
                             model.roads
             }
+                |> checkSceneCamera
 
         Nothing ->
             model
@@ -1326,33 +1990,31 @@ advanceFlythrough newTime model =
 
 resetFlythrough : Model -> Model
 resetFlythrough model =
-    case model.currentNode of
-        Just node ->
-            case Array.get node model.roadArray of
-                Just road ->
-                    { model
-                        | flythrough =
-                            Just
-                                { metresFromRouteStart = road.startDistance
-                                , running = False
-                                , cameraPosition =
-                                    Point3d.translateBy
-                                        (Vector3d.meters 0.0 0.0 eyeHeight)
-                                        road.startsAt.location
-                                , focusPoint =
-                                    Point3d.translateBy
-                                        (Vector3d.meters 0.0 0.0 eyeHeight)
-                                        road.endsAt.location
-                                , lastUpdated = model.time
-                                , segment = road
-                                }
-                    }
+    let
+        segment =
+            lookupRoad model model.currentNode
+    in
+    case segment of
+        Just seg ->
+            { model
+                | flythrough =
+                    Just
+                        { metresFromRouteStart = seg.startDistance
+                        , running = False
+                        , cameraPosition =
+                            Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 eyeHeight)
+                                seg.startsAt.location
+                        , focusPoint =
+                            Point3d.translateBy
+                                (Vector3d.meters 0.0 0.0 eyeHeight)
+                                seg.endsAt.location
+                        , lastUpdated = model.time
+                        , segment = seg
+                        }
+            }
 
-                Nothing ->
-                    -- Why no road? Something amiss.
-                    { model | flythrough = Nothing }
-
-        _ ->
+        Nothing ->
             model
 
 
@@ -1369,72 +2031,76 @@ tryBendSmoother model =
                 , nudgeValue = 0.0
                 , verticalNudgeValue = 0.0
             }
+
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( n1, n2 ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+
+        entrySegment =
+            Array.get n1 model.roadArray
+
+        exitSegment =
+            Array.get (n2 - 1) model.roadArray
     in
-    case ( model.currentNode, model.markedNode ) of
-        ( Nothing, _ ) ->
-            failed
+    if n2 >= n1 + 2 then
+        case ( entrySegment, exitSegment ) of
+            ( Just road1, Just road2 ) ->
+                let
+                    ( pa, pb ) =
+                        ( road1.startsAt.trackPoint
+                        , road1.endsAt.trackPoint
+                        )
 
-        ( _, Nothing ) ->
-            failed
+                    ( pc, pd ) =
+                        ( road2.startsAt.trackPoint
+                        , road2.endsAt.trackPoint
+                        )
 
-        ( Just c, Just m ) ->
-            let
-                ( n1, n2 ) =
-                    ( min c m, max c m )
+                    newTrack =
+                        bendIncircle model.numLineSegmentsForBend pa pb pc pd
+                in
+                case newTrack of
+                    Just track ->
+                        { model
+                            | smoothedBend = newTrack
+                            , smoothedRoads =
+                                deriveRoads <|
+                                    deriveNodes model.trackPointBox <|
+                                        track.trackPoints
+                            , nudgedNodeRoads = []
+                            , nudgeValue = 0.0
+                            , verticalNudgeValue = 0.0
+                        }
 
-                entrySegment =
-                    Array.get n1 model.roadArray
-
-                exitSegment =
-                    Array.get (n2 - 1) model.roadArray
-            in
-            if n2 >= n1 + 2 then
-                case ( entrySegment, exitSegment ) of
-                    ( Just road1, Just road2 ) ->
-                        let
-                            ( pa, pb ) =
-                                ( road1.startsAt.trackPoint
-                                , road1.endsAt.trackPoint
-                                )
-
-                            ( pc, pd ) =
-                                ( road2.startsAt.trackPoint
-                                , road2.endsAt.trackPoint
-                                )
-
-                            newTrack =
-                                bendIncircle model.numLineSegmentsForBend pa pb pc pd
-                        in
-                        case ( newTrack, model.trackPointBox ) of
-                            ( Just track, Just box ) ->
-                                { model
-                                    | smoothedBend = newTrack
-                                    , smoothedRoads =
-                                        deriveRoads <|
-                                            deriveNodes box <|
-                                                track.trackPoints
-                                    , nudgedNodeRoads = []
-                                    , nudgeValue = 0.0
-                                    , verticalNudgeValue = 0.0
-                                }
-
-                            _ ->
-                                failed
-
-                    _ ->
+                    Nothing ->
                         failed
 
-            else
+            _ ->
                 failed
 
+    else
+        failed
 
-smoothGradient : Model -> Int -> Int -> Float -> Model
-smoothGradient model start finish gradient =
+
+smoothGradient : Model -> Float -> Model
+smoothGradient model gradient =
     -- This feels like a simple foldl, creating a new list of TrackPoints
     -- which we then splice into the model.
     -- It's a fold because we must keep track of the current elevation
     -- which will increase with each segment.
     let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( start, finish ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+
         segments =
             model.roads |> List.take (finish - 1) |> List.drop start
 
@@ -1517,7 +2183,7 @@ smoothBend model =
     -- so we need only splice them in.
     let
         undoMessage bend =
-            "bend smoothing from "
+            "bend smoothing\nfrom "
                 ++ String.fromInt bend.startIndex
                 ++ " to "
                 ++ String.fromInt bend.endIndex
@@ -1525,51 +2191,48 @@ smoothBend model =
                 ++ showDecimal2 bend.radius
                 ++ " metres."
 
-        ( current, marker ) =
-            ( model.currentNode, model.markedNode )
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
     in
-    case ( model.smoothedBend, current, marker ) of
-        ( Just bend, Just curr, Just mark ) ->
+    case model.smoothedBend of
+        Just bend ->
             let
                 numCurrentPoints =
-                    abs (curr - mark)
+                    abs (model.currentNode - marker)
 
                 numNewPoints =
                     List.length bend.trackPoints
 
                 newCurrent =
-                    if curr > bend.startIndex then
-                        curr - numCurrentPoints + numNewPoints - 2
+                    if model.currentNode > bend.startIndex then
+                        model.currentNode - numCurrentPoints + numNewPoints
 
                     else
-                        curr
+                        model.currentNode
 
                 newMark =
-                    if mark > bend.startIndex then
-                        mark - numCurrentPoints + numNewPoints - 2
+                    if marker > bend.startIndex then
+                        marker - numCurrentPoints + numNewPoints
 
                     else
-                        mark
+                        marker
 
-                -- Why?
+                makeItSo m =
+                    { m
+                        | trackPoints =
+                            reindexTrackpoints <|
+                                List.take bend.startIndex m.trackPoints
+                                    ++ bend.trackPoints
+                                    ++ List.drop bend.endIndex m.trackPoints
+                        , smoothedBend = Nothing
+                        , smoothedRoads = []
+                        , currentNode = newCurrent
+                        , markedNode = Just newMark
+                    }
             in
-            addToUndoStack (undoMessage bend) model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                reindexTrackpoints <|
-                                    List.take bend.startIndex m.trackPoints
-                                        ++ bend.trackPoints
-                                        ++ List.drop bend.endIndex m.trackPoints
-                            , smoothedBend = Nothing
-                            , smoothedRoads = []
-                            , currentNode = Just newCurrent
-                            , markedNode = Nothing
-                        }
-                   )
+            model |> addToUndoStack (undoMessage bend) |> makeItSo
 
         _ ->
-            -- shouldn't happen
             model
 
 
@@ -1646,25 +2309,31 @@ deriveNodesAndRoads model =
             Point3d.meters tp.lon tp.lat tp.ele
 
         withNodes m =
-            case m.trackPointBox of
-                Just box ->
-                    { m | nodes = deriveNodes box m.trackPoints }
-
-                Nothing ->
-                    m
+            { m | nodes = deriveNodes m.trackPointBox m.trackPoints }
 
         withTrackPointScaling m =
             { m
                 | trackPointBox =
-                    BoundingBox3d.hullN <|
-                        List.map trackPointAsPoint m.trackPoints
+                    -- This is a good reason for the bbox to be a Maybe B~
+                    case m.trackPoints of
+                        tp1 :: tps ->
+                            BoundingBox3d.hull
+                                (trackPointAsPoint tp1)
+                                (List.map trackPointAsPoint tps)
+
+                        _ ->
+                            BoundingBox3d.singleton Point3d.origin
             }
 
         withNodeScaling m =
             { m
                 | nodeBox =
-                    BoundingBox3d.hullN <|
-                        List.map .location m.nodes
+                    case m.nodes of
+                        node1 :: nodes ->
+                            BoundingBox3d.hull node1.location <| List.map .location nodes
+
+                        _ ->
+                            BoundingBox3d.singleton Point3d.origin
             }
 
         withRoads m =
@@ -1689,7 +2358,6 @@ deriveNodesAndRoads model =
         |> withTrackPointScaling
         |> withNodes
         |> withNodeScaling
-        |> withNodeScaling
         |> withRoads
         |> withSummary
         |> withArrays
@@ -1698,19 +2366,28 @@ deriveNodesAndRoads model =
 resetViewSettings : Model -> Model
 resetViewSettings model =
     let
-        routeSize =
-            Maybe.map BoundingBox3d.dimensions model.nodeBox
+        ( x, y, z ) =
+            BoundingBox3d.dimensions model.nodeBox
+
+        focus =
+            BoundingBox3d.centerPoint model.nodeBox
 
         zoomLevel =
-            case routeSize of
-                Just ( x, y, _ ) ->
-                    -- Empirical!
-                    clamp 1.0 4.0 <|
-                        5.0
-                            - logBase 10 (max (Length.inMeters x) (Length.inMeters y))
+            -- Empirical!
+            clamp 1.0 4.0 <|
+                5.0
+                    - logBase 10 (max (Length.inMeters x) (Length.inMeters y))
 
-                Nothing ->
-                    1.0
+        newMapInfo : BoundingBox3d Length.Meters GPXCoords -> MapInfo -> MapInfo
+        newMapInfo box info =
+            -- If route has changed, make sure mapinfo is up to date.
+            { info
+                | box = box
+                , points = model.trackPoints
+                , centreLat = Length.inMeters <| BoundingBox3d.midY box
+                , centreLon = Length.inMeters <| BoundingBox3d.midX box
+                , mapZoom = 12.0 -- TODO: Adjust for bounding box dimensions.
+            }
     in
     { model
         | zoomLevelOverview = zoomLevel
@@ -1720,18 +2397,36 @@ resetViewSettings model =
         , zoomLevelPlan = zoomLevel
         , azimuth = Angle.degrees 0.0
         , elevation = Angle.degrees 30.0
-        , currentNode = Just 0
+        , currentNode = 0
         , markedNode = Nothing
         , flythrough = Nothing
         , undoStack = []
         , redoStack = []
+        , mapInfo = Maybe.map (newMapInfo model.trackPointBox) model.mapInfo
+        , cameraFocusThirdPerson = focus
+        , cameraFocusProfileNode = 0
+    }
+        |> checkSceneCamera
 
-        --, viewingMode =
-        --    if List.length model.trackPoints == 0 then
-        --        InputErrorView
-        --
-        --    else
-        --        model.viewingMode
+
+checkSceneCamera model =
+    { model
+        | currentSceneCamera =
+            case model.viewingMode of
+                FirstPersonView ->
+                    firstPersonCamera model
+
+                ThirdPersonView ->
+                    thirdPersonCamera model
+
+                ProfileView ->
+                    profileCamera model
+
+                PlanView ->
+                    planCamera model
+
+                _ ->
+                    Nothing
     }
 
 
@@ -1862,53 +2557,72 @@ trackPointGap t1 t2 =
 deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
-    case model.nodeBox of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = lookupRoad model model.currentNode
-                    , markedNode = lookupRoad model model.markedNode
-                    , nodeBox = scale
-                    , viewingMode = model.viewingMode
-                    , smoothedBend = model.smoothedRoads
-                    , horizontalNudge = model.nudgeValue
-                    , verticalNudge = model.verticalNudgeValue
-                    }
-            in
-            { model
-                | staticVisualEntities = makeStatic3DEntities context model.roads
-                , staticProfileEntities = makeStaticProfileEntities context model.roads
-                , mapStaticEntities = makeStaticMapEntities context model.roads
-            }
+    let
+        newMapInfo =
+            Maybe.map updateMapInfo model.mapInfo
 
-        Nothing ->
-            model
+        updateMapInfo info =
+            { info | points = model.trackPoints }
+
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        context =
+            { displayOptions = model.displayOptions
+            , currentNode = Array.get model.currentNode model.nodeArray
+            , markedNode =
+                case model.markedNode of
+                    Just n ->
+                        Array.get n model.nodeArray
+
+                    Nothing ->
+                        Nothing
+            , nodeBox = model.nodeBox
+            , viewingMode = model.viewingMode
+            , smoothedBend = model.smoothedRoads
+            , horizontalNudge = model.nudgeValue
+            , verticalNudge = model.verticalNudgeValue
+            , nudgedRoads = model.nudgedNodeRoads
+            , nudgedRegionStart = Just model.nudgedRegionStart
+            }
+    in
+    { model
+        | staticVisualEntities = makeStatic3DEntities context model.roads
+        , staticProfileEntities = makeStaticProfileEntities context model.roads
+        , mapVisualEntities = makeMapEntities context model.roads
+        , mapInfo = newMapInfo
+    }
 
 
 deriveTerrain : Model -> Model
 deriveTerrain model =
     -- Terrain building is O(n^2). Not to be undertaken lightly.
-    case model.nodeBox of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = lookupRoad model model.currentNode
-                    , markedNode = lookupRoad model model.markedNode
-                    , nodeBox = scale
-                    , viewingMode = model.viewingMode
-                    , smoothedBend = model.smoothedRoads
-                    , horizontalNudge = model.nudgeValue
-                    , verticalNudge = model.verticalNudgeValue
-                    }
-            in
-            { model
-                | terrainEntities = makeTerrain context model.roads
-            }
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
 
-        Nothing ->
-            model
+        context =
+            { displayOptions = model.displayOptions
+            , currentNode = Array.get model.currentNode model.nodeArray
+            , markedNode =
+                case model.markedNode of
+                    Just n ->
+                        Array.get n model.nodeArray
+
+                    Nothing ->
+                        Nothing
+            , nodeBox = model.nodeBox
+            , viewingMode = model.viewingMode
+            , smoothedBend = model.smoothedRoads
+            , horizontalNudge = model.nudgeValue
+            , verticalNudge = model.verticalNudgeValue
+            , nudgedRoads = model.nudgedNodeRoads
+            , nudgedRegionStart = Just model.nudgedRegionStart
+            }
+    in
+    { model
+        | terrainEntities = makeTerrain context model.roads
+    }
 
 
 deriveVaryingVisualEntities : Model -> Model
@@ -1919,39 +2633,62 @@ deriveVaryingVisualEntities model =
         currentRoad =
             lookupRoad model model.currentNode
 
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
         markedRoad =
-            lookupRoad model model.markedNode
-    in
-    case model.nodeBox of
-        Just scale ->
-            let
-                context =
-                    { displayOptions = model.displayOptions
-                    , currentNode = currentRoad
-                    , markedNode = markedRoad
-                    , nodeBox = scale
-                    , viewingMode = model.viewingMode
-                    , smoothedBend =
-                        --TODO: Cheeky. Not clever way to make nudge visible.
-                        model.smoothedRoads
-                            ++ model.nudgedNodeRoads
-                    , horizontalNudge = model.nudgeValue
-                    , verticalNudge = model.verticalNudgeValue
-                    }
-            in
-            { model
-                | varyingVisualEntities =
-                    makeVaryingVisualEntities
-                        context
-                        model.roadArray
-                , varyingProfileEntities =
-                    makeVaryingProfileEntities
-                        context
-                        model.roads
+            lookupRoad model marker
+
+        context =
+            { displayOptions = model.displayOptions
+            , currentNode = Array.get model.currentNode model.nodeArray
+            , markedNode =
+                case model.markedNode of
+                    Just n ->
+                        Array.get n model.nodeArray
+
+                    Nothing ->
+                        Nothing
+            , nodeBox = model.nodeBox
+            , viewingMode = model.viewingMode
+            , smoothedBend = model.smoothedRoads
+            , nudgedRoads = model.nudgedNodeRoads
+            , nudgedRegionStart = Just model.nudgedRegionStart
+            , horizontalNudge = model.nudgeValue
+            , verticalNudge = model.verticalNudgeValue
             }
 
-        Nothing ->
-            model
+        profileContext =
+            { context
+                | currentNode =
+                    if model.currentNode < Array.length model.roadArray then
+                        Maybe.map .profileStartsAt <| Array.get model.currentNode model.roadArray
+
+                    else
+                        Maybe.map .profileEndsAt <| Array.get (Array.length model.roadArray - 1) model.roadArray
+                , markedNode =
+                    case model.markedNode of
+                        Just n ->
+                            if n < Array.length model.roadArray then
+                                Maybe.map .profileStartsAt <| Array.get n model.roadArray
+
+                            else
+                                Maybe.map .profileEndsAt <| Array.get (Array.length model.roadArray - 1) model.roadArray
+
+                        Nothing ->
+                            Nothing
+            }
+    in
+    { model
+        | varyingVisualEntities =
+            makeVaryingVisualEntities
+                context
+                model.roadArray
+        , varyingProfileEntities =
+            makeVaryingProfileEntities
+                profileContext
+                model.roads
+    }
 
 
 viewGenericNew : Model -> Browser.Document Msg
@@ -1960,17 +2697,19 @@ viewGenericNew model =
     , body =
         [ layout
             [ width fill
-            , padding 20
-            , spacing 20
+            , padding 10
+            , spacing 10
+            , Font.size 16
+            , height fill
             ]
           <|
             column
-                [ width fill ]
-                [ row [ centerX, spaceEvenly, spacing 20, padding 10 ]
+                []
+                [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
                     [ loadButton
                     , case model.filename of
                         Just name ->
-                            column []
+                            column [ Font.size 14 ]
                                 [ displayName model.trackName
                                 , text <| "Filename: " ++ name
                                 ]
@@ -1979,36 +2718,26 @@ viewGenericNew model =
                             none
                     , saveButtonIfChanged model
                     ]
-                , row
-                    [ alignLeft
-                    , alignTop
-                    , moveRight 100
-                    ]
+                , row [ alignLeft, moveRight 200 ]
                     [ viewModeChoices model
                     ]
-                , case ( model.gpx, model.nodeBox ) of
-                    ( _, Just scale ) ->
-                        row
-                            [ alignLeft
-                            , alignTop
-                            , width fill
-                            , behindContent <|
-                                el
-                                    -- Map control needs to be reliably present in the DOM.
-                                    [ width (px 800)
-                                    , height (px 500)
-                                    , alignTop
-                                    , alignLeft
-                                    , moveRight 80
-                                    , htmlAttribute (id "map")
-                                    ]
-                                    (text "map")
-                            ]
-                            [ view3D scale model
-                            , accordionView (updatedAccordion model) AccordionMessage
+                , case ( model.gpx, model.trackPoints ) of
+                    ( _, tp1 :: _ ) ->
+                        -- Must have at least one track point.
+                        row [ alignLeft, alignTop ]
+                            [ view3D model.nodeBox model
+                            , column
+                                [ width fill, spacing 20, alignTop ]
+                                [ accordionView
+                                    (updatedAccordion model model.toolsAccordion toolsAccordion)
+                                    AccordionMessage
+                                , accordionView
+                                    (updatedAccordion model model.infoAccordion infoAccordion)
+                                    AccordionMessage
+                                ]
                             ]
 
-                    ( Just _, Nothing ) ->
+                    ( Just _, [] ) ->
                         viewInputError model
 
                     _ ->
@@ -2046,7 +2775,8 @@ viewModeChoices model =
             [ Input.optionWith ThirdPersonView <| radioButton First "Third person"
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
-            , Input.optionWith PlanView <| radioButton Mid "Plan"
+
+            --, Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith MapView <| radioButton Mid "Map"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
@@ -2055,13 +2785,13 @@ viewModeChoices model =
 
 view3D : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
 view3D scale model =
-    el [ alignTop,  width <| fillPortion 3 ] <|
+    el [ alignTop, alignLeft ] <|
         case model.viewingMode of
             FirstPersonView ->
-                viewFirstPerson scale model
+                viewFirstPerson model
 
             ThirdPersonView ->
-                viewThirdPerson scale model
+                viewThirdPerson model
 
             ProfileView ->
                 viewProfileView model
@@ -2070,14 +2800,21 @@ view3D scale model =
                 viewAboutText
 
             InputErrorView ->
-                --TODO: Some errors would be nice.
                 viewInputError model
 
             PlanView ->
-                viewPlanView scale model
+                viewPlanView model
 
             MapView ->
-                viewMapView scale model
+                -- We merely create the placeholder, the work is done by messages through the map port.
+                el
+                    [ width <| px <| truncate view3dWidth
+                    , height <| px <| truncate view3dHeight
+                    , alignLeft
+                    , alignTop
+                    , htmlAttribute (id "map")
+                    ]
+                    none
 
 
 viewInputError : Model -> Element Msg
@@ -2092,8 +2829,8 @@ viewInputError model =
         , scrollbarY
         ]
         [ el
-            [ width <| px 800
-            , height <| maximum 600 fill
+            [ width <| px <| truncate view3dWidth
+            , height <| maximum (truncate view3dHeight) fill
             ]
           <|
             if List.length model.trackPoints == 0 then
@@ -2153,9 +2890,9 @@ viewGradientChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20, centerX ]
+    column [ spacing 10, padding 20 ]
         [ gradientChangeThresholdSlider model
-        , wrappedRow [ width <| px 300 ] <|
+        , wrappedRow [ width fill, centerX ] <|
             List.map linkButton model.abruptGradientChanges
         ]
 
@@ -2172,16 +2909,16 @@ viewBearingChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20, centerX ]
+    column [ spacing 10, padding 20 ]
         [ bearingChangeThresholdSlider model
-        , wrappedRow [ width <| px 300 ] <|
+        , wrappedRow [ width fill, centerX ] <|
             List.map linkButton model.abruptBearingChanges
         ]
 
 
 buttonHighlightCurrent : Int -> Model -> List (Attribute msg)
 buttonHighlightCurrent index model =
-    if Just index == model.currentNode then
+    if index == model.currentNode then
         [ Background.color <| rgb255 114 159 207, alignRight ]
 
     else
@@ -2195,6 +2932,7 @@ viewOptions model =
         , alignTop
         , spacing 10
         , centerX
+        , Font.size 14
         ]
         [ if model.terrainEntities == [] then
             button prettyButtonStyles
@@ -2211,34 +2949,39 @@ minutes and will be lost if I make changes)"""
                 }
         , paragraph
             [ padding 10
-            , Font.size 24
             ]
           <|
             [ text "Select view elements" ]
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleRoad
-            , icon = checkboxIcon
-            , checked = model.displayOptions.roadTrack
-            , label = Input.labelRight [] (text "Road surface")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = TogglePillars
-            , icon = checkboxIcon
-            , checked = model.displayOptions.roadPillars
-            , label = Input.labelRight [] (text "Road support pillars")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleCones
-            , icon = checkboxIcon
-            , checked = model.displayOptions.roadCones
-            , label = Input.labelRight [] (text "Trackpoint cones")
-            }
-        , Input.checkbox [ Font.size 18 ]
-            { onChange = ToggleCentreLine
-            , icon = checkboxIcon
-            , checked = model.displayOptions.centreLine
-            , label = Input.labelRight [] (text "Centre line")
-            }
+        , row []
+            [ column []
+                [ Input.checkbox []
+                    { onChange = ToggleRoad
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.roadTrack
+                    , label = Input.labelRight [ centerY ] (text "Road surface")
+                    }
+                , Input.checkbox []
+                    { onChange = ToggleCentreLine
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.centreLine
+                    , label = Input.labelRight [ centerY ] (text "Centre line")
+                    }
+                ]
+            , column []
+                [ Input.checkbox []
+                    { onChange = TogglePillars
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.roadPillars
+                    , label = Input.labelRight [ centerY ] (text "Road support pillars")
+                    }
+                , Input.checkbox []
+                    { onChange = ToggleCones
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.roadCones
+                    , label = Input.labelRight [ centerY ] (text "Trackpoint cones")
+                    }
+                ]
+            ]
         , Input.radioRow
             [ Border.rounded 6
             , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
@@ -2311,44 +3054,7 @@ bendSmoothnessSlider model =
         }
 
 
-viewPointCloud : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewPointCloud scale model =
-    let
-        camera =
-            Camera3d.perspective
-                { viewpoint =
-                    Viewpoint3d.orbitZ
-                        { focalPoint = Point3d.meters 0.0 0.0 0.0
-                        , azimuth = model.azimuth
-                        , elevation = model.elevation
-                        , distance = Length.meters <| distanceFromZoom model.zoomLevelOverview
-                        }
-                , verticalFieldOfView = Angle.degrees 30
-                }
-    in
-    row [ alignTop, width fill ]
-        [ zoomSlider model.zoomLevelOverview ZoomLevelOverview
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters 1.0 -- * scale.metresToClipSpace)
-                    , entities =
-                        model.varyingVisualEntities
-                            ++ model.staticVisualEntities
-                            ++ model.terrainEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
-
-
-updatedAccordion model =
+updatedAccordion model currentAccordion referenceAccordion =
     -- We have to reapply the accordion update functions with the current model,
     let
         blendAccordionStatus currentAccordionState refreshedContent =
@@ -2356,8 +3062,8 @@ updatedAccordion model =
     in
     List.map2
         blendAccordionStatus
-        model.accordion
-        (accordionTabs model)
+        currentAccordion
+        (referenceAccordion model)
 
 
 overviewSummary model =
@@ -2419,16 +3125,16 @@ viewLoopTools model =
                 }
     in
     el [ spacing 10, padding 20, centerX ] <|
-        case ( model.loopiness, model.currentNode ) of
-            ( IsALoop, Just c ) ->
+        case model.loopiness of
+            IsALoop ->
                 column [ spacing 10 ]
                     [ text "This track is a loop."
-                    , changeStartButton c
+                    , changeStartButton model.currentNode
                     , reverseButton
                     , undoButton model
                     ]
 
-            ( AlmostLoop gap, _ ) ->
+            AlmostLoop gap ->
                 column [ spacing 10 ]
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
@@ -2436,22 +3142,24 @@ viewLoopTools model =
                     , undoButton model
                     ]
 
-            ( NotALoop gap, Just c ) ->
+            NotALoop gap ->
                 column [ spacing 10 ]
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
                     , reverseButton
                     , undoButton model
                     ]
-
-            _ ->
-                text "Unable to determine current node."
 
 
 positionControls model =
     let
-        font =
-            Font.family [ Font.typeface "Courier", Font.monospace ]
+        forwards =
+            FeatherIcons.skipForward
+                |> FeatherIcons.toHtml []
+
+        backwards =
+            FeatherIcons.skipBack
+                |> FeatherIcons.toHtml []
     in
     row
         [ spacing 5
@@ -2461,28 +3169,28 @@ positionControls model =
         ]
         [ positionSlider model
         , button
-            (font :: prettyButtonStyles)
+            prettyButtonStyles
             { onPress = Just PositionBackOne
-            , label = text "<<"
+            , label = html backwards
             }
         , button
-            (font :: prettyButtonStyles)
+            prettyButtonStyles
             { onPress = Just PositionForwardOne
-            , label = text ">>"
+            , label = html forwards
             }
         ]
 
 
 positionSlider model =
     Input.slider
-        [ height <| px 80
-        , width <| px 500
+        [ height <| px 20
+        , width <| px 300
         , centerY
         , behindContent <|
             -- Slider track
             el
-                [ width <| px 500
-                , height <| px 30
+                [ width <| px 300
+                , height <| px 20
                 , centerY
                 , centerX
                 , Background.color <| rgb255 114 159 207
@@ -2496,30 +3204,36 @@ positionSlider model =
         , min = 1.0
         , max = toFloat <| List.length model.roads - 1
         , step = Just 1
-        , value = toFloat <| Maybe.withDefault 0 model.currentNode
+        , value = toFloat model.currentNode
         , thumb = Input.defaultThumb
         }
 
 
-viewFirstPerson scale model =
-    case lookupRoad model model.currentNode of
-        Nothing ->
-            text "We don't seem to have a current position. That's weird."
-
-        Just road ->
-            row [ alignTop ]
-                [ column
-                    [ alignTop
-                    ]
-                    [ viewRoadSegment scale model road
-                    , positionControls model
-                    ]
-                ]
+viewFirstPerson model =
+    row [ alignTop ]
+        [ column
+            [ alignTop
+            ]
+            [ viewRoadSegment model
+            ]
+        ]
 
 
 flythroughControls : Model -> Element Msg
 flythroughControls model =
     let
+        reset =
+            FeatherIcons.rewind
+                |> FeatherIcons.toHtml []
+
+        play =
+            FeatherIcons.play
+                |> FeatherIcons.toHtml []
+
+        pause =
+            FeatherIcons.pause
+                |> FeatherIcons.toHtml []
+
         flythroughSpeedSlider =
             Input.slider
                 commonShortHorizontalSliderStyles
@@ -2540,28 +3254,25 @@ flythroughControls model =
                 , thumb = Input.defaultThumb
                 }
 
-        font =
-            Font.family [ Font.typeface "Courier", Font.monospace ]
-
         resetButton =
             button
                 prettyButtonStyles
                 { onPress = Just ResetFlythrough
-                , label = el [ Font.size 16, font ] <| text "|<"
+                , label = html reset
                 }
 
         playButton =
             button
                 prettyButtonStyles
                 { onPress = Just (RunFlythrough True)
-                , label = el [ Font.size 16, font ] <| text "|>"
+                , label = html play
                 }
 
         pauseButton =
             button
                 prettyButtonStyles
                 { onPress = Just (RunFlythrough False)
-                , label = el [ Font.size 16, font ] <| text "||"
+                , label = html pause
                 }
 
         playPauseButton =
@@ -2576,22 +3287,23 @@ flythroughControls model =
                     else
                         playButton
     in
-    column [ padding 10, spacing 10, alignTop, alignLeft ]
+    column [ padding 10, spacing 10, centerX ]
         [ row [ padding 10, spacing 10, centerX ]
             [ resetButton
             , playPauseButton
             , flythroughSpeedSlider
             ]
+        , positionControls model
         , case model.flythrough of
-            Just fly ->
-                row [ padding 20, centerX ]
+            Just flythrough ->
+                row [ spacing 10 ]
                     [ column [ spacing 10 ]
                         [ text "Segment "
-                        , text "Distance from start "
+                        , text "Metres from start "
                         ]
                     , column [ spacing 10 ]
-                        [ text <| String.fromInt fly.segment.index
-                        , text <| showDecimal2 fly.metresFromRouteStart
+                        [ text <| String.fromInt flythrough.segment.index
+                        , text <| showDecimal2 flythrough.metresFromRouteStart
                         ]
                     ]
 
@@ -2600,10 +3312,10 @@ flythroughControls model =
         ]
 
 
-viewRoadSegment : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingRoad -> Element Msg
-viewRoadSegment _ model road =
+firstPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+firstPersonCamera model =
     let
-        eyePoint =
+        eyePoint road =
             case model.flythrough of
                 Nothing ->
                     Point3d.translateBy
@@ -2613,11 +3325,11 @@ viewRoadSegment _ model road =
                 Just flying ->
                     flying.cameraPosition
 
-        cameraViewpoint =
+        cameraViewpoint road =
             case model.flythrough of
                 Nothing ->
                     Viewpoint3d.lookAt
-                        { eyePoint = eyePoint
+                        { eyePoint = eyePoint road
                         , focalPoint =
                             Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 eyeHeight)
@@ -2627,43 +3339,59 @@ viewRoadSegment _ model road =
 
                 Just flying ->
                     Viewpoint3d.lookAt
-                        { eyePoint = eyePoint
+                        { eyePoint = eyePoint road
                         , focalPoint = flying.focusPoint
                         , upDirection = Direction3d.positiveZ
                         }
 
-        camera =
-            Camera3d.perspective
-                { viewpoint = cameraViewpoint
-                , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
-                }
+        cappedNodeNumber =
+            min model.currentNode (List.length model.nodes - 2)
     in
-    row []
-        [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters 1.0
-                    , entities =
-                        model.varyingVisualEntities
-                            ++ model.staticVisualEntities
-                            ++ model.terrainEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
+    case Array.get cappedNodeNumber model.roadArray of
+        Just road ->
+            Just <|
+                Camera3d.perspective
+                    { viewpoint = cameraViewpoint road
+                    , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
                     }
-        ]
+
+        Nothing ->
+            Nothing
 
 
-viewThirdPerson : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewThirdPerson scale model =
+viewRoadSegment : Model -> Element Msg
+viewRoadSegment model =
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
+                , el
+                    withMouseCapture
+                  <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = view3dDimensions
+                            , background = Scene3d.backgroundColor Color.lightBlue
+                            , clipDepth = Length.meters 1.0
+                            , entities =
+                                model.varyingVisualEntities
+                                    ++ model.staticVisualEntities
+                                    ++ model.terrainEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
+
+
+viewThirdPerson : Model -> Element Msg
+viewThirdPerson model =
     -- Let's the user spin around and zoom in on selected road point.
-    case lookupRoad model model.currentNode of
+    case Array.get model.currentNode model.nodeArray of
         Nothing ->
             none
 
@@ -2672,15 +3400,16 @@ viewThirdPerson scale model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNode scale model node.startsAt
-                    , positionControls model
+                    [ viewCurrentNode model
+
+                    --, positionControls model
                     ]
                 ]
 
 
-viewPlanView : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewPlanView scale model =
-    case lookupRoad model model.currentNode of
+viewPlanView : Model -> Element Msg
+viewPlanView model =
+    case Array.get model.currentNode model.nodeArray of
         Nothing ->
             none
 
@@ -2689,67 +3418,39 @@ viewPlanView scale model =
                 [ column
                     [ alignTop
                     ]
-                    [ viewCurrentNodePlanView scale model node.startsAt
-                    , positionControls model
+                    [ viewCurrentNodePlanView model node
+
+                    --, positionControls model
                     ]
                 ]
-
-
-viewMapView : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewMapView scale model =
-    -- Since the map div already sits behind our display, we just need something
-    -- here of the same size to position the other controls properly.
-    case lookupRoad model model.currentNode of
-        Nothing ->
-            none
-
-        Just node ->
-            none
-
-
-
---el [ width (px 880), height (px 500), transparent False ] none
-
-
-viewMapInfo : Model -> Element Msg
-viewMapInfo model =
-    row []
-        [ column [ spacing 5, padding 5 ]
-            [ text "Longitude "
-            , text "Latitude"
-            , text "Zoom level"
-            ]
-        , column [ spacing 5, padding 5 ]
-            [ text <| showDecimal2 model.mapCentre.lon
-            , text <| showDecimal2 model.mapCentre.lat
-            , text <| showDecimal2 model.mapZoom
-            ]
-        ]
 
 
 viewProfileView : Model -> Element Msg
 viewProfileView model =
     -- Let's the user spin around and zoom in on selected road point.
     let
-        getRoad =
-            case model.currentNode of
-                Just n ->
-                    model.roads |> List.drop n |> List.head
+        getNode =
+            -- Sadly, only roads have the profile locations, so we need to finesse the last node.
+            if model.currentNode < Array.length model.roadArray then
+                Maybe.map .profileStartsAt <|
+                    Array.get model.currentNode model.roadArray
 
-                Nothing ->
-                    Nothing
+            else
+                Maybe.map .profileEndsAt <|
+                    Array.get (Array.length model.roadArray - 1) model.roadArray
     in
-    case getRoad of
+    case getNode of
         Nothing ->
             none
 
-        Just road ->
+        Just node ->
             row [ alignTop ]
                 [ column
                     [ alignTop
                     ]
-                    [ viewRouteProfile model road
-                    , positionControls model
+                    [ viewRouteProfile model node
+
+                    --, positionControls model
                     ]
                 ]
 
@@ -2769,30 +3470,32 @@ viewBendFixerPane model =
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ markerButton model
-        , case ( model.currentNode, model.smoothedBend ) of
-            ( Just _, Just smooth ) ->
+        , case model.smoothedBend of
+            Just smooth ->
                 column [ spacing 10, padding 10, alignTop ]
                     [ fixBendButton smooth
                     , bendSmoothnessSlider model
                     ]
 
-            _ ->
-                none
+            Nothing ->
+                text "Sorry, failed to find a nice bend."
         , undoButton model
-        , viewBearingChanges model
         ]
 
 
 viewStraightenTools : Model -> Element Msg
 viewStraightenTools model =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+    in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ markerButton model
-        , case ( model.currentNode, model.markedNode ) of
-            ( Just c, Just m ) ->
-                straightenButton c m
+        , if model.currentNode /= marker then
+            straightenButton
 
-            _ ->
-                none
+          else
+            none
         , undoButton model
         ]
 
@@ -2800,23 +3503,27 @@ viewStraightenTools model =
 viewNudgeTools : Model -> Element Msg
 viewNudgeTools model =
     --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
-    case model.currentNode of
-        Just c ->
-            column [ padding 5, spacing 10, centerX ]
-                [ row [ spacing 10, centerX ]
-                    [ verticalNudgeSlider c model.verticalNudgeValue
-                    , horizontalNudgeSlider c model.nudgeValue
-                    ]
-                , nudgeButton c model.nudgeValue model.verticalNudgeValue
-                , undoButton model
-                ]
-
-        Nothing ->
-            none
+    column [ padding 5, spacing 10, centerX ]
+        [ markerButton model
+        , row [ spacing 10, centerX ]
+            [ verticalNudgeSlider model.verticalNudgeValue
+            , horizontalNudgeSlider model.nudgeValue
+            ]
+        , nudgeButton model.nudgeValue model.verticalNudgeValue
+        , undoButton model
+        ]
 
 
 markerButton model =
     let
+        forward =
+            FeatherIcons.skipForward
+                |> FeatherIcons.toHtml []
+
+        back =
+            FeatherIcons.skipBack
+                |> FeatherIcons.toHtml []
+
         makeButton label =
             button
                 prettyButtonStyles
@@ -2831,13 +3538,13 @@ markerButton model =
                 [ button
                     prettyButtonStyles
                     { onPress = Just MarkerBackOne
-                    , label = text "<|"
+                    , label = html back
                     }
                 , makeButton "Clear marker"
                 , button
                     prettyButtonStyles
                     { onPress = Just MarkerForwardOne
-                    , label = text "|>"
+                    , label = html forward
                     }
                 ]
 
@@ -2846,7 +3553,7 @@ markerButton model =
 
 
 undoButton model =
-    column [ spacing 5 ]
+    row [ spacing 5, Border.width 1, Border.rounded 5 ]
         [ button
             prettyButtonStyles
             { onPress =
@@ -2887,38 +3594,32 @@ undoButton model =
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
     let
+        markedNode =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        start =
+            min model.currentNode markedNode
+
+        finish =
+            max model.currentNode markedNode
+
+        avg =
+            averageGradient model start finish
+
         gradientSmoothControls =
-            case ( model.currentNode, model.markedNode ) of
-                ( Just c, Just m ) ->
-                    let
-                        start =
-                            min c m
-
-                        finish =
-                            max c m
-
-                        avg =
-                            averageGradient model start finish
-                    in
-                    case avg of
-                        Just gradient ->
-                            column [ Border.width 1, spacing 5, padding 5 ]
-                                [ button
-                                    prettyButtonStyles
-                                    { onPress = Just <| SmoothGradient start finish gradient
-                                    , label =
-                                        text <|
-                                            "Smooth between markers\nAverage gradient "
-                                                ++ showDecimal2 gradient
-                                    }
-                                , smoothnessSlider model
-                                ]
-
-                        _ ->
-                            none
-
-                ( Just c, Nothing ) ->
-                    insertNodeOptionsBox c
+            case avg of
+                Just gradient ->
+                    column [ Border.width 1, spacing 5, padding 5 ]
+                        [ button
+                            prettyButtonStyles
+                            { onPress = Just <| SmoothGradient gradient
+                            , label =
+                                text <|
+                                    "Smooth between markers\nAverage gradient "
+                                        ++ showDecimal2 gradient
+                            }
+                        , smoothnessSlider model
+                        ]
 
                 _ ->
                     none
@@ -2927,41 +3628,32 @@ viewGradientFixerPane model =
         [ markerButton model
         , gradientSmoothControls
         , undoButton model
-        , viewGradientChanges model
         ]
 
 
 viewTrackPointTools model =
-    case model.currentNode of
-        Just c ->
-            column [ spacing 10, centerX ] <|
-                [ insertNodeOptionsBox c
-                , splitButton c
-                , deleteNodeButton c
-                , undoButton model
-                ]
-
-        Nothing ->
-            text "Odd. There's no current node."
+    column [ spacing 10, centerX ] <|
+        [ insertNodeOptionsBox model.currentNode
+        , markerButton model
+        , splitSegmentOptions model.currentNode model.maxSegmentSplitSize
+        , deleteNodeButton model.currentNode
+        , undoButton model
+        ]
 
 
 insertNodeOptionsBox c =
-    column
-        [ spacing 10
-        , padding 5
-        ]
-        [ row [ spacing 10 ]
-            [ button
-                prettyButtonStyles
-                { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
-                , label = text "Insert a node\nafter this one"
-                }
-            , button
-                prettyButtonStyles
-                { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
-                , label = text "Insert a node\nbefore this one"
-                }
-            ]
+    row [ spacing 10 ]
+        [ button
+            prettyButtonStyles
+            { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
+            , label = text "Put two trackpoints in\nplace of this one"
+            }
+
+        --, button
+        --    prettyButtonStyles
+        --    { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
+        --    , label = text "Insert a node\nbefore this one"
+        --    }
         ]
 
 
@@ -2983,123 +3675,134 @@ smoothnessSlider model =
         }
 
 
-lookupRoad : Model -> Maybe Int -> Maybe DrawingRoad
+lookupRoad : Model -> Int -> Maybe DrawingRoad
 lookupRoad model idx =
-    -- Have I not written this already?
-    case idx of
-        Just i ->
-            Array.get i model.roadArray
-
-        _ ->
-            Nothing
+    Array.get idx model.roadArray
 
 
-viewCurrentNode : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg
-viewCurrentNode scale model node =
+thirdPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+thirdPersonCamera model =
     let
-        focus =
-            case model.flythrough of
-                Just fly ->
-                    fly.cameraPosition
-
-                Nothing ->
-                    node.location
-
         camera =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
-                        { focalPoint = focus
+                        { focalPoint = model.cameraFocusThirdPerson
                         , azimuth = model.azimuth
                         , elevation = model.elevation
                         , distance =
                             Length.meters <|
-                                distanceFromZoom model.zoomLevelThirdPerson
+                                10.0
+                                    ^ (5.0 - model.zoomLevelThirdPerson)
                         }
-                , verticalFieldOfView = Angle.degrees <| 20 * model.zoomLevelThirdPerson
+                , verticalFieldOfView = Angle.degrees 30.0
                 }
     in
-    row []
-        [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
-        , el
-            withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightBlue
-                    , clipDepth = Length.meters 1.0
-                    , entities =
-                        model.varyingVisualEntities
-                            ++ model.staticVisualEntities
-                            ++ model.terrainEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
+    Just camera
 
 
-viewCurrentNodePlanView : BoundingBox3d Length.Meters LocalCoords -> Model -> DrawingNode -> Element Msg
-viewCurrentNodePlanView scale model node =
+viewCurrentNode : Model -> Element Msg
+viewCurrentNode model =
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
+                , el
+                    withMouseCapture
+                  <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = view3dDimensions
+                            , background = Scene3d.backgroundColor Color.lightBlue
+                            , clipDepth = Length.meters 1.0
+                            , entities =
+                                model.varyingVisualEntities
+                                    ++ model.staticVisualEntities
+                                    ++ model.terrainEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
+
+
+planCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+planCamera model =
     let
-        focus =
+        focus node =
             Point3d.projectOnto Plane3d.xy
                 node.location
 
-        eyePoint =
+        eyePoint node =
             Point3d.translateBy
                 (Vector3d.meters 0.0 0.0 5000.0)
                 node.location
 
-        camera =
+        camera node =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt
-                        { focalPoint = focus
-                        , eyePoint = eyePoint
+                        { focalPoint = focus node
+                        , eyePoint = eyePoint node
                         , upDirection = positiveY
                         }
                 , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
                 }
     in
-    row []
-        [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-        , el
-            []
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.darkGreen
-                    , clipDepth = Length.meters 1.0
-                    , entities = model.varyingVisualEntities ++ model.staticVisualEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
+    Maybe.map camera (Array.get model.currentNode model.nodeArray)
 
 
-viewCentredPlanViewForMap :
-    BoundingBox3d Length.Meters LocalCoords
-    -> Model
-    -> Element Msg
-viewCentredPlanViewForMap scale model =
+viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
+viewCurrentNodePlanView model node =
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
+                , el withMouseCapture <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = view3dDimensions
+                            , background = Scene3d.backgroundColor Color.darkGreen
+                            , clipDepth = Length.meters 1.0
+                            , entities = model.varyingVisualEntities ++ model.staticVisualEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
+
+
+viewCentredPlanViewForMap : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
+viewCentredPlanViewForMap box model =
+    -- Challenge is to optimize zoom level to fit map.
     let
-        ( x, y, z ) =
-            BoundingBox3d.dimensions scale
+        { minX, maxX, minY, maxY, minZ, maxZ } =
+            BoundingBox3d.extrema box
 
         focus =
-            Point3d.projectOnto Plane3d.xy
-                Point3d.origin
+            BoundingBox3d.centerPoint box
+
+        ( xSize, ySize, zSize ) =
+            BoundingBox3d.dimensions box
 
         eyePoint =
             Point3d.translateBy
                 (Vector3d.meters 0.0 0.0 5000.0)
                 Point3d.origin
+
+        viewPort =
+            Length.meters <|
+                max
+                    (Length.inMeters ySize)
+                    (Length.inMeters xSize * view3dHeight / view3dWidth)
 
         camera =
             Camera3d.orthographic
@@ -3109,72 +3812,82 @@ viewCentredPlanViewForMap scale model =
                         , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
-                , viewportHeight = Quantity.multiplyBy (model.zoomLevelPlan * 0.5) y
+                , viewportHeight = viewPort
+                }
+    in
+    el
+        [ alignLeft, alignTop ]
+    <|
+        html <|
+            Scene3d.sunny
+                { camera = camera
+                , dimensions = view3dDimensions
+                , background = Scene3d.transparentBackground
+                , clipDepth = Length.meters 1.0
+                , entities = model.mapVisualEntities
+                , upDirection = positiveZ
+                , sunlightDirection = negativeZ
+                , shadows = True
                 }
 
-        projection =
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.transparentBackground
-                    , clipDepth = Length.meters 1.0
-                    , entities = model.varyingVisualEntities ++ model.mapStaticEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-    in
-    projection
 
-
-viewRouteProfile : Model -> DrawingRoad -> Element Msg
-viewRouteProfile model road =
+profileCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
+profileCamera model =
     let
-        focus =
+        focus node =
             Point3d.projectOnto
                 Plane3d.yz
-                road.profileStartsAt.location
+                node.location
 
-        eyePoint =
+        eyePoint node =
             Point3d.translateBy
                 (Vector3d.meters 100.0 0.0 0.0)
-                road.profileStartsAt.location
+                node.location
 
-        camera =
+        camera road =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt
-                        { focalPoint = focus
-                        , eyePoint = eyePoint
+                        { focalPoint = focus road.profileStartsAt
+                        , eyePoint = eyePoint road.profileStartsAt
                         , upDirection = positiveZ
                         }
                 , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
                 }
     in
-    row []
-        [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
-        , el
-            []
-          --withMouseCapture
-          <|
-            html <|
-                Scene3d.sunny
-                    { camera = camera
-                    , dimensions = ( Pixels.int 800, Pixels.int 500 )
-                    , background = Scene3d.backgroundColor Color.lightCharcoal
-                    , clipDepth = Length.meters 1.0
-                    , entities = model.varyingProfileEntities ++ model.staticProfileEntities
-                    , upDirection = positiveZ
-                    , sunlightDirection = negativeZ
-                    , shadows = True
-                    }
-        ]
+    Maybe.map camera (Array.get model.cameraFocusProfileNode model.roadArray)
+
+
+viewRouteProfile : Model -> DrawingNode -> Element Msg
+viewRouteProfile model node =
+    case model.currentSceneCamera of
+        Just camera ->
+            row []
+                [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
+                , el
+                    withMouseCapture
+                  <|
+                    html <|
+                        Scene3d.sunny
+                            { camera = camera
+                            , dimensions = view3dDimensions
+                            , background = Scene3d.backgroundColor Color.lightCharcoal
+                            , clipDepth = Length.meters 1.0
+                            , entities = model.varyingProfileEntities ++ model.staticProfileEntities
+                            , upDirection = positiveZ
+                            , sunlightDirection = negativeZ
+                            , shadows = True
+                            }
+                ]
+
+        Nothing ->
+            none
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Time.every 10 Tick
-        , mapMoved MapMoved
+        [ messageReceiver MapMessage
+        , mapStopped MapRemoved
+        , Time.every 50 Tick
         ]

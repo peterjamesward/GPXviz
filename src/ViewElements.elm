@@ -6,34 +6,48 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (button)
 import Html.Attributes exposing (style)
-import Html.Events.Extra.Pointer as Pointer
+import Html.Events as HE
+import Html.Events.Extra.Mouse as Mouse
+import Html.Events.Extra.Wheel as Wheel
+import Json.Decode as D
 import Msg exposing (Msg(..))
 import Utils exposing (showDecimal2)
 
 
 withMouseCapture =
-    [ htmlAttribute <| Pointer.onDown (\event -> ImageGrab event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onMove (\event -> ImageRotate event.pointer.offsetPos)
-    , htmlAttribute <| Pointer.onUp (\event -> ImageRelease event.pointer.offsetPos)
+    [ htmlAttribute <| Mouse.onDown (\event -> ImageGrab event)
+    , htmlAttribute <| Mouse.onMove (\event -> ImageDrag event)
+    , htmlAttribute <| Mouse.onUp (\event -> ImageRelease event)
+    , htmlAttribute <| Mouse.onClick (\event -> MouseClick event)
+    , htmlAttribute <| Mouse.onDoubleClick (\event -> MouseDoubleClick event)
+    , htmlAttribute <| Wheel.onWheel (\event -> MouseWheel event.deltaY)
     , htmlAttribute <| style "touch-action" "none"
+    , onContextMenu NoOpMsg
     , width fill
     , pointer
     ]
 
 
+onContextMenu : Msg -> Element.Attribute Msg
+onContextMenu msg =
+    HE.custom "contextmenu"
+        (D.succeed
+            { message = msg
+            , stopPropagation = True
+            , preventDefault = True
+            }
+        )
+        |> htmlAttribute
+
+
 displayName n =
     case n of
         Just s ->
-            el [ Font.size 24, padding 8 ]
+            el [ Font.size 20, padding 8 ]
                 (text s)
 
         _ ->
             none
-
-
-distanceFromZoom : Float -> Float
-distanceFromZoom zoomLevel =
-    10.0 ^ (5.0 - zoomLevel)
 
 
 type ButtonPosition
@@ -85,6 +99,7 @@ radioButton position label state =
             else
                 rgb255 114 159 207
         , Font.color <| rgb255 0xFF 0xFF 0xFF
+        , Font.size 16
         ]
     <|
         el [ centerX, centerY ] <|
@@ -92,31 +107,32 @@ radioButton position label state =
 
 
 zoomSlider value msg =
-    Input.slider
-        [ height <| px 400
-        , width <| px 80
-        , alignTop
-        , behindContent <|
-            -- Slider track
-            el
-                [ width <| px 30
-                , height <| px 400
-                , alignTop
-                , centerX
-                , Background.color <| rgb255 114 159 207
-                , Border.rounded 6
-                ]
-                Element.none
-        ]
-        { onChange = msg
-        , label =
-            Input.labelHidden "Zoom"
-        , min = 1.0
-        , max = 4.0
-        , step = Nothing
-        , value = value
-        , thumb = Input.defaultThumb
-        }
+    none
+    --Input.slider
+    --    [ height <| px 400
+    --    , width <| px 80
+    --    , alignTop
+    --    , behindContent <|
+    --        -- Slider track
+    --        el
+    --            [ width <| px 30
+    --            , height <| px 400
+    --            , alignTop
+    --            , centerX
+    --            , Background.color <| rgb255 114 159 207
+    --            , Border.rounded 6
+    --            ]
+    --            Element.none
+    --    ]
+    --    { onChange = msg
+    --    , label =
+    --        Input.labelHidden "Zoom"
+    --    , min = 1.0
+    --    , max = 4.0
+    --    , step = Nothing
+    --    , value = value
+    --    , thumb = Input.defaultThumb
+    --    }
 
 
 prettyButtonStyles =
@@ -127,7 +143,7 @@ prettyButtonStyles =
     , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
     , Background.color <| rgb255 114 159 207
     , Font.color <| rgb255 0xFF 0xFF 0xFF
-    , Font.center
+    , Font.size 16
     , mouseOver
         [ Background.color <| rgb255 0xFF 0xFF 0xFF, Font.color <| rgb255 0 0 0 ]
     , focused
@@ -207,34 +223,58 @@ commonShortVerticalSliderStyles =
     ]
 
 
-straightenButton c m =
+straightenButton : Element Msg
+straightenButton =
     button
         prettyButtonStyles
-        { onPress = Just (StraightenStraight c m)
+        { onPress = Just StraightenStraight
         , label =
             text <|
                 "Straighten between markers"
         }
 
 
-nudgeButton c horizontalValue verticalValue =
+nudgeButton : Float -> Float -> Element Msg
+nudgeButton horizontalValue verticalValue =
     button
         prettyButtonStyles
-        { onPress = Just (NudgeNode c horizontalValue verticalValue)
+        { onPress = Just (NudgeNode horizontalValue verticalValue)
         , label =
             text <|
                 "Apply nudge"
         }
 
 
-splitButton c =
-    button
-        prettyButtonStyles
-        { onPress = Just (SplitRoad c)
-        , label =
-            text <|
-                "Divide this segment\ninto two"
-        }
+splitSegmentOptions c maxSegLength =
+    let
+        splitSlider value =
+            Input.slider
+                commonShortHorizontalSliderStyles
+                { onChange = SetMaxTrackpointSpacing
+                , label =
+                    Input.labelBelow [] <|
+                        text <|
+                            "Maximum track point gap = "
+                                ++ showDecimal2 value
+                                ++ "m"
+                , min = 5.0
+                , max = 50.0
+                , step = Just 5.0
+                , value = value
+                , thumb = Input.defaultThumb
+                }
+    in
+    column [ spacing 10, padding 10 ]
+        [ splitSlider maxSegLength
+        , button
+            prettyButtonStyles
+            { onPress = Just SplitRoad
+            , label =
+                text <|
+                    "Add track points"
+            }
+        ]
+
 
 deleteNodeButton c =
     button
@@ -246,10 +286,10 @@ deleteNodeButton c =
         }
 
 
-horizontalNudgeSlider c value =
+horizontalNudgeSlider value =
     Input.slider
         commonShortHorizontalSliderStyles
-        { onChange = SetHorizontalNudgeFactor c
+        { onChange = SetHorizontalNudgeFactor
         , label =
             Input.labelBelow [] <|
                 text <|
@@ -264,11 +304,11 @@ horizontalNudgeSlider c value =
         }
 
 
-verticalNudgeSlider c value =
+verticalNudgeSlider value =
     el [ width <| px 100, centerX ] <|
         Input.slider
             commonShortVerticalSliderStyles
-            { onChange = SetVerticalNudgeFactor c
+            { onChange = SetVerticalNudgeFactor
             , label =
                 Input.labelBelow [ centerX ] <|
                     text <|

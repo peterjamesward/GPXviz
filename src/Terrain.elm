@@ -65,13 +65,9 @@ makeTerrain context roadList =
                 Array.fromList uniqueVertices
 
         entryEdges road =
-            -- Totally forget why these are here but they seem to be essential.
-            --TODO: See if this is still true now we filter out duplicate points.
-            --List.take 2 <|
             roadCorners road
 
         exitEdges road =
-            --List.drop 2 <|
             roadCorners road
 
         roadCorners road =

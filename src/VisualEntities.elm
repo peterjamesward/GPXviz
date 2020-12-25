@@ -16,11 +16,30 @@ import Quantity
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity, cone, cylinder, sphere)
 import Scene3d.Material as Material
-import Sphere3d
-import Triangle3d
+import Sphere3d exposing (Sphere3d)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
 import ViewTypes exposing (ViewingMode(..))
+
+
+optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
+optionally test element =
+    if test then
+        element
+
+    else
+        []
+
+
+makeHitDetectionEntities : List DrawingNode -> List (Int, Sphere3d Length.Meters LocalCoords)
+makeHitDetectionEntities nodes =
+    let
+        trackpoint node =
+            ( node.trackPoint.idx
+            , Sphere3d.atPoint node.location (Length.meters 10.0)
+            )
+    in
+    List.map trackpoint nodes
 
 
 makeStatic3DEntities :
@@ -193,14 +212,6 @@ makeStatic3DEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.endsAt.location)
                 (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
-
-        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
-        optionally test element =
-            if test then
-                element
-
-            else
-                []
     in
     [ seaLevel ]
         ++ optionally context.displayOptions.roadPillars pillars
@@ -210,42 +221,19 @@ makeStatic3DEntities context roadList =
         ++ optionally context.displayOptions.centreLine centreLine
 
 
-makeStaticMapEntities :
+makeMapEntities :
     RenderingContext
     -> List DrawingRoad
     -> List (Entity LocalCoords)
-makeStaticMapEntities context roadList =
+makeMapEntities context roadList =
+    -- This is for the "old" static map, not the Mapbox GL JSv2 map.
     let
-        trackpointmarker loc =
-            cone (Material.color Color.black) <|
-                Cone3d.startingAt
-                    (Point3d.translateBy
-                        (Vector3d.meters 0.0 0.0 -1.0)
-                        loc
-                    )
-                    positiveZ
-                    { radius = meters <| 0.6
-                    , length = meters <| 1.0
-                    }
-
-        trackpointMarkers =
-            let
-                makeStartCone road =
-                    trackpointmarker road.startsAt.location
-
-                makeEndCone road =
-                    trackpointmarker road.endsAt.location
-            in
-            List.map makeStartCone (List.take 1 roadList)
-                ++ List.map makeEndCone roadList
-
         roadSurfaces =
             List.concat <|
                 List.map roadSurface <|
                     roadList
 
         roadSurface road =
-            --TODO: Factor out these common ones.
             let
                 ( kerbX, kerbY ) =
                     -- Road is assumed to be 6 m wide.
@@ -270,63 +258,14 @@ makeStaticMapEntities context roadList =
                     , LineSegment3d.translateBy rightKerbVector roadAsSegment
                     )
             in
-            [ Scene3d.quad (Material.matte Color.red)
+            [ Scene3d.quad (Material.matte Color.lightRed)
                 (LineSegment3d.startPoint leftKerb)
                 (LineSegment3d.endPoint leftKerb)
                 (LineSegment3d.endPoint rightKerb)
                 (LineSegment3d.startPoint rightKerb)
             ]
-
-        subtleGradientLine road =
-            let
-                ( halfX, halfY ) =
-                    -- Width of the centre line.
-                    ( 0.3 * cos road.bearing
-                    , 0.3 * sin road.bearing
-                    )
-
-                roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
-
-                leftVector =
-                    Vector3d.meters
-                        (-1.0 * halfX)
-                        halfY
-                        0.05
-
-                rightVector =
-                    Vector3d.reverse leftVector
-
-                ( leftEdge, rightEdge ) =
-                    ( LineSegment3d.translateBy leftVector roadAsSegment
-                    , LineSegment3d.translateBy rightVector roadAsSegment
-                    )
-            in
-            [ --surface
-              Scene3d.quad (Material.color <| gradientColourPastel road.gradient)
-                (LineSegment3d.startPoint leftEdge)
-                (LineSegment3d.endPoint leftEdge)
-                (LineSegment3d.endPoint rightEdge)
-                (LineSegment3d.startPoint rightEdge)
-            ]
-
-        centreLine =
-            List.concat <|
-                List.map subtleGradientLine <|
-                    roadList
-
-        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
-        optionally test element =
-            if test then
-                element
-
-            else
-                []
     in
-    []
-        ++ optionally context.displayOptions.roadCones trackpointMarkers
-        ++ optionally context.displayOptions.roadTrack roadSurfaces
-        ++ optionally context.displayOptions.centreLine centreLine
+    roadSurfaces
 
 
 makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
@@ -395,14 +334,6 @@ makeStaticProfileEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.profileEndsAt.location)
                 (Point3d.projectOnto Plane3d.xy road.profileStartsAt.location)
             ]
-
-        optionally : Bool -> List (Entity LocalCoords) -> List (Entity LocalCoords)
-        optionally test element =
-            if test then
-                element
-
-            else
-                []
     in
     []
         ++ optionally context.displayOptions.roadPillars pillars
@@ -415,12 +346,12 @@ makeVaryingVisualEntities context _ =
     let
         currentPositionDisc =
             case ( context.currentNode, context.viewingMode ) of
-                ( Just road, ThirdPersonView ) ->
+                ( Just node, ThirdPersonView ) ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 3.0
@@ -428,12 +359,12 @@ makeVaryingVisualEntities context _ =
                             }
                     ]
 
-                ( Just road, PlanView ) ->
+                ( Just node, PlanView ) ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 1.5
@@ -446,12 +377,12 @@ makeVaryingVisualEntities context _ =
 
         markedNode =
             case ( context.markedNode, context.viewingMode ) of
-                ( Just road, ThirdPersonView ) ->
+                ( Just node, ThirdPersonView ) ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 3.5
@@ -459,12 +390,12 @@ makeVaryingVisualEntities context _ =
                             }
                     ]
 
-                ( Just road, PlanView ) ->
+                ( Just node, PlanView ) ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                road.startsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters <| 1.6
@@ -476,9 +407,12 @@ makeVaryingVisualEntities context _ =
                     []
 
         suggestedBend =
-            List.map bendElement context.smoothedBend
+            List.map (bendElement Color.lightYellow) context.smoothedBend
 
-        bendElement road =
+        nudges =
+            List.map (bendElement Color.lightOrange) context.nudgedRoads
+
+        bendElement colour road =
             let
                 ( halfX, halfY ) =
                     -- Width of the line.
@@ -504,7 +438,7 @@ makeVaryingVisualEntities context _ =
                     , LineSegment3d.translateBy rightVector roadAsSegment
                     )
             in
-            Scene3d.quad (Material.color Color.lightYellow)
+            Scene3d.quad (Material.color colour)
                 (LineSegment3d.startPoint leftEdge)
                 (LineSegment3d.endPoint leftEdge)
                 (LineSegment3d.endPoint rightEdge)
@@ -513,6 +447,7 @@ makeVaryingVisualEntities context _ =
     currentPositionDisc
         ++ markedNode
         ++ suggestedBend
+        ++ nudges
 
 
 makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
@@ -521,13 +456,13 @@ makeVaryingProfileEntities context roadList =
     -- We might draw things differently to suit the projection.
     let
         currentPositionDisc =
-            case ( context.currentNode, context.viewingMode ) of
-                ( Just road, ProfileView ) ->
+            case context.currentNode of
+                Just node ->
                     [ cone (Material.color Color.lightOrange) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 2.0)
-                                road.profileStartsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters 0.3
@@ -539,13 +474,13 @@ makeVaryingProfileEntities context roadList =
                     []
 
         markedNode =
-            case ( context.markedNode, context.viewingMode ) of
-                ( Just road, ProfileView ) ->
+            case context.markedNode of
+                Just node ->
                     [ cone (Material.color Color.purple) <|
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 2.1)
-                                road.profileStartsAt.location
+                                node.location
                             )
                             negativeZ
                             { radius = meters 0.25
@@ -556,47 +491,71 @@ makeVaryingProfileEntities context roadList =
                 _ ->
                     []
 
-        nudgedNode current =
-            -- Has the current node been nudged vertically?
-            if context.verticalNudge /= 0.0 then
-                case current of
-                    Just road ->
-                        let
-                            prevNode =
-                                -- Fugly way to get neighbouring nodes, but hey hp.
-                                List.head <| List.drop (road.index - 1) roadList
+        nudgedNodes =
+            -- Slightly tricky as we have to correlate nudged roads with the unrolled profile.
+            case context.nudgedRegionStart of
+                Just node1 ->
+                    let
+                        prevNode =
+                            -- Fugly way to get neighbouring nodes, but hey-ho.
+                            List.drop (node1 - 1) roadList
 
-                            nudgedHeight =
-                                Point3d.translateBy
-                                    (Vector3d.meters 0.0 0.0 context.verticalNudge)
-                                    road.profileStartsAt.location
-                        in
-                        (Scene3d.triangle (Material.color Color.lightYellow) <|
-                            Triangle3d.from
-                                road.profileStartsAt.location
-                                road.profileEndsAt.location
-                                nudgedHeight
-                        )
-                            :: (case prevNode of
-                                    Just prev ->
-                                        [ Scene3d.triangle (Material.color Color.lightYellow) <|
-                                            Triangle3d.from
-                                                road.profileStartsAt.location
-                                                nudgedHeight
-                                                prev.profileStartsAt.location
-                                        ]
+                        baselineWithElevationFromNudged baseline nudged =
+                            let
+                                baselineRecord =
+                                    Point3d.toMeters baseline
 
-                                    Nothing ->
-                                        []
-                               )
+                                nudgedRecord =
+                                    Point3d.toMeters nudged
+                            in
+                            Point3d.fromMeters
+                                { baselineRecord | z = nudgedRecord.z }
 
-                    Nothing ->
-                        []
+                        blendTheRoadData baseline nudged =
+                            Scene3d.quad (Material.color Color.lightYellow)
+                                baseline.profileStartsAt.location
+                                (baselineWithElevationFromNudged
+                                    baseline.profileStartsAt.location
+                                    nudged.startsAt.location
+                                )
+                                (baselineWithElevationFromNudged
+                                    baseline.profileEndsAt.location
+                                    nudged.endsAt.location
+                                )
+                                --(Point3d.translateBy elevationVector baseline.profileStartsAt.location)
+                                --(Point3d.translateBy elevationVector baseline.profileEndsAt.location)
+                                baseline.profileEndsAt.location
 
-            else
-                []
+                        elevationVector =
+                            Vector3d.meters 0.0 0.0 context.verticalNudge
+
+                        segmentsInvolved =
+                            -- If the lowest marker is not at zero, then
+                            -- the nudged roads includes the "on-ramp" from
+                            -- the previous node, as well as the "off-ramp"
+                            -- after the second node.
+                            if node1 == 0 then
+                                roadList
+
+                            else
+                                List.drop (node1 - 1) roadList
+
+                        nudgedRoads =
+                            -- Combine the nudged roads cleverly with our unrolled ones
+                            List.map2
+                                blendTheRoadData
+                                segmentsInvolved
+                                context.nudgedRoads
+                    in
+                    nudgedRoads
+
+                Nothing ->
+                    []
     in
     currentPositionDisc
         ++ markedNode
-        ++ nudgedNode context.currentNode
+        ++ nudgedNodes
 
+
+
+-- i.e. nudge preview.

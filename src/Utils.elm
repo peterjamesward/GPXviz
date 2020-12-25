@@ -3,6 +3,7 @@ module Utils exposing (..)
 import Color
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
+import Pixels
 import Regex
 
 
@@ -88,6 +89,13 @@ parseTrackName xml =
                     n
 
 
+view3dDimensions =
+    ( Pixels.int 900, Pixels.int 600 )
+
+view3dWidth = toFloat <| Pixels.inPixels (Tuple.first view3dDimensions)
+
+view3dHeight = toFloat <| Pixels.inPixels (Tuple.second view3dDimensions)
+
 showDecimal2 x =
     let
         locale =
@@ -110,11 +118,3 @@ showDecimal6 x =
             }
     in
     format locale x
-
-
-incrementMaybeModulo modulo mx =
-    Maybe.map (\x -> modBy modulo (x + 1)) mx
-
-
-decrementMaybeModulo modulo mx =
-    Maybe.map (\x -> modBy modulo (x - 1)) mx

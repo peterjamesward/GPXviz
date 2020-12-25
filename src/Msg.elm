@@ -3,9 +3,11 @@ module Msg exposing (..)
 import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
+import Json.Encode as E
 import Time
 import Utils exposing (Point)
-import ViewTypes exposing (MapInfo, ViewingMode)
+import ViewTypes exposing (ViewingMode)
+import Html.Events.Extra.Mouse as Mouse
 
 
 type Msg
@@ -21,9 +23,6 @@ type Msg
     | ZoomLevelThirdPerson Float
     | ZoomLevelPlan Float
     | ZoomLevelProfile Float
-    | ImageGrab Point
-    | ImageRotate Point
-    | ImageRelease Point
     | TogglePillars Bool
     | ToggleRoad Bool
     | ToggleCones Bool
@@ -36,7 +35,7 @@ type Msg
     | Tick Time.Posix
     | AdjustTimeZone Time.Zone
     | SetSmoothingEnd Int
-    | SmoothGradient Int Int Float
+    | SmoothGradient Float
     | SmoothBend
     | Undo
     | Redo
@@ -52,18 +51,25 @@ type Msg
     | MakeTerrain
     | ClearTerrain
     | CloseTheLoop
-    | StraightenStraight Int Int
-    | SetHorizontalNudgeFactor Int Float
-    | SetVerticalNudgeFactor Int Float
-    | NudgeNode Int Float Float -- Horizontal, Vertical
-    | SplitRoad Int
+    | StraightenStraight
+    | SetHorizontalNudgeFactor  Float
+    | SetVerticalNudgeFactor  Float
+    | NudgeNode Float Float -- Horizontal, Vertical
+    | SplitRoad
     | AccordionMessage (AccordionEntry Msg)
     | DeleteCurrentPoint Int
     | ChangeLoopStart Int
     | ReverseTrack
-    | MapMoved MapInfo
-    | ConfirmMapView
-
+    | SetMaxTrackpointSpacing Float
+    | MapMessage E.Value
+    | MapRemoved String
+    | MouseWheel Float
+    | MouseClick Mouse.Event
+    | MouseDoubleClick Mouse.Event
+    | ImageGrab Mouse.Event
+    | ImageDrag Mouse.Event
+    | ImageRelease Mouse.Event
+    | NoOpMsg
 
 
 type NodeSplitDirection

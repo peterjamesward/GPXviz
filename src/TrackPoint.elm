@@ -1,11 +1,16 @@
 module TrackPoint exposing (..)
 
+import BoundingBox3d
 import Element exposing (..)
-import Json.Encode as E exposing (float)
+import Json.Encode as E
 import Msg exposing (..)
+import Point3d
 import Regex
 import Utils exposing (asRegex)
 
+
+type GPXCoords
+    = GPXCoords
 
 type alias TrackPoint =
     -- This is the basic info we extract from a GPX file.
@@ -15,6 +20,11 @@ type alias TrackPoint =
     , idx : Int
     }
 
+singleton = { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
+
+singletonPoint = Point3d.origin
+
+singletonBox = BoundingBox3d.singleton singletonPoint
 
 interpolateSegment : Float -> TrackPoint -> TrackPoint -> TrackPoint
 interpolateSegment w startTP endTP =
@@ -103,6 +113,7 @@ parseTrackPoints xml =
 
 trackToJSON : List TrackPoint -> E.Value
 trackToJSON tps =
+    -- JSON suitable for Mapbox API.
     let
         geometry =
             E.object
@@ -114,10 +125,11 @@ trackToJSON tps =
             List.map latLonPair tps
 
         latLonPair tp =
-            E.list float [ tp.lon, tp.lat ]
+            E.list E.float [ tp.lon, tp.lat ]
     in
     E.object
         [ ( "type", E.string "Feature" )
         , ( "properties", E.object [] )
         , ( "geometry", geometry )
         ]
+
