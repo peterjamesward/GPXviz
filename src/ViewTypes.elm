@@ -11,10 +11,6 @@ type ViewingMode
     | MapView
 
 
-type alias MapInfo =
-    { center : Coordinate
-    , zoom : Float
-    }
 
 type alias Coordinate =
     { lon : Float
