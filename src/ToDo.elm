@@ -2,15 +2,7 @@ module ToDo exposing (..)
 
 --TODO: What is using all the power??
 
---TODO: Restore scroll bars.
-
---TODO:
-
---TODO: Profile dragging to use metres, not index.
-
---TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).
--- this is the single node version of the bend smoother.
--- fairly simple arc fit; see notebook.
+--TODO: Change the arc generation to not use incircle. See notes.
 
 --TODO: Split track to show yellow icon warning if segments less than the maximum segment?
 
@@ -19,8 +11,6 @@ module ToDo exposing (..)
 --TODO: Popup tool help on all accordion tabs?
 
 --TODO: Remove excessive track points (like the inverse of split track but cleverer). (Jarle Steffenson).
-
---TODO: Use "track point" not "node".
 
 --TODO: Optimise use of screen space, knowing viewport.
 

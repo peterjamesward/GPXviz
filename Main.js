@@ -8119,6 +8119,10 @@ var $elm$core$Array$get = F2(
 			A2($elm$core$Elm$JsArray$unsafeGet, $elm$core$Array$bitMask & index, tail)) : $elm$core$Maybe$Just(
 			A3($elm$core$Array$getHelp, startShift, index, tree)));
 	});
+var $elm$core$Array$length = function (_v0) {
+	var len = _v0.a;
+	return len;
+};
 var $ianmackenzie$elm_3d_camera$Camera3d$Types$Viewpoint3d = function (a) {
 	return {$: 'Viewpoint3d', a: a};
 };
@@ -8407,7 +8411,7 @@ var $author$project$Main$firstPersonCamera = function (model) {
 	var cappedNodeNumber = A2(
 		$elm$core$Basics$min,
 		model.currentNode,
-		$elm$core$List$length(model.nodes) - 2);
+		$elm$core$Array$length(model.nodeArray) - 2);
 	var cameraViewpoint = function (road) {
 		var _v1 = model.flythrough;
 		if (_v1.$ === 'Nothing') {
@@ -11312,10 +11316,6 @@ var $elm$core$List$all = F2(
 			A2($elm$core$Basics$composeL, $elm$core$Basics$not, isOkay),
 			list);
 	});
-var $elm$core$Array$length = function (_v0) {
-	var len = _v0.a;
-	return len;
-};
 var $ianmackenzie$elm_triangular_mesh$TriangularMesh$indexed = F2(
 	function (vertices_, faceIndices_) {
 		var numVertices = $elm$core$Array$length(vertices_);
@@ -27554,7 +27554,7 @@ var $author$project$Main$update = F2(
 										{
 											currentNode: A2(
 												$elm$core$Basics$modBy,
-												$elm$core$List$length(model.nodes),
+												$elm$core$Array$length(model.nodeArray),
 												model.currentNode + 1)
 										}))))));
 				return _Utils_Tuple2(
@@ -27571,7 +27571,7 @@ var $author$project$Main$update = F2(
 										{
 											currentNode: A2(
 												$elm$core$Basics$modBy,
-												$elm$core$List$length(model.nodes),
+												$elm$core$Array$length(model.nodeArray),
 												model.currentNode - 1)
 										}))))));
 				return _Utils_Tuple2(
@@ -27588,7 +27588,7 @@ var $author$project$Main$update = F2(
 									function (m) {
 										return A2(
 											$elm$core$Basics$modBy,
-											$elm$core$List$length(model.nodes),
+											$elm$core$Array$length(model.nodeArray),
 											m + 1);
 									},
 									model.markedNode)
@@ -27607,7 +27607,7 @@ var $author$project$Main$update = F2(
 									function (m) {
 										return A2(
 											$elm$core$Basics$modBy,
-											$elm$core$List$length(model.nodes),
+											$elm$core$Array$length(model.nodeArray),
 											m - 1);
 									},
 									model.markedNode)
@@ -28506,7 +28506,7 @@ var $author$project$Main$updatedAccordion = F3(
 	});
 var $mdgriffith$elm_ui$Element$htmlAttribute = $mdgriffith$elm_ui$Internal$Model$Attr;
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');
-var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-25_\n\n> **Changes**\n\n> - Views are a bit larger.\n\n> - Scroll bars are gone, replaced by what follows ...\n\n> - Mouse wheel should zoom in and out, just like the map.\n\n> - You can mouse click on any view to select a track point. Just like on the map.\n\n> - Left-click and drag move the Third person and Profile views around.\n\n> - Right-click (or ctrl-click) and drag in Third person view rotates around the current focal point.\n\n> - Double-click on a track point to centre the focus on that point. (This is essential in Third Person view).\n\n> - Plan is gone now the map seems stable.\n\n> - The track slider is now in the Fly-through tab, so you can use it manually.\n\n> _Standard warning: Save your work_ often.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**Map view** You can now click on the track to select a track point. When you first do this, you will probably see an Orange marker and a smaller purple marker superimposed. These remain together until you "Drop" the marker, after which clicking will move the Orange marker only until you "Clear" the purple marker. This makes for rapid selection of a section of route -- just click once to place both pointers, drop the purple one, click somewhere else. You can then use Nudge, Straighten, Bend smoothing (anything, in fact) on that range.\n\n**Summary** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful for smoothing gradients. You can replace the current track point with two; often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked. Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
+var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-26_\n\n> **Changes**\n\n> - Scroll bars are back.\n\n> - Mouse wheel should zoom in and out, just like the map.\n\n> - You can mouse click on any view to select a track point. Just like on the map.\n\n> - Left-click and drag move the Third person and Profile views around.\n\n> - Right-click (or ctrl-click) and drag in Third person view rotates around the current focal point.\n\n> - Double-click on a track point to centre the focus on that point. (This is essential in Third Person view).\n\n> - Plan is gone now the map seems stable.\n\n> _Standard warning: Save your work_ often.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**Map view** You can now click on the track to select a track point. When you first do this, you will probably see an Orange marker and a smaller purple marker superimposed. These remain together until you "Drop" the marker, after which clicking will move the Orange marker only until you "Clear" the purple marker. This makes for rapid selection of a section of route -- just click once to place both pointers, drop the purple one, click somewhere else. You can then use Nudge, Straighten, Bend smoothing (anything, in fact) on that range.\n\n**Summary** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful for smoothing gradients. You can replace the current track point with two; often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked. Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
 var $mdgriffith$elm_ui$Element$scrollbarY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.scrollbarsY);
@@ -28590,7 +28590,7 @@ var $author$project$Main$positionSlider = function (model) {
 			]),
 		{
 			label: $mdgriffith$elm_ui$Element$Input$labelHidden('Drag slider or use arrow buttons'),
-			max: $elm$core$List$length(model.roads) - 1,
+			max: $elm$core$Array$length(model.roadArray) - 1,
 			min: 1.0,
 			onChange: A2($elm$core$Basics$composeL, $author$project$Msg$UserMovedNodeSlider, $elm$core$Basics$round),
 			step: $elm$core$Maybe$Just(1),

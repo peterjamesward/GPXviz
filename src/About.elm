@@ -11,13 +11,11 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-25_
+> _This text updated 2020-12-26_
 
 > **Changes**
 
-> - Views are a bit larger.
-
-> - Scroll bars are gone, replaced by what follows ...
+> - Scroll bars are back.
 
 > - Mouse wheel should zoom in and out, just like the map.
 
@@ -30,8 +28,6 @@ aboutText =
 > - Double-click on a track point to centre the focus on that point. (This is essential in Third Person view).
 
 > - Plan is gone now the map seems stable.
-
-> - The track slider is now in the Fly-through tab, so you can use it manually.
 
 > _Standard warning: Save your work_ often.
 

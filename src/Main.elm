@@ -676,7 +676,7 @@ update msg model =
             let
                 newModel =
                     { model
-                        | currentNode = modBy (List.length model.nodes) (model.currentNode + 1)
+                        | currentNode = modBy (Array.length model.nodeArray) (model.currentNode + 1)
                     }
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
@@ -692,7 +692,7 @@ update msg model =
             let
                 newModel =
                     { model
-                        | currentNode = modBy (List.length model.nodes) (model.currentNode - 1)
+                        | currentNode = modBy (Array.length model.nodeArray) (model.currentNode - 1)
                     }
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
@@ -710,7 +710,7 @@ update msg model =
                     { model
                         | markedNode =
                             Maybe.map
-                                (\m -> modBy (List.length model.nodes) (m + 1))
+                                (\m -> modBy (Array.length model.nodeArray) (m + 1))
                                 model.markedNode
                     }
                         |> tryBendSmoother
@@ -726,7 +726,7 @@ update msg model =
                     { model
                         | markedNode =
                             Maybe.map
-                                (\m -> modBy (List.length model.nodes) (m - 1))
+                                (\m -> modBy (Array.length model.nodeArray) (m - 1))
                                 model.markedNode
                     }
                         |> tryBendSmoother
@@ -3209,7 +3209,7 @@ positionSlider model =
         , label =
             Input.labelHidden "Drag slider or use arrow buttons"
         , min = 1.0
-        , max = toFloat <| List.length model.roads - 1
+        , max = toFloat <| Array.length model.roadArray - 1
         , step = Just 1
         , value = toFloat model.currentNode
         , thumb = Input.defaultThumb
@@ -3352,7 +3352,7 @@ firstPersonCamera model =
                         }
 
         cappedNodeNumber =
-            min model.currentNode (List.length model.nodes - 2)
+            min model.currentNode (Array.length model.nodeArray - 2)
     in
     case Array.get cappedNodeNumber model.roadArray of
         Just road ->
