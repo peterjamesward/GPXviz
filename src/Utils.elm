@@ -89,12 +89,19 @@ parseTrackName xml =
                     n
 
 
+
 view3dDimensions =
-    ( Pixels.int 900, Pixels.int 600 )
+    ( Pixels.int view3dWidth, Pixels.int view3dHeight )
 
-view3dWidth = toFloat <| Pixels.inPixels (Tuple.first view3dDimensions)
+viewMapDimensions =
+    ( Pixels.int viewMapWidth, Pixels.int viewMapHeight )
 
-view3dHeight = toFloat <| Pixels.inPixels (Tuple.second view3dDimensions)
+viewMapWidth = 900
+viewMapHeight = 600
+scrollbarThickness = 20
+scrollbarSpaceOcuppied = scrollbarThickness + 20 -- allow for 10 padding each side
+view3dWidth = viewMapWidth - scrollbarSpaceOcuppied
+view3dHeight = viewMapHeight - scrollbarThickness
 
 showDecimal2 x =
     let

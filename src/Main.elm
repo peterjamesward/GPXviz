@@ -681,6 +681,7 @@ update msg model =
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
                         |> cancelFlythrough
+                        |> centreViewOnCurrentNode
                         |> checkSceneCamera
             in
             ( newModel
@@ -696,6 +697,7 @@ update msg model =
                         |> tryBendSmoother
                         |> deriveVaryingVisualEntities
                         |> cancelFlythrough
+                        |> centreViewOnCurrentNode
                         |> checkSceneCamera
             in
             ( newModel
@@ -772,21 +774,25 @@ update msg model =
 
         ZoomLevelOverview level ->
             ( { model | zoomLevelOverview = level }
+                |> checkSceneCamera
             , Cmd.none
             )
 
         ZoomLevelFirstPerson level ->
             ( { model | zoomLevelFirstPerson = level }
+                |> checkSceneCamera
             , Cmd.none
             )
 
         ZoomLevelThirdPerson level ->
             ( { model | zoomLevelThirdPerson = level }
+                |> checkSceneCamera
             , Cmd.none
             )
 
         ZoomLevelProfile level ->
             ( { model | zoomLevelProfile = level }
+                |> checkSceneCamera
             , Cmd.none
             )
 
@@ -889,7 +895,8 @@ update msg model =
 
                 ( DragProfile, Just ( startX, startY ), Just camera ) ->
                     let
-                        xMovement = round <| 0.2 * (startX - dx)
+                        xMovement =
+                            round <| 0.2 * (startX - dx)
 
                         newFocus =
                             clamp 0 (Array.length model.roadArray - 1) <|
@@ -2808,8 +2815,8 @@ view3D scale model =
             MapView ->
                 -- We merely create the placeholder, the work is done by messages through the map port.
                 el
-                    [ width <| px <| truncate view3dWidth
-                    , height <| px <| truncate view3dHeight
+                    [ width <| px viewMapWidth
+                    , height <| px viewMapHeight
                     , alignLeft
                     , alignTop
                     , htmlAttribute (id "map")
@@ -3183,14 +3190,14 @@ positionControls model =
 
 positionSlider model =
     Input.slider
-        [ height <| px 20
+        [ height <| px scrollbarThickness
         , width <| px 300
         , centerY
         , behindContent <|
             -- Slider track
             el
                 [ width <| px 300
-                , height <| px 20
+                , height <| px scrollbarThickness
                 , centerY
                 , centerX
                 , Background.color <| rgb255 114 159 207
@@ -3215,6 +3222,7 @@ viewFirstPerson model =
             [ alignTop
             ]
             [ viewRoadSegment model
+            , positionControls model
             ]
         ]
 
@@ -3293,7 +3301,6 @@ flythroughControls model =
             , playPauseButton
             , flythroughSpeedSlider
             ]
-        , positionControls model
         , case model.flythrough of
             Just flythrough ->
                 row [ spacing 10 ]
@@ -3363,9 +3370,8 @@ viewRoadSegment : Model -> Element Msg
 viewRoadSegment model =
     case model.currentSceneCamera of
         Just camera ->
-            row []
-                [ zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
-                , el
+            row [ padding 5, spacing 10 ]
+                [ el
                     withMouseCapture
                   <|
                     html <|
@@ -3382,6 +3388,7 @@ viewRoadSegment model =
                             , sunlightDirection = negativeZ
                             , shadows = True
                             }
+                , zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
                 ]
 
         Nothing ->
@@ -3401,8 +3408,7 @@ viewThirdPerson model =
                     [ alignTop
                     ]
                     [ viewCurrentNode model
-
-                    --, positionControls model
+                    , positionControls model
                     ]
                 ]
 
@@ -3419,8 +3425,7 @@ viewPlanView model =
                     [ alignTop
                     ]
                     [ viewCurrentNodePlanView model node
-
-                    --, positionControls model
+                    , positionControls model
                     ]
                 ]
 
@@ -3449,8 +3454,7 @@ viewProfileView model =
                     [ alignTop
                     ]
                     [ viewRouteProfile model node
-
-                    --, positionControls model
+                    , positionControls model
                     ]
                 ]
 
@@ -3705,9 +3709,8 @@ viewCurrentNode : Model -> Element Msg
 viewCurrentNode model =
     case model.currentSceneCamera of
         Just camera ->
-            row []
-                [ zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
-                , el
+            row [ padding 5, spacing 10 ]
+                [ el
                     withMouseCapture
                   <|
                     html <|
@@ -3724,6 +3727,7 @@ viewCurrentNode model =
                             , sunlightDirection = negativeZ
                             , shadows = True
                             }
+                , zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
                 ]
 
         Nothing ->
@@ -3761,8 +3765,7 @@ viewCurrentNodePlanView model node =
     case model.currentSceneCamera of
         Just camera ->
             row []
-                [ zoomSlider model.zoomLevelPlan ZoomLevelPlan
-                , el withMouseCapture <|
+                [ el withMouseCapture <|
                     html <|
                         Scene3d.sunny
                             { camera = camera
@@ -3774,6 +3777,7 @@ viewCurrentNodePlanView model node =
                             , sunlightDirection = negativeZ
                             , shadows = True
                             }
+                , zoomSlider model.zoomLevelPlan ZoomLevelPlan
                 ]
 
         Nothing ->
@@ -3862,9 +3866,8 @@ viewRouteProfile : Model -> DrawingNode -> Element Msg
 viewRouteProfile model node =
     case model.currentSceneCamera of
         Just camera ->
-            row []
-                [ zoomSlider model.zoomLevelProfile ZoomLevelProfile
-                , el
+            row [ padding 5, spacing 10 ]
+                [ el
                     withMouseCapture
                   <|
                     html <|
@@ -3878,6 +3881,7 @@ viewRouteProfile model node =
                             , sunlightDirection = negativeZ
                             , shadows = True
                             }
+                , zoomSlider model.zoomLevelProfile ZoomLevelProfile
                 ]
 
         Nothing ->

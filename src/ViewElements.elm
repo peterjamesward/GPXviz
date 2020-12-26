@@ -11,7 +11,7 @@ import Html.Events.Extra.Mouse as Mouse
 import Html.Events.Extra.Wheel as Wheel
 import Json.Decode as D
 import Msg exposing (Msg(..))
-import Utils exposing (showDecimal2)
+import Utils exposing (scrollbarThickness, showDecimal2)
 
 
 withMouseCapture =
@@ -107,32 +107,31 @@ radioButton position label state =
 
 
 zoomSlider value msg =
-    none
-    --Input.slider
-    --    [ height <| px 400
-    --    , width <| px 80
-    --    , alignTop
-    --    , behindContent <|
-    --        -- Slider track
-    --        el
-    --            [ width <| px 30
-    --            , height <| px 400
-    --            , alignTop
-    --            , centerX
-    --            , Background.color <| rgb255 114 159 207
-    --            , Border.rounded 6
-    --            ]
-    --            Element.none
-    --    ]
-    --    { onChange = msg
-    --    , label =
-    --        Input.labelHidden "Zoom"
-    --    , min = 1.0
-    --    , max = 4.0
-    --    , step = Nothing
-    --    , value = value
-    --    , thumb = Input.defaultThumb
-    --    }
+    Input.slider
+        [ height <| px 400
+        , width <| px scrollbarThickness
+        , alignTop
+        , behindContent <|
+            -- Slider track
+            el
+                [ width <| px scrollbarThickness
+                , height <| px 400
+                , alignTop
+                , centerX
+                , Background.color <| rgb255 114 159 207
+                , Border.rounded 6
+                ]
+                Element.none
+        ]
+        { onChange = msg
+        , label =
+            Input.labelHidden "Zoom"
+        , min = 1.0
+        , max = 4.0
+        , step = Nothing
+        , value = value
+        , thumb = Input.defaultThumb
+        }
 
 
 prettyButtonStyles =

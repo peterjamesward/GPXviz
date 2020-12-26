@@ -15851,18 +15851,12 @@ var $elm$core$Tuple$second = function (_v0) {
 	return y;
 };
 var $elm$core$List$sortBy = _List_sortBy;
-var $ianmackenzie$elm_units$Pixels$inPixels = function (_v0) {
-	var numPixels = _v0.a;
-	return numPixels;
-};
-var $ianmackenzie$elm_units$Pixels$int = function (numPixels) {
-	return $ianmackenzie$elm_units$Quantity$Quantity(numPixels);
-};
-var $author$project$Utils$view3dDimensions = _Utils_Tuple2(
-	$ianmackenzie$elm_units$Pixels$int(900),
-	$ianmackenzie$elm_units$Pixels$int(600));
-var $author$project$Utils$view3dHeight = $ianmackenzie$elm_units$Pixels$inPixels($author$project$Utils$view3dDimensions.b);
-var $author$project$Utils$view3dWidth = $ianmackenzie$elm_units$Pixels$inPixels($author$project$Utils$view3dDimensions.a);
+var $author$project$Utils$scrollbarThickness = 20;
+var $author$project$Utils$viewMapHeight = 600;
+var $author$project$Utils$view3dHeight = $author$project$Utils$viewMapHeight - $author$project$Utils$scrollbarThickness;
+var $author$project$Utils$scrollbarSpaceOcuppied = $author$project$Utils$scrollbarThickness + 20;
+var $author$project$Utils$viewMapWidth = 900;
+var $author$project$Utils$view3dWidth = $author$project$Utils$viewMapWidth - $author$project$Utils$scrollbarSpaceOcuppied;
 var $ianmackenzie$elm_geometry$Geometry$Types$Rectangle2d = function (a) {
 	return {$: 'Rectangle2d', a: a};
 };
@@ -21941,6 +21935,11 @@ var $author$project$Main$overviewSummary = function (model) {
 		return $mdgriffith$elm_ui$Element$none;
 	}
 };
+var $mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
+	return {$: 'AlignY', a: a};
+};
+var $mdgriffith$elm_ui$Internal$Model$Top = {$: 'Top'};
+var $mdgriffith$elm_ui$Element$alignTop = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$Top);
 var $author$project$Utils$bearingToDisplayDegrees = function (x) {
 	return $author$project$Utils$showDecimal2(
 		$author$project$Utils$toDegrees(
@@ -21960,67 +21959,131 @@ var $author$project$NodesAndRoads$summaryData = function (maybeRoad) {
 	if (maybeRoad.$ === 'Just') {
 		var road = maybeRoad.a;
 		return A2(
-			$mdgriffith$elm_ui$Element$row,
+			$mdgriffith$elm_ui$Element$column,
 			_List_fromArray(
-				[
-					$mdgriffith$elm_ui$Element$padding(20),
-					$mdgriffith$elm_ui$Element$centerX
-				]),
+				[$mdgriffith$elm_ui$Element$centerX]),
 			_List_fromArray(
 				[
 					A2(
-					$mdgriffith$elm_ui$Element$column,
+					$mdgriffith$elm_ui$Element$row,
 					_List_fromArray(
 						[
+							$mdgriffith$elm_ui$Element$padding(20),
+							$mdgriffith$elm_ui$Element$centerX,
 							$mdgriffith$elm_ui$Element$spacing(10)
 						]),
 					_List_fromArray(
 						[
-							$mdgriffith$elm_ui$Element$text('Start point index '),
-							$mdgriffith$elm_ui$Element$text('Start latitude '),
-							$mdgriffith$elm_ui$Element$text('Start longitude '),
-							$mdgriffith$elm_ui$Element$text('Start elevation '),
-							$mdgriffith$elm_ui$Element$text('Start distance '),
-							$mdgriffith$elm_ui$Element$text('End latitude '),
-							$mdgriffith$elm_ui$Element$text('End longitude '),
-							$mdgriffith$elm_ui$Element$text('End elevation '),
-							$mdgriffith$elm_ui$Element$text('End distance '),
-							$mdgriffith$elm_ui$Element$text('Length '),
-							$mdgriffith$elm_ui$Element$text('Gradient '),
-							$mdgriffith$elm_ui$Element$text('Bearing ')
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text('Start point index '),
+									$mdgriffith$elm_ui$Element$text('Length ')
+								])),
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text(
+									$elm$core$String$fromInt(road.index)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(road.length))
+								])),
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text('Gradient '),
+									$mdgriffith$elm_ui$Element$text('Bearing ')
+								])),
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(road.gradient)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$bearingToDisplayDegrees(road.bearing))
+								]))
 						])),
 					A2(
-					$mdgriffith$elm_ui$Element$column,
+					$mdgriffith$elm_ui$Element$row,
 					_List_fromArray(
 						[
+							$mdgriffith$elm_ui$Element$padding(10),
+							$mdgriffith$elm_ui$Element$centerX,
+							$mdgriffith$elm_ui$Element$alignTop,
 							$mdgriffith$elm_ui$Element$spacing(10)
 						]),
 					_List_fromArray(
 						[
-							$mdgriffith$elm_ui$Element$text(
-							$elm$core$String$fromInt(road.index)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal6(road.startsAt.trackPoint.lat)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal6(road.startsAt.trackPoint.lon)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal2(road.startsAt.trackPoint.ele)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal2(road.startDistance)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal6(road.endsAt.trackPoint.lat)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal6(road.endsAt.trackPoint.lon)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal2(road.endsAt.trackPoint.ele)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal2(road.endDistance)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal2(road.length)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$showDecimal2(road.gradient)),
-							$mdgriffith$elm_ui$Element$text(
-							$author$project$Utils$bearingToDisplayDegrees(road.bearing))
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text('   '),
+									$mdgriffith$elm_ui$Element$text('Latitude '),
+									$mdgriffith$elm_ui$Element$text('Longitude '),
+									$mdgriffith$elm_ui$Element$text('Elevation '),
+									$mdgriffith$elm_ui$Element$text('Distance ')
+								])),
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text('At start'),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal6(road.startsAt.trackPoint.lat)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal6(road.startsAt.trackPoint.lon)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(road.startsAt.trackPoint.ele)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(road.startDistance))
+								])),
+							A2(
+							$mdgriffith$elm_ui$Element$column,
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$spacing(10)
+								]),
+							_List_fromArray(
+								[
+									$mdgriffith$elm_ui$Element$text('At end'),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal6(road.endsAt.trackPoint.lat)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal6(road.endsAt.trackPoint.lon)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(road.endsAt.trackPoint.ele)),
+									$mdgriffith$elm_ui$Element$text(
+									$author$project$Utils$showDecimal2(road.endDistance))
+								]))
 						]))
 				]));
 	} else {
@@ -22049,9 +22112,6 @@ var $mdgriffith$elm_ui$Element$createNearby = F2(
 	});
 var $mdgriffith$elm_ui$Element$behindContent = function (element) {
 	return A2($mdgriffith$elm_ui$Element$createNearby, $mdgriffith$elm_ui$Internal$Model$Behind, element);
-};
-var $mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
-	return {$: 'AlignY', a: a};
 };
 var $mdgriffith$elm_ui$Internal$Model$CenterY = {$: 'CenterY'};
 var $mdgriffith$elm_ui$Element$centerY = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$CenterY);
@@ -23481,8 +23541,6 @@ var $author$project$Msg$TogglePillars = function (a) {
 var $author$project$Msg$ToggleRoad = function (a) {
 	return {$: 'ToggleRoad', a: a};
 };
-var $mdgriffith$elm_ui$Internal$Model$Top = {$: 'Top'};
-var $mdgriffith$elm_ui$Element$alignTop = $mdgriffith$elm_ui$Internal$Model$AlignY($mdgriffith$elm_ui$Internal$Model$Top);
 var $mdgriffith$elm_ui$Internal$Model$Left = {$: 'Left'};
 var $mdgriffith$elm_ui$Element$alignLeft = $mdgriffith$elm_ui$Internal$Model$AlignX($mdgriffith$elm_ui$Internal$Model$Left);
 var $mdgriffith$elm_ui$Element$Input$tabindex = A2($elm$core$Basics$composeL, $mdgriffith$elm_ui$Internal$Model$Attr, $elm$html$Html$Attributes$tabindex);
@@ -24301,97 +24359,23 @@ var $feathericons$elm_feather$FeatherIcons$play = A2(
 				]),
 			_List_Nil)
 		]));
-var $author$project$Msg$PositionBackOne = {$: 'PositionBackOne'};
-var $author$project$Msg$PositionForwardOne = {$: 'PositionForwardOne'};
-var $mdgriffith$elm_ui$Element$Input$HiddenLabel = function (a) {
-	return {$: 'HiddenLabel', a: a};
-};
-var $mdgriffith$elm_ui$Element$Input$labelHidden = $mdgriffith$elm_ui$Element$Input$HiddenLabel;
-var $author$project$Main$positionSlider = function (model) {
-	return A2(
-		$mdgriffith$elm_ui$Element$Input$slider,
-		_List_fromArray(
-			[
-				$mdgriffith$elm_ui$Element$height(
-				$mdgriffith$elm_ui$Element$px(20)),
-				$mdgriffith$elm_ui$Element$width(
-				$mdgriffith$elm_ui$Element$px(300)),
-				$mdgriffith$elm_ui$Element$centerY,
-				$mdgriffith$elm_ui$Element$behindContent(
-				A2(
-					$mdgriffith$elm_ui$Element$el,
-					_List_fromArray(
-						[
-							$mdgriffith$elm_ui$Element$width(
-							$mdgriffith$elm_ui$Element$px(300)),
-							$mdgriffith$elm_ui$Element$height(
-							$mdgriffith$elm_ui$Element$px(20)),
-							$mdgriffith$elm_ui$Element$centerY,
-							$mdgriffith$elm_ui$Element$centerX,
-							$mdgriffith$elm_ui$Element$Background$color(
-							A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
-							$mdgriffith$elm_ui$Element$Border$rounded(6)
-						]),
-					$mdgriffith$elm_ui$Element$none))
-			]),
-		{
-			label: $mdgriffith$elm_ui$Element$Input$labelHidden('Drag slider or use arrow buttons'),
-			max: $elm$core$List$length(model.roads) - 1,
-			min: 1.0,
-			onChange: A2($elm$core$Basics$composeL, $author$project$Msg$UserMovedNodeSlider, $elm$core$Basics$round),
-			step: $elm$core$Maybe$Just(1),
-			thumb: $mdgriffith$elm_ui$Element$Input$defaultThumb,
-			value: model.currentNode
-		});
-};
-var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
-var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
-var $elm$svg$Svg$Attributes$x2 = _VirtualDom_attribute('x2');
-var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
-var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
-var $feathericons$elm_feather$FeatherIcons$skipBack = A2(
+var $feathericons$elm_feather$FeatherIcons$rewind = A2(
 	$feathericons$elm_feather$FeatherIcons$makeBuilder,
-	'skip-back',
+	'rewind',
 	_List_fromArray(
 		[
 			A2(
 			$elm$svg$Svg$polygon,
 			_List_fromArray(
 				[
-					$elm$svg$Svg$Attributes$points('19 20 9 12 19 4 19 20')
+					$elm$svg$Svg$Attributes$points('11 19 2 12 11 5 11 19')
 				]),
 			_List_Nil),
-			A2(
-			$elm$svg$Svg$line,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$x1('5'),
-					$elm$svg$Svg$Attributes$y1('19'),
-					$elm$svg$Svg$Attributes$x2('5'),
-					$elm$svg$Svg$Attributes$y2('5')
-				]),
-			_List_Nil)
-		]));
-var $feathericons$elm_feather$FeatherIcons$skipForward = A2(
-	$feathericons$elm_feather$FeatherIcons$makeBuilder,
-	'skip-forward',
-	_List_fromArray(
-		[
 			A2(
 			$elm$svg$Svg$polygon,
 			_List_fromArray(
 				[
-					$elm$svg$Svg$Attributes$points('5 4 15 12 5 20 5 4')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$line,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$x1('19'),
-					$elm$svg$Svg$Attributes$y1('5'),
-					$elm$svg$Svg$Attributes$x2('19'),
-					$elm$svg$Svg$Attributes$y2('19')
+					$elm$svg$Svg$Attributes$points('22 19 13 12 22 5 22 19')
 				]),
 			_List_Nil)
 		]));
@@ -24445,57 +24429,6 @@ var $feathericons$elm_feather$FeatherIcons$toHtml = F2(
 				$elm$svg$Svg$map($elm$core$Basics$never),
 				src));
 	});
-var $author$project$Main$positionControls = function (model) {
-	var forwards = A2($feathericons$elm_feather$FeatherIcons$toHtml, _List_Nil, $feathericons$elm_feather$FeatherIcons$skipForward);
-	var backwards = A2($feathericons$elm_feather$FeatherIcons$toHtml, _List_Nil, $feathericons$elm_feather$FeatherIcons$skipBack);
-	return A2(
-		$mdgriffith$elm_ui$Element$row,
-		_List_fromArray(
-			[
-				$mdgriffith$elm_ui$Element$spacing(5),
-				$mdgriffith$elm_ui$Element$padding(5),
-				$mdgriffith$elm_ui$Element$centerX,
-				$mdgriffith$elm_ui$Element$centerY
-			]),
-		_List_fromArray(
-			[
-				$author$project$Main$positionSlider(model),
-				A2(
-				$mdgriffith$elm_ui$Element$Input$button,
-				$author$project$ViewElements$prettyButtonStyles,
-				{
-					label: $mdgriffith$elm_ui$Element$html(backwards),
-					onPress: $elm$core$Maybe$Just($author$project$Msg$PositionBackOne)
-				}),
-				A2(
-				$mdgriffith$elm_ui$Element$Input$button,
-				$author$project$ViewElements$prettyButtonStyles,
-				{
-					label: $mdgriffith$elm_ui$Element$html(forwards),
-					onPress: $elm$core$Maybe$Just($author$project$Msg$PositionForwardOne)
-				})
-			]));
-};
-var $feathericons$elm_feather$FeatherIcons$rewind = A2(
-	$feathericons$elm_feather$FeatherIcons$makeBuilder,
-	'rewind',
-	_List_fromArray(
-		[
-			A2(
-			$elm$svg$Svg$polygon,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$points('11 19 2 12 11 5 11 19')
-				]),
-			_List_Nil),
-			A2(
-			$elm$svg$Svg$polygon,
-			_List_fromArray(
-				[
-					$elm$svg$Svg$Attributes$points('22 19 13 12 22 5 22 19')
-				]),
-			_List_Nil)
-		]));
 var $author$project$Main$flythroughControls = function (model) {
 	var reset = A2($feathericons$elm_feather$FeatherIcons$toHtml, _List_Nil, $feathericons$elm_feather$FeatherIcons$rewind);
 	var resetButton = A2(
@@ -24569,7 +24502,6 @@ var $author$project$Main$flythroughControls = function (model) {
 					]),
 				_List_fromArray(
 					[resetButton, playPauseButton, flythroughSpeedSlider])),
-				$author$project$Main$positionControls(model),
 				function () {
 				var _v0 = model.flythrough;
 				if (_v0.$ === 'Just') {
@@ -24638,6 +24570,57 @@ var $author$project$Main$bendSmoothnessSlider = function (model) {
 var $author$project$Msg$MarkerBackOne = {$: 'MarkerBackOne'};
 var $author$project$Msg$MarkerForwardOne = {$: 'MarkerForwardOne'};
 var $author$project$Msg$ToggleMarker = {$: 'ToggleMarker'};
+var $elm$svg$Svg$line = $elm$svg$Svg$trustedNode('line');
+var $elm$svg$Svg$Attributes$x1 = _VirtualDom_attribute('x1');
+var $elm$svg$Svg$Attributes$x2 = _VirtualDom_attribute('x2');
+var $elm$svg$Svg$Attributes$y1 = _VirtualDom_attribute('y1');
+var $elm$svg$Svg$Attributes$y2 = _VirtualDom_attribute('y2');
+var $feathericons$elm_feather$FeatherIcons$skipBack = A2(
+	$feathericons$elm_feather$FeatherIcons$makeBuilder,
+	'skip-back',
+	_List_fromArray(
+		[
+			A2(
+			$elm$svg$Svg$polygon,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$points('19 20 9 12 19 4 19 20')
+				]),
+			_List_Nil),
+			A2(
+			$elm$svg$Svg$line,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$x1('5'),
+					$elm$svg$Svg$Attributes$y1('19'),
+					$elm$svg$Svg$Attributes$x2('5'),
+					$elm$svg$Svg$Attributes$y2('5')
+				]),
+			_List_Nil)
+		]));
+var $feathericons$elm_feather$FeatherIcons$skipForward = A2(
+	$feathericons$elm_feather$FeatherIcons$makeBuilder,
+	'skip-forward',
+	_List_fromArray(
+		[
+			A2(
+			$elm$svg$Svg$polygon,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$points('5 4 15 12 5 20 5 4')
+				]),
+			_List_Nil),
+			A2(
+			$elm$svg$Svg$line,
+			_List_fromArray(
+				[
+					$elm$svg$Svg$Attributes$x1('19'),
+					$elm$svg$Svg$Attributes$y1('5'),
+					$elm$svg$Svg$Attributes$x2('19'),
+					$elm$svg$Svg$Attributes$y2('19')
+				]),
+			_List_Nil)
+		]));
 var $author$project$Main$markerButton = function (model) {
 	var makeButton = function (label) {
 		return A2(
@@ -27562,33 +27545,35 @@ var $author$project$Main$update = F2(
 					$author$project$Main$updateMapVaryingElements(newModel));
 			case 'PositionForwardOne':
 				var newModel = $author$project$Main$checkSceneCamera(
-					$author$project$Main$cancelFlythrough(
-						$author$project$Main$deriveVaryingVisualEntities(
-							$author$project$Main$tryBendSmoother(
-								_Utils_update(
-									model,
-									{
-										currentNode: A2(
-											$elm$core$Basics$modBy,
-											$elm$core$List$length(model.nodes),
-											model.currentNode + 1)
-									})))));
+					$author$project$Main$centreViewOnCurrentNode(
+						$author$project$Main$cancelFlythrough(
+							$author$project$Main$deriveVaryingVisualEntities(
+								$author$project$Main$tryBendSmoother(
+									_Utils_update(
+										model,
+										{
+											currentNode: A2(
+												$elm$core$Basics$modBy,
+												$elm$core$List$length(model.nodes),
+												model.currentNode + 1)
+										}))))));
 				return _Utils_Tuple2(
 					newModel,
 					$author$project$Main$updateMapVaryingElements(newModel));
 			case 'PositionBackOne':
 				var newModel = $author$project$Main$checkSceneCamera(
-					$author$project$Main$cancelFlythrough(
-						$author$project$Main$deriveVaryingVisualEntities(
-							$author$project$Main$tryBendSmoother(
-								_Utils_update(
-									model,
-									{
-										currentNode: A2(
-											$elm$core$Basics$modBy,
-											$elm$core$List$length(model.nodes),
-											model.currentNode - 1)
-									})))));
+					$author$project$Main$centreViewOnCurrentNode(
+						$author$project$Main$cancelFlythrough(
+							$author$project$Main$deriveVaryingVisualEntities(
+								$author$project$Main$tryBendSmoother(
+									_Utils_update(
+										model,
+										{
+											currentNode: A2(
+												$elm$core$Basics$modBy,
+												$elm$core$List$length(model.nodes),
+												model.currentNode - 1)
+										}))))));
 				return _Utils_Tuple2(
 					newModel,
 					$author$project$Main$updateMapVaryingElements(newModel));
@@ -27666,30 +27651,34 @@ var $author$project$Main$update = F2(
 			case 'ZoomLevelOverview':
 				var level = msg.a;
 				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{zoomLevelOverview: level}),
+					$author$project$Main$checkSceneCamera(
+						_Utils_update(
+							model,
+							{zoomLevelOverview: level})),
 					$elm$core$Platform$Cmd$none);
 			case 'ZoomLevelFirstPerson':
 				var level = msg.a;
 				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{zoomLevelFirstPerson: level}),
+					$author$project$Main$checkSceneCamera(
+						_Utils_update(
+							model,
+							{zoomLevelFirstPerson: level})),
 					$elm$core$Platform$Cmd$none);
 			case 'ZoomLevelThirdPerson':
 				var level = msg.a;
 				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{zoomLevelThirdPerson: level}),
+					$author$project$Main$checkSceneCamera(
+						_Utils_update(
+							model,
+							{zoomLevelThirdPerson: level})),
 					$elm$core$Platform$Cmd$none);
 			case 'ZoomLevelProfile':
 				var level = msg.a;
 				return _Utils_Tuple2(
-					_Utils_update(
-						model,
-						{zoomLevelProfile: level}),
+					$author$project$Main$checkSceneCamera(
+						_Utils_update(
+							model,
+							{zoomLevelProfile: level})),
 					$elm$core$Platform$Cmd$none);
 			case 'ZoomLevelPlan':
 				var level = msg.a;
@@ -28520,14 +28509,6 @@ var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id'
 var $author$project$About$aboutText = 'Thank you for trying this GPX viewer. It is freely provided without warranty.\n\n> _This text updated 2020-12-25_\n\n> **Changes**\n\n> - Views are a bit larger.\n\n> - Scroll bars are gone, replaced by what follows ...\n\n> - Mouse wheel should zoom in and out, just like the map.\n\n> - You can mouse click on any view to select a track point. Just like on the map.\n\n> - Left-click and drag move the Third person and Profile views around.\n\n> - Right-click (or ctrl-click) and drag in Third person view rotates around the current focal point.\n\n> - Double-click on a track point to centre the focus on that point. (This is essential in Third Person view).\n\n> - Plan is gone now the map seems stable.\n\n> - The track slider is now in the Fly-through tab, so you can use it manually.\n\n> _Standard warning: Save your work_ often.\n\nOnce a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.\n\n**Map view** You can now click on the track to select a track point. When you first do this, you will probably see an Orange marker and a smaller purple marker superimposed. These remain together until you "Drop" the marker, after which clicking will move the Orange marker only until you "Clear" the purple marker. This makes for rapid selection of a section of route -- just click once to place both pointers, drop the purple one, click somewhere else. You can then use Nudge, Straighten, Bend smoothing (anything, in fact) on that range.\n\n**Summary** summarises the GPX information. This provides error messages if the file is not what we\'re expecting.\n\n**Road data** gives information about the current road segment -- the one immediately "in front of" the orange marker.\n\n**Visual styles** lets you choose what you want shown. The effects are immediate in all views.\n\n**Loop maker** is handy if your start and end points are close. You can make the track into a loop. This will either just move the last track point (if they are really close), or will insert a new one. Once your track is a loop, you can move the orange pointer and choose any point as the start/finish. (You can use this as a way to apply tools to the "real" start/finish area, moving the start back when you\'re done.)\n\n**Fly-through** will move the current point around the track at variable speed. This works in all views but 1st and 3rd person are most appropriate.\n\n**Smooth gradient** groups tools that are useful for smoothing gradients. You can replace the current track point with two; often this is enough to smooth a coarse gradient change. Beyond that, you can select a longer section of road by dropping and moving the marker (appears as a purple cone). Then use the button to apply smoothing to the selected track segments, and you can choose to retain some of the original flavour by increasing the "Bumpiness factor".\n\n**Nudge node** provides direct manipulation of the current point (orange marker). You can move it vertically and side-to-side by five metres. You can apply repeatedly if that\'s not enough.\n\n**Smooth bend** works only with a selected range. It tries (not always successfully) to fit a circular arc that is tangent to the segments that are marked. Moving the current point and the marker will provide different options. Increase the number of road segments for a smoother bend. If you can\'t get a nice looking bend, it may be worth adding some more track points (see below) and trying again.\n\n**Straighten** is like an opposite of bend smoothing. When you have a "nearly straight" that you want to be "really straight", this is your friend. It retains track point elevation, and just marshals them into a straight line, so you may need other tools to finish the job.\n\n**Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.\n\n**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.\n\nClick the blue button at the page top to choose a file.\n\n**Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).\n\n> _Peter Ward, 2020_\n';
 var $mdgriffith$elm_ui$Internal$Flag$overflow = $mdgriffith$elm_ui$Internal$Flag$flag(20);
 var $mdgriffith$elm_ui$Element$clipY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.clipY);
-var $mdgriffith$elm_ui$Internal$Model$Max = F2(
-	function (a, b) {
-		return {$: 'Max', a: a, b: b};
-	});
-var $mdgriffith$elm_ui$Element$maximum = F2(
-	function (i, l) {
-		return A2($mdgriffith$elm_ui$Internal$Model$Max, i, l);
-	});
 var $mdgriffith$elm_ui$Element$scrollbarY = A2($mdgriffith$elm_ui$Internal$Model$Class, $mdgriffith$elm_ui$Internal$Flag$overflow, $mdgriffith$elm_ui$Internal$Style$classes.scrollbarsY);
 var $elm_explorations$markdown$Markdown$defaultOptions = {
 	defaultHighlighting: $elm$core$Maybe$Nothing,
@@ -28555,7 +28536,7 @@ var $author$project$About$viewAboutText = A2(
 			$mdgriffith$elm_ui$Element$clipY,
 			$mdgriffith$elm_ui$Element$scrollbarY,
 			$mdgriffith$elm_ui$Element$height(
-			$mdgriffith$elm_ui$Element$px($author$project$Utils$view3dHeight | 0))
+			$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapHeight))
 		]),
 	_List_fromArray(
 		[
@@ -28564,9 +28545,9 @@ var $author$project$About$viewAboutText = A2(
 			_List_fromArray(
 				[
 					$mdgriffith$elm_ui$Element$width(
-					$mdgriffith$elm_ui$Element$px($author$project$Utils$view3dWidth | 0)),
+					$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapWidth)),
 					$mdgriffith$elm_ui$Element$height(
-					A2($mdgriffith$elm_ui$Element$maximum, $author$project$Utils$view3dHeight | 0, $mdgriffith$elm_ui$Element$fill))
+					$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapHeight))
 				]),
 			_List_fromArray(
 				[
@@ -28574,6 +28555,80 @@ var $author$project$About$viewAboutText = A2(
 					A2($elm_explorations$markdown$Markdown$toHtml, _List_Nil, $author$project$About$aboutText))
 				]))
 		]));
+var $author$project$Msg$PositionBackOne = {$: 'PositionBackOne'};
+var $author$project$Msg$PositionForwardOne = {$: 'PositionForwardOne'};
+var $mdgriffith$elm_ui$Element$Input$HiddenLabel = function (a) {
+	return {$: 'HiddenLabel', a: a};
+};
+var $mdgriffith$elm_ui$Element$Input$labelHidden = $mdgriffith$elm_ui$Element$Input$HiddenLabel;
+var $author$project$Main$positionSlider = function (model) {
+	return A2(
+		$mdgriffith$elm_ui$Element$Input$slider,
+		_List_fromArray(
+			[
+				$mdgriffith$elm_ui$Element$height(
+				$mdgriffith$elm_ui$Element$px($author$project$Utils$scrollbarThickness)),
+				$mdgriffith$elm_ui$Element$width(
+				$mdgriffith$elm_ui$Element$px(300)),
+				$mdgriffith$elm_ui$Element$centerY,
+				$mdgriffith$elm_ui$Element$behindContent(
+				A2(
+					$mdgriffith$elm_ui$Element$el,
+					_List_fromArray(
+						[
+							$mdgriffith$elm_ui$Element$width(
+							$mdgriffith$elm_ui$Element$px(300)),
+							$mdgriffith$elm_ui$Element$height(
+							$mdgriffith$elm_ui$Element$px($author$project$Utils$scrollbarThickness)),
+							$mdgriffith$elm_ui$Element$centerY,
+							$mdgriffith$elm_ui$Element$centerX,
+							$mdgriffith$elm_ui$Element$Background$color(
+							A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
+							$mdgriffith$elm_ui$Element$Border$rounded(6)
+						]),
+					$mdgriffith$elm_ui$Element$none))
+			]),
+		{
+			label: $mdgriffith$elm_ui$Element$Input$labelHidden('Drag slider or use arrow buttons'),
+			max: $elm$core$List$length(model.roads) - 1,
+			min: 1.0,
+			onChange: A2($elm$core$Basics$composeL, $author$project$Msg$UserMovedNodeSlider, $elm$core$Basics$round),
+			step: $elm$core$Maybe$Just(1),
+			thumb: $mdgriffith$elm_ui$Element$Input$defaultThumb,
+			value: model.currentNode
+		});
+};
+var $author$project$Main$positionControls = function (model) {
+	var forwards = A2($feathericons$elm_feather$FeatherIcons$toHtml, _List_Nil, $feathericons$elm_feather$FeatherIcons$skipForward);
+	var backwards = A2($feathericons$elm_feather$FeatherIcons$toHtml, _List_Nil, $feathericons$elm_feather$FeatherIcons$skipBack);
+	return A2(
+		$mdgriffith$elm_ui$Element$row,
+		_List_fromArray(
+			[
+				$mdgriffith$elm_ui$Element$spacing(5),
+				$mdgriffith$elm_ui$Element$padding(5),
+				$mdgriffith$elm_ui$Element$centerX,
+				$mdgriffith$elm_ui$Element$centerY
+			]),
+		_List_fromArray(
+			[
+				$author$project$Main$positionSlider(model),
+				A2(
+				$mdgriffith$elm_ui$Element$Input$button,
+				$author$project$ViewElements$prettyButtonStyles,
+				{
+					label: $mdgriffith$elm_ui$Element$html(backwards),
+					onPress: $elm$core$Maybe$Just($author$project$Msg$PositionBackOne)
+				}),
+				A2(
+				$mdgriffith$elm_ui$Element$Input$button,
+				$author$project$ViewElements$prettyButtonStyles,
+				{
+					label: $mdgriffith$elm_ui$Element$html(forwards),
+					onPress: $elm$core$Maybe$Just($author$project$Msg$PositionForwardOne)
+				})
+			]));
+};
 var $author$project$Msg$ZoomLevelFirstPerson = function (a) {
 	return {$: 'ZoomLevelFirstPerson', a: a};
 };
@@ -29851,6 +29906,12 @@ var $ianmackenzie$elm_3d_scene$Scene3d$sunny = function (_arguments) {
 			whiteBalance: $ianmackenzie$elm_3d_scene$Scene3d$Light$daylight
 		});
 };
+var $ianmackenzie$elm_units$Pixels$int = function (numPixels) {
+	return $ianmackenzie$elm_units$Quantity$Quantity(numPixels);
+};
+var $author$project$Utils$view3dDimensions = _Utils_Tuple2(
+	$ianmackenzie$elm_units$Pixels$int($author$project$Utils$view3dWidth),
+	$ianmackenzie$elm_units$Pixels$int($author$project$Utils$view3dHeight));
 var $author$project$Msg$ImageDrag = function (a) {
 	return {$: 'ImageDrag', a: a};
 };
@@ -30070,7 +30131,41 @@ var $author$project$ViewElements$withMouseCapture = _List_fromArray(
 	]);
 var $author$project$ViewElements$zoomSlider = F2(
 	function (value, msg) {
-		return $mdgriffith$elm_ui$Element$none;
+		return A2(
+			$mdgriffith$elm_ui$Element$Input$slider,
+			_List_fromArray(
+				[
+					$mdgriffith$elm_ui$Element$height(
+					$mdgriffith$elm_ui$Element$px(400)),
+					$mdgriffith$elm_ui$Element$width(
+					$mdgriffith$elm_ui$Element$px($author$project$Utils$scrollbarThickness)),
+					$mdgriffith$elm_ui$Element$alignTop,
+					$mdgriffith$elm_ui$Element$behindContent(
+					A2(
+						$mdgriffith$elm_ui$Element$el,
+						_List_fromArray(
+							[
+								$mdgriffith$elm_ui$Element$width(
+								$mdgriffith$elm_ui$Element$px($author$project$Utils$scrollbarThickness)),
+								$mdgriffith$elm_ui$Element$height(
+								$mdgriffith$elm_ui$Element$px(400)),
+								$mdgriffith$elm_ui$Element$alignTop,
+								$mdgriffith$elm_ui$Element$centerX,
+								$mdgriffith$elm_ui$Element$Background$color(
+								A3($mdgriffith$elm_ui$Element$rgb255, 114, 159, 207)),
+								$mdgriffith$elm_ui$Element$Border$rounded(6)
+							]),
+						$mdgriffith$elm_ui$Element$none))
+				]),
+			{
+				label: $mdgriffith$elm_ui$Element$Input$labelHidden('Zoom'),
+				max: 4.0,
+				min: 1.0,
+				onChange: msg,
+				step: $elm$core$Maybe$Nothing,
+				thumb: $mdgriffith$elm_ui$Element$Input$defaultThumb,
+				value: value
+			});
 	});
 var $author$project$Main$viewRoadSegment = function (model) {
 	var _v0 = model.currentSceneCamera;
@@ -30078,10 +30173,13 @@ var $author$project$Main$viewRoadSegment = function (model) {
 		var camera = _v0.a;
 		return A2(
 			$mdgriffith$elm_ui$Element$row,
-			_List_Nil,
 			_List_fromArray(
 				[
-					A2($author$project$ViewElements$zoomSlider, model.zoomLevelFirstPerson, $author$project$Msg$ZoomLevelFirstPerson),
+					$mdgriffith$elm_ui$Element$padding(5),
+					$mdgriffith$elm_ui$Element$spacing(10)
+				]),
+			_List_fromArray(
+				[
 					A2(
 					$mdgriffith$elm_ui$Element$el,
 					$author$project$ViewElements$withMouseCapture,
@@ -30098,7 +30196,8 @@ var $author$project$Main$viewRoadSegment = function (model) {
 								shadows: true,
 								sunlightDirection: $ianmackenzie$elm_geometry$Direction3d$negativeZ,
 								upDirection: $ianmackenzie$elm_geometry$Direction3d$positiveZ
-							})))
+							}))),
+					A2($author$project$ViewElements$zoomSlider, model.zoomLevelFirstPerson, $author$project$Msg$ZoomLevelFirstPerson)
 				]));
 	} else {
 		return $mdgriffith$elm_ui$Element$none;
@@ -30117,10 +30216,19 @@ var $author$project$Main$viewFirstPerson = function (model) {
 					[$mdgriffith$elm_ui$Element$alignTop]),
 				_List_fromArray(
 					[
-						$author$project$Main$viewRoadSegment(model)
+						$author$project$Main$viewRoadSegment(model),
+						$author$project$Main$positionControls(model)
 					]))
 			]));
 };
+var $mdgriffith$elm_ui$Internal$Model$Max = F2(
+	function (a, b) {
+		return {$: 'Max', a: a, b: b};
+	});
+var $mdgriffith$elm_ui$Element$maximum = F2(
+	function (i, l) {
+		return A2($mdgriffith$elm_ui$Internal$Model$Max, i, l);
+	});
 var $author$project$Main$viewInputError = function (model) {
 	return A2(
 		$mdgriffith$elm_ui$Element$row,
@@ -30187,7 +30295,6 @@ var $author$project$Main$viewCurrentNodePlanView = F2(
 				_List_Nil,
 				_List_fromArray(
 					[
-						A2($author$project$ViewElements$zoomSlider, model.zoomLevelPlan, $author$project$Msg$ZoomLevelPlan),
 						A2(
 						$mdgriffith$elm_ui$Element$el,
 						$author$project$ViewElements$withMouseCapture,
@@ -30202,7 +30309,8 @@ var $author$project$Main$viewCurrentNodePlanView = F2(
 									shadows: true,
 									sunlightDirection: $ianmackenzie$elm_geometry$Direction3d$negativeZ,
 									upDirection: $ianmackenzie$elm_geometry$Direction3d$positiveZ
-								})))
+								}))),
+						A2($author$project$ViewElements$zoomSlider, model.zoomLevelPlan, $author$project$Msg$ZoomLevelPlan)
 					]));
 		} else {
 			return $mdgriffith$elm_ui$Element$none;
@@ -30226,7 +30334,8 @@ var $author$project$Main$viewPlanView = function (model) {
 						[$mdgriffith$elm_ui$Element$alignTop]),
 					_List_fromArray(
 						[
-							A2($author$project$Main$viewCurrentNodePlanView, model, node)
+							A2($author$project$Main$viewCurrentNodePlanView, model, node),
+							$author$project$Main$positionControls(model)
 						]))
 				]));
 	}
@@ -30242,10 +30351,13 @@ var $author$project$Main$viewRouteProfile = F2(
 			var camera = _v0.a;
 			return A2(
 				$mdgriffith$elm_ui$Element$row,
-				_List_Nil,
 				_List_fromArray(
 					[
-						A2($author$project$ViewElements$zoomSlider, model.zoomLevelProfile, $author$project$Msg$ZoomLevelProfile),
+						$mdgriffith$elm_ui$Element$padding(5),
+						$mdgriffith$elm_ui$Element$spacing(10)
+					]),
+				_List_fromArray(
+					[
 						A2(
 						$mdgriffith$elm_ui$Element$el,
 						$author$project$ViewElements$withMouseCapture,
@@ -30260,7 +30372,8 @@ var $author$project$Main$viewRouteProfile = F2(
 									shadows: true,
 									sunlightDirection: $ianmackenzie$elm_geometry$Direction3d$negativeZ,
 									upDirection: $ianmackenzie$elm_geometry$Direction3d$positiveZ
-								})))
+								}))),
+						A2($author$project$ViewElements$zoomSlider, model.zoomLevelProfile, $author$project$Msg$ZoomLevelProfile)
 					]));
 		} else {
 			return $mdgriffith$elm_ui$Element$none;
@@ -30299,7 +30412,8 @@ var $author$project$Main$viewProfileView = function (model) {
 						[$mdgriffith$elm_ui$Element$alignTop]),
 					_List_fromArray(
 						[
-							A2($author$project$Main$viewRouteProfile, model, node)
+							A2($author$project$Main$viewRouteProfile, model, node),
+							$author$project$Main$positionControls(model)
 						]))
 				]));
 	}
@@ -30313,10 +30427,13 @@ var $author$project$Main$viewCurrentNode = function (model) {
 		var camera = _v0.a;
 		return A2(
 			$mdgriffith$elm_ui$Element$row,
-			_List_Nil,
 			_List_fromArray(
 				[
-					A2($author$project$ViewElements$zoomSlider, model.zoomLevelThirdPerson, $author$project$Msg$ZoomLevelThirdPerson),
+					$mdgriffith$elm_ui$Element$padding(5),
+					$mdgriffith$elm_ui$Element$spacing(10)
+				]),
+			_List_fromArray(
+				[
 					A2(
 					$mdgriffith$elm_ui$Element$el,
 					$author$project$ViewElements$withMouseCapture,
@@ -30333,7 +30450,8 @@ var $author$project$Main$viewCurrentNode = function (model) {
 								shadows: true,
 								sunlightDirection: $ianmackenzie$elm_geometry$Direction3d$negativeZ,
 								upDirection: $ianmackenzie$elm_geometry$Direction3d$positiveZ
-							})))
+							}))),
+					A2($author$project$ViewElements$zoomSlider, model.zoomLevelThirdPerson, $author$project$Msg$ZoomLevelThirdPerson)
 				]));
 	} else {
 		return $mdgriffith$elm_ui$Element$none;
@@ -30357,7 +30475,8 @@ var $author$project$Main$viewThirdPerson = function (model) {
 						[$mdgriffith$elm_ui$Element$alignTop]),
 					_List_fromArray(
 						[
-							$author$project$Main$viewCurrentNode(model)
+							$author$project$Main$viewCurrentNode(model),
+							$author$project$Main$positionControls(model)
 						]))
 				]));
 	}
@@ -30389,9 +30508,9 @@ var $author$project$Main$view3D = F2(
 							_List_fromArray(
 								[
 									$mdgriffith$elm_ui$Element$width(
-									$mdgriffith$elm_ui$Element$px($author$project$Utils$view3dWidth | 0)),
+									$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapWidth)),
 									$mdgriffith$elm_ui$Element$height(
-									$mdgriffith$elm_ui$Element$px($author$project$Utils$view3dHeight | 0)),
+									$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapHeight)),
 									$mdgriffith$elm_ui$Element$alignLeft,
 									$mdgriffith$elm_ui$Element$alignTop,
 									$mdgriffith$elm_ui$Element$htmlAttribute(

@@ -5,7 +5,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Markdown
 import Msg exposing (Msg)
-import Utils exposing (view3dDimensions, view3dHeight, view3dWidth)
+import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeight, viewMapWidth)
 
 
 aboutText =
@@ -76,11 +76,11 @@ viewAboutText =
         , Background.color <| rgb255 220 220 200
         , clipY
         , scrollbarY
-        , height <| px <| truncate view3dHeight
+        , height <| px viewMapHeight
         ]
         [ paragraph
-            [ width <| px <| truncate view3dWidth
-            , height <| maximum (truncate view3dHeight) fill
+            [ width <| px viewMapWidth
+            , height <| px viewMapHeight
             ]
           <|
             [ html <| Markdown.toHtml [] aboutText ]

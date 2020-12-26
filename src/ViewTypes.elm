@@ -11,7 +11,6 @@ type ViewingMode
     | MapView
 
 
-
 type alias Coordinate =
     { lon : Float
     , lat : Float

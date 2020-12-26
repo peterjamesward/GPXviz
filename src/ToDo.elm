@@ -2,6 +2,10 @@ module ToDo exposing (..)
 
 --TODO: What is using all the power??
 
+--TODO: Restore scroll bars.
+
+--TODO:
+
 --TODO: Profile dragging to use metres, not index.
 
 --TODO: Recursive track point split, user specified smoothness (i.e. depth of recursion).

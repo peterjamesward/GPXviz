@@ -3,7 +3,7 @@ module NodesAndRoads exposing (..)
 --import ScalingInfo exposing (ScalingInfo)
 
 import BoundingBox3d exposing (BoundingBox3d)
-import Element exposing (centerX, column, none, padding, row, spacing, text)
+import Element exposing (alignTop, centerX, column, none, padding, row, spacing, text)
 import Length
 import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
@@ -13,7 +13,6 @@ import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
 
 type LocalCoords
     = LocalCoords
-
 
 
 type alias ScalingInfo =
@@ -53,6 +52,7 @@ type alias SummaryData =
     , totalClimbing : Float
     , totalDescending : Float
     }
+
 
 deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters LocalCoords
 deriveTrackPointBox tps =
@@ -237,34 +237,47 @@ deriveSummary roadSegments =
 summaryData maybeRoad =
     case maybeRoad of
         Just road ->
-            row [ padding 20, centerX ]
-                [ column [ spacing 10 ]
-                    [ text "Start point index "
-                    , text "Start latitude "
-                    , text "Start longitude "
-                    , text "Start elevation "
-                    , text "Start distance "
-                    , text "End latitude "
-                    , text "End longitude "
-                    , text "End elevation "
-                    , text "End distance "
-                    , text "Length "
-                    , text "Gradient "
-                    , text "Bearing "
+            column [ centerX ]
+                [ row [ padding 20, centerX, spacing 10  ]
+                    [ column [ spacing 10 ]
+                        [ text "Start point index "
+                        , text "Length "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text <| String.fromInt road.index
+                        , text <| showDecimal2 road.length
+                        ]
+                    , column [ spacing 10 ]
+                        [ text "Gradient "
+                        , text "Bearing "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text <| showDecimal2 road.gradient
+                        , text <| bearingToDisplayDegrees road.bearing
+                        ]
                     ]
-                , column [ spacing 10 ]
-                    [ text <| String.fromInt road.index
-                    , text <| showDecimal6 road.startsAt.trackPoint.lat
-                    , text <| showDecimal6 road.startsAt.trackPoint.lon
-                    , text <| showDecimal2 road.startsAt.trackPoint.ele
-                    , text <| showDecimal2 road.startDistance
-                    , text <| showDecimal6 road.endsAt.trackPoint.lat
-                    , text <| showDecimal6 road.endsAt.trackPoint.lon
-                    , text <| showDecimal2 road.endsAt.trackPoint.ele
-                    , text <| showDecimal2 road.endDistance
-                    , text <| showDecimal2 road.length
-                    , text <| showDecimal2 road.gradient
-                    , text <| bearingToDisplayDegrees road.bearing
+                , row [ padding 10, centerX, alignTop, spacing 10 ]
+                    [ column [ spacing 10 ]
+                        [ text "   "
+                        , text "Latitude "
+                        , text "Longitude "
+                        , text "Elevation "
+                        , text "Distance "
+                        ]
+                    , column [ spacing 10 ]
+                        [ text "At start"
+                        , text <| showDecimal6 road.startsAt.trackPoint.lat
+                        , text <| showDecimal6 road.startsAt.trackPoint.lon
+                        , text <| showDecimal2 road.startsAt.trackPoint.ele
+                        , text <| showDecimal2 road.startDistance
+                        ]
+                    , column [ spacing 10 ]
+                        [ text "At end"
+                        , text <| showDecimal6 road.endsAt.trackPoint.lat
+                        , text <| showDecimal6 road.endsAt.trackPoint.lon
+                        , text <| showDecimal2 road.endsAt.trackPoint.ele
+                        , text <| showDecimal2 road.endDistance
+                        ]
                     ]
                 ]
 
