@@ -253,7 +253,7 @@ splitSegmentOptions c maxSegLength =
                 , label =
                     Input.labelBelow [] <|
                         text <|
-                            "Maximum track point gap = "
+                            "Maximum gap = "
                                 ++ showDecimal2 value
                                 ++ "m"
                 , min = 5.0
@@ -263,7 +263,7 @@ splitSegmentOptions c maxSegLength =
                 , thumb = Input.defaultThumb
                 }
     in
-    column [ spacing 10, padding 10 ]
+    row [ spacing 10 ]
         [ splitSlider maxSegLength
         , button
             prettyButtonStyles

@@ -25178,7 +25178,7 @@ var $author$project$ViewElements$splitSegmentOptions = F2(
 						$mdgriffith$elm_ui$Element$Input$labelBelow,
 						_List_Nil,
 						$mdgriffith$elm_ui$Element$text(
-							'Maximum track point gap = ' + ($author$project$Utils$showDecimal2(value) + 'm'))),
+							'Maximum gap = ' + ($author$project$Utils$showDecimal2(value) + 'm'))),
 					max: 50.0,
 					min: 5.0,
 					onChange: $author$project$Msg$SetMaxTrackpointSpacing,
@@ -25188,11 +25188,10 @@ var $author$project$ViewElements$splitSegmentOptions = F2(
 				});
 		};
 		return A2(
-			$mdgriffith$elm_ui$Element$column,
+			$mdgriffith$elm_ui$Element$row,
 			_List_fromArray(
 				[
-					$mdgriffith$elm_ui$Element$spacing(10),
-					$mdgriffith$elm_ui$Element$padding(10)
+					$mdgriffith$elm_ui$Element$spacing(10)
 				]),
 			_List_fromArray(
 				[
@@ -25211,15 +25210,25 @@ var $author$project$Main$viewTrackPointTools = function (model) {
 		$mdgriffith$elm_ui$Element$column,
 		_List_fromArray(
 			[
+				$mdgriffith$elm_ui$Element$padding(10),
 				$mdgriffith$elm_ui$Element$spacing(10),
 				$mdgriffith$elm_ui$Element$centerX
 			]),
 		_List_fromArray(
 			[
-				$author$project$Main$insertNodeOptionsBox(model.currentNode),
+				A2(
+				$mdgriffith$elm_ui$Element$row,
+				_List_fromArray(
+					[
+						$mdgriffith$elm_ui$Element$spacing(20)
+					]),
+				_List_fromArray(
+					[
+						$author$project$Main$insertNodeOptionsBox(model.currentNode),
+						$author$project$ViewElements$deleteNodeButton(model.currentNode)
+					])),
 				$author$project$Main$markerButton(model),
 				A2($author$project$ViewElements$splitSegmentOptions, model.currentNode, model.maxSegmentSplitSize),
-				$author$project$ViewElements$deleteNodeButton(model.currentNode),
 				$author$project$Main$undoButton(model)
 			]));
 };

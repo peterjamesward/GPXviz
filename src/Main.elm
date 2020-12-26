@@ -3638,11 +3638,13 @@ viewGradientFixerPane model =
 
 
 viewTrackPointTools model =
-    column [ spacing 10, centerX ] <|
-        [ insertNodeOptionsBox model.currentNode
+    column [ padding 10, spacing 10, centerX ] <|
+        [ row [ spacing 20 ]
+            [ insertNodeOptionsBox model.currentNode
+            , deleteNodeButton model.currentNode
+            ]
         , markerButton model
         , splitSegmentOptions model.currentNode model.maxSegmentSplitSize
-        , deleteNodeButton model.currentNode
         , undoButton model
         ]
 
