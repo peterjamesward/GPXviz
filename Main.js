@@ -22180,9 +22180,9 @@ var $mdgriffith$elm_ui$Element$Border$rounded = function (radius) {
 var $author$project$ViewElements$commonShortHorizontalSliderStyles = _List_fromArray(
 	[
 		$mdgriffith$elm_ui$Element$height(
-		$mdgriffith$elm_ui$Element$px(30)),
+		$mdgriffith$elm_ui$Element$px(20)),
 		$mdgriffith$elm_ui$Element$width(
-		$mdgriffith$elm_ui$Element$px(200)),
+		$mdgriffith$elm_ui$Element$px(150)),
 		$mdgriffith$elm_ui$Element$centerY,
 		$mdgriffith$elm_ui$Element$behindContent(
 		A2(
@@ -22190,9 +22190,9 @@ var $author$project$ViewElements$commonShortHorizontalSliderStyles = _List_fromA
 			_List_fromArray(
 				[
 					$mdgriffith$elm_ui$Element$width(
-					$mdgriffith$elm_ui$Element$px(200)),
+					$mdgriffith$elm_ui$Element$px(150)),
 					$mdgriffith$elm_ui$Element$height(
-					$mdgriffith$elm_ui$Element$px(30)),
+					$mdgriffith$elm_ui$Element$px(20)),
 					$mdgriffith$elm_ui$Element$centerY,
 					$mdgriffith$elm_ui$Element$centerX,
 					$mdgriffith$elm_ui$Element$Background$color(
@@ -25012,9 +25012,9 @@ var $author$project$Msg$SetVerticalNudgeFactor = function (a) {
 var $author$project$ViewElements$commonShortVerticalSliderStyles = _List_fromArray(
 	[
 		$mdgriffith$elm_ui$Element$height(
-		$mdgriffith$elm_ui$Element$px(200)),
+		$mdgriffith$elm_ui$Element$px(150)),
 		$mdgriffith$elm_ui$Element$width(
-		$mdgriffith$elm_ui$Element$px(30)),
+		$mdgriffith$elm_ui$Element$px(20)),
 		$mdgriffith$elm_ui$Element$centerY,
 		$mdgriffith$elm_ui$Element$centerX,
 		$mdgriffith$elm_ui$Element$behindContent(
@@ -25023,9 +25023,9 @@ var $author$project$ViewElements$commonShortVerticalSliderStyles = _List_fromArr
 			_List_fromArray(
 				[
 					$mdgriffith$elm_ui$Element$width(
-					$mdgriffith$elm_ui$Element$px(30)),
+					$mdgriffith$elm_ui$Element$px(20)),
 					$mdgriffith$elm_ui$Element$height(
-					$mdgriffith$elm_ui$Element$px(200)),
+					$mdgriffith$elm_ui$Element$px(150)),
 					$mdgriffith$elm_ui$Element$centerY,
 					$mdgriffith$elm_ui$Element$centerX,
 					$mdgriffith$elm_ui$Element$Background$color(
@@ -25040,7 +25040,7 @@ var $author$project$ViewElements$verticalNudgeSlider = function (value) {
 		_List_fromArray(
 			[
 				$mdgriffith$elm_ui$Element$width(
-				$mdgriffith$elm_ui$Element$px(100)),
+				$mdgriffith$elm_ui$Element$px(80)),
 				$mdgriffith$elm_ui$Element$centerX
 			]),
 		A2(
@@ -25083,9 +25083,20 @@ var $author$project$Main$viewNudgeTools = function (model) {
 				_List_fromArray(
 					[
 						$author$project$ViewElements$verticalNudgeSlider(model.verticalNudgeValue),
-						$author$project$ViewElements$horizontalNudgeSlider(model.nudgeValue)
+						A2(
+						$mdgriffith$elm_ui$Element$column,
+						_List_fromArray(
+							[
+								$mdgriffith$elm_ui$Element$spacing(10),
+								$mdgriffith$elm_ui$Element$centerX,
+								$mdgriffith$elm_ui$Element$centerY
+							]),
+						_List_fromArray(
+							[
+								$author$project$ViewElements$horizontalNudgeSlider(model.nudgeValue),
+								A2($author$project$ViewElements$nudgeButton, model.nudgeValue, model.verticalNudgeValue)
+							]))
 					])),
-				A2($author$project$ViewElements$nudgeButton, model.nudgeValue, model.verticalNudgeValue),
 				$author$project$Main$undoButton(model)
 			]));
 };

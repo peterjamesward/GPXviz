@@ -186,14 +186,14 @@ checkboxIcon isChecked =
 
 
 commonShortHorizontalSliderStyles =
-    [ height <| px 30
-    , width <| px 200
+    [ height <| px 20
+    , width <| px 150
     , centerY
     , behindContent <|
         -- Slider track
         el
-            [ width <| px 200
-            , height <| px 30
+            [ width <| px 150
+            , height <| px 20
             , centerY
             , centerX
             , Background.color <| rgb255 114 159 207
@@ -204,15 +204,15 @@ commonShortHorizontalSliderStyles =
 
 
 commonShortVerticalSliderStyles =
-    [ height <| px 200
-    , width <| px 30
+    [ height <| px 150
+    , width <| px 20
     , centerY
     , centerX
     , behindContent <|
         -- Slider track
         el
-            [ width <| px 30
-            , height <| px 200
+            [ width <| px 20
+            , height <| px 150
             , centerY
             , centerX
             , Background.color <| rgb255 114 159 207
@@ -304,7 +304,7 @@ horizontalNudgeSlider value =
 
 
 verticalNudgeSlider value =
-    el [ width <| px 100, centerX ] <|
+    el [ width <| px 80, centerX ] <|
         Input.slider
             commonShortVerticalSliderStyles
             { onChange = SetVerticalNudgeFactor

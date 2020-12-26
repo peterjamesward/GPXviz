@@ -3511,9 +3511,11 @@ viewNudgeTools model =
         [ markerButton model
         , row [ spacing 10, centerX ]
             [ verticalNudgeSlider model.verticalNudgeValue
-            , horizontalNudgeSlider model.nudgeValue
+            , column [ spacing 10, centerX, centerY ]
+                [ horizontalNudgeSlider model.nudgeValue
+                , nudgeButton model.nudgeValue model.verticalNudgeValue
+                ]
             ]
-        , nudgeButton model.nudgeValue model.verticalNudgeValue
         , undoButton model
         ]
 
