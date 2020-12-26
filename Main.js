@@ -24677,7 +24677,8 @@ var $author$project$Main$undoButton = function (model) {
 		$mdgriffith$elm_ui$Element$row,
 		_List_fromArray(
 			[
-				$mdgriffith$elm_ui$Element$spacing(5),
+				$mdgriffith$elm_ui$Element$padding(5),
+				$mdgriffith$elm_ui$Element$spacing(10),
 				$mdgriffith$elm_ui$Element$Border$width(1),
 				$mdgriffith$elm_ui$Element$Border$rounded(5)
 			]),
@@ -24757,7 +24758,7 @@ var $author$project$Main$viewBendFixerPane = function (model) {
 				if (_v0.$ === 'Just') {
 					var smooth = _v0.a;
 					return A2(
-						$mdgriffith$elm_ui$Element$column,
+						$mdgriffith$elm_ui$Element$row,
 						_List_fromArray(
 							[
 								$mdgriffith$elm_ui$Element$spacing(10),
@@ -24824,7 +24825,7 @@ var $author$project$Main$smoothnessSlider = function (model) {
 				$mdgriffith$elm_ui$Element$Input$labelBelow,
 				_List_Nil,
 				$mdgriffith$elm_ui$Element$text(
-					'Bumpiness factor = ' + $author$project$Utils$showDecimal2(model.bumpinessFactor))),
+					'Bumpiness = ' + $author$project$Utils$showDecimal2(model.bumpinessFactor))),
 			max: 1.0,
 			min: 0.0,
 			onChange: $author$project$Msg$SetBumpinessFactor,
@@ -24842,7 +24843,7 @@ var $author$project$Main$viewGradientFixerPane = function (model) {
 		if (avg.$ === 'Just') {
 			var gradient = avg.a;
 			return A2(
-				$mdgriffith$elm_ui$Element$column,
+				$mdgriffith$elm_ui$Element$row,
 				_List_fromArray(
 					[
 						$mdgriffith$elm_ui$Element$Border$width(1),
@@ -24870,6 +24871,7 @@ var $author$project$Main$viewGradientFixerPane = function (model) {
 		$mdgriffith$elm_ui$Element$column,
 		_List_fromArray(
 			[
+				$mdgriffith$elm_ui$Element$padding(10),
 				$mdgriffith$elm_ui$Element$spacing(10),
 				$mdgriffith$elm_ui$Element$centerX
 			]),
@@ -27004,7 +27006,7 @@ var $author$project$Main$smoothGradient = F2(
 			start,
 			A2($elm$core$List$take, finish - 1, model.roads));
 		var startNode = A2($elm$core$Array$get, start, model.nodeArray);
-		var undoMessage = 'gradient smoothing from ' + ($elm$core$String$fromInt(start) + (' to ' + ($elm$core$String$fromInt(finish) + (', \nbumpiness ' + ($author$project$Utils$showDecimal2(model.bumpinessFactor) + '.')))));
+		var undoMessage = 'gradient smoothing\nfrom ' + ($elm$core$String$fromInt(start) + (' to ' + ($elm$core$String$fromInt(finish) + (', \nbumpiness ' + ($author$project$Utils$showDecimal2(model.bumpinessFactor) + '.')))));
 		if (startNode.$ === 'Just') {
 			var n = startNode.a;
 			var applyBumpiness = F2(
@@ -28556,7 +28558,8 @@ var $author$project$About$viewAboutText = A2(
 			$mdgriffith$elm_ui$Element$clipY,
 			$mdgriffith$elm_ui$Element$scrollbarY,
 			$mdgriffith$elm_ui$Element$height(
-			$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapHeight))
+			$mdgriffith$elm_ui$Element$px($author$project$Utils$viewMapHeight)),
+			$mdgriffith$elm_ui$Element$padding(20)
 		]),
 	_List_fromArray(
 		[

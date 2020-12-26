@@ -2115,7 +2115,7 @@ smoothGradient model gradient =
             Array.get start model.nodeArray
 
         undoMessage =
-            "gradient smoothing from "
+            "gradient smoothing\nfrom "
                 ++ String.fromInt start
                 ++ " to "
                 ++ String.fromInt finish
@@ -3476,7 +3476,7 @@ viewBendFixerPane model =
         [ markerButton model
         , case model.smoothedBend of
             Just smooth ->
-                column [ spacing 10, padding 10, alignTop ]
+                row [ spacing 10, padding 10, alignTop ]
                     [ fixBendButton smooth
                     , bendSmoothnessSlider model
                     ]
@@ -3559,7 +3559,7 @@ markerButton model =
 
 
 undoButton model =
-    row [ spacing 5, Border.width 1, Border.rounded 5 ]
+    row [ padding 5, spacing 10, Border.width 1, Border.rounded 5 ]
         [ button
             prettyButtonStyles
             { onPress =
@@ -3615,7 +3615,7 @@ viewGradientFixerPane model =
         gradientSmoothControls =
             case avg of
                 Just gradient ->
-                    column [ Border.width 1, spacing 5, padding 5 ]
+                    row [ Border.width 1, spacing 5, padding 5 ]
                         [ button
                             prettyButtonStyles
                             { onPress = Just <| SmoothGradient gradient
@@ -3630,7 +3630,7 @@ viewGradientFixerPane model =
                 _ ->
                     none
     in
-    column [ spacing 10, centerX ] <|
+    column [ padding 10, spacing 10, centerX ] <|
         [ markerButton model
         , gradientSmoothControls
         , undoButton model
@@ -3673,7 +3673,7 @@ smoothnessSlider model =
         , label =
             Input.labelBelow [] <|
                 text <|
-                    "Bumpiness factor = "
+                    "Bumpiness = "
                         ++ showDecimal2 model.bumpinessFactor
         , min = 0.0
         , max = 1.0

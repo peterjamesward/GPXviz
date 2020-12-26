@@ -73,6 +73,7 @@ viewAboutText =
         , clipY
         , scrollbarY
         , height <| px viewMapHeight
+        , padding 20
         ]
         [ paragraph
             [ width <| px viewMapWidth
