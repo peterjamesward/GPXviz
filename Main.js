@@ -27318,6 +27318,7 @@ var $author$project$Main$switchViewMode = F2(
 					var newModel = _Utils_update(
 						model,
 						{
+							flythrough: $elm$core$Maybe$Nothing,
 							mapInfo: $elm$core$Maybe$Just(newInfo),
 							viewingMode: mode
 						});
@@ -27344,7 +27345,7 @@ var $author$project$Main$switchViewMode = F2(
 						$author$project$Main$deriveVaryingVisualEntities(
 							_Utils_update(
 								model,
-								{viewingMode: mode}))),
+								{flythrough: $elm$core$Maybe$Nothing, viewingMode: mode}))),
 					$elm$core$Platform$Cmd$none);
 			}
 		}

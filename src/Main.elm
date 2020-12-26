@@ -1358,6 +1358,7 @@ switchViewMode model mode =
                             { model
                                 | viewingMode = mode
                                 , mapInfo = Just newInfo
+                                , flythrough = Nothing
                             }
                     in
                     ( newModel
@@ -1395,7 +1396,10 @@ switchViewMode model mode =
 
         ( _, _ ) ->
             -- Map not involved, happy days.
-            ( { model | viewingMode = mode }
+            ( { model
+                | viewingMode = mode
+                , flythrough = Nothing
+              }
                 |> deriveVaryingVisualEntities
                 |> checkSceneCamera
             , Cmd.none

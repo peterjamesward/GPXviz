@@ -1,8 +1,10 @@
 module ToDo exposing (..)
 
---TODO: What is using all the power??
+--TODO: What is using all the power?? Am I doing something expensive in View?
 
 --TODO: Change the arc generation to not use incircle. See notes.
+
+--TODO: Maybe faster hit test by looking only at visible nodes.
 
 --TODO: Split track to show yellow icon warning if segments less than the maximum segment?
 
