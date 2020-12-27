@@ -31,7 +31,7 @@ optionally test element =
         []
 
 
-makeHitDetectionEntities : List DrawingNode -> List (Int, Sphere3d Length.Meters LocalCoords)
+makeHitDetectionEntities : List DrawingNode -> List ( Int, Sphere3d Length.Meters LocalCoords )
 makeHitDetectionEntities nodes =
     let
         trackpoint node =
@@ -48,6 +48,12 @@ makeStatic3DEntities :
     -> List (Entity LocalCoords)
 makeStatic3DEntities context roadList =
     let
+        ( xDelta, yDelta ) =
+            -- Convenience for making rectangles
+            ( Vector3d.withLength (Length.meters 0.5) Direction3d.x
+            , Vector3d.withLength (Length.meters 0.5) Direction3d.y
+            )
+
         seaLevel =
             let
                 bigger =
@@ -108,9 +114,8 @@ makeStatic3DEntities context roadList =
                 ++ List.map makeEndCone roadList
 
         roadSurfaces =
-            List.concat <|
-                List.map roadSurface <|
-                    roadList
+            List.concatMap roadSurface <|
+                roadList
 
         roadSurface road =
             let
@@ -182,14 +187,12 @@ makeStatic3DEntities context roadList =
             ]
 
         centreLine =
-            List.concat <|
-                List.map subtleGradientLine <|
-                    roadList
+            List.concatMap subtleGradientLine <|
+                roadList
 
         curtains =
-            List.concat <|
-                List.map curtain <|
-                    roadList
+            List.concatMap curtain <|
+                roadList
 
         curtainColour gradient =
             case context.displayOptions.curtainStyle of

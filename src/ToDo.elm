@@ -1,18 +1,15 @@
 module ToDo exposing (..)
 
---TODO: What is using all the power?? Am I doing something expensive in View?
+--TODO: Maybe faster hit test by looking only at visible nodes. (Projection logic.)
+-- That's one pass to select visibles, then only apply distance function to subset.
 
---TODO: Change the arc generation to not use incircle. See notes.
-
---TODO: Maybe faster hit test by looking only at visible nodes.
-
---TODO: Split track to show yellow icon warning if segments less than the maximum segment?
+--TODO: Split track to show text (+ Feather icon) warning if segments less than the maximum segment?
 
 --TODO: Map terrain option (switch map style).
 
 --TODO: Popup tool help on all accordion tabs?
 
---TODO: Remove excessive track points (like the inverse of split track but cleverer). (Jarle Steffenson).
+--TODO: Tool to reduce excessive track points. (Jarle Steffenson).
 
 --TODO: Optimise use of screen space, knowing viewport.
 

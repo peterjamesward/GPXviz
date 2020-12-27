@@ -15,6 +15,10 @@ aboutText =
 
 > **Changes**
 
+> - Stopped Flythrough running in background once started. (Was making my machine hot.)
+
+> - Minor layout changes in some tool tabs.
+
 > - Scroll bars are back.
 
 > - Mouse wheel should zoom in and out, just like the map.

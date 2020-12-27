@@ -53,7 +53,7 @@ bendIncircle numSegments pa pb pc pd =
                 divergentRoadsArc p r1 r2
 
             else
-                convergentRoadsArc p r1 r2
+                newConvergentRoadsArc p r1 r2
 
         arc =
             case findIntercept roadIn roadOut of
@@ -257,6 +257,90 @@ divergentRoadsArc p r1 r2 =
             Nothing
 
 
+newConvergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters LocalCoords)
+newConvergentRoadsArc p r1 r2 =
+    -- With minor changes the divergent arc should be a model for a simple
+    -- convergent case, not using the Incircle (and hence larger radii generally).
+    -- p (the intersect) will be the intersection of the extended pa-pb and pd-pc lines.
+    -- The 'dominant' road will be determined by which  of B or C is nearest P.
+    let
+        ( ( pa, pb ), ( pc, pd ) ) =
+            ( ( r1.startAt, r1.endsAt ), ( r2.startAt, r2.endsAt ) )
+
+        ( farthestEndPoint, dominantRoad, otherRoad ) =
+            if distance p pa <= distance p pd then
+                ( pa, r1, r2 )
+
+            else
+                ( pd, r2, r1 )
+
+        maybeCircle =
+            G.findIncircleFromTwoRoads r1 r2
+    in
+    case maybeCircle of
+        Just circle ->
+            let
+                bisector =
+                    lineEquationFromTwoPoints p circle.centre
+
+                dominantRoadAsLine =
+                    lineEquationFromTwoPoints dominantRoad.startAt dominantRoad.endsAt
+
+                perpFromDominantRoad =
+                    linePerpendicularTo dominantRoadAsLine farthestEndPoint
+
+                maybeCentre =
+                    lineIntersection bisector perpFromDominantRoad
+            in
+            case maybeCentre of
+                Just centre ->
+                    let
+                        otherRoadAsLine =
+                            lineEquationFromTwoPoints otherRoad.startAt otherRoad.endsAt
+
+                        perpToOtherRoad =
+                            linePerpendicularTo otherRoadAsLine centre
+
+                        otherTangentPoint =
+                            lineIntersection perpToOtherRoad otherRoadAsLine
+
+                        radius =
+                            -- Need this to find the mid point
+                            distance centre farthestEndPoint
+
+                        bisectorAsRoad =
+                            { startAt = p, endsAt = centre }
+
+                        distanceToCentre =
+                            distance p centre
+
+                        midArcPoint =
+                            pointAlongRoad bisectorAsRoad (distanceToCentre - radius)
+
+                        ( arcStart, arcFinish ) =
+                            if dominantRoad == r1 then
+                                ( Just r1.startAt, otherTangentPoint )
+
+                            else
+                                ( otherTangentPoint, Just r2.endsAt )
+                    in
+                    case ( arcStart, arcFinish ) of
+                        ( Just p1, Just p2 ) ->
+                            Arc2d.throughPoints
+                                (Point2d.meters p1.x p1.y)
+                                (Point2d.meters midArcPoint.x midArcPoint.y)
+                                (Point2d.meters p2.x p2.y)
+
+                        _ ->
+                            Nothing
+
+                Nothing ->
+                    Nothing
+
+        Nothing ->
+            Nothing
+
+
 parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters LocalCoords)
 parallelFindSemicircle r1 r2 =
     Nothing
@@ -270,14 +354,14 @@ convergentRoadsArc p r1 r2 =
     in
     case maybeCircle of
         Just circle ->
-            weHaveAnIncircle p r1 r2 circle
+            findArcFromIncircle p r1 r2 circle
 
         Nothing ->
             Nothing
 
 
-weHaveAnIncircle : Point -> Road -> Road -> Circle -> Maybe (Arc2d Meters LocalCoords)
-weHaveAnIncircle p r1 r2 circle =
+findArcFromIncircle : Point -> Road -> Road -> Circle -> Maybe (Arc2d Meters LocalCoords)
+findArcFromIncircle p r1 r2 circle =
     let
         ( entryPoint, exitPoint ) =
             ( G.findTangentPoint r1 circle
