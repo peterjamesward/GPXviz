@@ -15,7 +15,7 @@ aboutText =
 
 > **Changes**
 
-) - Plan is back.
+> - Plan is back.
 
 > - Minor tweak to Bend smooth logic.
 
