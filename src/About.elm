@@ -11,9 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """Thank you for trying this GPX viewer. It is freely provided without warranty.
 
-> _This text updated 2020-12-26_
+> _This text updated 2020-12-27_
 
 > **Changes**
+
+) - Plan is back.
+
+> - Minor tweak to Bend smooth logic.
 
 > - Stopped Flythrough running in background once started. (Was making my machine hot.)
 
@@ -23,15 +27,13 @@ aboutText =
 
 > - Mouse wheel should zoom in and out, just like the map.
 
-> - You can mouse click on any view to select a track point. Just like on the map.
+> - Mouse click on any view to select a track point. Just like on the map.
 
 > - Left-click and drag move the Third person and Profile views around.
 
 > - Right-click (or ctrl-click) and drag in Third person view rotates around the current focal point.
 
 > - Double-click on a track point to centre the focus on that point. (This is essential in Third Person view).
-
-> - Plan is gone now the map seems stable.
 
 > _Standard warning: Save your work_ often.
 

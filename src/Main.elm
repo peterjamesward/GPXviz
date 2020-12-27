@@ -2786,8 +2786,7 @@ viewModeChoices model =
             [ Input.optionWith ThirdPersonView <| radioButton First "Third person"
             , Input.optionWith FirstPersonView <| radioButton Mid "First person"
             , Input.optionWith ProfileView <| radioButton Mid "Elevation"
-
-            --, Input.optionWith PlanView <| radioButton Mid "Plan"
+            , Input.optionWith PlanView <| radioButton Mid "Plan"
             , Input.optionWith MapView <| radioButton Mid "Map"
             , Input.optionWith AboutView <| radioButton Last "About"
             ]
@@ -3772,7 +3771,7 @@ viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
 viewCurrentNodePlanView model node =
     case model.currentSceneCamera of
         Just camera ->
-            row []
+            row [ padding 5, spacing 10 ]
                 [ el withMouseCapture <|
                     html <|
                         Scene3d.sunny
