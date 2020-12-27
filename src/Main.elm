@@ -92,6 +92,7 @@ type DragAction
     | DragRotate
     | DragPan
     | DragProfile
+    | DragPlan
 
 
 type alias Model =
@@ -158,6 +159,7 @@ type alias Model =
     , mouseDownTime : Time.Posix -- seems needed to distinguish click from any other mouse-up event.
     , cameraFocusThirdPerson : Point3d Length.Meters LocalCoords
     , cameraFocusProfileNode : Int
+    , cameraFocusPlan : Point3d Length.Meters LocalCoords
     }
 
 
@@ -226,6 +228,7 @@ init _ =
       , mouseDownTime = Time.millisToPosix 0
       , cameraFocusThirdPerson = Point3d.origin
       , cameraFocusProfileNode = 0
+      , cameraFocusPlan = Point3d.origin
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -821,6 +824,9 @@ update msg model =
                         ( ProfileView, _ ) ->
                             DragProfile
 
+                        ( PlanView, _ ) ->
+                            DragPlan
+
                         _ ->
                             DragNone
                 , mouseDownTime = model.time -- to disambinguate click and mouse-up. maybe.
@@ -887,6 +893,44 @@ update msg model =
                     in
                     ( { model
                         | cameraFocusThirdPerson = newFocus
+                        , orbiting = Just ( dx, dy )
+                      }
+                        |> checkSceneCamera
+                    , Cmd.none
+                    )
+
+                ( DragPlan, Just ( startX, startY ), Just camera ) ->
+                    let
+                        currentViewpoint =
+                            Camera3d.viewpoint camera
+
+                        xDirection =
+                            Viewpoint3d.xDirection currentViewpoint
+
+                        yDirection =
+                            Viewpoint3d.yDirection currentViewpoint
+
+                        currentFocus =
+                            model.cameraFocusPlan
+
+                        xMovement =
+                            Vector3d.withLength
+                                (Length.meters <| 0.5 * (startX - dx))
+                                xDirection
+
+                        yMovement =
+                            Vector3d.withLength
+                                (Length.meters <| 0.5 * (dy - startY))
+                                yDirection
+
+                        netMovement =
+                            Vector3d.plus xMovement yMovement
+
+                        newFocus =
+                            Point3d.translateBy netMovement currentFocus
+                    in
+                    ( { model
+                        | cameraFocusPlan = newFocus
                         , orbiting = Just ( dx, dy )
                       }
                         |> checkSceneCamera
@@ -1220,12 +1264,14 @@ centreViewOnCurrentNode model =
             { model
                 | cameraFocusThirdPerson = node.location
                 , cameraFocusProfileNode = model.currentNode
+                , cameraFocusPlan = node.location
             }
 
         ( Just node, Nothing ) ->
             { model
                 | cameraFocusThirdPerson = node.location
                 , cameraFocusProfileNode = model.currentNode - 1
+                , cameraFocusPlan = node.location
             }
 
         _ ->
@@ -3744,27 +3790,27 @@ viewCurrentNode model =
 planCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 planCamera model =
     let
-        focus node =
+        focus  =
             Point3d.projectOnto Plane3d.xy
-                node.location
+                model.cameraFocusPlan
 
-        eyePoint node =
+        eyePoint  =
             Point3d.translateBy
                 (Vector3d.meters 0.0 0.0 5000.0)
-                node.location
+                focus
 
-        camera node =
+        camera  =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt
-                        { focalPoint = focus node
-                        , eyePoint = eyePoint node
+                        { focalPoint = focus
+                        , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
                 , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
                 }
     in
-    Maybe.map camera (Array.get model.currentNode model.nodeArray)
+    Just camera
 
 
 viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg

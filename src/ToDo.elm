@@ -2,6 +2,7 @@ module ToDo exposing (..)
 
 --TODO: Maybe faster hit test by looking only at visible nodes. (Projection logic.)
 -- That's one pass to select visibles, then only apply distance function to subset.
+-- Thing is, the determinatio of what it visible is itself rather complex.
 
 --TODO: Split track to show text (+ Feather icon) warning if segments less than the maximum segment?
 

@@ -267,7 +267,7 @@ newConvergentRoadsArc p r1 r2 =
         ( ( pa, pb ), ( pc, pd ) ) =
             ( ( r1.startAt, r1.endsAt ), ( r2.startAt, r2.endsAt ) )
 
-        ( farthestEndPoint, dominantRoad, otherRoad ) =
+        ( endPointNearestIntersect, dominantRoad, otherRoad ) =
             if distance p pa <= distance p pd then
                 ( pa, r1, r2 )
 
@@ -287,7 +287,7 @@ newConvergentRoadsArc p r1 r2 =
                     lineEquationFromTwoPoints dominantRoad.startAt dominantRoad.endsAt
 
                 perpFromDominantRoad =
-                    linePerpendicularTo dominantRoadAsLine farthestEndPoint
+                    linePerpendicularTo dominantRoadAsLine endPointNearestIntersect
 
                 maybeCentre =
                     lineIntersection bisector perpFromDominantRoad
@@ -306,7 +306,7 @@ newConvergentRoadsArc p r1 r2 =
 
                         radius =
                             -- Need this to find the mid point
-                            distance centre farthestEndPoint
+                            distance centre endPointNearestIntersect
 
                         bisectorAsRoad =
                             { startAt = p, endsAt = centre }
