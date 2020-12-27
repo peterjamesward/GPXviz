@@ -1,6 +1,5 @@
 # Project exclude paths
 /elm-stuff/
-index.html
 src/MapboxKey.elm
 MapboxKey.elm
 Main.js

@@ -9,11 +9,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 
 
 aboutText =
-    """Thank you for trying this GPX viewer. It is freely provided without warranty.
+    """Thank you for trying GPXmagic. It is freely provided without warranty.
 
 > _This text updated 2020-12-27_
 
 > **Changes**
+
+> - We have a name: "GPXmagic". Thanks, John Bytheway.
 
 > - Plan is back.
 

@@ -2704,7 +2704,7 @@ deriveVaryingVisualEntities model =
 
 viewGenericNew : Model -> Browser.Document Msg
 viewGenericNew model =
-    { title = "GPX viewer"
+    { title = "GPXmagic"
     , body =
         [ layout
             [ width fill
