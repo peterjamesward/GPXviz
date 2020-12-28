@@ -460,7 +460,10 @@ makeNearestNodeCurrent lon lat model =
     in
     case nearbyPoints of
         n :: _ ->
-            { model | currentNode = n.index }
+            { model
+                | currentNode = n.index
+                , cameraFocusProfileNode = n.index
+            }
 
         _ ->
             model
@@ -1255,25 +1258,24 @@ update msg model =
 
                 replaceTrackPoints old =
                     { old
-                        | trackPoints = removeByNodeNumbers model.metricFilteredNodes model.trackPoints
+                        | trackPoints =
+                            reindexTrackpoints <|
+                                removeByNodeNumbers model.metricFilteredNodes model.trackPoints
                     }
-            in
-            ( addToUndoStack undoMessage model
-                |> replaceTrackPoints
-                |> deriveNodesAndRoads
-                |> deriveStaticVisualEntities
-                |> deriveProblems
-                |> (case Array.get model.currentNode model.nodeArray of
-                        Just node ->
-                            makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
 
-                        Nothing ->
-                            identity
-                   )
-                |> deriveVaryingVisualEntities
-                |> lookForSimplifications
-            , Cmd.none
-            )
+                newModel =
+                    addToUndoStack undoMessage model
+                        |> replaceTrackPoints
+                        |> deriveNodesAndRoads
+                        |> (case Array.get model.currentNode model.nodeArray of
+                                Just node ->
+                                    makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
+
+                                Nothing ->
+                                    identity
+                           )
+            in
+            trackHasChanged newModel
 
 
 trackHasChanged model =

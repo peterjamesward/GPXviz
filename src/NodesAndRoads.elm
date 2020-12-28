@@ -299,6 +299,7 @@ metricFilteredNodes : List DrawingNode -> List Int
 metricFilteredNodes nodes =
     -- Tool to reduce excessive track points. (Jarle Steffenson).
     -- Trying a combination of local minima and holistically determined cost threshold.
+    -- Bias is too much towards local minima. Not good enough yet.
     let
         nodesWithMetrics =
             List.map3
