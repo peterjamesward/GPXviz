@@ -70,6 +70,7 @@ type Msg
     | ImageDrag Mouse.Event
     | ImageRelease Mouse.Event
     | NoOpMsg
+    | SimplifyTrack
 
 
 type NodeSplitDirection

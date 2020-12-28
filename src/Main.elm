@@ -160,6 +160,7 @@ type alias Model =
     , cameraFocusThirdPerson : Point3d Length.Meters LocalCoords
     , cameraFocusProfileNode : Int
     , cameraFocusPlan : Point3d Length.Meters LocalCoords
+    , metricFilteredNodes : List DrawingNode
     }
 
 
@@ -229,6 +230,7 @@ init _ =
       , cameraFocusThirdPerson = Point3d.origin
       , cameraFocusProfileNode = 0
       , cameraFocusPlan = Point3d.origin
+      , metricFilteredNodes = []
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -647,6 +649,7 @@ update msg model =
                         |> deriveStaticVisualEntities
                         |> deriveVaryingVisualEntities
                         |> resetViewSettings
+                        |> lookForSimplifications
             in
             switchViewMode newModel newModel.viewingMode
 
@@ -1243,6 +1246,28 @@ update msg model =
             , Cmd.none
             )
 
+        SimplifyTrack ->
+            let
+                undoMessage =
+                    "Remove many trackpoints"
+
+                newModel old =
+                    { old
+                        | trackPoints = List.map .trackPoint old.metricFilteredNodes
+                        , currentNode = truncate <| 0.9 * toFloat old.currentNode -- TODO: ha ha.
+                    }
+            in
+            ( addToUndoStack undoMessage model
+                |> newModel
+                |> deriveNodesAndRoads
+                |> deriveStaticVisualEntities
+                |> deriveProblems
+                |> clearTerrain
+                |> deriveVaryingVisualEntities
+                |> lookForSimplifications
+            , Cmd.none
+            )
+
 
 trackHasChanged model =
     model
@@ -1252,6 +1277,11 @@ trackHasChanged model =
         |> clearTerrain
         |> deriveVaryingVisualEntities
         |> synchroniseMap
+
+
+lookForSimplifications : Model -> Model
+lookForSimplifications model =
+    { model | metricFilteredNodes = metricFilteredNodes model.nodes }
 
 
 centreViewOnCurrentNode model =
@@ -3171,6 +3201,20 @@ viewLoopTools model =
                         "Reverse the track"
                 }
 
+        simplifyButton =
+            button
+                prettyButtonStyles
+                { onPress = Just SimplifyTrack
+                , label =
+                    text <|
+                        "Remove "
+                            ++ (String.fromInt <|
+                                    List.length model.nodes
+                                        - List.length model.metricFilteredNodes
+                               )
+                            ++ " track points\nto simplify the route."
+                }
+
         changeStartButton c =
             button
                 prettyButtonStyles
@@ -3187,6 +3231,7 @@ viewLoopTools model =
                     [ text "This track is a loop."
                     , changeStartButton model.currentNode
                     , reverseButton
+                    , simplifyButton
                     , undoButton model
                     ]
 
@@ -3195,6 +3240,7 @@ viewLoopTools model =
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
                     , reverseButton
+                    , simplifyButton
                     , undoButton model
                     ]
 
@@ -3203,6 +3249,7 @@ viewLoopTools model =
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
                     , reverseButton
+                    , simplifyButton
                     , undoButton model
                     ]
 
@@ -3693,7 +3740,7 @@ viewTrackPointTools model =
             , deleteNodeButton model.currentNode
             ]
         , markerButton model
-        , splitSegmentOptions model.currentNode model.maxSegmentSplitSize
+        , splitSegmentOptions model.maxSegmentSplitSize
         , undoButton model
         ]
 
@@ -3790,16 +3837,16 @@ viewCurrentNode model =
 planCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 planCamera model =
     let
-        focus  =
+        focus =
             Point3d.projectOnto Plane3d.xy
                 model.cameraFocusPlan
 
-        eyePoint  =
+        eyePoint =
             Point3d.translateBy
                 (Vector3d.meters 0.0 0.0 5000.0)
                 focus
 
-        camera  =
+        camera =
             Camera3d.orthographic
                 { viewpoint =
                     Viewpoint3d.lookAt

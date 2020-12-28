@@ -244,7 +244,7 @@ nudgeButton horizontalValue verticalValue =
         }
 
 
-splitSegmentOptions c maxSegLength =
+splitSegmentOptions maxSegLength =
     let
         splitSlider value =
             Input.slider

@@ -21,7 +21,7 @@ aboutText =
 
 > - Minor tweak to Bend smooth logic.
 
-> - Stopped Flythrough running in background once started. (Was making my machine hot.)
+> - Stopped Fly-through running in background once started.
 
 > - Minor layout changes in some tool tabs.
 

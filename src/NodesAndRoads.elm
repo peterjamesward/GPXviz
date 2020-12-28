@@ -2,12 +2,16 @@ module NodesAndRoads exposing (..)
 
 --import ScalingInfo exposing (ScalingInfo)
 
+import Area
 import BoundingBox3d exposing (BoundingBox3d)
 import Element exposing (alignTop, centerX, column, none, padding, row, spacing, text)
 import Length
 import Point3d exposing (Point3d)
+import Quantity
 import Spherical exposing (metresPerDegree)
+import Stat
 import TrackPoint exposing (GPXCoords, TrackPoint)
+import Triangle3d
 import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
 
 
@@ -238,7 +242,7 @@ summaryData maybeRoad =
     case maybeRoad of
         Just road ->
             column [ centerX ]
-                [ row [ padding 20, centerX, spacing 10  ]
+                [ row [ padding 20, centerX, spacing 10 ]
                     [ column [ spacing 10 ]
                         [ text "Start point index "
                         , text "Length "
@@ -283,3 +287,58 @@ summaryData maybeRoad =
 
         Nothing ->
             none
+
+
+type alias MinimaAccumulator =
+    { localMinimum : Maybe ( DrawingNode, Float )
+    , collected : List ( DrawingNode, Float )
+    }
+
+
+metricFilteredNodes : List DrawingNode -> List DrawingNode
+metricFilteredNodes nodes =
+    -- Tool to reduce excessive track points. (Jarle Steffenson).
+    -- Would it not be easier just to sort all nodes by increasing cost and pick those
+    -- avoiding picking a "run"? This last comment is definitely important!!
+    let
+        nodesWithMetrics =
+            List.map3
+                (\a b c -> ( b, costMetric a b c ))
+                nodes
+                (List.drop 1 nodes)
+                (List.drop 2 nodes)
+
+        costMetric : DrawingNode -> DrawingNode -> DrawingNode -> Float
+        costMetric a b c =
+            -- Let's see if area is a good metric.
+            -- Maybe just adding bearing and gradient changes is better. Test it.
+            Area.inSquareMeters <|
+                Triangle3d.area <|
+                    Triangle3d.fromVertices
+                        ( a.location, b.location, c.location )
+
+        numberOfNodes =
+            List.length nodes
+
+        sortedNodes =
+            List.sortBy Tuple.second nodesWithMetrics
+
+        fraction =
+            0.1
+
+        -- fraction to attempt to remove
+        thresholdMetric =
+            case List.head <| List.drop (truncate (fraction * toFloat numberOfNodes)) sortedNodes of
+                Just ( _, metric ) ->
+                    metric
+
+                Nothing ->
+                    0.0
+
+        retainedNodes =
+            List.map Tuple.first <|
+                List.filter (\( node, metric ) -> metric > thresholdMetric) nodesWithMetrics
+    in
+    List.take 1 nodes
+        ++ retainedNodes
+        ++ (List.take 1 <| List.reverse nodes)
