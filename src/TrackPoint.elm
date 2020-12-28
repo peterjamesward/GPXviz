@@ -12,6 +12,7 @@ import Utils exposing (asRegex)
 type GPXCoords
     = GPXCoords
 
+
 type alias TrackPoint =
     -- This is the basic info we extract from a GPX file.
     { lat : Float
@@ -20,11 +21,18 @@ type alias TrackPoint =
     , idx : Int
     }
 
-singleton = { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
 
-singletonPoint = Point3d.origin
+singleton =
+    { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
 
-singletonBox = BoundingBox3d.singleton singletonPoint
+
+singletonPoint =
+    Point3d.origin
+
+
+singletonBox =
+    BoundingBox3d.singleton singletonPoint
+
 
 interpolateSegment : Float -> TrackPoint -> TrackPoint -> TrackPoint
 interpolateSegment w startTP endTP =
@@ -134,3 +142,27 @@ trackToJSON tps =
         ]
 
 
+removeByNodeNumbers : List Int -> List TrackPoint -> List TrackPoint
+removeByNodeNumbers idxsToRemove trackPoints =
+    -- Should be easy if we start from
+    let
+        ( _, _, retained ) =
+            helper idxsToRemove trackPoints []
+
+        helper idxs tps kept =
+            case ( idxs, tps ) of
+                ( [], _ ) -> ( [], [], List.reverse tps ++ kept )
+
+                ( _, [] ) -> ( [], [], kept )
+
+                ( i :: is, t :: ts ) ->
+                    if t.idx < i then
+                        helper idxs ts (t :: kept)
+                    else if t.idx > i then
+                        helper is tps kept
+                    else
+                        helper is ts kept
+
+
+    in
+    List.reverse retained

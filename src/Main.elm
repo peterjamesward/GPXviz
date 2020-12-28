@@ -160,7 +160,7 @@ type alias Model =
     , cameraFocusThirdPerson : Point3d Length.Meters LocalCoords
     , cameraFocusProfileNode : Int
     , cameraFocusPlan : Point3d Length.Meters LocalCoords
-    , metricFilteredNodes : List DrawingNode
+    , metricFilteredNodes : List Int -- candidate track points to be removed to simplify a big track.
     }
 
 
@@ -432,7 +432,7 @@ locallyHandleMapMessage model json =
             --} );
             case ( lat, lon ) of
                 ( Ok lat1, Ok lon1 ) ->
-                    makeNearestNodeCurrent model lon1 lat1
+                    makeNearestNodeCurrent lon1 lat1 model
                         |> centreViewOnCurrentNode
                         |> tryBendSmoother
 
@@ -443,8 +443,8 @@ locallyHandleMapMessage model json =
             model
 
 
-makeNearestNodeCurrent : Model -> Float -> Float -> Model
-makeNearestNodeCurrent model lon lat =
+makeNearestNodeCurrent : Float -> Float -> Model -> Model
+makeNearestNodeCurrent lon lat model =
     -- Searching like this may be too slow. Wait and see.
     -- Speed up 1 - do approximate filter then exact on subset.
     -- Speed up 2 - use quadtree structure (!)
@@ -1249,20 +1249,27 @@ update msg model =
         SimplifyTrack ->
             let
                 undoMessage =
-                    "Remove many trackpoints"
+                    "Remove "
+                        ++ String.fromInt (List.length model.metricFilteredNodes)
+                        ++ " track points"
 
-                newModel old =
+                replaceTrackPoints old =
                     { old
-                        | trackPoints = List.map .trackPoint old.metricFilteredNodes
-                        , currentNode = truncate <| 0.9 * toFloat old.currentNode -- TODO: ha ha.
+                        | trackPoints = removeByNodeNumbers model.metricFilteredNodes model.trackPoints
                     }
             in
             ( addToUndoStack undoMessage model
-                |> newModel
+                |> replaceTrackPoints
                 |> deriveNodesAndRoads
                 |> deriveStaticVisualEntities
                 |> deriveProblems
-                |> clearTerrain
+                |> (case Array.get model.currentNode model.nodeArray of
+                        Just node ->
+                            makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
+
+                        Nothing ->
+                            identity
+                   )
                 |> deriveVaryingVisualEntities
                 |> lookForSimplifications
             , Cmd.none
@@ -3208,10 +3215,7 @@ viewLoopTools model =
                 , label =
                     text <|
                         "Remove "
-                            ++ (String.fromInt <|
-                                    List.length model.nodes
-                                        - List.length model.metricFilteredNodes
-                               )
+                            ++ String.fromInt (List.length model.metricFilteredNodes)
                             ++ " track points\nto simplify the route."
                 }
 

@@ -295,11 +295,10 @@ type alias MinimaAccumulator =
     }
 
 
-metricFilteredNodes : List DrawingNode -> List DrawingNode
+metricFilteredNodes : List DrawingNode -> List Int
 metricFilteredNodes nodes =
     -- Tool to reduce excessive track points. (Jarle Steffenson).
-    -- Would it not be easier just to sort all nodes by increasing cost and pick those
-    -- avoiding picking a "run"? This last comment is definitely important!!
+    -- Trying a combination of local minima and holistically determined cost threshold.
     let
         nodesWithMetrics =
             List.map3
@@ -317,6 +316,41 @@ metricFilteredNodes nodes =
                     Triangle3d.fromVertices
                         ( a.location, b.location, c.location )
 
+        initialCollection : MinimaAccumulator
+        initialCollection =
+            { localMinimum = Nothing
+            , collected = []
+            }
+
+        collectMinima ( node, metric ) collector =
+            { collector
+                | localMinimum =
+                    case collector.localMinimum of
+                        Just ( prevMinimumNode, prevMetric ) ->
+                            if metric < prevMetric then
+                                Just ( node, metric )
+
+                            else
+                                Nothing
+
+                        Nothing ->
+                            Just ( node, metric )
+                , collected =
+                    case collector.localMinimum of
+                        Just ( prevMinimumNode, prevMetric ) ->
+                            if metric < prevMetric then
+                                collector.collected
+
+                            else
+                                ( prevMinimumNode, prevMetric ) :: collector.collected
+
+                        Nothing ->
+                            collector.collected
+            }
+
+        minima =
+            List.foldl collectMinima initialCollection nodesWithMetrics
+
         numberOfNodes =
             List.length nodes
 
@@ -324,7 +358,8 @@ metricFilteredNodes nodes =
             List.sortBy Tuple.second nodesWithMetrics
 
         fraction =
-            0.1
+            --TODO: Expose this parameter to the user.
+            0.3
 
         -- fraction to attempt to remove
         thresholdMetric =
@@ -335,10 +370,12 @@ metricFilteredNodes nodes =
                 Nothing ->
                     0.0
 
-        retainedNodes =
-            List.map Tuple.first <|
-                List.filter (\( node, metric ) -> metric > thresholdMetric) nodesWithMetrics
+        nodesToRemove =
+            -- Return track point indices in order for removal.
+            List.reverse <|
+                List.map (Tuple.first >> .trackPoint >> .idx) <|
+                    List.filter
+                        (\( node, metric ) -> metric < thresholdMetric)
+                        minima.collected
     in
-    List.take 1 nodes
-        ++ retainedNodes
-        ++ (List.take 1 <| List.reverse nodes)
+    nodesToRemove

@@ -2,12 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Double clicking is crashing (only?) after track pruning.
 
---TODO: Tool to reduce excessive track points. (Jarle Steffenson).
--- I like the idea of applying a cost function to each node, using a fold,
--- collating local minima, such that we identify track points that would have
--- minimum impact on track if removed. Then one click to remove, easy undo.
--- Button says "Remove xxx track points". Really simple to use, no options.
-
 --TODO: Map terrain option (switch map style).
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
