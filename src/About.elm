@@ -11,33 +11,11 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2020-12-27_
+> _This text updated 2020-12-29_
 
-> **Changes**
+##Changes
 
-> - We have a name: "GPXmagic". Thanks, John Bytheway.
-
-> - Plan is back.
-
-> - Minor tweak to Bend smooth logic.
-
-> - Stopped Fly-through running in background once started.
-
-> - Minor layout changes in some tool tabs.
-
-> - Scroll bars are back.
-
-> - Mouse wheel should zoom in and out, just like the map.
-
-> - Mouse click on any view to select a track point. Just like on the map.
-
-> - Left-click and drag move the Third person and Profile views around.
-
-> - Right-click (or ctrl-click) and drag in Third person view rotates around the current focal point.
-
-> - Double-click on a track point to centre the focus on that point. (This is essential in Third Person view).
-
-> _Standard warning: Save your work_ often.
+> - New feature to be found in "Loop maker". The button "_Remove xxx track points to simplify the route_" does what it claims. If you have a route recorded from a ride, you may find it has too many track points and this slows down the workings of GPXmagic (which to be honest, could be faster). This button will remove first trackpoints that make the least difference to the route, not just remove every Nth point, as some tools appear to do. Use it repeatedly to find a good compromise between fidelity and responsiveness.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 

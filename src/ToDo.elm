@@ -1,7 +1,5 @@
 module ToDo exposing (..)
 
---TODO: LIDAR data?
-
 --TODO: Map terrain option (switch map style).
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.

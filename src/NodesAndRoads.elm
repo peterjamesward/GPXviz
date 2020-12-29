@@ -274,6 +274,7 @@ summaryData maybeRoad =
                         , text <| showDecimal2 road.endDistance
                         ]
                     ]
+
                 --, row [ padding 10, centerX, alignTop, spacing 10 ]
                 --    [ text <|
                 --        case road.startsAt.costMetric of
@@ -286,7 +287,10 @@ summaryData maybeRoad =
                 ]
 
         Nothing ->
-            none
+            column [ padding 20, centerX, spacing 10 ]
+                [ text "You appear to be at the end of the track."
+                , text "Go back one track point and see if that helps."
+                ]
 
 
 metricFilteredNodes : List DrawingNode -> List Int
