@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Is bend smoother duplicating FINAL track points??
+
 --TODO: Map terrain option (switch map style).
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.

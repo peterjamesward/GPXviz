@@ -163,7 +163,7 @@ makeSmoothBend trackPointSpacing pa pb pc pd arc =
     { trackPoints =
         [ pa ]
             ++ newTrackPoints
-            ++ [ t2, pd ]
+            ++ [ pd ]
     , centre = asPair <| Arc2d.centerPoint arc
     , radius = metresPerDegree * (inMeters <| Arc2d.radius arc)
     , startIndex = pa.idx

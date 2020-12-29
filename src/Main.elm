@@ -2321,7 +2321,7 @@ smoothBend model =
                             reindexTrackpoints <|
                                 List.take bend.startIndex m.trackPoints
                                     ++ bend.trackPoints
-                                    ++ List.drop bend.endIndex m.trackPoints
+                                    ++ List.drop (1 + bend.endIndex) m.trackPoints
                         , smoothedBend = Nothing
                         , smoothedRoads = []
                         , currentNode = newCurrent
