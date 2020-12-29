@@ -89,19 +89,41 @@ parseTrackName xml =
                     n
 
 
-
 view3dDimensions =
     ( Pixels.int view3dWidth, Pixels.int view3dHeight )
+
 
 viewMapDimensions =
     ( Pixels.int viewMapWidth, Pixels.int viewMapHeight )
 
-viewMapWidth = 900
-viewMapHeight = 600
-scrollbarThickness = 20
-scrollbarSpaceOcuppied = scrollbarThickness + 20 -- allow for 10 padding each side
-view3dWidth = viewMapWidth - scrollbarSpaceOcuppied
-view3dHeight = viewMapHeight - scrollbarThickness
+
+viewMapWidth =
+    900
+
+
+viewMapHeight =
+    600
+
+
+scrollbarThickness =
+    20
+
+
+scrollbarSpaceOcuppied =
+    scrollbarThickness + 20
+
+
+
+-- allow for 10 padding each side
+
+
+view3dWidth =
+    viewMapWidth - scrollbarSpaceOcuppied
+
+
+view3dHeight =
+    viewMapHeight - scrollbarThickness
+
 
 showDecimal2 x =
     let
@@ -125,3 +147,11 @@ showDecimal6 x =
             }
     in
     format locale x
+
+
+showList : List Int -> String
+showList ints =
+    String.join ", " <|
+        List.map
+            String.fromInt
+            ints

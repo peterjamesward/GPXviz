@@ -144,25 +144,27 @@ trackToJSON tps =
 
 removeByNodeNumbers : List Int -> List TrackPoint -> List TrackPoint
 removeByNodeNumbers idxsToRemove trackPoints =
-    -- Should be easy if we start from
+    -- Both input lists are sorted in index order.
     let
         ( _, _, retained ) =
             helper idxsToRemove trackPoints []
 
         helper idxs tps kept =
             case ( idxs, tps ) of
-                ( [], _ ) -> ( [], [], List.reverse tps ++ kept )
+                ( [], _ ) ->
+                    ( [], [], List.reverse tps ++ kept )
 
-                ( _, [] ) -> ( [], [], kept )
+                ( _, [] ) ->
+                    ( [], [], kept )
 
                 ( i :: is, t :: ts ) ->
-                    if t.idx < i then
-                        helper idxs ts (t :: kept)
-                    else if t.idx > i then
-                        helper is tps kept
-                    else
+                    if t.idx == i then
                         helper is ts kept
 
+                    else if t.idx < i then
+                        helper idxs ts (t :: kept)
 
+                    else -- t.idx > i
+                        helper is tps kept
     in
     List.reverse retained

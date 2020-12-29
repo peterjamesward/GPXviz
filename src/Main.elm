@@ -3,6 +3,7 @@ module Main exposing (main)
 import About exposing (viewAboutText)
 import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
+import Area
 import Array exposing (Array)
 import Axis3d exposing (intersectionWithSphere)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
@@ -45,6 +46,7 @@ import Task
 import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
+import Triangle3d
 import Tuple exposing (first, second)
 import Utils exposing (..)
 import Vector2d
@@ -1283,6 +1285,7 @@ trackHasChanged model =
         |> deriveNodesAndRoads
         |> deriveStaticVisualEntities
         |> deriveProblems
+        |> lookForSimplifications
         |> clearTerrain
         |> deriveVaryingVisualEntities
         |> synchroniseMap
@@ -2449,10 +2452,41 @@ deriveNodesAndRoads model =
                 | nodeArray = Array.fromList m.nodes
                 , roadArray = Array.fromList m.roads
             }
+
+        withMetrics m =
+            let
+                wrappedNodes = List.map Just m.nodes
+            in
+            { m
+                | nodes =
+                    List.map3
+                        costMetric
+                        (Nothing :: wrappedNodes)
+                        m.nodes
+                        ((List.drop 1 wrappedNodes) ++ [Nothing])
+            }
+
+        costMetric : Maybe DrawingNode -> DrawingNode -> Maybe DrawingNode ->  DrawingNode
+        costMetric prev this next =
+            -- Let's see if area is a good metric.
+            -- Maybe just adding bearing and gradient changes is better. Test it.
+            case ( prev, next ) of
+                ( Just p, Just n ) ->
+                    { this | costMetric =
+                        Just <|
+                            Area.inSquareMeters <|
+                                Triangle3d.area <|
+                                    Triangle3d.fromVertices
+                                        ( p.location, this.location, n.location )
+                    }
+
+                _ ->
+                    { this | costMetric = Nothing }
     in
     model
         |> withTrackPointScaling
         |> withNodes
+        |> withMetrics
         |> withNodeScaling
         |> withRoads
         |> withSummary
@@ -3238,6 +3272,7 @@ viewLoopTools model =
                     , changeStartButton model.currentNode
                     , reverseButton
                     , simplifyButton
+                    --, text <| showList model.metricFilteredNodes
                     , undoButton model
                     ]
 
@@ -3247,6 +3282,7 @@ viewLoopTools model =
                     , loopButton
                     , reverseButton
                     , simplifyButton
+                    --, text <| showList model.metricFilteredNodes
                     , undoButton model
                     ]
 
@@ -3256,6 +3292,7 @@ viewLoopTools model =
                     , loopButton
                     , reverseButton
                     , simplifyButton
+                    --, text <| showList model.metricFilteredNodes
                     , undoButton model
                     ]
 

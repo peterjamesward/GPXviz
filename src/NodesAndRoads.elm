@@ -1,15 +1,11 @@
 module NodesAndRoads exposing (..)
 
---import ScalingInfo exposing (ScalingInfo)
-
 import Area
 import BoundingBox3d exposing (BoundingBox3d)
 import Element exposing (alignTop, centerX, column, none, padding, row, spacing, text)
 import Length
 import Point3d exposing (Point3d)
-import Quantity
 import Spherical exposing (metresPerDegree)
-import Stat
 import TrackPoint exposing (GPXCoords, TrackPoint)
 import Triangle3d
 import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
@@ -29,6 +25,7 @@ type alias DrawingNode =
     -- Track point with Web Mercator projection.
     { trackPoint : TrackPoint
     , location : Point3d.Point3d Length.Meters LocalCoords
+    , costMetric : Maybe Float -- impact if this node is removed, by some measure.
     }
 
 
@@ -75,13 +72,6 @@ deriveNodes box tps =
             Point3d.toTuple Length.inMeters <|
                 BoundingBox3d.centerPoint box
 
-        {- double[] WGS84toGoogleBing(double lon, double lat) {
-             double x = lon * 20037508.34 / 180;
-             double y = Math.Log(Math.Tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
-             y = y * 20037508.34 / 180;
-             return new double[] {x, y};
-           }
-        -}
         mercatorX lon =
             lon * 20037508.34 / 180
 
@@ -98,6 +88,7 @@ deriveNodes box tps =
                     (mercatorX tp.lon - midX)
                     (mercatorY tp.lat - midY)
                     tp.ele
+            , costMetric = Nothing
             }
     in
     List.map prepareDrawingNode tps
@@ -283,100 +274,65 @@ summaryData maybeRoad =
                         , text <| showDecimal2 road.endDistance
                         ]
                     ]
+                --, row [ padding 10, centerX, alignTop, spacing 10 ]
+                --    [ text <|
+                --        case road.startsAt.costMetric of
+                --            Just x ->
+                --                String.fromFloat x
+                --
+                --            Nothing ->
+                --                "No cost metric"
+                --    ]
                 ]
 
         Nothing ->
             none
 
 
-type alias MinimaAccumulator =
-    { localMinimum : Maybe ( DrawingNode, Float )
-    , collected : List ( DrawingNode, Float )
-    }
-
-
 metricFilteredNodes : List DrawingNode -> List Int
 metricFilteredNodes nodes =
-    -- Tool to reduce excessive track points. (Jarle Steffenson).
-    -- Trying a combination of local minima and holistically determined cost threshold.
-    -- Bias is too much towards local minima. Not good enough yet.
+    -- Tool to reduce excessive track points. (Inspired by Jarle Steffenson).
     let
-        nodesWithMetrics =
-            List.map3
-                (\a b c -> ( b, costMetric a b c ))
-                nodes
-                (List.drop 1 nodes)
-                (List.drop 2 nodes)
-
-        costMetric : DrawingNode -> DrawingNode -> DrawingNode -> Float
-        costMetric a b c =
-            -- Let's see if area is a good metric.
-            -- Maybe just adding bearing and gradient changes is better. Test it.
-            Area.inSquareMeters <|
-                Triangle3d.area <|
-                    Triangle3d.fromVertices
-                        ( a.location, b.location, c.location )
-
-        initialCollection : MinimaAccumulator
-        initialCollection =
-            { localMinimum = Nothing
-            , collected = []
-            }
-
-        collectMinima ( node, metric ) collector =
-            { collector
-                | localMinimum =
-                    case collector.localMinimum of
-                        Just ( prevMinimumNode, prevMetric ) ->
-                            if metric < prevMetric then
-                                Just ( node, metric )
-
-                            else
-                                Nothing
-
-                        Nothing ->
-                            Just ( node, metric )
-                , collected =
-                    case collector.localMinimum of
-                        Just ( prevMinimumNode, prevMetric ) ->
-                            if metric < prevMetric then
-                                collector.collected
-
-                            else
-                                ( prevMinimumNode, prevMetric ) :: collector.collected
-
-                        Nothing ->
-                            collector.collected
-            }
-
-        minima =
-            List.foldl collectMinima initialCollection nodesWithMetrics
-
         numberOfNodes =
             List.length nodes
 
-        sortedNodes =
-            List.sortBy Tuple.second nodesWithMetrics
+        nodeMetric node =
+            Maybe.withDefault (10.0 ^ 10.0) node.costMetric
+
+        sortedByMetric =
+            List.sortBy nodeMetric nodes
 
         fraction =
             --TODO: Expose this parameter to the user.
-            0.3
+            0.2
 
-        -- fraction to attempt to remove
-        thresholdMetric =
-            case List.head <| List.drop (truncate (fraction * toFloat numberOfNodes)) sortedNodes of
-                Just ( _, metric ) ->
-                    metric
+        numberToRemove =
+            truncate <| fraction * toFloat numberOfNodes
 
-                Nothing ->
-                    0.0
+        selectionForRemoval =
+            List.take numberToRemove sortedByMetric
 
-        nodesToRemove =
-            -- Return track point indices in order for removal.
-            List.reverse <|
-                List.map (Tuple.first >> .trackPoint >> .idx) <|
-                    List.filter
-                        (\( node, metric ) -> metric < thresholdMetric)
-                        minima.collected
+        forRemovalInIndexOrder =
+            List.sort <|
+                List.map
+                    (.trackPoint >> .idx)
+                    selectionForRemoval
+
+        avoidingNeighbours lastRemoved suggestions =
+            -- Don't remove adjacent nodes
+            case suggestions of
+                [] ->
+                    []
+
+                [ n ] ->
+                    [ n ]
+
+                n1 :: ns ->
+                    if n1 == lastRemoved + 1 then
+                        -- remove it from the removal list.
+                        avoidingNeighbours lastRemoved ns
+
+                    else
+                        n1 :: avoidingNeighbours n1 ns
     in
-    nodesToRemove
+    avoidingNeighbours -1 forRemovalInIndexOrder

@@ -1,6 +1,6 @@
 module ToDo exposing (..)
 
---TODO: Double clicking is crashing (only?) after track pruning.
+--TODO: LIDAR data?
 
 --TODO: Map terrain option (switch map style).
 
