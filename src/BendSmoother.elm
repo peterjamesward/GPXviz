@@ -42,8 +42,8 @@ isAfter r p =
     antiInterpolate p r.startAt r.endsAt > 1.0
 
 
-bendIncircle : Int -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
-bendIncircle numSegments pa pb pc pd =
+bendIncircle : Float -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> Maybe SmoothedBend
+bendIncircle trackPointSpacing pa pb pc pd =
     let
         ( roadIn, roadOut ) =
             ( roadToGeometry pa pb, roadToGeometry pc pd )
@@ -63,24 +63,25 @@ bendIncircle numSegments pa pb pc pd =
                 Just p ->
                     arcFinderGeneral p roadIn roadOut
     in
-    Maybe.map (makeSmoothBend numSegments pa pb pc pd) arc
+    Maybe.map (makeSmoothBend trackPointSpacing pa pb pc pd) arc
 
 
 makeSmoothBend :
-    Int
+    Float
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
     -> Arc2d Meters LocalCoords
     -> SmoothedBend
-makeSmoothBend numSegments pa pb pc pd arc =
+makeSmoothBend trackPointSpacing pa pb pc pd arc =
     let
-        limitSegments =
-            -- Avoid many segments if angular change is small.
-            -- Arbitrarily 10 degrees per trackpoint, say.
-            min numSegments
-                (truncate (abs (Angle.inDegrees (Arc2d.sweptAngle arc)) / 10.0))
+        trueArcLength =
+            (abs <| Angle.inRadians <| Arc2d.sweptAngle arc)
+                * metresPerDegree * (Length.inMeters <| Arc2d.radius arc)
+
+        numberPointsOnArc =
+            truncate <| trueArcLength / trackPointSpacing
 
         ( p1, p2 ) =
             -- The first (last) tangent point is also the first (last) point on the arc
@@ -123,7 +124,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
             }
 
         segments =
-            Arc2d.segments limitSegments arc
+            Arc2d.segments (numberPointsOnArc + 1) arc
                 |> Polyline2d.segments
 
         arcLength =
@@ -133,7 +134,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
             distancePaP1 + arcLength + distanceP2Pd
 
         eleIncrement =
-            (t2.ele - t1.ele) / toFloat numSegments
+            (t2.ele - t1.ele) / toFloat (numberPointsOnArc + 1)
 
         newTrackPoints =
             List.drop 1 <|
@@ -150,7 +151,7 @@ makeSmoothBend numSegments pa pb pc pd arc =
                         }
                     )
                     segments
-                    (List.range 0 numSegments)
+                    (List.range 0 (numberPointsOnArc - 1))
 
         asPair p2d =
             let

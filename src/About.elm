@@ -15,6 +15,8 @@ aboutText =
 
 ##Changes
 
+> - Bend Smoothing -- **please read** -- the slider now adjust the _spacing_ between inserted trackpoints. This makes it easier to smooth long curves.
+
 > - New feature to be found in "Loop maker". The button "_Remove xxx track points to simplify the route_" does what it claims. If you have a route recorded from a ride, you may find it has too many track points and this slows down the workings of GPXmagic (which to be honest, could be faster). This button will remove first trackpoints that make the least difference to the route, not just remove every Nth point, as some tools appear to do. Use it repeatedly to find a good compromise between fidelity and responsiveness.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.

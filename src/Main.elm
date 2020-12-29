@@ -143,7 +143,7 @@ type alias Model =
     , redoStack : List UndoEntry
     , smoothedBend : Maybe SmoothedBend -- computed track points
     , smoothedRoads : List DrawingRoad -- derived road from above,
-    , numLineSegmentsForBend : Int
+    , bendTrackPointSpacing : Float -- How far apart TPs are when bend smoothed.
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
     , flythrough : Maybe Flythrough
@@ -213,7 +213,7 @@ init _ =
       , redoStack = []
       , smoothedBend = Nothing
       , smoothedRoads = []
-      , numLineSegmentsForBend = 3
+      , bendTrackPointSpacing = 3
       , bumpinessFactor = 0.0
       , flythrough = Nothing
       , flythroughSpeed = 1.0
@@ -747,14 +747,13 @@ update msg model =
             , updateMapVaryingElements newModel
             )
 
-        SetMaxTurnPerSegment turn ->
+        SetBendTrackPointSpacing turn ->
             let
                 newModel =
                     { model
-                        | numLineSegmentsForBend = turn
+                        | bendTrackPointSpacing = turn
                     }
                         |> tryBendSmoother
-                        --|> deriveStaticVisualEntities
                         |> deriveVaryingVisualEntities
             in
             ( newModel
@@ -2160,7 +2159,7 @@ tryBendSmoother model =
                         )
 
                     newTrack =
-                        bendIncircle model.numLineSegmentsForBend pa pb pc pd
+                        bendIncircle model.bendTrackPointSpacing pa pb pc pd
                 in
                 case newTrack of
                     Just track ->
@@ -3169,16 +3168,16 @@ bendSmoothnessSlider : Model -> Element Msg
 bendSmoothnessSlider model =
     Input.slider
         commonShortHorizontalSliderStyles
-        { onChange = round >> SetMaxTurnPerSegment
+        { onChange = SetBendTrackPointSpacing
         , label =
             Input.labelBelow [] <|
                 text <|
-                    "Road segments = "
-                        ++ String.fromInt model.numLineSegmentsForBend
-        , min = 2.0
+                    "Spacing = "
+                        ++ showDecimal2 model.bendTrackPointSpacing
+        , min = 1.0
         , max = 10.0
-        , step = Just 1.0
-        , value = toFloat model.numLineSegmentsForBend
+        , step = Nothing
+        , value = model.bendTrackPointSpacing
         , thumb = Input.defaultThumb
         }
 
