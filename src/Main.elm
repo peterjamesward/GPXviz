@@ -5,12 +5,12 @@ import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
 import Area
 import Array exposing (Array)
-import Axis3d exposing (intersectionWithSphere)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import BoundingBox3d exposing (BoundingBox3d)
 import Browser
 import Camera3d exposing (Camera3d)
 import Color
+import ColourPalette exposing (..)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element exposing (..)
@@ -40,7 +40,6 @@ import Point2d exposing (Point2d)
 import Point3d exposing (Point3d, distanceFromAxis)
 import Rectangle2d
 import Scene3d exposing (Entity)
-import Sphere3d exposing (Sphere3d)
 import Spherical exposing (metresPerDegree)
 import Task
 import Terrain exposing (makeTerrain)
@@ -2454,7 +2453,8 @@ deriveNodesAndRoads model =
 
         withMetrics m =
             let
-                wrappedNodes = List.map Just m.nodes
+                wrappedNodes =
+                    List.map Just m.nodes
             in
             { m
                 | nodes =
@@ -2462,21 +2462,22 @@ deriveNodesAndRoads model =
                         costMetric
                         (Nothing :: wrappedNodes)
                         m.nodes
-                        ((List.drop 1 wrappedNodes) ++ [Nothing])
+                        (List.drop 1 wrappedNodes ++ [ Nothing ])
             }
 
-        costMetric : Maybe DrawingNode -> DrawingNode -> Maybe DrawingNode ->  DrawingNode
+        costMetric : Maybe DrawingNode -> DrawingNode -> Maybe DrawingNode -> DrawingNode
         costMetric prev this next =
             -- Let's see if area is a good metric.
             -- Maybe just adding bearing and gradient changes is better. Test it.
             case ( prev, next ) of
                 ( Just p, Just n ) ->
-                    { this | costMetric =
-                        Just <|
-                            Area.inSquareMeters <|
-                                Triangle3d.area <|
-                                    Triangle3d.fromVertices
-                                        ( p.location, this.location, n.location )
+                    { this
+                        | costMetric =
+                            Just <|
+                                Area.inSquareMeters <|
+                                    Triangle3d.area <|
+                                        Triangle3d.fromVertices
+                                            ( p.location, this.location, n.location )
                     }
 
                 _ ->
@@ -2856,8 +2857,10 @@ viewGenericNew model =
                         row [ alignLeft, alignTop ]
                             [ view3D model.nodeBox model
                             , column
-                                [ width fill, spacing 20, alignTop ]
-                                [ accordionView
+                                [ width fill, spacing 10, alignTop, centerX ]
+                                [ undoButton model
+                                , markerButton model
+                                , accordionView
                                     (updatedAccordion model model.toolsAccordion toolsAccordion)
                                     AccordionMessage
                                 , accordionView
@@ -3271,8 +3274,6 @@ viewLoopTools model =
                     , changeStartButton model.currentNode
                     , reverseButton
                     , simplifyButton
-                    --, text <| showList model.metricFilteredNodes
-                    , undoButton model
                     ]
 
             AlmostLoop gap ->
@@ -3281,8 +3282,6 @@ viewLoopTools model =
                     , loopButton
                     , reverseButton
                     , simplifyButton
-                    --, text <| showList model.metricFilteredNodes
-                    , undoButton model
                     ]
 
             NotALoop gap ->
@@ -3291,8 +3290,6 @@ viewLoopTools model =
                     , loopButton
                     , reverseButton
                     , simplifyButton
-                    --, text <| showList model.metricFilteredNodes
-                    , undoButton model
                     ]
 
 
@@ -3611,8 +3608,7 @@ viewBendFixerPane model =
                 }
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
-        [ markerButton model
-        , case model.smoothedBend of
+        [ case model.smoothedBend of
             Just smooth ->
                 row [ spacing 10, padding 10, alignTop ]
                     [ fixBendButton smooth
@@ -3620,8 +3616,10 @@ viewBendFixerPane model =
                     ]
 
             Nothing ->
-                text "Sorry, failed to find a nice bend."
-        , undoButton model
+                column [ spacing 10, padding 10, alignTop, centerX ]
+                    [ text "Sorry, failed to find a nice bend."
+                    , text "Try re-positioning the current pointer or marker."
+                    ]
         ]
 
 
@@ -3632,13 +3630,14 @@ viewStraightenTools model =
             Maybe.withDefault model.currentNode model.markedNode
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
-        [ markerButton model
-        , if model.currentNode /= marker then
+        [ if model.currentNode /= marker then
             straightenButton
 
           else
-            none
-        , undoButton model
+            column [ spacing 10, padding 10, alignTop, centerX ]
+            [ text "The straighten tool requires a range."
+            , text "Drop the marker and move it away from the current pointer."
+            ]
         ]
 
 
@@ -3646,15 +3645,13 @@ viewNudgeTools : Model -> Element Msg
 viewNudgeTools model =
     --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
     column [ padding 5, spacing 10, centerX ]
-        [ markerButton model
-        , row [ spacing 10, centerX ]
+        [ row [ spacing 10, centerX ]
             [ verticalNudgeSlider model.verticalNudgeValue
             , column [ spacing 10, centerX, centerY ]
                 [ horizontalNudgeSlider model.nudgeValue
                 , nudgeButton model.nudgeValue model.verticalNudgeValue
                 ]
             ]
-        , undoButton model
         ]
 
 
@@ -3676,7 +3673,16 @@ markerButton model =
                     text <| label
                 }
     in
-    row [ spacing 5, padding 5, Border.width 1 ] <|
+    row
+        [ padding 5
+        , spacing 10
+        , Border.width 0
+        , Border.rounded 5
+        , width fill
+        , centerX
+        , Background.color buttonGroupBackground
+        ]
+    <|
         case model.markedNode of
             Just _ ->
                 [ button
@@ -3697,7 +3703,15 @@ markerButton model =
 
 
 undoButton model =
-    row [ padding 5, spacing 10, Border.width 1, Border.rounded 5 ]
+    row
+        [ padding 5
+        , spacing 10
+        , Border.width 0
+        , Border.rounded 5
+        , width fill
+        , centerX
+        , Background.color buttonGroupBackground
+        ]
         [ button
             prettyButtonStyles
             { onPress =
@@ -3753,7 +3767,7 @@ viewGradientFixerPane model =
         gradientSmoothControls =
             case avg of
                 Just gradient ->
-                    row [ Border.width 1, spacing 5, padding 5 ]
+                    row [ spacing 5, padding 5 ]
                         [ button
                             prettyButtonStyles
                             { onPress = Just <| SmoothGradient gradient
@@ -3769,10 +3783,7 @@ viewGradientFixerPane model =
                     none
     in
     column [ padding 10, spacing 10, centerX ] <|
-        [ markerButton model
-        , gradientSmoothControls
-        , undoButton model
-        ]
+        [ gradientSmoothControls ]
 
 
 viewTrackPointTools model =
@@ -3781,9 +3792,7 @@ viewTrackPointTools model =
             [ insertNodeOptionsBox model.currentNode
             , deleteNodeButton model.currentNode
             ]
-        , markerButton model
         , splitSegmentOptions model.maxSegmentSplitSize
-        , undoButton model
         ]
 
 

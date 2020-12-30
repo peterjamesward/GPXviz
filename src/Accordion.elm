@@ -2,6 +2,7 @@ module Accordion exposing (..)
 
 -- Seeking a better way to organise all the controls.
 
+import ColourPalette exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -37,18 +38,17 @@ accordionTabStyles state =
     , Border.roundEach { topLeft = 10, bottomLeft = 0, topRight = 10, bottomRight = 0 }
     , Border.color <|
         if state == Expanded then
-            rgb255 150 200 50
+            expandedTabBorder
 
         else
-            rgb255 255 255 255
-    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
+            collapsedTabColour
+    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = expandedTabBorder }
     , Background.color <|
         if state == Expanded then
-            rgb255 50 150 50
-
+            expandedTabBackground
         else
-            rgb255 114 159 207
-    , Font.color <| rgb255 0xFF 0xFF 0xFF
+            collapsedTabBackground
+    , Font.color buttonText
     , Font.center
     , Font.size 16
     ]
