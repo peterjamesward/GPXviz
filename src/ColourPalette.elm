@@ -1,35 +1,68 @@
 module ColourPalette exposing (..)
 
-import FlatColors.BritishPalette exposing (..)
+import Element exposing (rgb255)
+import FlatColors.FlatUIPalette exposing (..)
+
+
+white =
+    rgb255 0xFF 0xFF 0xFF
 
 
 buttonBackground =
-    naval
+    belizeHole
 
 
 buttonText =
-    lynxWhite
+    white
 
 
 buttonShadow =
-    naval
+    peterRiver
 
 
 buttonGroupBackground =
-    lynxWhite
+    silver
 
 
 expandedTabBorder =
-    blueberrySoda
+    clouds
 
 
-collapsedTabColour =
-    lynxWhite
+collapsedTabBorder =
+    silver
+
+
+expandedTabShadow =
+    clouds
 
 
 expandedTabBackground =
-    skirretGreen
+    nephritis
+
+
+accordionContentBackground =
+    clouds
 
 
 collapsedTabBackground =
-    blueberrySoda
+    concrete
+
+
+radioButtonShadow =
+    silver
+
+
+radioButtonSelected =
+    nephritis
+
+
+radioButtonDefault =
+    concrete
+
+
+radioButtonText =
+    white
+
+
+scrollbarBackground =
+    asbestos

@@ -92,14 +92,14 @@ radioButton position label state =
 
             else
                 rgb255 255 255 255
-        , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
+        , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = radioButtonShadow }
         , Background.color <|
             if state == Input.Selected then
-                rgb255 50 150 50
+                radioButtonSelected
 
             else
-                rgb255 114 159 207
-        , Font.color <| rgb255 0xFF 0xFF 0xFF
+                radioButtonDefault
+        , Font.color radioButtonText
         , Font.size 16
         ]
     <|
@@ -119,7 +119,7 @@ zoomSlider value msg =
                 , height <| px 400
                 , alignTop
                 , centerX
-                , Background.color <| rgb255 114 159 207
+                , Background.color scrollbarBackground
                 , Border.rounded 6
                 ]
                 Element.none
@@ -171,7 +171,7 @@ checkboxIcon isChecked =
         , padding 4
         , Border.rounded 6
         , Border.width 2
-        , Border.color <| rgb255 0xC0 0xC0 0xC0
+        , Border.color buttonShadow
         ]
     <|
         el
@@ -180,10 +180,9 @@ checkboxIcon isChecked =
             , Border.rounded 4
             , Background.color <|
                 if isChecked then
-                    rgb255 114 159 207
-
+                    buttonBackground
                 else
-                    rgb255 0xFF 0xFF 0xFF
+                    collapsedTabBorder
             ]
         <|
             none
@@ -200,7 +199,7 @@ commonShortHorizontalSliderStyles =
             , height <| px 20
             , centerY
             , centerX
-            , Background.color <| rgb255 114 159 207
+            , Background.color scrollbarBackground
             , Border.rounded 6
             ]
             Element.none
@@ -219,7 +218,7 @@ commonShortVerticalSliderStyles =
             , height <| px 150
             , centerY
             , centerX
-            , Background.color <| rgb255 114 159 207
+            , Background.color scrollbarBackground
             , Border.rounded 6
             ]
             Element.none

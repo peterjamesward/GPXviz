@@ -46,7 +46,6 @@ import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
 import Triangle3d
-import Tuple exposing (first, second)
 import Utils exposing (..)
 import Vector2d
 import Vector3d
@@ -54,7 +53,7 @@ import ViewElements exposing (..)
 import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
-import WriteGPX exposing (decimals6, writeGPX)
+import WriteGPX exposing (writeGPX)
 
 
 main : Program () Model Msg
@@ -3021,9 +3020,9 @@ viewGradientChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20 ]
+    column [ spacing 5, padding 10 ]
         [ gradientChangeThresholdSlider model
-        , wrappedRow [ width fill, centerX ] <|
+        , wrappedRow [ spacing 5, padding 10, width fill, alignLeft ] <|
             List.map linkButton model.abruptGradientChanges
         ]
 
@@ -3040,9 +3039,9 @@ viewBearingChanges model =
                 , label = text <| String.fromInt (idx change)
                 }
     in
-    column [ spacing 10, padding 20 ]
+    column [ spacing 5, padding 10 ]
         [ bearingChangeThresholdSlider model
-        , wrappedRow [ width fill, centerX ] <|
+        , wrappedRow [ spacing 5, padding 10, width fill, alignLeft ] <|
             List.map linkButton model.abruptBearingChanges
         ]
 
@@ -3265,32 +3264,38 @@ viewLoopTools model =
                     text <|
                         "Move start/finish to current point"
                 }
+
+        commonButtons =
+            wrappedRow [ spacing 10, padding 20, centerX ]
+                [ reverseButton
+                , simplifyButton
+                ]
     in
-    el [ spacing 10, padding 20, centerX ] <|
+    column [ spacing 10, padding 5, centerX ] <|
         case model.loopiness of
             IsALoop ->
-                column [ spacing 10 ]
+                [ row [ spacing 10, padding 5, centerX ]
                     [ text "This track is a loop."
                     , changeStartButton model.currentNode
-                    , reverseButton
-                    , simplifyButton
                     ]
+                , commonButtons
+                ]
 
             AlmostLoop gap ->
-                column [ spacing 10 ]
-                    [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
+                [ row [ spacing 10, padding 5, centerX ]
+                    [ text <| "This track is " ++ showDecimal2 gap ++ "\naway from a loop"
                     , loopButton
-                    , reverseButton
-                    , simplifyButton
                     ]
+                , commonButtons
+                ]
 
             NotALoop gap ->
-                column [ spacing 10 ]
+                [ row [ spacing 10, padding 5, centerX ]
                     [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
-                    , reverseButton
-                    , simplifyButton
                     ]
+                , commonButtons
+                ]
 
 
 positionControls model =
@@ -3335,7 +3340,7 @@ positionSlider model =
                 , height <| px scrollbarThickness
                 , centerY
                 , centerX
-                , Background.color <| rgb255 114 159 207
+                , Background.color scrollbarBackground
                 , Border.rounded 6
                 ]
                 Element.none
@@ -3635,9 +3640,9 @@ viewStraightenTools model =
 
           else
             column [ spacing 10, padding 10, alignTop, centerX ]
-            [ text "The straighten tool requires a range."
-            , text "Drop the marker and move it away from the current pointer."
-            ]
+                [ text "The straighten tool requires a range."
+                , text "Drop the marker and move it away from the current pointer."
+                ]
         ]
 
 
@@ -3680,6 +3685,7 @@ markerButton model =
         , Border.rounded 5
         , width fill
         , centerX
+        , Font.size 16
         , Background.color buttonGroupBackground
         ]
     <|
@@ -3780,7 +3786,10 @@ viewGradientFixerPane model =
                         ]
 
                 _ ->
-                    none
+                    column [ spacing 10, padding 10, alignTop, centerX ]
+                        [ text "Gradient smoothing works over a range of track segments."
+                        , text "Try re-positioning the current pointer or marker."
+                        ]
     in
     column [ padding 10, spacing 10, centerX ] <|
         [ gradientSmoothControls ]

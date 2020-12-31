@@ -41,8 +41,8 @@ accordionTabStyles state =
             expandedTabBorder
 
         else
-            collapsedTabColour
-    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = expandedTabBorder }
+            collapsedTabBorder
+    , Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = expandedTabShadow }
     , Background.color <|
         if state == Expanded then
             expandedTabBackground
@@ -107,7 +107,7 @@ accordionView entries message =
         , case accordionActiveItem entries of
             Just entry ->
                 el
-                    [ Background.color <| rgb255 220 220 250
+                    [ Background.color accordionContentBackground
                     , width fill
                     , centerX
                     ]
