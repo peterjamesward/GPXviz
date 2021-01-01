@@ -26,9 +26,8 @@ import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
-import Html.Events.Extra.Wheel as Wheel
 import Iso8601
-import Json.Decode as E exposing (decodeValue, field, float)
+import Json.Decode as E exposing (..)
 import Length
 import List exposing (drop, take)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
@@ -407,7 +406,7 @@ clearTheModel model =
     }
 
 
-locallyHandleMapMessage : Model -> E.Value -> Model
+locallyHandleMapMessage : Model -> E.Value -> ( Model, Cmd Msg )
 locallyHandleMapMessage model json =
     -- So we don't need to keep going to the MapController.
     -- These will be Model-domain messages.
@@ -432,11 +431,62 @@ locallyHandleMapMessage model json =
             --} );
             case ( lat, lon ) of
                 ( Ok lat1, Ok lon1 ) ->
-                    makeNearestNodeCurrent lon1 lat1 model
-                        |> centreViewOnCurrentNode
+                    ( model
+                        |> makeNearestNodeCurrent lon1 lat1
                         |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                    , updateMapVaryingElements model
+                    )
 
                 _ ->
+                    ( model, Cmd.none )
+
+        Ok "drag" ->
+            model |> draggedOnMap json |> trackHasChanged
+
+        _ ->
+            ( model, Cmd.none )
+
+
+draggedOnMap : E.Value -> Model -> Model
+draggedOnMap json model =
+    -- Map has told us the old and new coordinates of a trackpoint.
+    let
+        lon1 =
+            E.decodeValue (at [ "start", "lng" ] float) json
+
+        lat1 =
+            E.decodeValue (at [ "start", "lat" ] float) json
+
+        lon2 =
+            E.decodeValue (at [ "end", "lng" ] float) json
+
+        lat2 =
+            E.decodeValue (at [ "end", "lat" ] float) json
+
+        newModel tp endLon endLat =
+            addToUndoStack "Drag track point" model
+                |> (\m ->
+                        { m
+                            | trackPoints =
+                                List.take tp.idx model.trackPoints
+                                    ++ [ { tp | lon = endLon, lat = endLat } ]
+                                    ++ List.drop (tp.idx + 1) model.trackPoints
+                            , currentNode = tp.idx
+                        }
+                   )
+    in
+    case ( ( lon1, lat1 ), ( lon2, lat2 ) ) of
+        ( ( Ok startLon, Ok startLat ), ( Ok endLon, Ok endLat ) ) ->
+            let
+                maybetp =
+                    findTrackPoint startLon startLat model.trackPoints
+            in
+            case maybetp of
+                Just tp ->
+                    newModel tp endLon endLat
+
+                Nothing ->
                     model
 
         _ ->
@@ -593,14 +643,7 @@ update msg model =
                             )
 
                         Nothing ->
-                            let
-                                newModel =
-                                    locallyHandleMapMessage model jsonMsg
-                                        |> deriveVaryingVisualEntities
-                            in
-                            ( newModel
-                            , updateMapVaryingElements newModel
-                            )
+                            locallyHandleMapMessage model jsonMsg
 
                 Nothing ->
                     ( model, Cmd.none )
@@ -3158,7 +3201,7 @@ bearingChangeThresholdSlider model =
                 text <|
                     "Direction change threshold = "
                         ++ String.fromInt model.bearingChangeThreshold
-        , min = 30.0
+        , min = 20.0
         , max = 120.0
         , step = Just 1.0
         , value = toFloat model.bearingChangeThreshold

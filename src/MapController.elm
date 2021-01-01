@@ -7,7 +7,7 @@ import Json.Encode as E
 import Length
 import MapboxKey exposing (mapboxKey)
 import Msg exposing (Msg(..))
-import TrackPoint exposing (GPXCoords, TrackPoint, trackToJSON)
+import TrackPoint exposing (GPXCoords, TrackPoint, trackPointsToJSON, trackToJSON)
 import Utils exposing (showDecimal2, showDecimal6)
 import ViewTypes exposing (ViewingMode)
 
@@ -77,13 +77,16 @@ removeMap =
 
 addTrackToMap : MapInfo -> Cmd Msg
 addTrackToMap info =
+    -- This is to add the route as a polyline.
+    -- We will separately add track points as draggable wotsits.
     mapPort <|
         E.object
             [ ( "Cmd", E.string "Track" )
             , ( "lon", E.float info.centreLon )
             , ( "lat", E.float info.centreLat )
             , ( "zoom", E.float info.mapZoom )
-            , ( "data", trackToJSON info.points )
+            , ( "data", trackToJSON info.points ) -- Route as polyline
+            , ( "points", trackPointsToJSON info.points ) -- Make track points draggable
             ]
 
 

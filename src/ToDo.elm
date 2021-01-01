@@ -1,6 +1,10 @@
 module ToDo exposing (..)
 
---TODO: Spinning wheel of tools or grid of tools?
+--TODO: Dragging directly on map, mostly in JS, just update the Orange layer until mouse up.
+
+--TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes.
+
+--DONE: (Samir) lower end of bend problem slider to 20 degrees.
 
 --TODO: Debt. Drop the big lists and just use arrays. Reduce duplication.
 

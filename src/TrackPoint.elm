@@ -6,6 +6,7 @@ import Json.Encode as E
 import Msg exposing (..)
 import Point3d
 import Regex
+import Spherical exposing (metresPerDegree)
 import Utils exposing (asRegex)
 
 
@@ -14,7 +15,7 @@ type GPXCoords
 
 
 type alias TrackPoint =
-    -- This is the basic info we extract from a GPX file.
+    -- This is the basic info we extract from a GPX file. Angles in degrees.
     { lat : Float
     , lon : Float
     , ele : Float
@@ -121,7 +122,7 @@ parseTrackPoints xml =
 
 trackToJSON : List TrackPoint -> E.Value
 trackToJSON tps =
-    -- JSON suitable for Mapbox API.
+    -- JSON suitable for Mapbox API to add polyline for route.
     let
         geometry =
             E.object
@@ -139,6 +140,46 @@ trackToJSON tps =
         [ ( "type", E.string "Feature" )
         , ( "properties", E.object [] )
         , ( "geometry", geometry )
+        ]
+
+
+trackPointsToJSON : List TrackPoint -> E.Value
+trackPointsToJSON tps =
+    -- Similar but each point is a feature so it is draggable.
+    --var geojson = {
+    --    'type': 'FeatureCollection',
+    --    'features': [
+    --        {
+    --            'type': 'Feature',
+    --            'geometry': {
+    --                'type': 'Point',
+    --                'coordinates': [0, 0]
+    --            }
+    --        }
+    --    ]
+    --};
+    let
+        features =
+            List.map makeFeature tps
+
+        makeFeature tp =
+            E.object
+                [ ( "type", E.string "Feature" )
+                , ( "geometry", point tp )
+                ]
+
+        point tp =
+            E.object
+                [ ( "type", E.string "Point" )
+                , ( "coordinates", latLonPair tp )
+                ]
+
+        latLonPair tp =
+            E.list E.float [ tp.lon, tp.lat ]
+    in
+    E.object
+        [ ( "type", E.string "FeatureCollection" )
+        , ( "features", E.list identity features )
         ]
 
 
@@ -164,7 +205,23 @@ removeByNodeNumbers idxsToRemove trackPoints =
                     else if t.idx < i then
                         helper idxs ts (t :: kept)
 
-                    else -- t.idx > i
+                    else
+                        -- t.idx > i
                         helper is tps kept
     in
     List.reverse retained
+
+
+findTrackPoint : Float -> Float -> List TrackPoint -> Maybe TrackPoint
+findTrackPoint lon lat tps =
+    -- Originally for when a map point is dragged, so the lon & lat are accurate.
+    -- (It's not a nearest search but may need second pass if tolerance is too big.)
+    let
+        withinTolerance tp =
+            abs (tp.lon - lon)
+                < (2.0 / metresPerDegree)
+                && abs (tp.lat - lat)
+                < (2.0 / metresPerDegree)
+    in
+    List.head <|
+        List.filter withinTolerance tps
