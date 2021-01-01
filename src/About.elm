@@ -11,13 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2020-12-31_
+> _This text updated 2021-01-01_
 
 ## Changes
 
-- The Undo/Redo buttons and the Marker controls now sit above the tools, instead of inside them.
+- Bend problems minimum threshold reduced from 30 to 20 degrees.
 
-- A proper colour palette to celebrate the end of 2020.
+- Track points can be dragged directly on map. This is experimental and subject to change.
 
 ## Guidance on use
 
