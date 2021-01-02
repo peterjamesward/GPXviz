@@ -3,9 +3,10 @@ module Msg exposing (..)
 import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
+import Http
 import Json.Encode as E
+import StravaSegment exposing (StravaSegment)
 import Time
-import Utils exposing (Point)
 import ViewTypes exposing (ViewingMode)
 import Html.Events.Extra.Mouse as Mouse
 
@@ -71,6 +72,10 @@ type Msg
     | ImageRelease Mouse.Event
     | NoOpMsg
     | SimplifyTrack
+    | Autosmooth (List Int)
+    | UserChangedUrl String
+    | LoadExternalSegment
+    | HandleSegmentData (Result Http.Error StravaSegment)
 
 
 type NodeSplitDirection

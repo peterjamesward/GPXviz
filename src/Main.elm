@@ -13,11 +13,11 @@ import Color
 import ColourPalette exposing (..)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
-import Element exposing (..)
+import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
-import Element.Input as Input exposing (button)
+import Element.Input as Input exposing (button, text)
 import FeatherIcons
 import File exposing (File)
 import File.Download as Download
@@ -26,6 +26,7 @@ import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
+import Http
 import Iso8601
 import Json.Decode as E exposing (..)
 import Length
@@ -39,7 +40,9 @@ import Point2d exposing (Point2d)
 import Point3d exposing (Point3d, distanceFromAxis)
 import Rectangle2d
 import Scene3d exposing (Entity)
+import SegmentDataLoad exposing (requestStravaSegment)
 import Spherical exposing (metresPerDegree)
+import StravaSegment exposing (StravaSegment)
 import Task
 import Terrain exposing (makeTerrain)
 import Time
@@ -59,7 +62,7 @@ main : Program () Model Msg
 main =
     Browser.document
         { init = init
-        , view = viewGenericNew
+        , view = view
         , update = update
         , subscriptions = subscriptions
         }
@@ -160,6 +163,8 @@ type alias Model =
     , cameraFocusProfileNode : Int
     , cameraFocusPlan : Point3d Length.Meters LocalCoords
     , metricFilteredNodes : List Int -- candidate track points to be removed to simplify a big track.
+    , externalSegmentUrl : String
+    , externalSegment : Maybe (Result Http.Error StravaSegment)
     }
 
 
@@ -230,6 +235,8 @@ init _ =
       , cameraFocusProfileNode = 0
       , cameraFocusPlan = Point3d.origin
       , metricFilteredNodes = []
+      , externalSegmentUrl = ""
+      , externalSegment = Nothing
       }
     , Task.perform AdjustTimeZone Time.here
     )
@@ -264,6 +271,10 @@ toolsAccordion model =
       , state = Contracted
       , content = flythroughControls model
       }
+    , { label = "Segment"
+      , state = Contracted
+      , content = enterExternalSegmentUrl model
+      }
     ]
 
 
@@ -288,63 +299,6 @@ infoAccordion model =
       , state = Contracted
       , content = viewBearingChanges model
       }
-    ]
-
-
-genericAccordion model =
-    [ { label = "Summary"
-      , state = Expanded
-      , content = overviewSummary model
-      }
-    , { label = "Road data"
-      , state = Contracted
-      , content = summaryData (lookupRoad model model.currentNode)
-      }
-    , { label = "Visual styles"
-      , state = Contracted
-      , content = viewOptions model
-      }
-    , { label = "Loop maker"
-      , state = Contracted
-      , content = viewLoopTools model
-      }
-    , { label = "Fly-through"
-      , state = Contracted
-      , content = flythroughControls model
-      }
-    , { label = "Smooth gradient"
-      , state = Contracted
-      , content = viewGradientFixerPane model
-      }
-    , { label = "Nudge node"
-      , state = Contracted
-      , content = viewNudgeTools model
-      }
-    , { label = "Smooth bend"
-      , state = Contracted
-      , content = viewBendFixerPane model
-      }
-    , { label = "Straighten"
-      , state = Contracted
-      , content = viewStraightenTools model
-      }
-    , { label = "Trackpoints"
-      , state = Contracted
-      , content = viewTrackPointTools model
-      }
-    , { label = "Gradient problems"
-      , state = Contracted
-      , content = viewGradientChanges model
-      }
-    , { label = "Bend problems"
-      , state = Contracted
-      , content = viewBearingChanges model
-      }
-
-    --, { label = "Map Info"
-    --  , state = Contracted
-    --  , content = MapController.viewMapInfo model.mapInfo
-    --  }
     ]
 
 
@@ -631,6 +585,9 @@ update msg model =
     case msg of
         NoOpMsg ->
             ( model, Cmd.none )
+
+        UserChangedUrl url ->
+            ( { model | externalSegmentUrl = url }, Cmd.none )
 
         -- Mainly to suppress the context menu on the pictures!
         MapMessage jsonMsg ->
@@ -1318,6 +1275,19 @@ update msg model =
                            )
             in
             trackHasChanged newModel
+
+        Autosmooth nodes ->
+            trackHasChanged model
+
+        LoadExternalSegment ->
+            ( model
+            , requestStravaSegment HandleSegmentData model.externalSegmentUrl
+            )
+
+        HandleSegmentData response ->
+            ( { model | externalSegment = Just response }
+            , Cmd.none
+            )
 
 
 trackHasChanged model =
@@ -2863,8 +2833,8 @@ deriveVaryingVisualEntities model =
     }
 
 
-viewGenericNew : Model -> Browser.Document Msg
-viewGenericNew model =
+view : Model -> Browser.Document Msg
+view model =
     { title = "GPXmagic"
     , body =
         [ layout
@@ -2883,7 +2853,7 @@ viewGenericNew model =
                         Just name ->
                             column [ Font.size 14 ]
                                 [ displayName model.trackName
-                                , text <| "Filename: " ++ name
+                                , E.text <| "Filename: " ++ name
                                 ]
 
                         Nothing ->
@@ -2928,7 +2898,7 @@ saveButtonIfChanged model =
             button
                 prettyButtonStyles
                 { onPress = Just OutputGPX
-                , label = text "Save as GPX file to your computer"
+                , label = E.text "Save as GPX file to your computer"
                 }
 
         _ ->
@@ -3010,16 +2980,16 @@ viewInputError model =
                 case model.gpx of
                     Just content ->
                         column [ spacing 10, padding 10 ]
-                            [ text "I wanted to see lat, lon and ele data."
-                            , text "This is what I found instead."
-                            , text <| content
+                            [ E.text "I wanted to see lat, lon and ele data."
+                            , E.text "This is what I found instead."
+                            , E.text <| content
                             ]
 
                     Nothing ->
-                        text "I seem to have no filename."
+                        E.text "I seem to have no filename."
 
             else
-                text "Nothing to see here."
+                E.text "Nothing to see here."
         ]
 
 
@@ -3057,16 +3027,32 @@ viewGradientChanges model =
         idx change =
             change.node.trackPoint.idx
 
-        linkButton change =
+        linkButton nodeNum =
             button prettyButtonStyles
-                { onPress = Just (UserMovedNodeSlider (idx change))
-                , label = text <| String.fromInt (idx change)
+                { onPress = Just (UserMovedNodeSlider nodeNum)
+                , label = E.text <| String.fromInt nodeNum
                 }
+
+        autosmoothButton =
+            none
+
+        --case nodeList of
+        --    [] -> none
+        --    _ ->
+        --        button prettyButtonStyles
+        --            { onPress = Just (Autosmooth nodeList)
+        --            , label = E.text <| "Try Autosmooth today"
+        --            }
+        nodeList =
+            List.map idx model.abruptGradientChanges
     in
     column [ spacing 5, padding 10 ]
-        [ gradientChangeThresholdSlider model
+        [ row [ spacing 10 ]
+            [ gradientChangeThresholdSlider model
+            , autosmoothButton
+            ]
         , wrappedRow [ spacing 5, padding 10, width fill, alignLeft ] <|
-            List.map linkButton model.abruptGradientChanges
+            List.map linkButton nodeList
         ]
 
 
@@ -3076,16 +3062,32 @@ viewBearingChanges model =
         idx change =
             change.node.trackPoint.idx
 
-        linkButton change =
+        linkButton nodeNum =
             button prettyButtonStyles
-                { onPress = Just (UserMovedNodeSlider (idx change))
-                , label = text <| String.fromInt (idx change)
+                { onPress = Just (UserMovedNodeSlider nodeNum)
+                , label = E.text <| String.fromInt nodeNum
                 }
+
+        autosmoothButton =
+            none
+
+        --case nodeList of
+        --    [] -> none
+        --    _ ->
+        --        button prettyButtonStyles
+        --            { onPress = Just (Autosmooth nodeList)
+        --            , label = E.text <| "Try Autosmooth today"
+        --            }
+        nodeList =
+            List.map idx model.abruptGradientChanges
     in
     column [ spacing 5, padding 10 ]
-        [ bearingChangeThresholdSlider model
+        [ row [ spacing 10 ]
+            [ bearingChangeThresholdSlider model
+            , autosmoothButton
+            ]
         , wrappedRow [ spacing 5, padding 10, width fill, alignLeft ] <|
-            List.map linkButton model.abruptBearingChanges
+            List.map linkButton nodeList
         ]
 
 
@@ -3110,7 +3112,7 @@ viewOptions model =
         [ if model.terrainEntities == [] then
             button prettyButtonStyles
                 { onPress = Just MakeTerrain
-                , label = text """Build terrain
+                , label = E.text """Build terrain
 (I understand this may take several
 minutes and will be lost if I make changes)"""
                 }
@@ -3118,26 +3120,26 @@ minutes and will be lost if I make changes)"""
           else
             button prettyButtonStyles
                 { onPress = Just ClearTerrain
-                , label = text "Remove the terrain."
+                , label = E.text "Remove the terrain."
                 }
         , paragraph
             [ padding 10
             ]
           <|
-            [ text "Select view elements" ]
+            [ E.text "Select view elements" ]
         , row []
             [ column []
                 [ Input.checkbox []
                     { onChange = ToggleRoad
                     , icon = checkboxIcon
                     , checked = model.displayOptions.roadTrack
-                    , label = Input.labelRight [ centerY ] (text "Road surface")
+                    , label = Input.labelRight [ centerY ] (E.text "Road surface")
                     }
                 , Input.checkbox []
                     { onChange = ToggleCentreLine
                     , icon = checkboxIcon
                     , checked = model.displayOptions.centreLine
-                    , label = Input.labelRight [ centerY ] (text "Centre line")
+                    , label = Input.labelRight [ centerY ] (E.text "Centre line")
                     }
                 ]
             , column []
@@ -3145,13 +3147,13 @@ minutes and will be lost if I make changes)"""
                     { onChange = TogglePillars
                     , icon = checkboxIcon
                     , checked = model.displayOptions.roadPillars
-                    , label = Input.labelRight [ centerY ] (text "Road support pillars")
+                    , label = Input.labelRight [ centerY ] (E.text "Road support pillars")
                     }
                 , Input.checkbox []
                     { onChange = ToggleCones
                     , icon = checkboxIcon
                     , checked = model.displayOptions.roadCones
-                    , label = Input.labelRight [ centerY ] (text "Trackpoint cones")
+                    , label = Input.labelRight [ centerY ] (E.text "Trackpoint cones")
                     }
                 ]
             ]
@@ -3162,7 +3164,7 @@ minutes and will be lost if I make changes)"""
             { onChange = SetCurtainStyle
             , selected = Just model.displayOptions.curtainStyle
             , label =
-                Input.labelBelow [ centerX ] <| text "Curtain style"
+                Input.labelBelow [ centerX ] <| E.text "Curtain style"
             , options =
                 [ Input.optionWith NoCurtain <| radioButton First "None"
                 , Input.optionWith PlainCurtain <| radioButton Mid "Plain"
@@ -3180,7 +3182,7 @@ gradientChangeThresholdSlider model =
         { onChange = SetGradientChangeThreshold
         , label =
             Input.labelBelow [] <|
-                text <|
+                E.text <|
                     "Gradient change threshold = "
                         ++ showDecimal2 model.gradientChangeThreshold
         , min = 5.0
@@ -3198,7 +3200,7 @@ bearingChangeThresholdSlider model =
         { onChange = SetBearingChangeThreshold
         , label =
             Input.labelBelow [] <|
-                text <|
+                E.text <|
                     "Direction change threshold = "
                         ++ String.fromInt model.bearingChangeThreshold
         , min = 20.0
@@ -3216,7 +3218,7 @@ bendSmoothnessSlider model =
         { onChange = SetBendTrackPointSpacing
         , label =
             Input.labelBelow [] <|
-                text <|
+                E.text <|
                     "Spacing = "
                         ++ showDecimal2 model.bendTrackPointSpacing
         , min = 1.0
@@ -3244,22 +3246,22 @@ overviewSummary model =
         Just summary ->
             row [ padding 20, centerX ]
                 [ column [ spacing 10 ]
-                    [ text "Highest point "
-                    , text "Lowest point "
-                    , text "Track length "
-                    , text "Climbing distance "
-                    , text "Elevation gain "
-                    , text "Descending distance "
-                    , text "Elevation loss "
+                    [ E.text "Highest point "
+                    , E.text "Lowest point "
+                    , E.text "Track length "
+                    , E.text "Climbing distance "
+                    , E.text "Elevation gain "
+                    , E.text "Descending distance "
+                    , E.text "Elevation loss "
                     ]
                 , column [ spacing 10 ]
-                    [ text <| showDecimal2 summary.highestMetres
-                    , text <| showDecimal2 summary.lowestMetres
-                    , text <| showDecimal2 summary.trackLength
-                    , text <| showDecimal2 summary.climbingDistance
-                    , text <| showDecimal2 summary.totalClimbing
-                    , text <| showDecimal2 summary.descendingDistance
-                    , text <| showDecimal2 summary.totalDescending
+                    [ E.text <| showDecimal2 summary.highestMetres
+                    , E.text <| showDecimal2 summary.lowestMetres
+                    , E.text <| showDecimal2 summary.trackLength
+                    , E.text <| showDecimal2 summary.climbingDistance
+                    , E.text <| showDecimal2 summary.totalClimbing
+                    , E.text <| showDecimal2 summary.descendingDistance
+                    , E.text <| showDecimal2 summary.totalDescending
                     ]
                 ]
 
@@ -3275,7 +3277,7 @@ viewLoopTools model =
                 prettyButtonStyles
                 { onPress = Just CloseTheLoop
                 , label =
-                    text <|
+                    E.text <|
                         "Make the track into a loop"
                 }
 
@@ -3284,7 +3286,7 @@ viewLoopTools model =
                 prettyButtonStyles
                 { onPress = Just ReverseTrack
                 , label =
-                    text <|
+                    E.text <|
                         "Reverse the track"
                 }
 
@@ -3293,7 +3295,7 @@ viewLoopTools model =
                 prettyButtonStyles
                 { onPress = Just SimplifyTrack
                 , label =
-                    text <|
+                    E.text <|
                         "Remove "
                             ++ String.fromInt (List.length model.metricFilteredNodes)
                             ++ " track points\nto simplify the route."
@@ -3304,7 +3306,7 @@ viewLoopTools model =
                 prettyButtonStyles
                 { onPress = Just (ChangeLoopStart c)
                 , label =
-                    text <|
+                    E.text <|
                         "Move start/finish to current point"
                 }
 
@@ -3318,7 +3320,7 @@ viewLoopTools model =
         case model.loopiness of
             IsALoop ->
                 [ row [ spacing 10, padding 5, centerX ]
-                    [ text "This track is a loop."
+                    [ E.text "This track is a loop."
                     , changeStartButton model.currentNode
                     ]
                 , commonButtons
@@ -3326,7 +3328,7 @@ viewLoopTools model =
 
             AlmostLoop gap ->
                 [ row [ spacing 10, padding 5, centerX ]
-                    [ text <| "This track is " ++ showDecimal2 gap ++ "\naway from a loop"
+                    [ E.text <| "This track is " ++ showDecimal2 gap ++ "\naway from a loop"
                     , loopButton
                     ]
                 , commonButtons
@@ -3334,7 +3336,7 @@ viewLoopTools model =
 
             NotALoop gap ->
                 [ row [ spacing 10, padding 5, centerX ]
-                    [ text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
+                    [ E.text <| "This track is " ++ showDecimal2 gap ++ " away from a loop"
                     , loopButton
                     ]
                 , commonButtons
@@ -3386,7 +3388,7 @@ positionSlider model =
                 , Background.color scrollbarBackground
                 , Border.rounded 6
                 ]
-                Element.none
+                E.none
         ]
         { onChange = UserMovedNodeSlider << round
         , label =
@@ -3431,7 +3433,7 @@ flythroughControls model =
                 { onChange = SetFlythroughSpeed
                 , label =
                     Input.labelBelow [] <|
-                        text <|
+                        E.text <|
                             "Fly-through speed = "
                                 ++ (showDecimal2 <|
                                         10.0
@@ -3488,12 +3490,12 @@ flythroughControls model =
             Just flythrough ->
                 row [ spacing 10 ]
                     [ column [ spacing 10 ]
-                        [ text "Segment "
-                        , text "Metres from start "
+                        [ E.text "Segment "
+                        , E.text "Metres from start "
                         ]
                     , column [ spacing 10 ]
-                        [ text <| String.fromInt flythrough.segment.index
-                        , text <| showDecimal2 flythrough.metresFromRouteStart
+                        [ E.text <| String.fromInt flythrough.segment.index
+                        , E.text <| showDecimal2 flythrough.metresFromRouteStart
                         ]
                     ]
 
@@ -3650,7 +3652,7 @@ viewBendFixerPane model =
                 prettyButtonStyles
                 { onPress = Just SmoothBend
                 , label =
-                    text <|
+                    E.text <|
                         "Smooth between markers\nRadius "
                             ++ showDecimal2 smooth.radius
                 }
@@ -3665,8 +3667,8 @@ viewBendFixerPane model =
 
             Nothing ->
                 column [ spacing 10, padding 10, alignTop, centerX ]
-                    [ text "Sorry, failed to find a nice bend."
-                    , text "Try re-positioning the current pointer or marker."
+                    [ E.text "Sorry, failed to find a nice bend."
+                    , E.text "Try re-positioning the current pointer or marker."
                     ]
         ]
 
@@ -3683,8 +3685,8 @@ viewStraightenTools model =
 
           else
             column [ spacing 10, padding 10, alignTop, centerX ]
-                [ text "The straighten tool requires a range."
-                , text "Drop the marker and move it away from the current pointer."
+                [ E.text "The straighten tool requires a range."
+                , E.text "Drop the marker and move it away from the current pointer."
                 ]
         ]
 
@@ -3718,7 +3720,7 @@ markerButton model =
                 prettyButtonStyles
                 { onPress = Just ToggleMarker
                 , label =
-                    text <| label
+                    E.text <| label
                 }
     in
     row
@@ -3773,10 +3775,10 @@ undoButton model =
             , label =
                 case model.undoStack of
                     u :: _ ->
-                        text <| "Undo " ++ u.label
+                        E.text <| "Undo " ++ u.label
 
                     _ ->
-                        text "Nothing to undo"
+                        E.text "Nothing to undo"
             }
         , button
             prettyButtonStyles
@@ -3790,10 +3792,10 @@ undoButton model =
             , label =
                 case model.redoStack of
                     u :: _ ->
-                        text <| "Redo " ++ u.label
+                        E.text <| "Redo " ++ u.label
 
                     _ ->
-                        text "Nothing to redo"
+                        E.text "Nothing to redo"
             }
         ]
 
@@ -3821,7 +3823,7 @@ viewGradientFixerPane model =
                             prettyButtonStyles
                             { onPress = Just <| SmoothGradient gradient
                             , label =
-                                text <|
+                                E.text <|
                                     "Smooth between markers\nAverage gradient "
                                         ++ showDecimal2 gradient
                             }
@@ -3830,8 +3832,8 @@ viewGradientFixerPane model =
 
                 _ ->
                     column [ spacing 10, padding 10, alignTop, centerX ]
-                        [ text "Gradient smoothing works over a range of track segments."
-                        , text "Try re-positioning the current pointer or marker."
+                        [ E.text "Gradient smoothing works over a range of track segments."
+                        , E.text "Try re-positioning the current pointer or marker."
                         ]
     in
     column [ padding 10, spacing 10, centerX ] <|
@@ -3853,13 +3855,13 @@ insertNodeOptionsBox c =
         [ button
             prettyButtonStyles
             { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
-            , label = text "Put two trackpoints in\nplace of this one"
+            , label = E.text "Put two trackpoints in\nplace of this one"
             }
 
         --, button
         --    prettyButtonStyles
         --    { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
-        --    , label = text "Insert a node\nbefore this one"
+        --    , label = E.text "Insert a node\nbefore this one"
         --    }
         ]
 
@@ -3871,7 +3873,7 @@ smoothnessSlider model =
         { onChange = SetBumpinessFactor
         , label =
             Input.labelBelow [] <|
-                text <|
+                E.text <|
                     "Bumpiness = "
                         ++ showDecimal2 model.bumpinessFactor
         , min = 0.0
@@ -4089,6 +4091,36 @@ viewRouteProfile model node =
 
         Nothing ->
             none
+
+
+enterExternalSegmentUrl : Model -> Element Msg
+enterExternalSegmentUrl model =
+    -- Provide means to input and submit a Veloviewer segment URL
+    column [ spacing 10, padding 10, width fill ]
+        [ row []
+            [ Input.text [ ]
+                { onChange = UserChangedUrl
+                , text = model.externalSegmentUrl
+                , placeholder = Just <| Input.placeholder [] <| E.text "Strava segment ID"
+                , label = Input.labelHidden "Strava segment ID"
+                }
+            , button
+                prettyButtonStyles
+                { onPress = Just LoadExternalSegment
+                , label = E.text <| "Fetch segment raw data"
+                }
+            ]
+        , case model.externalSegment of
+            Nothing ->
+                E.text "Segment data not loaded, or not yet."
+
+            Just response ->
+                case response of
+                    Ok segment ->
+                        E.text segment.name
+                    Err err ->
+                        E.text <| httpErrorString err
+        ]
 
 
 subscriptions : Model -> Sub Msg

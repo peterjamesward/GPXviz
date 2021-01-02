@@ -3,6 +3,7 @@ module Utils exposing (..)
 import Color
 import FormatNumber exposing (format)
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
+import Http
 import Pixels
 import Regex
 
@@ -155,3 +156,22 @@ showList ints =
         List.map
             String.fromInt
             ints
+
+
+httpErrorString : Http.Error -> String
+httpErrorString error =
+    case error of
+        Http.BadBody message ->
+            "Unable to handle response: " ++ message
+
+        Http.BadStatus statusCode ->
+            "Server error: " ++ String.fromInt statusCode
+
+        Http.BadUrl url ->
+            "Invalid URL: " ++ url
+
+        Http.NetworkError ->
+            "Network error"
+
+        Http.Timeout ->
+            "Request timeout"

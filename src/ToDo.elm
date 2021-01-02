@@ -1,10 +1,32 @@
 module ToDo exposing (..)
 
---TODO: Dragging directly on map, mostly in JS, just update the Orange layer until mouse up.
+--TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes. (Subject to adequate spacing.)
 
---TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes.
+NB This will be Autosmooth. I will take the area cost metric idea but reverse so that
+TP with highest metric are split. Same approach to multiple manual passes. No need to avoid neighbours.
+Put this, and Simplify, on a new tab as they are sort of complimentary?.
 
---DONE: (Samir) lower end of bend problem slider to 20 degrees.
+But that metric probably will not give enough attention to gradient changes (as cyclists do).
+So maybe just use the simple bearing/slope changes we have already calculated.
+Which suggests placing the autofix buttons in the Problems tabs and fixes down to current slider setting.
+User needs to be told that certain errors are not fixable like this.
+
+!!! Don't apply this if there's a tight grouping -- must be enough space to apply the chamfer.
+Maybe Autosmooth could be allowed to delete nodes if there's a tight group, but detecting is awkward?
+Not really. A recursive function can do that easily. Hence our autofixer can chamfer single nodes
+but for a run of closely-packed nodes, might just retain the first and last. That this might create
+another problem is, actually, just fine. We rely on the user as the ultimate judge!
+
+--TODO: Is it legal to hoover Strava/Veloviewer segment data?
+I'm pretty sure it complies with their Ts&Cs. It's not their data anyway.
+I think I can go straight to Strava API. Except auth is a pain, so no.
+Let's put a fetch from VW URL option on the page.
+Then we can check it will work without Strava login or, if you are looking at a private segment, somehow VW will work (!).
+
+--TODO: Under the Samir tab, import GPX segment for elevation matching.
+NB Veloviewer returns d3 compressed data for distance, elevation and gradient.
+(Which is just the Strava Segment Streams compressed by d3, methinks.)
+With the d3 routines, it should be easy enough to decompress and use these for accurate elevation data.
 
 --TODO: Debt. Drop the big lists and just use arrays. Reduce duplication.
 
