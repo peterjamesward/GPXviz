@@ -1,4 +1,4 @@
-port module StravaAuth exposing (..)
+module StravaAuth exposing (..)
 
 import Base64.Encode as Base64
 import Browser exposing (Document, application)
@@ -13,29 +13,33 @@ import Http
 import Json.Decode as Json
 import OAuth
 import OAuth.Implicit as OAuth
-import SOAuthTypes exposing (..)
+import OAuthPorts exposing (genRandomBytes)
+import OAuthTypes exposing (..)
 import Url exposing (Protocol(..), Url)
 
 
-main : Program (Maybe (List Int)) Model Msg
-main =
-    application
-        { init =
-            Maybe.map convertBytes >> init
-        , update =
-            update
-        , subscriptions =
-            always <| randomBytes GotRandomBytes
-        , onUrlRequest =
-            always NoOp
-        , onUrlChange =
-            always NoOp
-        , view =
-            view
-                { title = "Spotify - Flow: Implicit"
-                , btnClass = class "btn-spotify"
-                }
-        }
+
+{-
+   main : Program (Maybe (List Int)) Model OAuthMsg
+   main =
+       application
+           { init =
+               Maybe.map convertBytes >> init
+           , update =
+               update
+           , subscriptions =
+               always <| randomBytes GotRandomBytes
+           , onUrlRequest =
+               always NoOp
+           , onUrlChange =
+               always NoOp
+           , view =
+               view
+                   { title = "Spotify - Flow: Implicit"
+                   , btnClass = class "btn-spotify"
+                   }
+           }
+-}
 
 
 {-| OAuth configuration.
@@ -43,9 +47,9 @@ main =
 Note that this demo also fetches basic user information with the obtained access token,
 hence the user info endpoint and JSON decoder
 
-http://www.strava.com/oauth/authorize?client_id=59195&response_type=code&redirect_uri=http://localhost/exchange_token&scope=read
+<http://www.strava.com/oauth/authorize?client_id=59195&response_type=code&redirect_uri=http://localhost/exchange_token&scope=read>
 
-https://www.strava.com/api/v3/segments/" ++ segmentId
+<https://www.strava.com/api/v3/athlete>
 
 -}
 configuration : Configuration
@@ -77,8 +81,8 @@ configuration =
 When query params are present (and valid), we consider the user `Authorized`.
 
 -}
-init : Maybe { state : String } -> Url -> Key -> ( Model, Cmd Msg )
-init mflags origin navigationKey =
+init : Maybe { state : String } -> Url -> Key -> (OAuthMsg -> msgType) -> ( Model, Cmd msgType )
+init mflags origin navigationKey wrapperMsg =
     let
         redirectUri =
             { origin | query = Nothing, fragment = Nothing }
@@ -117,7 +121,7 @@ init mflags origin navigationKey =
                         , Cmd.batch
                             -- Artificial delay to make the live demo easier to follow.
                             -- In practice, the access token could be requested right here.
-                            [ after 750 Millisecond UserInfoRequested
+                            [ after 750 Millisecond (wrapperMsg UserInfoRequested)
                             , clearUrl
                             ]
                         )
@@ -128,8 +132,7 @@ init mflags origin navigationKey =
             )
 
 
-
-getUserInfo : Configuration -> OAuth.Token -> Cmd Msg
+getUserInfo : Configuration -> OAuth.Token -> Cmd OAuthMsg
 getUserInfo { userInfoDecoder, userInfoEndpoint } token =
     Http.request
         { method = "GET"
@@ -155,47 +158,46 @@ getUserInfo { userInfoDecoder, userInfoEndpoint } token =
 -}
 
 
-port genRandomBytes : Int -> Cmd msg
+update : OAuthMsg -> Model -> ( Model, Cmd OAuthMsg )
+update msg model  =
+    let
+        ( newModel, authMsg ) =
+            case ( model.flow, msg ) of
+                ( Idle, SignInRequested ) ->
+                    signInRequested model
+
+                ( Idle, GotRandomBytes bytes ) ->
+                    gotRandomBytes model bytes
+
+                ( Authorized token, UserInfoRequested ) ->
+                    userInfoRequested model token
+
+                ( Authorized _, GotUserInfo userInfoResponse ) ->
+                    gotUserInfo model userInfoResponse
+
+                ( Done _, SignOutRequested ) ->
+                    signOutRequested model
+
+                _ ->
+                    noOp model
+
+    in
+    ( newModel, authMsg )
 
 
-port randomBytes : (List Int -> msg) -> Sub msg
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case ( model.flow, msg ) of
-        ( Idle, SignInRequested ) ->
-            signInRequested model
-
-        ( Idle, GotRandomBytes bytes ) ->
-            gotRandomBytes model bytes
-
-        ( Authorized token, UserInfoRequested ) ->
-            userInfoRequested model token
-
-        ( Authorized _, GotUserInfo userInfoResponse ) ->
-            gotUserInfo model userInfoResponse
-
-        ( Done _, SignOutRequested ) ->
-            signOutRequested model
-
-        _ ->
-            noOp model
-
-
-noOp : Model -> ( Model, Cmd Msg )
+noOp : Model -> ( Model, Cmd OAuthMsg )
 noOp model =
     ( model, Cmd.none )
 
 
-signInRequested : Model -> ( Model, Cmd Msg )
+signInRequested : Model -> ( Model, Cmd OAuthMsg )
 signInRequested model =
     ( { model | flow = Idle }
     , genRandomBytes 16
     )
 
 
-gotRandomBytes : Model -> List Int -> ( Model, Cmd Msg )
+gotRandomBytes : Model -> List Int -> ( Model, Cmd OAuthMsg )
 gotRandomBytes model bytes =
     let
         { state } =
@@ -217,14 +219,17 @@ gotRandomBytes model bytes =
     )
 
 
-userInfoRequested : Model -> OAuth.Token -> ( Model, Cmd Msg )
-userInfoRequested model token =
+userInfoRequested : Model -> OAuth.Token -> ( Model, Cmd OAuthMsg )
+userInfoRequested model token  =
     ( { model | flow = Authorized token }
     , getUserInfo configuration token
     )
 
 
-gotUserInfo : Model -> Result Http.Error UserInfo -> ( Model, Cmd Msg )
+
+--gotUserInfo : Model -> Result Http.Error UserInfo -> ( Model, Cmd Msg )
+
+
 gotUserInfo model userInfoResponse =
     case userInfoResponse of
         Err _ ->
@@ -238,165 +243,11 @@ gotUserInfo model userInfoResponse =
             )
 
 
-signOutRequested : Model -> ( Model, Cmd Msg )
+signOutRequested : Model -> ( Model, Cmd OAuthMsg )
 signOutRequested model =
     ( { model | flow = Idle }
     , Navigation.load (Url.toString model.redirectUri)
     )
-
-
-
---
--- View
---
-
-
-type alias ViewConfiguration msg =
-    { title : String
-    , btnClass : Attribute msg
-    }
-
-
-view : ViewConfiguration Msg -> Model -> Document Msg
-view ({ title } as config) model =
-    { title = title
-    , body = viewBody config model
-    }
-
-
-viewBody : ViewConfiguration Msg -> Model -> List (Html Msg)
-viewBody config model =
-    [ div [ class "flex", class "flex-column", class "flex-space-around" ] <|
-        case model.flow of
-            Idle ->
-                div [ class "flex" ]
-                    [ viewAuthorizationStep False
-                    , viewStepSeparator False
-                    , viewGetUserInfoStep False
-                    ]
-                    :: viewIdle config
-
-            Authorized _ ->
-                div [ class "flex" ]
-                    [ viewAuthorizationStep True
-                    , viewStepSeparator True
-                    , viewGetUserInfoStep False
-                    ]
-                    :: viewAuthorized
-
-            Done userInfo ->
-                div [ class "flex" ]
-                    [ viewAuthorizationStep True
-                    , viewStepSeparator True
-                    , viewGetUserInfoStep True
-                    ]
-                    :: viewUserInfo config userInfo
-
-            Errored err ->
-                div [ class "flex" ]
-                    [ viewErroredStep
-                    ]
-                    :: viewErrored err
-    ]
-
-
-viewIdle : ViewConfiguration Msg -> List (Html Msg)
-viewIdle { btnClass } =
-    [ button
-        [ onClick SignInRequested, btnClass ]
-        [ text "Sign in" ]
-    ]
-
-
-viewAuthorized : List (Html Msg)
-viewAuthorized =
-    [ span [] [ text "Getting user info..." ]
-    ]
-
-
-viewUserInfo : ViewConfiguration Msg -> UserInfo -> List (Html Msg)
-viewUserInfo { btnClass } { firstname, lastname } =
-    [ div [ class "flex", class "flex-column" ]
-        [ p [] [ text <| firstname ++ " " ++ lastname ]
-        , div []
-            [ button
-                [ onClick SignOutRequested, btnClass ]
-                [ text "Sign out" ]
-            ]
-        ]
-    ]
-
-
-viewErrored : Error -> List (Html Msg)
-viewErrored error =
-    [ span [ class "span-error" ] [ viewError error ] ]
-
-
-viewError : Error -> Html Msg
-viewError e =
-    text <|
-        case e of
-            ErrStateMismatch ->
-                "'state' doesn't match, the request has likely been forged by an adversary!"
-
-            ErrAuthorization error ->
-                oauthErrorToString { error = error.error, errorDescription = error.errorDescription }
-
-            ErrHTTPGetUserInfo ->
-                "Unable to retrieve user info: HTTP request failed."
-
-
-viewAuthorizationStep : Bool -> Html Msg
-viewAuthorizationStep isActive =
-    viewStep isActive ( "Authorization", style "left" "-110%" )
-
-
-viewGetUserInfoStep : Bool -> Html Msg
-viewGetUserInfoStep isActive =
-    viewStep isActive ( "Get User Info", style "left" "-135%" )
-
-
-viewErroredStep : Html Msg
-viewErroredStep =
-    div
-        [ class "step", class "step-errored" ]
-        [ span [ style "left" "-50%" ] [ text "Errored" ] ]
-
-
-viewStep : Bool -> ( String, Attribute Msg ) -> Html Msg
-viewStep isActive ( step, position ) =
-    let
-        stepClass =
-            class "step"
-                :: (if isActive then
-                        [ class "step-active" ]
-
-                    else
-                        []
-                   )
-    in
-    div stepClass [ span [ position ] [ text step ] ]
-
-
-viewStepSeparator : Bool -> Html Msg
-viewStepSeparator isActive =
-    let
-        stepClass =
-            class "step-separator"
-                :: (if isActive then
-                        [ class "step-active" ]
-
-                    else
-                        []
-                   )
-    in
-    span stepClass []
-
-
-
---
--- Helpers
---
 
 
 toBytes : List Int -> Bytes

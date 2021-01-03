@@ -7,7 +7,8 @@ import Area
 import Array exposing (Array)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import BoundingBox3d exposing (BoundingBox3d)
-import Browser
+import Browser exposing (application)
+import Browser.Navigation exposing (Key)
 import Camera3d exposing (Camera3d)
 import Color
 import ColourPalette exposing (..)
@@ -34,6 +35,8 @@ import List exposing (drop, take)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
+import OAuthPorts exposing (randomBytes)
+import OAuthTypes as O exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
@@ -42,12 +45,14 @@ import Rectangle2d
 import Scene3d exposing (Entity)
 import SegmentDataLoad exposing (requestStravaSegment)
 import Spherical exposing (metresPerDegree)
+import StravaAuth
 import StravaSegment exposing (StravaSegment)
 import Task
 import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
 import Triangle3d
+import Url exposing (Url)
 import Utils exposing (..)
 import Vector2d
 import Vector3d
@@ -58,13 +63,35 @@ import VisualEntities exposing (..)
 import WriteGPX exposing (writeGPX)
 
 
-main : Program () Model Msg
+
+{-
+   main : Program () Model Msg
+   main =
+       Browser.document
+           { init = init
+           , view = view
+           , update = update
+           , subscriptions = subscriptions
+           }
+-}
+
+
+main : Program (Maybe (List Int)) Model Msg
 main =
-    Browser.document
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = subscriptions
+    -- This is the 'main' from OAuth example/
+    application
+        { init =
+            Maybe.map StravaAuth.convertBytes >> init
+        , update =
+            update
+        , subscriptions =
+            always <| randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
+        , onUrlRequest =
+            always (OAuthMessage NoOp)
+        , onUrlChange =
+            always (OAuthMessage NoOp)
+        , view =
+            view
         }
 
 
@@ -165,11 +192,17 @@ type alias Model =
     , metricFilteredNodes : List Int -- candidate track points to be removed to simplify a big track.
     , externalSegmentUrl : String
     , externalSegment : Maybe (Result Http.Error StravaSegment)
+    , stravaAuthentication : O.Model
     }
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : Maybe { state : String } -> Url -> Key -> ( Model, Cmd Msg )
+init mflags origin navigationKey =
+    -- We stitch in the OAuth init stuff somehow here.
+    let
+        ( authData, authCmd ) =
+            StravaAuth.init mflags origin navigationKey wrapAuthMessage
+    in
     ( { gpx = Nothing
       , filename = Nothing
       , time = Time.millisToPosix 0
@@ -237,8 +270,9 @@ init _ =
       , metricFilteredNodes = []
       , externalSegmentUrl = ""
       , externalSegment = Nothing
+      , stravaAuthentication = authData
       }
-    , Task.perform AdjustTimeZone Time.here
+    , Cmd.batch [ Task.perform AdjustTimeZone Time.here, authCmd ]
     )
 
 
@@ -583,6 +617,16 @@ update msg model =
             model.displayOptions
     in
     case msg of
+        -- Delegate wrapped OAuthmessages. Be bowled over if this works first time. Or fiftieth.
+        OAuthMessage authMsg ->
+            let
+                ( newAuthData, authCmd ) =
+                    StravaAuth.update authMsg model.stravaAuthentication
+            in
+            ( { model | stravaAuthentication = newAuthData }
+            , Cmd.map OAuthMessage authCmd
+            )
+
         NoOpMsg ->
             ( model, Cmd.none )
 
@@ -4098,7 +4142,7 @@ enterExternalSegmentUrl model =
     -- Provide means to input and submit a Veloviewer segment URL
     column [ spacing 10, padding 10, width fill ]
         [ row []
-            [ Input.text [ ]
+            [ Input.text []
                 { onChange = UserChangedUrl
                 , text = model.externalSegmentUrl
                 , placeholder = Just <| Input.placeholder [] <| E.text "Strava segment ID"
@@ -4118,6 +4162,7 @@ enterExternalSegmentUrl model =
                 case response of
                     Ok segment ->
                         E.text segment.name
+
                     Err err ->
                         E.text <| httpErrorString err
         ]

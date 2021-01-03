@@ -1,5 +1,6 @@
-module SOAuthTypes exposing (..)
+module OAuthTypes exposing (..)
 
+import Http
 import Json.Decode as Json
 import OAuth
 import OAuth.Implicit as OAuth
@@ -40,7 +41,7 @@ type alias Configuration =
     }
 
 
-type Msg
+type OAuthMsg
     = NoOp
     | SignInRequested
     | GotRandomBytes (List Int)

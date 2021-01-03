@@ -3,12 +3,13 @@ module Msg exposing (..)
 import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
+import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
+import OAuthTypes exposing (OAuthMsg)
 import StravaSegment exposing (StravaSegment)
 import Time
 import ViewTypes exposing (ViewingMode)
-import Html.Events.Extra.Mouse as Mouse
 
 
 type Msg
@@ -53,8 +54,8 @@ type Msg
     | ClearTerrain
     | CloseTheLoop
     | StraightenStraight
-    | SetHorizontalNudgeFactor  Float
-    | SetVerticalNudgeFactor  Float
+    | SetHorizontalNudgeFactor Float
+    | SetVerticalNudgeFactor Float
     | NudgeNode Float Float -- Horizontal, Vertical
     | SplitRoad
     | AccordionMessage (AccordionEntry Msg)
@@ -76,6 +77,11 @@ type Msg
     | UserChangedUrl String
     | LoadExternalSegment
     | HandleSegmentData (Result Http.Error StravaSegment)
+    | OAuthMessage OAuthMsg
+
+wrapAuthMessage : OAuthMsg -> Msg
+wrapAuthMessage msg =
+    OAuthMessage msg
 
 
 type NodeSplitDirection
