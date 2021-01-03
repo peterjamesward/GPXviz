@@ -2892,7 +2892,8 @@ view model =
             column
                 []
                 [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
-                    [ loadButton
+                    [ stravaButton
+                    , loadButton
                     , case model.filename of
                         Just name ->
                             column [ Font.size 14 ]

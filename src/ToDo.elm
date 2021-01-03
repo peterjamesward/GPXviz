@@ -1,5 +1,7 @@
 module ToDo exposing (..)
 
+--TODO: Option to disable dragging on map view. (Donald Black)
+
 --TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes. (Subject to adequate spacing.)
 
 NB This will be Autosmooth. I will take the area cost metric idea but reverse so that

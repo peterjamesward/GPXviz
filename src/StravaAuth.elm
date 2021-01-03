@@ -1,45 +1,18 @@
 module StravaAuth exposing (..)
 
 import Base64.Encode as Base64
-import Browser exposing (Document, application)
 import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
 import Bytes.Encode as Bytes
 import Delay exposing (TimeUnit(..), after)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
 import Http
 import Json.Decode as Json
 import OAuth
-import OAuth.Implicit as OAuth
+import OAuth.AuthorizationCode as OAuth
 import OAuthPorts exposing (genRandomBytes)
 import OAuthTypes exposing (..)
+import StravaClientSecret
 import Url exposing (Protocol(..), Url)
-
-
-
-{-
-   main : Program (Maybe (List Int)) Model OAuthMsg
-   main =
-       application
-           { init =
-               Maybe.map convertBytes >> init
-           , update =
-               update
-           , subscriptions =
-               always <| randomBytes GotRandomBytes
-           , onUrlRequest =
-               always NoOp
-           , onUrlChange =
-               always NoOp
-           , view =
-               view
-                   { title = "Spotify - Flow: Implicit"
-                   , btnClass = class "btn-spotify"
-                   }
-           }
--}
 
 
 {-| OAuth configuration.
@@ -55,7 +28,9 @@ hence the user info endpoint and JSON decoder
 configuration : Configuration
 configuration =
     { authorizationEndpoint =
-        { defaultHttpsUrl | host = "www.strava.com", path = "/authorize" }
+        { defaultHttpsUrl | host = "www.strava.com", path = "/oauth/authorize" }
+    , tokenEndpoint =
+        { defaultHttpsUrl | host = "www.strava.com", path = "/oauth/token" }
     , userInfoEndpoint =
         { defaultHttpsUrl | host = "www.strava.com", path = "/api/v3/athlete" }
     , userInfoDecoder =
@@ -64,8 +39,9 @@ configuration =
             (Json.field "lastname" Json.string)
     , clientId =
         "59195"
+    , clientSecret = StravaClientSecret.clientSecret
     , scope =
-        []
+        [ "read" ]
     }
 
 
@@ -90,7 +66,7 @@ init mflags origin navigationKey wrapperMsg =
         clearUrl =
             Navigation.replaceUrl navigationKey (Url.toString redirectUri)
     in
-    case OAuth.parseToken origin of
+    case OAuth.parseCode origin of
         OAuth.Empty ->
             ( { flow = Idle, redirectUri = redirectUri }
             , Cmd.none
@@ -103,7 +79,7 @@ init mflags origin navigationKey wrapperMsg =
         --
         -- We remember any previously generated state  state using the browser's local storage
         -- and give it back (if present) to the elm application upon start
-        OAuth.Success { token, state } ->
+        OAuth.Success { code, state } ->
             case mflags of
                 Nothing ->
                     ( { flow = Errored ErrStateMismatch, redirectUri = redirectUri }
@@ -117,11 +93,11 @@ init mflags origin navigationKey wrapperMsg =
                         )
 
                     else
-                        ( { flow = Authorized token, redirectUri = redirectUri }
+                        ( { flow = Authorized code, redirectUri = redirectUri }
                         , Cmd.batch
                             -- Artificial delay to make the live demo easier to follow.
                             -- In practice, the access token could be requested right here.
-                            [ after 750 Millisecond (wrapperMsg UserInfoRequested)
+                            [ after 750 Millisecond (wrapperMsg AccessTokenRequested)
                             , clearUrl
                             ]
                         )
@@ -145,44 +121,32 @@ getUserInfo { userInfoDecoder, userInfoEndpoint } token =
         }
 
 
-
-{- On the JavaScript's side, we have:
-
-   app.ports.genRandomBytes.subscribe(n => {
-     const buffer = new Uint8Array(n);
-     crypto.getRandomValues(buffer);
-     const bytes = Array.from(buffer);
-     localStorage.setItem("bytes", bytes);
-     app.ports.randomBytes.send(bytes);
-   });
--}
-
-
 update : OAuthMsg -> Model -> ( Model, Cmd OAuthMsg )
-update msg model  =
-    let
-        ( newModel, authMsg ) =
-            case ( model.flow, msg ) of
-                ( Idle, SignInRequested ) ->
-                    signInRequested model
+update msg model =
+    case ( model.flow, msg ) of
+        ( Idle, SignInRequested ) ->
+            signInRequested model
 
-                ( Idle, GotRandomBytes bytes ) ->
-                    gotRandomBytes model bytes
+        ( Idle, GotRandomBytes bytes ) ->
+            gotRandomBytes model bytes
 
-                ( Authorized token, UserInfoRequested ) ->
-                    userInfoRequested model token
+        ( Authorized code, AccessTokenRequested ) ->
+            accessTokenRequested model code
 
-                ( Authorized _, GotUserInfo userInfoResponse ) ->
-                    gotUserInfo model userInfoResponse
+        ( Authorized _, GotAccessToken authenticationResponse ) ->
+            gotAccessToken model authenticationResponse
 
-                ( Done _, SignOutRequested ) ->
-                    signOutRequested model
+        ( Authenticated token, UserInfoRequested ) ->
+            userInfoRequested model token
 
-                _ ->
-                    noOp model
+        ( Authenticated _, GotUserInfo userInfoResponse ) ->
+            gotUserInfo model userInfoResponse
 
-    in
-    ( newModel, authMsg )
+        ( Done _, SignOutRequested ) ->
+            signOutRequested model
+
+        _ ->
+            noOp model
 
 
 noOp : Model -> ( Model, Cmd OAuthMsg )
@@ -220,10 +184,57 @@ gotRandomBytes model bytes =
 
 
 userInfoRequested : Model -> OAuth.Token -> ( Model, Cmd OAuthMsg )
-userInfoRequested model token  =
-    ( { model | flow = Authorized token }
+userInfoRequested model token =
+    ( { model | flow = Authenticated token }
     , getUserInfo configuration token
     )
+
+
+getAccessToken : Configuration -> Url -> OAuth.AuthorizationCode -> Cmd OAuthMsg
+getAccessToken { clientId, tokenEndpoint } redirectUri code =
+    Http.request <|
+        OAuth.makeTokenRequest GotAccessToken
+            { credentials =
+                { clientId = clientId
+                , secret = Just StravaClientSecret.clientSecret
+                }
+            , code = code
+            , url = tokenEndpoint
+            , redirectUri = redirectUri
+            }
+
+
+accessTokenRequested : Model -> OAuth.AuthorizationCode -> ( Model, Cmd OAuthMsg )
+accessTokenRequested model code =
+    ( { model | flow = Authorized code }
+    , getAccessToken configuration model.redirectUri code
+    )
+
+
+gotAccessToken : Model -> Result Http.Error OAuth.AuthenticationSuccess -> ( Model, Cmd OAuthMsg )
+gotAccessToken model authenticationResponse =
+    case authenticationResponse of
+        Err (Http.BadBody body) ->
+            case Json.decodeString OAuth.defaultAuthenticationErrorDecoder body of
+                Ok error ->
+                    ( { model | flow = Errored <| ErrAuthentication error }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | flow = Errored ErrHTTPGetAccessToken }
+                    , Cmd.none
+                    )
+
+        Err _ ->
+            ( { model | flow = Errored ErrHTTPGetAccessToken }
+            , Cmd.none
+            )
+
+        Ok { token } ->
+            ( { model | flow = Authenticated token }
+            , after 750 Millisecond UserInfoRequested
+            )
 
 
 

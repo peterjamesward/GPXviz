@@ -3,7 +3,7 @@ module OAuthTypes exposing (..)
 import Http
 import Json.Decode as Json
 import OAuth
-import OAuth.Implicit as OAuth
+import OAuth.AuthorizationCode as OAuth
 import Url exposing (Url)
 
 
@@ -15,7 +15,8 @@ type alias Model =
 
 type Flow
     = Idle
-    | Authorized OAuth.Token
+    | Authorized OAuth.AuthorizationCode
+    | Authenticated OAuth.Token
     | Done UserInfo
     | Errored Error
 
@@ -23,6 +24,8 @@ type Flow
 type Error
     = ErrStateMismatch
     | ErrAuthorization OAuth.AuthorizationError
+    | ErrAuthentication OAuth.AuthenticationError
+    | ErrHTTPGetAccessToken
     | ErrHTTPGetUserInfo
 
 
@@ -35,9 +38,11 @@ type alias UserInfo =
 type alias Configuration =
     { authorizationEndpoint : Url
     , userInfoEndpoint : Url
+    , tokenEndpoint : Url
     , userInfoDecoder : Json.Decoder UserInfo
     , clientId : String
     , scope : List String
+    , clientSecret : String
     }
 
 
@@ -45,7 +50,8 @@ type OAuthMsg
     = NoOp
     | SignInRequested
     | GotRandomBytes (List Int)
-    | GotAccessToken (Result Http.Error OAuth.AuthorizationSuccess)
+    | AccessTokenRequested
+    | GotAccessToken (Result Http.Error OAuth.AuthenticationSuccess)
     | UserInfoRequested
     | GotUserInfo (Result Http.Error UserInfo)
     | SignOutRequested
