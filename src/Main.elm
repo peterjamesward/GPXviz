@@ -45,7 +45,7 @@ import Rectangle2d
 import Scene3d exposing (Entity)
 import SegmentDataLoad exposing (requestStravaSegment)
 import Spherical exposing (metresPerDegree)
-import StravaAuth
+import StravaAuth exposing (stravaButton)
 import StravaSegment exposing (StravaSegment)
 import Task
 import Terrain exposing (makeTerrain)
@@ -2892,7 +2892,7 @@ view model =
             column
                 []
                 [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
-                    [ stravaButton
+                    [ stravaButton model.stravaAuthentication wrapAuthMessage
                     , loadButton
                     , case model.filename of
                         Just name ->

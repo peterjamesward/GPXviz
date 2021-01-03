@@ -4,7 +4,13 @@ import Base64.Encode as Base64
 import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
 import Bytes.Encode as Bytes
+import ColourPalette exposing (buttonBackground, buttonText)
 import Delay exposing (TimeUnit(..), after)
+import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input exposing (button)
 import Http
 import Json.Decode as Json
 import OAuth
@@ -294,3 +300,40 @@ defaultHttpsUrl =
     , query = Nothing
     , fragment = Nothing
     }
+
+
+stravaButton : Model -> (OAuthMsg -> msg) -> Element msg
+stravaButton model msgWrapper =
+    --TODO: Strava logo.
+    let
+        stravaOrange =
+            rgb255 0xFC 0x4C 0x02
+
+        styles =
+            [ padding 10
+            , Border.width 2
+            , Border.rounded 16
+            , Border.color stravaOrange
+            , Background.color stravaOrange
+            , Font.color <| buttonText
+            , Font.size 16
+            , mouseOver
+                [ Background.color buttonText, Font.color buttonBackground ]
+            , focused
+                [ Border.shadow { offset = ( 4, 0 ), size = 3, blur = 5, color = stravaOrange } ]
+            , centerX
+            ]
+    in
+    case model.flow of
+        Done userInfo ->
+            column []
+                [ text "Connected to Strava as"
+                , text <| userInfo.firstname ++ " " ++ userInfo.lastname
+                ]
+
+        _ ->
+            button
+                styles
+                { onPress = Just <| msgWrapper SignInRequested
+                , label = text "Connect to Strava"
+                }

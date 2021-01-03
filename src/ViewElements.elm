@@ -162,29 +162,6 @@ loadButton =
         }
 
 
-stravaButton =
-    --TODO: Strava logo.
-    button
-        [ padding 10
-        , Border.width 2
-        , Border.rounded 16
-        , Border.color buttonBackground
-
-        --, Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
-        , Background.color <| rgb255 0xFC 0x4C 0x02
-        , Font.color <| buttonText
-        , Font.size 16
-        , mouseOver
-            [ Background.color buttonText, Font.color buttonBackground ]
-        , focused
-            [ Border.shadow { offset = ( 4, 0 ), size = 3, blur = 5, color = buttonShadow } ]
-        , centerX
-        ]
-        { onPress = Just <| OAuthMessage SignInRequested
-        , label = text "Strava"
-        }
-
-
 checkboxIcon : Bool -> Element msg
 checkboxIcon isChecked =
     el

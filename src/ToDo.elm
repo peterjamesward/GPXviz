@@ -1,6 +1,16 @@
 module ToDo exposing (..)
 
+--TODO: Display user info if logged in to Strava. And logout option. And stop duplicate logon.
+
+--TODO: Disable Segment tab when not logged in.
+
+--TODO: Segment data fetch to use token!
+
+--TODO: Token refresh.
+
 --TODO: Option to disable dragging on map view. (Donald Black)
+
+--TODO: New view to select Strava routes, rides & segments.
 
 --TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes. (Subject to adequate spacing.)
 
@@ -19,16 +29,6 @@ Not really. A recursive function can do that easily. Hence our autofixer can cha
 but for a run of closely-packed nodes, might just retain the first and last. That this might create
 another problem is, actually, just fine. We rely on the user as the ultimate judge!
 
---TODO: Is it legal to hoover Strava/Veloviewer segment data?
-I'm pretty sure it complies with their Ts&Cs. It's not their data anyway.
-I think I can go straight to Strava API. Except auth is a pain, so no.
-Let's put a fetch from VW URL option on the page.
-Then we can check it will work without Strava login or, if you are looking at a private segment, somehow VW will work (!).
-
---TODO: Under the Samir tab, import GPX segment for elevation matching.
-NB Veloviewer returns d3 compressed data for distance, elevation and gradient.
-(Which is just the Strava Segment Streams compressed by d3, methinks.)
-With the d3 routines, it should be easy enough to decompress and use these for accurate elevation data.
 
 --TODO: Debt. Drop the big lists and just use arrays. Reduce duplication.
 
