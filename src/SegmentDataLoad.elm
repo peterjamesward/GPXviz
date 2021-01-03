@@ -4,7 +4,7 @@ import Http
 import Json.Decode as D exposing (Decoder)
 import StravaSegment exposing (StravaSegment)
 
-
+--TODO: Move this into the StravaAuth module.
 requestStravaSegment : (Result Http.Error StravaSegment -> msg) -> String -> Cmd msg
 requestStravaSegment msg segmentId =
     Http.request

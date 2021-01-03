@@ -15,9 +15,9 @@ aboutText =
 
 ## Changes
 
-- Bend problems minimum threshold reduced from 30 to 20 degrees.
+- "Compatible with Strava."
 
-- Track points can be dragged directly on map. This is experimental and subject to change.
+- 
 
 ## Guidance on use
 
@@ -50,6 +50,10 @@ Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan
 Click the blue button at the page top to choose a file.
 
 **Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).
+
+## Legally required notice
+
+Compatible with Strava, for the purpose of loading segment data.
 
 > _Peter Ward, 2020_
 """

@@ -310,19 +310,7 @@ stravaButton model msgWrapper =
             rgb255 0xFC 0x4C 0x02
 
         styles =
-            [ padding 10
-            , Border.width 2
-            , Border.rounded 16
-            , Border.color stravaOrange
-            , Background.color stravaOrange
-            , Font.color <| buttonText
-            , Font.size 16
-            , mouseOver
-                [ Background.color buttonText, Font.color buttonBackground ]
-            , focused
-                [ Border.shadow { offset = ( 4, 0 ), size = 3, blur = 5, color = stravaOrange } ]
-            , centerX
-            ]
+            []
     in
     case model.flow of
         Done userInfo ->
@@ -335,5 +323,11 @@ stravaButton model msgWrapper =
             button
                 styles
                 { onPress = Just <| msgWrapper SignInRequested
-                , label = text "Connect to Strava"
+                , label =
+                    image
+                        [ mouseOver [ alpha 0.7 ]
+                        ]
+                        { src = "../images/btn_strava_connectwith_orange.svg"
+                        , description = "Connect to Strava"
+                        }
                 }

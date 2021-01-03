@@ -1,12 +1,24 @@
 module ToDo exposing (..)
 
---TODO: Display user info if logged in to Strava. And logout option. And stop duplicate logon.
+--TODO: Strava logout option.
 
---TODO: Disable Segment tab when not logged in.
+--TODO: Strava official buttons (SVG version to avoid more files?)
+
+--TODO: Comply with ...
+{-
+You must link back to all original Strava data sources presented in your application using the following text format, “View on Strava”.
+
+Text link should be legible.
+Text link should be identifiable as a link by using one of the following type treatments: bold weight, underline, or orange color #FC4C02.
+-}
+
+
+--TODO: Disable Segment tab (or button) when not logged in.
 
 --TODO: Segment data fetch to use token!
+Add the header Authorization: Bearer <token>
 
---TODO: Token refresh.
+--TODO: Token refresh. (How "short-lived" are they?)
 
 --TODO: Option to disable dragging on map view. (Donald Black)
 
@@ -14,7 +26,7 @@ module ToDo exposing (..)
 
 --TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes. (Subject to adequate spacing.)
 
-NB This will be Autosmooth. I will take the area cost metric idea but reverse so that
+NB This will be "AutoMagic". I will take the area cost metric idea but reverse so that
 TP with highest metric are split. Same approach to multiple manual passes. No need to avoid neighbours.
 Put this, and Simplify, on a new tab as they are sort of complimentary?.
 
@@ -38,8 +50,6 @@ another problem is, actually, just fine. We rely on the user as the ultimate jud
 
 --TODO: Map terrain option (switch map style).
 
---TODO: Optimise use of screen space, knowing viewport.
-
 --TODO: Popup tool help on all accordion tabs?
 
 --TODO: Split track to show warning (+ Feather icon) if segments less than the maximum segment?
@@ -54,7 +64,9 @@ another problem is, actually, just fine. We rely on the user as the ultimate jud
 
 --TODO: Maybe faster hit test by looking only at visible nodes. (Projection logic.)
 -- That's one pass to select visibles, then only apply distance function to subset.
--- Thing is, the determinatio of what it visible is itself rather complex.
+-- Thing is, the determination of what it visible is itself rather complex.
+
+--DROP: Optimise use of screen space, knowing viewport.
 
 
 
