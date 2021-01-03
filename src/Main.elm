@@ -305,10 +305,10 @@ toolsAccordion model =
       , state = Contracted
       , content = flythroughControls model
       }
-    , { label = "Segment"
-      , state = Contracted
-      , content = enterExternalSegmentUrl model
-      }
+    --, { label = "Segment"
+    --  , state = Contracted
+    --  , content = enterExternalSegmentUrl model
+    --  }
     ]
 
 
@@ -1324,9 +1324,14 @@ update msg model =
             trackHasChanged model
 
         LoadExternalSegment ->
-            ( model
-            , requestStravaSegment HandleSegmentData model.externalSegmentUrl
-            )
+            case getStravaToken model.stravaAuthentication of
+                Just token ->
+                    ( model
+                    , requestStravaSegment HandleSegmentData model.externalSegmentUrl token
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         HandleSegmentData response ->
             ( { model | externalSegment = Just response }

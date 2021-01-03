@@ -4,12 +4,8 @@ import Base64.Encode as Base64
 import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
 import Bytes.Encode as Bytes
-import ColourPalette exposing (buttonBackground, buttonText)
 import Delay exposing (TimeUnit(..), after)
 import Element exposing (..)
-import Element.Background as Background
-import Element.Border as Border
-import Element.Font as Font
 import Element.Input exposing (button)
 import Http
 import Json.Decode as Json
@@ -331,3 +327,9 @@ stravaButton model msgWrapper =
                         , description = "Connect to Strava"
                         }
                 }
+
+
+getStravaToken : Model -> Maybe String
+getStravaToken model =
+    case model.flow of
+        Done

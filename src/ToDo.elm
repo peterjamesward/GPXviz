@@ -2,7 +2,19 @@ module ToDo exposing (..)
 
 --TODO: Strava logout option.
 
---TODO: Strava official buttons (SVG version to avoid more files?)
+--TODO: Make the auth code generate a specified app-level Msg when auth completes.
+
+--TODO: "Compatible with Strava" logo.
+
+--TODO: New view to select Strava routes & rides. Do this before the segment thing Samir asked for!
+
+--TODO: Strava data fetches to use token!
+Add the header Authorization: Bearer <token>
+NB Don't really want the Done state in Auth. We want to keep the token available.
+Monday, change this. Just make the user details a regular call, not in the state machine, or otherwise keep the token.
+
+--TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
+NB Komoot uses the client_id:client_secret format.
 
 --TODO: Comply with ...
 {-
@@ -12,17 +24,11 @@ Text link should be legible.
 Text link should be identifiable as a link by using one of the following type treatments: bold weight, underline, or orange color #FC4C02.
 -}
 
-
 --TODO: Disable Segment tab (or button) when not logged in.
-
---TODO: Segment data fetch to use token!
-Add the header Authorization: Bearer <token>
 
 --TODO: Token refresh. (How "short-lived" are they?)
 
 --TODO: Option to disable dragging on map view. (Donald Black)
-
---TODO: New view to select Strava routes, rides & segments.
 
 --TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes. (Subject to adequate spacing.)
 
