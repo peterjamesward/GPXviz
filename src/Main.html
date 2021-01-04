@@ -48,6 +48,7 @@ var trackAdded = false;
 var dragPointStart;
 var dragging = false;
 var clickToDrag = false;
+var pointsLayerAdded = false;
 
 var canvas;
 // Make dummy feature just for making drag point feedback.
@@ -158,6 +159,7 @@ function incomingMessageHandler(msg) {
                 map = null;
                 isMapCreated = false;
                 trackAdded = false;
+                pointsLayerAdded = false;
                 app.ports.mapStopped.send('stopped');
             }
             break;
@@ -259,20 +261,21 @@ function addLineToMap(data, points) {
         }
     });
 
+    trackAdded = true;
     setClickMode(clickToDrag, points);
 
-    trackAdded = true;
     app.ports.messageReceiver.send({ 'msg' : 'track ready' });
 };
 
 function setClickMode(newMode, points) {
-    if (clickToDrag) {
+    if (clickToDrag && pointsLayerAdded) {
         map.removeLayer('points');
         map.removeSource('points');
+        pointsLayerAdded = false;
     }
 
     clickToDrag = newMode;
-    if (clickToDrag) {
+    if (clickToDrag && !pointsLayerAdded) {
         map.addSource('points', {
             'type': 'geojson',
             'data': points
@@ -287,6 +290,8 @@ function setClickMode(newMode, points) {
                 'circle-color': '#ff8f00'
             }
         });
+
+        pointsLayerAdded = true;
 
         // When the cursor enters a feature in the point layer, prepare for dragging.
         map.on('mouseenter', 'points', function () {
