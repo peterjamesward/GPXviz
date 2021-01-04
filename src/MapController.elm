@@ -75,6 +75,16 @@ removeMap =
     mapPort <| E.object [ ( "Cmd", E.string "Stop" ) ]
 
 
+toggleDragging : Bool -> MapInfo -> Cmd Msg
+toggleDragging state info =
+    mapPort <|
+        E.object
+            [ ( "Cmd", E.string "Drag" )
+            , ( "Enable", E.bool state )
+            , ( "points", trackPointsToJSON info.points ) -- Make track points draggable
+            ]
+
+
 addTrackToMap : MapInfo -> Cmd Msg
 addTrackToMap info =
     -- This is to add the route as a polyline.

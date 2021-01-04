@@ -82,6 +82,7 @@ type Msg
     | HandleSegmentData (Result Http.Error StravaSegment)
     | HandleRouteData (Result Http.Error StravaRoute)
     | OAuthMessage OAuthMsg
+    | ToggleMapNodesDraggable Bool
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =

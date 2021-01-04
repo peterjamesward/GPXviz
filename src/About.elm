@@ -11,13 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-01_
+> _This text updated 2021-01-04_
 
 ## Changes
 
 - "Compatible with Strava." You provide the route ID, we load the GPX direct from Strava.
 
--
+- You choose whether or not to drag track points on the map. Default is not. Use the new Map Options tab to change this behaviour.
 
 ## Guidance on use
 

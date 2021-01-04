@@ -1,8 +1,6 @@
 module ToDo exposing (..)
 
---TODO: Option to disable dragging on map view. (Donald Black)
 --TODO: Map terrain option (switch map style).
-Both these could go into a Map info tab.
 
 --TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
 NB Komoot uses the client_id:client_secret format.

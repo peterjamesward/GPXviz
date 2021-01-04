@@ -202,6 +202,7 @@ type alias Model =
     , externalSegment : Maybe (Result Http.Error StravaSegment)
     , externalRoute : Maybe (Result Http.Error StravaRoute)
     , stravaAuthentication : O.Model
+    , mapNodesDraggable : Bool
     }
 
 
@@ -283,6 +284,7 @@ init mflags origin navigationKey =
       , externalRouteId = ""
       , externalRoute = Nothing
       , stravaAuthentication = authData
+      , mapNodesDraggable = False
       }
     , Cmd.batch [ Task.perform AdjustTimeZone Time.here, authCmd ]
     )
@@ -345,6 +347,10 @@ infoAccordion model =
     , { label = "Bend problems"
       , state = Contracted
       , content = viewBearingChanges model
+      }
+    , { label = "Map options"
+      , state = Contracted
+      , content = viewMapOptions model
       }
     ]
 
@@ -1384,6 +1390,15 @@ update msg model =
         HandleRouteData response ->
             ( { model | externalRoute = Just response }
             , Cmd.none
+            )
+
+        ToggleMapNodesDraggable state ->
+            ( { model  | mapNodesDraggable = state }
+            , case model.mapInfo of
+                Just info ->
+                    MapController.toggleDragging state info
+                Nothing ->
+                    Cmd.none
             )
 
 
@@ -2978,15 +2993,16 @@ viewSourceDetails model =
 
         GpxStrava ->
             let
-                stravaUrl = "https://www.strava.com/routes/"
-                    ++ model.externalRouteId
+                stravaUrl =
+                    "https://www.strava.com/routes/"
+                        ++ model.externalRouteId
             in
             column [ Font.size 14 ]
                 [ displayName model.trackName
                 , E.newTabLink [ Font.color stravaOrange ]
-                      { url = stravaUrl
-                      , label = E.text "View on Strava"
-                      }
+                    { url = stravaUrl
+                    , label = E.text "View on Strava"
+                    }
                 ]
 
         GpxKomoot ->
@@ -2994,7 +3010,6 @@ viewSourceDetails model =
                 [ displayName model.trackName
                 , E.text "View on Komoot link here"
                 ]
-
 
 
 view : Model -> Browser.Document Msg
@@ -3330,6 +3345,24 @@ minutes and will be lost if I make changes)"""
                 , Input.optionWith PastelCurtain <| radioButton Mid "Pastel"
                 , Input.optionWith RainbowCurtain <| radioButton Last "Rainbow"
                 ]
+            }
+        ]
+
+
+viewMapOptions : Model -> Element Msg
+viewMapOptions model =
+    column
+        [ padding 10
+        , alignTop
+        , spacing 10
+        , centerX
+        , Font.size 14
+        ]
+        [ Input.checkbox []
+            { onChange = ToggleMapNodesDraggable
+            , icon = checkboxIcon
+            , checked = model.mapNodesDraggable
+            , label = Input.labelRight [ centerY ] (E.text "Drag track points")
             }
         ]
 

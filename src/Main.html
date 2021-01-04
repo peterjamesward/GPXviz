@@ -47,6 +47,7 @@ var isMapCreated = false;
 var trackAdded = false;
 var dragPointStart;
 var dragging = false;
+var clickToDrag = false;
 
 var canvas;
 // Make dummy feature just for making drag point feedback.
@@ -159,12 +160,20 @@ function incomingMessageHandler(msg) {
                 trackAdded = false;
                 app.ports.mapStopped.send('stopped');
             }
+            break;
 
         case 'Mark':
             if (isMapCreated) {
                 console.log('adding marker');
                 addOptionals(msg);
             }
+            break;
+
+        case 'Drag':
+            if (isMapCreated) {
+                setClickMode(msg.Enable, msg.points);
+            }
+            break;
     }
 };
 
@@ -226,8 +235,6 @@ function addLineToMap(data, points) {
         console.log('removing existing track');
         map.removeLayer('route');
         map.removeSource('route');
-        map.removeLayer('points');
-        map.removeSource('points');
         trackAdded = false;
     }
 
@@ -252,40 +259,50 @@ function addLineToMap(data, points) {
         }
     });
 
-    console.log('adding geojson data');
-    map.addSource('points', {
-        'type': 'geojson',
-        'data': points
-        });
-
-    console.log('adding points layer');
-    map.addLayer({
-        'id': 'points',
-        'type': 'circle',
-        'source': 'points',
-        'paint': {
-            'circle-radius': 5,
-            'circle-color': '#ff8f00'
-        }
-    });
-
-    // When the cursor enters a feature in the point layer, prepare for dragging.
-    map.on('mouseenter', 'points', function () {
-        canvas.style.cursor = 'move';
-    });
-
-    map.on('mouseleave', 'points', function () {
-        canvas.style.cursor = '';
-    });
-
-    map.on('mousedown', 'points', function (e) {
-        // Prevent the default map drag behavior.
-        e.preventDefault();
-        startDraggingPoint(e);
-    });
+    setClickMode(clickToDrag, points);
 
     trackAdded = true;
     app.ports.messageReceiver.send({ 'msg' : 'track ready' });
+};
+
+function setClickMode(newMode, points) {
+    if (clickToDrag) {
+        map.removeLayer('points');
+        map.removeSource('points');
+    }
+
+    clickToDrag = newMode;
+    if (clickToDrag) {
+        map.addSource('points', {
+            'type': 'geojson',
+            'data': points
+            });
+
+        map.addLayer({
+            'id': 'points',
+            'type': 'circle',
+            'source': 'points',
+            'paint': {
+                'circle-radius': 5,
+                'circle-color': '#ff8f00'
+            }
+        });
+
+        // When the cursor enters a feature in the point layer, prepare for dragging.
+        map.on('mouseenter', 'points', function () {
+            canvas.style.cursor = 'move';
+        });
+
+        map.on('mouseleave', 'points', function () {
+            canvas.style.cursor = '';
+        });
+
+        map.on('mousedown', 'points', function (e) {
+            // Prevent the default map drag behavior.
+            e.preventDefault();
+            startDraggingPoint(e);
+        });
+    }
 };
 
 var orangeMarker = new mapboxgl.Marker({ color: "#FFA500" });
