@@ -144,7 +144,7 @@ update msg model =
         ( Authenticated _, GotUserInfo userInfoResponse ) ->
             gotUserInfo model userInfoResponse
 
-        ( Done _, SignOutRequested ) ->
+        ( Done _ _ , SignOutRequested ) ->
             signOutRequested model
 
         _ ->
@@ -235,7 +235,7 @@ gotAccessToken model authenticationResponse =
 
         Ok { token } ->
             ( { model | flow = Authenticated token }
-            , after 750 Millisecond UserInfoRequested
+            , after 100 Millisecond UserInfoRequested
             )
 
 
@@ -244,14 +244,19 @@ gotAccessToken model authenticationResponse =
 
 
 gotUserInfo model userInfoResponse =
-    case userInfoResponse of
-        Err _ ->
+    case ( model.flow, userInfoResponse ) of
+        ( _, Err _ ) ->
             ( { model | flow = Errored ErrHTTPGetUserInfo }
             , Cmd.none
             )
 
-        Ok userInfo ->
-            ( { model | flow = Done userInfo }
+        ( Authenticated token, Ok userInfo ) ->
+            ( { model | flow = Done userInfo token }
+            , Cmd.none
+            )
+
+        _ ->
+            ( { model | flow = Errored ErrStateMismatch }
             , Cmd.none
             )
 
@@ -309,7 +314,7 @@ stravaButton model msgWrapper =
             []
     in
     case model.flow of
-        Done userInfo ->
+        Done userInfo _ ->
             column []
                 [ text "Connected to Strava as"
                 , text <| userInfo.firstname ++ " " ++ userInfo.lastname
@@ -329,7 +334,14 @@ stravaButton model msgWrapper =
                 }
 
 
-getStravaToken : Model -> Maybe String
+getStravaToken : Model -> Maybe OAuth.Token
 getStravaToken model =
     case model.flow of
-        Done
+        Done _ token ->
+            Just token
+
+        Authenticated token ->
+            Just token
+
+        _ ->
+            Nothing

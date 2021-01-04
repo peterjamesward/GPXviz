@@ -1,22 +1,15 @@
 module ToDo exposing (..)
 
---TODO: Strava logout option.
-
 --TODO: Make the auth code generate a specified app-level Msg when auth completes.
 
 --TODO: "Compatible with Strava" logo.
-
---TODO: New view to select Strava routes & rides. Do this before the segment thing Samir asked for!
 
 --TODO: Strava data fetches to use token!
 Add the header Authorization: Bearer <token>
 NB Don't really want the Done state in Auth. We want to keep the token available.
 Monday, change this. Just make the user details a regular call, not in the state machine, or otherwise keep the token.
 
---TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
-NB Komoot uses the client_id:client_secret format.
-
---TODO: Comply with ...
+--TODO: New view to select Strava routes. Do this before the segment thing Samir asked for!
 {-
 You must link back to all original Strava data sources presented in your application using the following text format, “View on Strava”.
 
@@ -24,11 +17,14 @@ Text link should be legible.
 Text link should be identifiable as a link by using one of the following type treatments: bold weight, underline, or orange color #FC4C02.
 -}
 
---TODO: Disable Segment tab (or button) when not logged in.
-
---TODO: Token refresh. (How "short-lived" are they?)
+--TODO: Strava logout option.
 
 --TODO: Option to disable dragging on map view. (Donald Black)
+--TODO: Map terrain option (switch map style).
+Both these could go into a Map info tab.
+
+--TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
+NB Komoot uses the client_id:client_secret format.
 
 --TODO: (Samir) option to chamfer all (20-30 degree) bends and gradient changes. (Subject to adequate spacing.)
 
@@ -54,7 +50,9 @@ another problem is, actually, just fine. We rely on the user as the ultimate jud
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 
---TODO: Map terrain option (switch map style).
+--TODO: Token refresh. (How "short-lived" are they?) Possibly only minutes!
+Strava tokens last six hours, so this is not pressing.
+
 
 --TODO: Popup tool help on all accordion tabs?
 

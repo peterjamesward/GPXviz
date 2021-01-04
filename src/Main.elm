@@ -45,7 +45,7 @@ import Rectangle2d
 import Scene3d exposing (Entity)
 import SegmentDataLoad exposing (requestStravaSegment)
 import Spherical exposing (metresPerDegree)
-import StravaAuth exposing (stravaButton)
+import StravaAuth exposing (getStravaToken, stravaButton)
 import StravaSegment exposing (StravaSegment)
 import Task
 import Terrain exposing (makeTerrain)
@@ -305,10 +305,10 @@ toolsAccordion model =
       , state = Contracted
       , content = flythroughControls model
       }
-    --, { label = "Segment"
-    --  , state = Contracted
-    --  , content = enterExternalSegmentUrl model
-    --  }
+    , { label = "Segment"
+      , state = Contracted
+      , content = enterExternalSegmentUrl model
+      }
     ]
 
 

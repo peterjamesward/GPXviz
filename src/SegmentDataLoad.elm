@@ -2,16 +2,15 @@ module SegmentDataLoad exposing (..)
 
 import Http
 import Json.Decode as D exposing (Decoder)
+import OAuth exposing (Token, useToken)
 import StravaSegment exposing (StravaSegment)
 
---TODO: Move this into the StravaAuth module?
-requestStravaSegment : (Result Http.Error StravaSegment -> msg) -> String -> Cmd msg
-requestStravaSegment msg segmentId =
+
+requestStravaSegment : (Result Http.Error StravaSegment -> msg) -> String -> Token -> Cmd msg
+requestStravaSegment msg segmentId token =
     Http.request
         { method = "GET"
-        , headers =
-            [ Http.header "Authorization" "Bearer c0a09444251c8098a777cad2d7ef961ad02de84d"
-            ]
+        , headers = useToken token []
         , url = "https://www.strava.com/api/v3/segments/" ++ segmentId
         , body = Http.emptyBody
         , expect = Http.expectJson msg stravaSegmentDecorder

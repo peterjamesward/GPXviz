@@ -17,7 +17,7 @@ type Flow
     = Idle
     | Authorized OAuth.AuthorizationCode
     | Authenticated OAuth.Token
-    | Done UserInfo
+    | Done UserInfo OAuth.Token
     | Errored Error
 
 
