@@ -30,7 +30,8 @@ type Error
 
 
 type alias UserInfo =
-    { firstname : String
+    { id : Int
+    , firstname : String
     , lastname : String
     }
 

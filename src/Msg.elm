@@ -7,7 +7,7 @@ import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
 import OAuthTypes exposing (OAuthMsg)
-import StravaSegment exposing (StravaSegment)
+import StravaTypes exposing (StravaRoute, StravaSegment)
 import Time
 import ViewTypes exposing (ViewingMode)
 
@@ -16,6 +16,7 @@ type Msg
     = GpxRequested
     | GpxSelected File
     | GpxLoaded String
+    | GpxDownloaded (Result Http.Error String)
     | UserMovedNodeSlider Int
     | PositionBackOne
     | PositionForwardOne
@@ -74,9 +75,12 @@ type Msg
     | NoOpMsg
     | SimplifyTrack
     | Autosmooth (List Int)
-    | UserChangedUrl String
+    | UserChangedSegmentId String
     | LoadExternalSegment
+    | UserChangedRouteId String
+    | LoadExternalRoute
     | HandleSegmentData (Result Http.Error StravaSegment)
+    | HandleRouteData (Result Http.Error StravaRoute)
     | OAuthMessage OAuthMsg
 
 wrapAuthMessage : OAuthMsg -> Msg

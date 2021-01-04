@@ -4,11 +4,6 @@ module ToDo exposing (..)
 
 --TODO: "Compatible with Strava" logo.
 
---TODO: Strava data fetches to use token!
-Add the header Authorization: Bearer <token>
-NB Don't really want the Done state in Auth. We want to keep the token available.
-Monday, change this. Just make the user details a regular call, not in the state machine, or otherwise keep the token.
-
 --TODO: New view to select Strava routes. Do this before the segment thing Samir asked for!
 {-
 You must link back to all original Strava data sources presented in your application using the following text format, “View on Strava”.

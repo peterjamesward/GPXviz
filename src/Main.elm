@@ -43,10 +43,10 @@ import Point2d exposing (Point2d)
 import Point3d exposing (Point3d, distanceFromAxis)
 import Rectangle2d
 import Scene3d exposing (Entity)
-import SegmentDataLoad exposing (requestStravaSegment)
 import Spherical exposing (metresPerDegree)
-import StravaAuth exposing (getStravaToken, stravaButton)
-import StravaSegment exposing (StravaSegment)
+import StravaAuth exposing (getAccessToken, getStravaToken, stravaButton)
+import StravaDataLoad exposing (requestStravaRoute, requestStravaSegment)
+import StravaTypes exposing (StravaRoute, StravaSegment)
 import Task
 import Terrain exposing (makeTerrain)
 import Time
@@ -84,8 +84,7 @@ main =
             Maybe.map StravaAuth.convertBytes >> init
         , update =
             update
-        , subscriptions =
-            always <| randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
+        , subscriptions = subscriptions
         , onUrlRequest =
             always (OAuthMessage NoOp)
         , onUrlChange =
@@ -190,8 +189,10 @@ type alias Model =
     , cameraFocusProfileNode : Int
     , cameraFocusPlan : Point3d Length.Meters LocalCoords
     , metricFilteredNodes : List Int -- candidate track points to be removed to simplify a big track.
-    , externalSegmentUrl : String
+    , externalSegmentId : String
+    , externalRouteId : String
     , externalSegment : Maybe (Result Http.Error StravaSegment)
+    , externalRoute : Maybe (Result Http.Error StravaRoute)
     , stravaAuthentication : O.Model
     }
 
@@ -268,8 +269,10 @@ init mflags origin navigationKey =
       , cameraFocusProfileNode = 0
       , cameraFocusPlan = Point3d.origin
       , metricFilteredNodes = []
-      , externalSegmentUrl = ""
+      , externalSegmentId = ""
       , externalSegment = Nothing
+      , externalRouteId = ""
+      , externalRoute = Nothing
       , stravaAuthentication = authData
       }
     , Cmd.batch [ Task.perform AdjustTimeZone Time.here, authCmd ]
@@ -305,10 +308,11 @@ toolsAccordion model =
       , state = Contracted
       , content = flythroughControls model
       }
-    , { label = "Segment"
-      , state = Contracted
-      , content = enterExternalSegmentUrl model
-      }
+
+    --, { label = "Strava"
+    --  , state = Contracted
+    --  , content = stravaDataAccess model
+    --  }
     ]
 
 
@@ -609,6 +613,26 @@ detectHit model event =
                }
 -}
 
+commonModelLoader : Model -> String -> ( Model, Cmd Msg)
+commonModelLoader model content =
+            let
+                newModel =
+                    model
+                        |> clearTheModel
+                        |> parseGPXintoModel content
+                        |> deriveNodesAndRoads
+                        |> deriveProblems
+                        |> deleteZeroLengthSegments
+                        |> deriveNodesAndRoads
+                        |> deriveProblems
+                        |> clearTerrain
+                        |> initialiseAccordion
+                        |> deriveStaticVisualEntities
+                        |> deriveVaryingVisualEntities
+                        |> resetViewSettings
+                        |> lookForSimplifications
+            in
+            switchViewMode newModel newModel.viewingMode
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -618,10 +642,14 @@ update msg model =
     in
     case msg of
         -- Delegate wrapped OAuthmessages. Be bowled over if this works first time. Or fiftieth.
+        -- Maybe look after to see if there is yet a token. Easy way to know.
         OAuthMessage authMsg ->
             let
                 ( newAuthData, authCmd ) =
                     StravaAuth.update authMsg model.stravaAuthentication
+
+                isToken =
+                    getStravaToken newAuthData
             in
             ( { model | stravaAuthentication = newAuthData }
             , Cmd.map OAuthMessage authCmd
@@ -630,8 +658,11 @@ update msg model =
         NoOpMsg ->
             ( model, Cmd.none )
 
-        UserChangedUrl url ->
-            ( { model | externalSegmentUrl = url }, Cmd.none )
+        UserChangedSegmentId url ->
+            ( { model | externalSegmentId = url }, Cmd.none )
+
+        UserChangedRouteId url ->
+            ( { model | externalRouteId = url }, Cmd.none )
 
         -- Mainly to suppress the context menu on the pictures!
         MapMessage jsonMsg ->
@@ -678,27 +709,18 @@ update msg model =
             , Task.perform GpxLoaded (File.toString file)
             )
 
+        GpxDownloaded response ->
+            case response of
+                (Ok content) ->
+                    commonModelLoader model content
+
+                Err _ ->
+                    (model, Cmd.none)
+
         GpxLoaded content ->
             -- TODO: Tidy up the removal of zero length segments,
             -- so as not to repeat ourselves here.
-            let
-                newModel =
-                    model
-                        |> clearTheModel
-                        |> parseGPXintoModel content
-                        |> deriveNodesAndRoads
-                        |> deriveProblems
-                        |> deleteZeroLengthSegments
-                        |> deriveNodesAndRoads
-                        |> deriveProblems
-                        |> clearTerrain
-                        |> initialiseAccordion
-                        |> deriveStaticVisualEntities
-                        |> deriveVaryingVisualEntities
-                        |> resetViewSettings
-                        |> lookForSimplifications
-            in
-            switchViewMode newModel newModel.viewingMode
+            commonModelLoader model content
 
         UserMovedNodeSlider node ->
             let
@@ -1327,7 +1349,7 @@ update msg model =
             case getStravaToken model.stravaAuthentication of
                 Just token ->
                     ( model
-                    , requestStravaSegment HandleSegmentData model.externalSegmentUrl token
+                    , requestStravaSegment HandleSegmentData model.externalSegmentId token
                     )
 
                 Nothing ->
@@ -1335,6 +1357,21 @@ update msg model =
 
         HandleSegmentData response ->
             ( { model | externalSegment = Just response }
+            , Cmd.none
+            )
+
+        LoadExternalRoute ->
+            case getStravaToken model.stravaAuthentication of
+                Just token ->
+                    ( model
+                    , requestStravaRoute GpxDownloaded model.externalRouteId token
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        HandleRouteData response ->
+            ( { model | externalRoute = Just response }
             , Cmd.none
             )
 
@@ -2881,6 +2918,34 @@ deriveVaryingVisualEntities model =
                 model.roads
     }
 
+stravaRouteOption : Model -> Element Msg
+stravaRouteOption model =
+    let
+        routeIdField =
+            Input.text [ width (px 100) ]
+                { onChange = UserChangedRouteId
+                , text = model.externalRouteId
+                , placeholder = Just <| Input.placeholder [] <| E.text "Strava route ID"
+                , label = Input.labelHidden "Strava route ID"
+                }
+
+        routeButton =
+            button
+                prettyButtonStyles
+                { onPress = Just LoadExternalRoute
+                , label = E.text <| "Fetch route"
+                }
+    in
+    case getStravaToken model.stravaAuthentication of
+        Just token ->
+            row [ spacing 10 ]
+                [ routeIdField
+                , routeButton
+                ]
+
+        Nothing ->
+            none
+
 
 view : Model -> Browser.Document Msg
 view model =
@@ -2897,8 +2962,9 @@ view model =
             column
                 []
                 [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
-                    [ stravaButton model.stravaAuthentication wrapAuthMessage
-                    , loadButton
+                    [ loadButton
+                    , stravaButton model.stravaAuthentication wrapAuthMessage
+                    , stravaRouteOption model
                     , case model.filename of
                         Just name ->
                             column [ Font.size 14 ]
@@ -2936,6 +3002,7 @@ view model =
 
                     _ ->
                         viewAboutText
+                , compatibleWithStrava
                 ]
         ]
     }
@@ -4143,34 +4210,43 @@ viewRouteProfile model node =
             none
 
 
-enterExternalSegmentUrl : Model -> Element Msg
-enterExternalSegmentUrl model =
-    -- Provide means to input and submit a Veloviewer segment URL
-    column [ spacing 10, padding 10, width fill ]
-        [ row []
-            [ Input.text []
-                { onChange = UserChangedUrl
-                , text = model.externalSegmentUrl
+stravaDataAccess : Model -> Element Msg
+stravaDataAccess model =
+    let
+        segmentIdField =
+            Input.text []
+                { onChange = UserChangedSegmentId
+                , text = model.externalSegmentId
                 , placeholder = Just <| Input.placeholder [] <| E.text "Strava segment ID"
                 , label = Input.labelHidden "Strava segment ID"
                 }
-            , button
+
+        segmentButton =
+            button
                 prettyButtonStyles
                 { onPress = Just LoadExternalSegment
-                , label = E.text <| "Fetch segment raw data"
+                , label = E.text <| "Fetch segment"
                 }
+
+        segmentInfo =
+            case model.externalSegment of
+                Nothing ->
+                    E.text "Segment data not loaded, or not yet."
+
+                Just response ->
+                    case response of
+                        Ok segment ->
+                            E.text segment.name
+
+                        Err err ->
+                            E.text <| httpErrorString err
+    in
+    column [ spacing 10, padding 10, width fill ]
+        [ row []
+            [ segmentIdField
+            , segmentButton
             ]
-        , case model.externalSegment of
-            Nothing ->
-                E.text "Segment data not loaded, or not yet."
-
-            Just response ->
-                case response of
-                    Ok segment ->
-                        E.text segment.name
-
-                    Err err ->
-                        E.text <| httpErrorString err
+        , segmentInfo
         ]
 
 
@@ -4180,4 +4256,5 @@ subscriptions model =
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
         , Time.every 50 Tick
+        , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

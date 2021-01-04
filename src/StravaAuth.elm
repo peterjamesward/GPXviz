@@ -36,14 +36,15 @@ configuration =
     , userInfoEndpoint =
         { defaultHttpsUrl | host = "www.strava.com", path = "/api/v3/athlete" }
     , userInfoDecoder =
-        Json.map2 UserInfo
+        Json.map3 UserInfo
+            (Json.field "id" Json.int)
             (Json.field "firstname" Json.string)
             (Json.field "lastname" Json.string)
     , clientId =
         "59195"
     , clientSecret = StravaClientSecret.clientSecret
     , scope =
-        [ "read" ]
+        [ "read_all" ]
     }
 
 
@@ -144,7 +145,7 @@ update msg model =
         ( Authenticated _, GotUserInfo userInfoResponse ) ->
             gotUserInfo model userInfoResponse
 
-        ( Done _ _ , SignOutRequested ) ->
+        ( Done _ _, SignOutRequested ) ->
             signOutRequested model
 
         _ ->
@@ -239,10 +240,7 @@ gotAccessToken model authenticationResponse =
             )
 
 
-
---gotUserInfo : Model -> Result Http.Error UserInfo -> ( Model, Cmd Msg )
-
-
+gotUserInfo : Model -> Result Http.Error UserInfo -> ( Model, Cmd OAuthMsg )
 gotUserInfo model userInfoResponse =
     case ( model.flow, userInfoResponse ) of
         ( _, Err _ ) ->
@@ -337,11 +335,21 @@ stravaButton model msgWrapper =
 getStravaToken : Model -> Maybe OAuth.Token
 getStravaToken model =
     case model.flow of
-        Done _ token ->
+        Done info token ->
             Just token
 
         Authenticated token ->
             Just token
+
+        _ ->
+            Nothing
+
+
+getStravaAthlete : Model -> Maybe Int
+getStravaAthlete model =
+    case model.flow of
+        Done info token ->
+            Just info.id
 
         _ ->
             Nothing
