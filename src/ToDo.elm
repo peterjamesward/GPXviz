@@ -1,19 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Make the auth code generate a specified app-level Msg when auth completes.
-
---TODO: "Compatible with Strava" logo.
-
---TODO: New view to select Strava routes. Do this before the segment thing Samir asked for!
-{-
-You must link back to all original Strava data sources presented in your application using the following text format, “View on Strava”.
-
-Text link should be legible.
-Text link should be identifiable as a link by using one of the following type treatments: bold weight, underline, or orange color #FC4C02.
--}
-
---TODO: Strava logout option.
-
 --TODO: Option to disable dragging on map view. (Donald Black)
 --TODO: Map terrain option (switch map style).
 Both these could go into a Map info tab.

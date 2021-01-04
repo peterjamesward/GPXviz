@@ -305,9 +305,6 @@ stravaButton : Model -> (OAuthMsg -> msg) -> Element msg
 stravaButton model msgWrapper =
     --TODO: Strava logo.
     let
-        stravaOrange =
-            rgb255 0xFC 0x4C 0x02
-
         styles =
             []
     in

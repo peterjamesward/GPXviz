@@ -44,7 +44,7 @@ import Point3d exposing (Point3d, distanceFromAxis)
 import Rectangle2d
 import Scene3d exposing (Entity)
 import Spherical exposing (metresPerDegree)
-import StravaAuth exposing (getAccessToken, getStravaToken, stravaButton)
+import StravaAuth exposing (getStravaToken, stravaButton)
 import StravaDataLoad exposing (requestStravaRoute, requestStravaSegment)
 import StravaTypes exposing (StravaRoute, StravaSegment)
 import Task
@@ -123,8 +123,16 @@ type DragAction
     | DragPlan
 
 
+type GpxSource
+    = GpxNone
+    | GpxLocalFile
+    | GpxStrava
+    | GpxKomoot
+
+
 type alias Model =
     { gpx : Maybe String
+    , gpxSource : GpxSource
     , filename : Maybe String
     , trackName : Maybe String
     , time : Time.Posix
@@ -205,6 +213,7 @@ init mflags origin navigationKey =
             StravaAuth.init mflags origin navigationKey wrapAuthMessage
     in
     ( { gpx = Nothing
+      , gpxSource = GpxNone
       , filename = Nothing
       , time = Time.millisToPosix 0
       , zone = Time.utc
@@ -613,26 +622,28 @@ detectHit model event =
                }
 -}
 
-commonModelLoader : Model -> String -> ( Model, Cmd Msg)
-commonModelLoader model content =
-            let
-                newModel =
-                    model
-                        |> clearTheModel
-                        |> parseGPXintoModel content
-                        |> deriveNodesAndRoads
-                        |> deriveProblems
-                        |> deleteZeroLengthSegments
-                        |> deriveNodesAndRoads
-                        |> deriveProblems
-                        |> clearTerrain
-                        |> initialiseAccordion
-                        |> deriveStaticVisualEntities
-                        |> deriveVaryingVisualEntities
-                        |> resetViewSettings
-                        |> lookForSimplifications
-            in
-            switchViewMode newModel newModel.viewingMode
+
+commonModelLoader : Model -> String -> GpxSource -> ( Model, Cmd Msg )
+commonModelLoader model content source =
+    let
+        newModel =
+            { model | gpxSource = source }
+                |> clearTheModel
+                |> parseGPXintoModel content
+                |> deriveNodesAndRoads
+                |> deriveProblems
+                |> deleteZeroLengthSegments
+                |> deriveNodesAndRoads
+                |> deriveProblems
+                |> clearTerrain
+                |> initialiseAccordion
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+                |> resetViewSettings
+                |> lookForSimplifications
+    in
+    switchViewMode newModel newModel.viewingMode
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -711,16 +722,16 @@ update msg model =
 
         GpxDownloaded response ->
             case response of
-                (Ok content) ->
-                    commonModelLoader model content
+                Ok content ->
+                    commonModelLoader model content GpxStrava
 
                 Err _ ->
-                    (model, Cmd.none)
+                    ( model, Cmd.none )
 
         GpxLoaded content ->
             -- TODO: Tidy up the removal of zero length segments,
             -- so as not to repeat ourselves here.
-            commonModelLoader model content
+            commonModelLoader model content GpxLocalFile
 
         UserMovedNodeSlider node ->
             let
@@ -2918,6 +2929,7 @@ deriveVaryingVisualEntities model =
                 model.roads
     }
 
+
 stravaRouteOption : Model -> Element Msg
 stravaRouteOption model =
     let
@@ -2947,6 +2959,44 @@ stravaRouteOption model =
             none
 
 
+viewSourceDetails : Model -> Element Msg
+viewSourceDetails model =
+    case model.gpxSource of
+        GpxLocalFile ->
+            case model.filename of
+                Just name ->
+                    column [ Font.size 14 ]
+                        [ displayName model.trackName
+                        , E.text <| "Filename: " ++ name
+                        ]
+
+                Nothing ->
+                    none
+
+        GpxNone ->
+            E.text "Nothing loaded yet"
+
+        GpxStrava ->
+            let
+                stravaUrl = "https://www.strava.com/routes/"
+                    ++ model.externalRouteId
+            in
+            column [ Font.size 14 ]
+                [ displayName model.trackName
+                , E.newTabLink [ Font.color stravaOrange ]
+                      { url = stravaUrl
+                      , label = E.text "View on Strava"
+                      }
+                ]
+
+        GpxKomoot ->
+            column [ Font.size 14 ]
+                [ displayName model.trackName
+                , E.text "View on Komoot link here"
+                ]
+
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "GPXmagic"
@@ -2965,15 +3015,7 @@ view model =
                     [ loadButton
                     , stravaButton model.stravaAuthentication wrapAuthMessage
                     , stravaRouteOption model
-                    , case model.filename of
-                        Just name ->
-                            column [ Font.size 14 ]
-                                [ displayName model.trackName
-                                , E.text <| "Filename: " ++ name
-                                ]
-
-                        Nothing ->
-                            none
+                    , viewSourceDetails model
                     , saveButtonIfChanged model
                     ]
                 , row [ alignLeft, moveRight 200 ]

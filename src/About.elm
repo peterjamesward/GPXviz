@@ -15,11 +15,13 @@ aboutText =
 
 ## Changes
 
-- "Compatible with Strava."
+- "Compatible with Strava." You provide the route ID, we load the GPX direct from Strava.
 
-- 
+-
 
 ## Guidance on use
+
+Load a local GPX file by clicking on the aptly-lablled button. Or connect to Strava by clicking on the equally-apt brand-compliant button and authorize GPX magic. You can then enter a numeric route ID and get the GPX by clicking "Fetch route". The Strava connection is valid for six hours a pop.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
