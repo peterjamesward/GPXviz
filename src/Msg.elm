@@ -83,6 +83,7 @@ type Msg
     | HandleRouteData (Result Http.Error StravaRoute)
     | OAuthMessage OAuthMsg
     | ToggleMapNodesDraggable Bool
+    | AutoFix (List Int)
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =

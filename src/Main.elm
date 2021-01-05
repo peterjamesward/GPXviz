@@ -5,6 +5,7 @@ import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
 import Area
 import Array exposing (Array)
+import AutoFix exposing (autoFix)
 import BendSmoother exposing (SmoothedBend, bendIncircle)
 import BoundingBox3d exposing (BoundingBox3d)
 import Browser exposing (application)
@@ -23,7 +24,6 @@ import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import FlatColors.FlatUIPalette exposing (clouds, wetAsphalt)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
@@ -62,19 +62,6 @@ import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
 import WriteGPX exposing (writeGPX)
-
-
-
-{-
-   main : Program () Model Msg
-   main =
-       Browser.document
-           { init = init
-           , view = view
-           , update = update
-           , subscriptions = subscriptions
-           }
--}
 
 
 main : Program (Maybe (List Int)) Model Msg
@@ -1130,6 +1117,16 @@ update msg model =
         SmoothBend ->
             model
                 |> smoothBend
+                |> trackHasChanged
+
+        AutoFix nodes ->
+            let
+                undoMessage =
+                    "AutoFix " ++ String.fromInt (List.length nodes) ++ " issues"
+            in
+            model
+                |> addToUndoStack undoMessage
+                |> (\m -> { model | trackPoints = autoFix model.trackPoints nodes })
                 |> trackHasChanged
 
         Undo ->
@@ -3214,15 +3211,16 @@ viewGradientChanges model =
                 }
 
         autosmoothButton =
-            none
+            case nodeList of
+                [] ->
+                    none
 
-        --case nodeList of
-        --    [] -> none
-        --    _ ->
-        --        button prettyButtonStyles
-        --            { onPress = Just (Autosmooth nodeList)
-        --            , label = E.text <| "Try Autosmooth today"
-        --            }
+                _ ->
+                    button prettyButtonStyles
+                        { onPress = Just (AutoFix nodeList)
+                        , label = E.text <| "Try AutoFix today"
+                        }
+
         nodeList =
             List.map idx model.abruptGradientChanges
     in
@@ -3249,15 +3247,16 @@ viewBearingChanges model =
                 }
 
         autosmoothButton =
-            none
+            case nodeList of
+                [] ->
+                    none
 
-        --case nodeList of
-        --    [] -> none
-        --    _ ->
-        --        button prettyButtonStyles
-        --            { onPress = Just (Autosmooth nodeList)
-        --            , label = E.text <| "Try Autosmooth today"
-        --            }
+                _ ->
+                    button prettyButtonStyles
+                        { onPress = Just (AutoFix nodeList)
+                        , label = E.text <| "Try Autosmooth today"
+                        }
+
         nodeList =
             List.map idx model.abruptGradientChanges
     in

@@ -2,6 +2,7 @@ module TrackPoint exposing (..)
 
 import BoundingBox3d
 import Element exposing (..)
+import Geometry101 exposing (distance)
 import Json.Encode as E
 import Msg exposing (..)
 import Point3d
@@ -225,3 +226,7 @@ findTrackPoint lon lat tps =
     in
     List.head <|
         List.filter withinTolerance tps
+
+
+trackPointSeparation tp1 tp2 =
+    Spherical.range ( tp1.lat, tp1.lon ) ( tp2.lat, tp2.lon )
