@@ -1126,7 +1126,7 @@ update msg model =
             in
             model
                 |> addToUndoStack undoMessage
-                |> (\m -> { model | trackPoints = autoFix model.trackPoints nodes })
+                |> (\m -> { m | trackPoints = autoFix model.trackPoints nodes })
                 |> trackHasChanged
 
         Undo ->
