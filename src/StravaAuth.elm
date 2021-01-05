@@ -323,7 +323,7 @@ stravaButton model msgWrapper =
                     image
                         [ mouseOver [ alpha 0.7 ]
                         ]
-                        { src = "../images/btn_strava_connectwith_orange.svg"
+                        { src = "images/btn_strava_connectwith_orange.svg"
                         , description = "Connect to Strava"
                         }
                 }

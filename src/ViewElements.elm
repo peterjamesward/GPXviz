@@ -329,6 +329,6 @@ verticalNudgeSlider value =
 compatibleWithStrava =
     image
         [ height (px 50), width (px 100) , alignLeft ]
-        { src = "../images/api_logo_cptblWith_strava_stack_gray.svg"
+        { src = "images/api_logo_cptblWith_strava_stack_gray.svg"
         , description = "Compatible with Strava"
         }

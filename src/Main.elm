@@ -23,6 +23,7 @@ import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
+import FlatColors.FlatUIPalette exposing (clouds, wetAsphalt)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
@@ -679,7 +680,11 @@ update msg model =
             ( { model | externalSegmentId = url }, Cmd.none )
 
         UserChangedRouteId url ->
-            ( { model | externalRouteId = url }, Cmd.none )
+            let
+                routeId =
+                    url |> String.split "/" |> List.reverse |> List.head |> Maybe.withDefault ""
+            in
+            ( { model | externalRouteId = routeId }, Cmd.none )
 
         -- Mainly to suppress the context menu on the pictures!
         MapMessage jsonMsg ->
@@ -1393,10 +1398,11 @@ update msg model =
             )
 
         ToggleMapNodesDraggable state ->
-            ( { model  | mapNodesDraggable = state }
+            ( { model | mapNodesDraggable = state }
             , case model.mapInfo of
                 Just info ->
                     MapController.toggleDragging state info
+
                 Nothing ->
                     Cmd.none
             )

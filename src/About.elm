@@ -11,17 +11,17 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-04_
+> _This text updated 2021-01-05_
 
 ## Changes
 
-- "Compatible with Strava." You provide the route ID, we load the GPX direct from Strava.
+- "Compatible with Strava." You provide the route ID, we load the GPX direct from Strava. UPDATE: You can paste in the complete route URL, and GPXmagic will retain only the route ID.
 
 - You choose whether or not to drag track points on the map. Default is not. Use the new Map Options tab to change this behaviour.
 
 ## Guidance on use
 
-Load a local GPX file by clicking on the aptly-lablled button. Or connect to Strava by clicking on the equally-apt brand-compliant button and authorize GPX magic. You can then enter a numeric route ID and get the GPX by clicking "Fetch route". The Strava connection is valid for six hours a pop.
+Load a local GPX file by clicking on the aptly-labelled button. Or connect to Strava by clicking on the equally-apt brand-compliant button and authorize GPXmagic to access your routes. You can then enter a numeric route ID (you'll find this at the end of the URL for a route) and get the GPX by clicking "Fetch route". The Strava connection is valid for six hours.
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 
