@@ -228,5 +228,25 @@ findTrackPoint lon lat tps =
         List.filter withinTolerance tps
 
 
+meanTrackPoint tp0 tp1 =
+    { lat = (tp0.lat + tp1.lat) / 2.0
+    , lon = (tp0.lon + tp1.lon) / 2.0
+    , ele = (tp0.ele + tp1.ele) / 2.0
+    , idx = tp0.idx
+    }
+
+
+filterCloseTrackPoints : List TrackPoint -> List TrackPoint
+filterCloseTrackPoints tps =
+    reindexTrackpoints <|
+    case tps of
+        ( t0 :: t1 :: tpRest ) ->
+            if trackPointSeparation t0 t1 < 0.5 then
+                (meanTrackPoint t0 t1) :: filterCloseTrackPoints tpRest
+            else
+                t0 :: filterCloseTrackPoints (t1 :: tpRest )
+
+        _ -> tps
+
 trackPointSeparation tp1 tp2 =
     Spherical.range ( tp1.lat, tp1.lon ) ( tp2.lat, tp2.lon )

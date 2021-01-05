@@ -626,9 +626,6 @@ commonModelLoader model content source =
                 |> parseGPXintoModel content
                 |> deriveNodesAndRoads
                 |> deriveProblems
-                |> deleteZeroLengthSegments
-                |> deriveNodesAndRoads
-                |> deriveProblems
                 |> clearTerrain
                 |> initialiseAccordion
                 |> deriveStaticVisualEntities
@@ -2521,7 +2518,7 @@ parseGPXintoModel content model =
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = parseTrackPoints content
+        , trackPoints = filterCloseTrackPoints ( parseTrackPoints content)
         , hasBeenChanged = False
     }
 
@@ -3258,7 +3255,7 @@ viewBearingChanges model =
                         }
 
         nodeList =
-            List.map idx model.abruptGradientChanges
+            List.map idx model.abruptBearingChanges
     in
     column [ spacing 5, padding 10 ]
         [ row [ spacing 10 ]
@@ -3384,7 +3381,7 @@ gradientChangeThresholdSlider model =
                         ++ showDecimal2 model.gradientChangeThreshold
         , min = 5.0
         , max = 20.0
-        , step = Nothing
+        , step = Just 1.0
         , value = model.gradientChangeThreshold
         , thumb = Input.defaultThumb
         }

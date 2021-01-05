@@ -15,7 +15,11 @@ aboutText =
 
 ## Changes
 
-- "Compatible with Strava." You provide the route ID, we load the GPX direct from Strava. UPDATE: You can paste in the complete route URL, and GPXmagic will retain only the route ID.
+- Major new tool in the Bend & Gradient problems tabs. Don't over-use this. It attempts to deal with all the problems visible in the list, either by deleting a single track point, or replacing one with two (a 'chamfer' operation). The _intended_ use is that you sort out major issues individually then use this for the "long tail" of minor issues. The risk is you just get a lot of very close points with little real value. But, hey, it's a tool; use it how you will. You can always Undo.
+
+- You can paste in the complete route URL from Strava, and GPXmagic will retain only the route ID.
+
+- Bend Problems tab was listing the gradient problems (woops).
 
 - You choose whether or not to drag track points on the map. Default is not. Use the new Map Options tab to change this behaviour.
 
@@ -47,7 +51,7 @@ Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan
 
 **Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.
 
-**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current.
+**Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current. The AutoFix option is available, but should not be taken for granted.
 
 Click the blue button at the page top to choose a file.
 
