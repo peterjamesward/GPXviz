@@ -17,9 +17,15 @@ aboutText =
 
 - Stopped Autofix adding points where existing gap less than 2 metres.
 
+- Fetch an official segment from Strava and paste into your route.
+
+- "Simplify" tool now works between (orange and purple) markers, so can be used on that Strava segment.
+
 ## Guidance on use
 
 Load a local GPX file by clicking on the aptly-labelled button. Or connect to Strava by clicking on the equally-apt brand-compliant button and authorize GPXmagic to access your routes. You can then enter a numeric route ID (you'll find this at the end of the URL for a route) and get the GPX by clicking "Fetch route". The Strava connection is valid for six hours.
+
+Loading and using a Strava **segment** is a two-step process. Assuming you've connected to Strava and loaded a route (locally or from Strava), first paste the Strava segment URL or ID into the Strava tab (new option in the tools tabs), and click "Fetch header". You should then see the segment desciption under the entry box. Now click "Apply segment". This will paste the segment into your route, making best guess at the start and end based on latitude and longitude. This **will** introduce elevation erros at the start and end you will have to fix manually. A typical segment is many track points, so you may want to place the Orange and Purple markers at the extremes of the segment and use the "Simplify" button (this is in the Loop maker tab currently).
 
 Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan**, and **Map** provide views on the course. On the right hand side are numerous options that I will elaborate below. You can mix and match the views and the option panels.
 

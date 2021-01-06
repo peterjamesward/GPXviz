@@ -4,10 +4,6 @@ module ToDo exposing (..)
 NB Komoot uses the client_id:client_secret format.
 Waiting for a response from Komoot. Need client_id.
 
---TODO: Load and then Paste Strava segment.
-
---TODO: Simplify between markers (probably useful after pasting segment detail).
-
 --TODO: Debt. Drop the big lists and just use arrays. Reduce duplication.
 
 --TODO: Debt. Factor out duplicated code chunks.
