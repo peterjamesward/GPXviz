@@ -620,6 +620,15 @@ detectHit model event =
                }
 -}
 
+findBracketedRange : Model -> (Int, Int)
+findBracketedRange model =
+    case model.markedNode of
+        Just marker ->
+            (min model.currentNode marker, max model.currentNode marker)
+
+        Nothing ->
+            (0, Array.length model.nodeArray - 1)
+
 
 commonModelLoader : Model -> String -> GpxSource -> ( Model, Cmd Msg )
 commonModelLoader model content source =
@@ -1345,16 +1354,23 @@ update msg model =
 
         SimplifyTrack ->
             let
+                (rangeStart, rangeEnd) = findBracketedRange model
+
                 undoMessage =
                     "Remove "
-                        ++ String.fromInt (List.length model.metricFilteredNodes)
+                        ++ String.fromInt (List.length nodesToRemove)
                         ++ " track points"
+
+                nodesToRemove =
+                    List.filter
+                        (\n -> n >= rangeStart && n <= rangeEnd)
+                        model.metricFilteredNodes
 
                 replaceTrackPoints old =
                     { old
                         | trackPoints =
                             reindexTrackpoints <|
-                                removeByNodeNumbers model.metricFilteredNodes model.trackPoints
+                                removeByNodeNumbers nodesToRemove model.trackPoints
                     }
 
                 newModel =
