@@ -11,17 +11,11 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-05_
+> _This text updated 2021-01-06_
 
 ## Changes
 
-- Major new tool in the Bend & Gradient problems tabs. Don't over-use this. It attempts to deal with all the problems visible in the list, either by deleting a single track point, or replacing one with two (a 'chamfer' operation). The _intended_ use is that you sort out major issues individually then use this for the "long tail" of minor issues. The risk is you just get a lot of very close points with little real value. But, hey, it's a tool; use it how you will. You can always Undo.
-
-- You can paste in the complete route URL from Strava, and GPXmagic will retain only the route ID.
-
-- Bend Problems tab was listing the gradient problems (woops).
-
-- You choose whether or not to drag track points on the map. Default is not. Use the new Map Options tab to change this behaviour.
+- Stopped Autofix adding points where existing gap less than 2 metres.
 
 ## Guidance on use
 

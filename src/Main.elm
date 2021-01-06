@@ -24,6 +24,7 @@ import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
+import FlatColors.FlatUIPalette exposing (wetAsphalt)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import Geometry101
 import Html.Attributes exposing (id)
@@ -46,7 +47,8 @@ import Rectangle2d
 import Scene3d exposing (Entity)
 import Spherical exposing (metresPerDegree)
 import StravaAuth exposing (getStravaToken, stravaButton)
-import StravaDataLoad exposing (requestStravaRoute, requestStravaSegment)
+import StravaDataLoad exposing (requestStravaRoute, requestStravaSegment, requestStravaSegmentStreams, stravaApiRoot)
+import StravaPasteStreams exposing (pasteStreams)
 import StravaTypes exposing (StravaRoute, StravaSegment)
 import Task
 import Terrain exposing (makeTerrain)
@@ -54,6 +56,7 @@ import Time
 import TrackPoint exposing (..)
 import Triangle3d
 import Url exposing (Url)
+import Url.Builder as Builder
 import Utils exposing (..)
 import Vector2d
 import Vector3d
@@ -191,6 +194,7 @@ type alias Model =
     , externalRoute : Maybe (Result Http.Error StravaRoute)
     , stravaAuthentication : O.Model
     , mapNodesDraggable : Bool
+    , lastHttpError : Maybe Http.Error
     }
 
 
@@ -273,6 +277,7 @@ init mflags origin navigationKey =
       , externalRoute = Nothing
       , stravaAuthentication = authData
       , mapNodesDraggable = False
+      , lastHttpError = Nothing
       }
     , Cmd.batch [ Task.perform AdjustTimeZone Time.here, authCmd ]
     )
@@ -307,11 +312,10 @@ toolsAccordion model =
       , state = Contracted
       , content = flythroughControls model
       }
-
-    --, { label = "Strava"
-    --  , state = Contracted
-    --  , content = stravaDataAccess model
-    --  }
+    , { label = "Strava"
+      , state = Contracted
+      , content = viewStravaDataAccessTab model
+      }
     ]
 
 
@@ -661,7 +665,16 @@ update msg model =
             ( model, Cmd.none )
 
         UserChangedSegmentId url ->
-            ( { model | externalSegmentId = url }, Cmd.none )
+            let
+                segmentId =
+                    url |> String.split "/" |> List.reverse |> List.head |> Maybe.withDefault ""
+            in
+            ( { model
+                | externalSegmentId = segmentId
+                , externalSegment = Nothing
+              }
+            , Cmd.none
+            )
 
         UserChangedRouteId url ->
             let
@@ -1371,10 +1384,34 @@ update msg model =
                 Nothing ->
                     ( model, Cmd.none )
 
+        LoadSegmentStreams ->
+            case getStravaToken model.stravaAuthentication of
+                Just token ->
+                    ( model
+                    , requestStravaSegmentStreams HandleSegmentStreams model.externalSegmentId token
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
         HandleSegmentData response ->
             ( { model | externalSegment = Just response }
             , Cmd.none
             )
+
+        HandleSegmentStreams response ->
+            case ( response, model.externalSegment ) of
+                ( Ok streams, Just (Ok segment) ) ->
+                    model
+                        |> addToUndoStack "Paste Strava segment"
+                        |> (\m -> { m | trackPoints = pasteStreams m.trackPoints segment streams })
+                        |> trackHasChanged
+
+                ( Err err, _ ) ->
+                    ( { model | lastHttpError = Just err }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         LoadExternalRoute ->
             case getStravaToken model.stravaAuthentication of
@@ -2518,7 +2555,7 @@ parseGPXintoModel content model =
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = filterCloseTrackPoints ( parseTrackPoints content)
+        , trackPoints = filterCloseTrackPoints (parseTrackPoints content)
         , hasBeenChanged = False
     }
 
@@ -2994,8 +3031,7 @@ viewSourceDetails model =
         GpxStrava ->
             let
                 stravaUrl =
-                    "https://www.strava.com/routes/"
-                        ++ model.externalRouteId
+                    Builder.crossOrigin stravaApiRoot [ "routes", model.externalRouteId ] []
             in
             column [ Font.size 14 ]
                 [ displayName model.trackName
@@ -4287,23 +4323,35 @@ viewRouteProfile model node =
             none
 
 
-stravaDataAccess : Model -> Element Msg
-stravaDataAccess model =
+viewStravaDataAccessTab : Model -> Element Msg
+viewStravaDataAccessTab model =
     let
         segmentIdField =
             Input.text []
                 { onChange = UserChangedSegmentId
                 , text = model.externalSegmentId
-                , placeholder = Just <| Input.placeholder [] <| E.text "Strava segment ID"
-                , label = Input.labelHidden "Strava segment ID"
+                , placeholder = Just <| Input.placeholder [] <| E.text "Segment ID"
+                , label = Input.labelHidden "Segment ID"
                 }
 
         segmentButton =
-            button
-                prettyButtonStyles
-                { onPress = Just LoadExternalSegment
-                , label = E.text <| "Fetch segment"
-                }
+            -- Make this button serve two functions.
+            -- 1. After a URL change, to load the segment header;
+            -- 2. After header loaded, to load and paste the streams.
+            case model.externalSegment of
+                Just (Ok segment) ->
+                    button
+                        prettyButtonStyles
+                        { onPress = Just LoadSegmentStreams
+                        , label = E.text <| "Apply segment"
+                        }
+
+                _ ->
+                    button
+                        prettyButtonStyles
+                        { onPress = Just LoadExternalSegment
+                        , label = E.text <| "Fetch header"
+                        }
 
         segmentInfo =
             case model.externalSegment of

@@ -7,7 +7,7 @@ import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
 import OAuthTypes exposing (OAuthMsg)
-import StravaTypes exposing (StravaRoute, StravaSegment)
+import StravaTypes exposing (StravaRoute, StravaSegment, StravaSegmentStreams)
 import Time
 import ViewTypes exposing (ViewingMode)
 
@@ -79,7 +79,9 @@ type Msg
     | LoadExternalSegment
     | UserChangedRouteId String
     | LoadExternalRoute
+    | LoadSegmentStreams
     | HandleSegmentData (Result Http.Error StravaSegment)
+    | HandleSegmentStreams (Result Http.Error StravaSegmentStreams)
     | HandleRouteData (Result Http.Error StravaRoute)
     | OAuthMessage OAuthMsg
     | ToggleMapNodesDraggable Bool

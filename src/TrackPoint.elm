@@ -239,14 +239,31 @@ meanTrackPoint tp0 tp1 =
 filterCloseTrackPoints : List TrackPoint -> List TrackPoint
 filterCloseTrackPoints tps =
     reindexTrackpoints <|
-    case tps of
-        ( t0 :: t1 :: tpRest ) ->
-            if trackPointSeparation t0 t1 < 0.5 then
-                (meanTrackPoint t0 t1) :: filterCloseTrackPoints tpRest
-            else
-                t0 :: filterCloseTrackPoints (t1 :: tpRest )
+        case tps of
+            t0 :: t1 :: tpRest ->
+                if trackPointSeparation t0 t1 < 0.5 then
+                    meanTrackPoint t0 t1 :: filterCloseTrackPoints tpRest
 
-        _ -> tps
+                else
+                    t0 :: filterCloseTrackPoints (t1 :: tpRest)
+
+            _ ->
+                tps
+
 
 trackPointSeparation tp1 tp2 =
     Spherical.range ( tp1.lat, tp1.lon ) ( tp2.lat, tp2.lon )
+
+
+trackPointFromLatLon : Float -> Float -> List TrackPoint -> Maybe TrackPoint
+trackPointFromLatLon lat lon tps =
+    -- Why do I have the feeling I've already written this?
+    let
+        dummyTP =
+            { lat = lat, lon = lon }
+    in
+    tps
+        |> List.map (\tp -> ( tp, trackPointSeparation tp dummyTP ))
+        |> List.sortBy Tuple.second
+        |> List.map Tuple.first
+        |> List.head

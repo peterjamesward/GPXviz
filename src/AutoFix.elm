@@ -75,9 +75,14 @@ chamfer tp0 tp1 tp2 =
         cosineT1 =
             --Cosine rule c2 = a2 + b2 - 2ab cos C
             (t0t1Length ^ 2 + t1t2Length ^ 2 - t0t2Length ^ 2) / (2.0 * t0t1Length * t1t2Length)
-
     in
-    if cosineT1 > cos (pi / 2) then -- there should be no acute angles.
+    if t0t2Length < 2.0 then
+        -- no point adding points in a small gap
         [ tp0, meanTrackPoint tp0 tp2, tp2 ]
+
+    else if cosineT1 > cos (pi / 2) then
+        -- there should be no acute angles.
+        [ tp0, meanTrackPoint tp0 tp2, tp2 ]
+
     else
         [ tp0, firstTP, secondTP, tp2 ]

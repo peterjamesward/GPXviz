@@ -14,13 +14,48 @@ type alias StravaSegment =
 
 
 type alias StravaRoute =
-    {- "distance" : 0.8008282,
-       "description" : "aeiou",
-       "elevation_gain" : 6.0274563,
-       "name" : "aeiou",
-    -}
     { name : String
     , description : String
     , distance : Float
     , elevation_gain : Float
+    }
+
+
+type alias StravaDistanceStream =
+    { is_type : String
+    , data : List Float
+    , series_type : String
+    , original_size : Int
+    , resolution : String
+    }
+
+
+type alias StravaAltitudeStream =
+    { is_type : String
+    , data : List Float
+    , series_type : String
+    , original_size : Int
+    , resolution : String
+    }
+
+
+type alias StravaLatLng =
+    { lat : Float
+    , lng : Float
+    }
+
+
+type alias StravaLatLngStream =
+    { is_type : String
+    , data : List StravaLatLng
+    , series_type : String
+    , original_size : Int
+    , resolution : String
+    }
+
+
+type alias StravaSegmentStreams =
+    { latLngs : StravaLatLngStream
+    , distances : StravaDistanceStream
+    , altitude : StravaAltitudeStream
     }
