@@ -11,15 +11,11 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-06_
+> _This text updated 2021-01-07_
 
 ## Changes
 
-- Stopped Autofix adding points where existing gap less than 2 metres.
-
-- Fetch an official segment from Strava and paste into your route.
-
-- "Simplify" tool now works between (orange and purple) markers, so can be used on that Strava segment.
+- Graphics are by default simplified on routes with over 2000 track points. You can turn these options back on in the Visual Styles tab. It seems to help the graphics performance, but loading and other operations may still be slow.
 
 ## Guidance on use
 
