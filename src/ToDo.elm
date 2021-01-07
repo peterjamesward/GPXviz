@@ -1,6 +1,16 @@
 module ToDo exposing (..)
 
---TODO: Reduce graphics load by using Scene3d.unlit (auto on large routes esp.).
+--TODO: USABILITY - Prompt for file Save when navigating away. Should be poss now it's an Application.
+
+--TODO: USABILITY - Save As ...
+
+--TODO: BUG - About text won't scroll after viewing map. Weird rendering thing?
+
+--TODO: BUG - Disable everything until file loaded. (Though barely a bug.)
+
+--TODO: Sponsorship link.
+
+--TODO: Fly-through should work in 3rd per. Used to.
 
 --TODO: Better zoom reset on new model load.
 

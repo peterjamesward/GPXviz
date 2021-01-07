@@ -15,6 +15,8 @@ aboutText =
 
 ## Changes
 
+- _FIXED STRAVA ROUTE LOADING BUG_
+
 - Graphics are by default simplified on routes with over 2000 track points. You can turn these options back on in the Visual Styles tab. It seems to help the graphics performance, but loading and other operations may still be slow.
 
 ## Guidance on use

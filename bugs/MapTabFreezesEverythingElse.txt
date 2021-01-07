@@ -1,0 +1,16 @@
+1/7/2021
+
+'Map' tab freezes everything else.
+
+Steps to repro:
+- From Edge on Win 10, go to http://stepwiserefinement.co.uk.s3-website-eu-west-1.amazonaws.com/GPXmagic/index.html
+- The webpage defaults to the 'About' tab.  
+- Click on the 'Map' tab.  Nothing appears because nothing has been opened.
+- Click on 'Third person' or 'First person' or 'Elevation' or 'Plan' tab.  Tabs can be selected but nothing appears (because no GPX has been opened.)
+- Click on 'Map' tab.  Tab can be selected but nothing appears (because no GPX has been opened.)
+- Attempt to select any other tab.
+
+Result:  The webpage stays on the 'Map' tab.  Nothing else can be selected.
+
+Work-around:  Refresh the webpage from Edge.  The webpage defaults to the 'About' tab.  This doesn't happen if a GPX has been loaded.
+

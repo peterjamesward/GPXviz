@@ -55,7 +55,7 @@ requestStravaRoute msg routeId token =
     Http.request
         { method = "GET"
         , headers = useToken token []
-        , url = Builder.crossOrigin stravaApiRoot [ "api", "v3", "routes", routeId, "export_gpc" ] []
+        , url = Builder.crossOrigin stravaApiRoot [ "api", "v3", "routes", routeId, "export_gpx" ] []
         , body = Http.emptyBody
         , expect = Http.expectString msg
         , timeout = Nothing

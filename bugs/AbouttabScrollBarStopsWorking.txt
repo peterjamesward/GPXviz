@@ -1,0 +1,18 @@
+1/7/2021
+
+'About' tab scroll bar stops working.
+
+Steps to repro:
+- From Edge on Win 10, go to http://stepwiserefinement.co.uk.s3-website-eu-west-1.amazonaws.com/GPXmagic/index.html
+- The webpage defaults to the 'About' tab. 
+- Open a GPX file by clicking on, 'Load GPX from your computer' and selecting a valid GPX file from the Windows Explorer window.
+- The filename now appears at the top-right of the webpage indicating it is for cycling.
+- Use the scroll bars to view the text at the bottom of the window.  The scroll bar works.
+- Click on the 'Map' tab.  A map of the route is rendered.
+- Click on the 'About' tab.
+
+Result:  The scroll bar no longer works.
+
+Work-around:  [I haven't found one.  Refreshing the webpage will abandon the existing GPX file without prompting to save.]
+
+Why access the 'About' tab?  I'm new to the program and find that I reference the descriptions for each of the functions until I have them memorized.
