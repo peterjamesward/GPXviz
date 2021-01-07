@@ -65,18 +65,19 @@ Compatible with Strava, for the purpose of loading segment data.
 
 viewAboutText : Element Msg
 viewAboutText =
-    row
-        [ centerX
-        , Background.color <| rgb255 220 220 200
-        , clipY
-        , scrollbarY
-        , padding 20
-        , width <| px viewMapWidth
-        ]
-        [ paragraph
-            [ width fill
-            , height <| px viewMapHeight
+    el [] <|
+        row
+            [ centerX
+            , Background.color <| rgb255 220 220 200
+            , clipY
+            , scrollbarY
+            , padding 20
+            , width <| px viewMapWidth
             ]
-          <|
-            [ html <| Markdown.toHtml [] aboutText ]
-        ]
+            [ paragraph
+                [ width fill
+                , height <| px viewMapHeight
+                ]
+              <|
+                [ html <| Markdown.toHtml [] aboutText ]
+            ]
