@@ -27,6 +27,7 @@ type Msg
     | ZoomLevelPlan Float
     | ZoomLevelProfile Float
     | TogglePillars Bool
+    | ToggleLighting Bool
     | ToggleRoad Bool
     | ToggleCones Bool
     | ToggleCentreLine Bool

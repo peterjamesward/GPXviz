@@ -17,6 +17,7 @@ type alias DisplayOptions =
     , centreLine : Bool
     , terrain : Bool
     , seaLevel : Bool
+    , withLighting : Bool
     }
 
 
@@ -30,4 +31,5 @@ defaultDisplayOptions =
     , centreLine = False
     , terrain = False
     , seaLevel = True
+    , withLighting = True
     }

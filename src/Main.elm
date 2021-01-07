@@ -45,6 +45,7 @@ import Point2d exposing (Point2d)
 import Point3d exposing (Point3d, distanceFromAxis)
 import Rectangle2d
 import Scene3d exposing (Entity)
+import ScenePainter exposing (render3dScene)
 import Spherical exposing (metresPerDegree)
 import StravaAuth exposing (getStravaToken, stravaButton)
 import StravaDataLoad exposing (requestStravaRoute, requestStravaSegment, requestStravaSegmentStreams, stravaApiRoot)
@@ -620,14 +621,15 @@ detectHit model event =
                }
 -}
 
-findBracketedRange : Model -> (Int, Int)
+
+findBracketedRange : Model -> ( Int, Int )
 findBracketedRange model =
     case model.markedNode of
         Just marker ->
-            (min model.currentNode marker, max model.currentNode marker)
+            ( min model.currentNode marker, max model.currentNode marker )
 
         Nothing ->
-            (0, Array.length model.nodeArray - 1)
+            ( 0, Array.length model.nodeArray - 1 )
 
 
 commonModelLoader : Model -> String -> GpxSource -> ( Model, Cmd Msg )
@@ -636,14 +638,13 @@ commonModelLoader model content source =
         newModel =
             { model | gpxSource = source }
                 |> clearTheModel
+                |> initialiseAccordion
                 |> parseGPXintoModel content
                 |> deriveNodesAndRoads
                 |> deriveProblems
-                |> clearTerrain
-                |> initialiseAccordion
+                |> resetViewSettings
                 |> deriveStaticVisualEntities
                 |> deriveVaryingVisualEntities
-                |> resetViewSettings
                 |> lookForSimplifications
     in
     switchViewMode newModel newModel.viewingMode
@@ -1069,6 +1070,13 @@ update msg model =
                 |> deriveStaticVisualEntities
                 |> synchroniseMap
 
+        ToggleLighting _ ->
+            { model
+                | displayOptions = { options | withLighting = not options.withLighting }
+            }
+                |> deriveStaticVisualEntities
+                |> synchroniseMap
+
         TogglePillars _ ->
             { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
@@ -1354,7 +1362,8 @@ update msg model =
 
         SimplifyTrack ->
             let
-                (rangeStart, rangeEnd) = findBracketedRange model
+                ( rangeStart, rangeEnd ) =
+                    findBracketedRange model
 
                 undoMessage =
                     "Remove "
@@ -2695,6 +2704,14 @@ resetViewSettings model =
                 , centreLon = Length.inMeters <| BoundingBox3d.midX box
                 , mapZoom = 12.0 -- TODO: Adjust for bounding box dimensions.
             }
+
+        displayOptions options =
+            { options
+                | withLighting = Array.length model.nodeArray < 2000
+                , roadPillars = Array.length model.nodeArray < 2000
+                , roadCones = Array.length model.nodeArray < 2000
+                , terrain = False
+            }
     in
     { model
         | zoomLevelOverview = zoomLevel
@@ -2712,6 +2729,7 @@ resetViewSettings model =
         , mapInfo = Maybe.map (newMapInfo model.trackPointBox) model.mapInfo
         , cameraFocusThirdPerson = focus
         , cameraFocusProfileNode = 0
+        , displayOptions = displayOptions model.displayOptions
     }
         |> checkSceneCamera
 
@@ -3355,8 +3373,8 @@ minutes and will be lost if I make changes)"""
             ]
           <|
             [ E.text "Select view elements" ]
-        , row []
-            [ column []
+        , row [ spacing 5 ]
+            [ column [ spacing 5 ]
                 [ Input.checkbox []
                     { onChange = ToggleRoad
                     , icon = checkboxIcon
@@ -3370,7 +3388,7 @@ minutes and will be lost if I make changes)"""
                     , label = Input.labelRight [ centerY ] (E.text "Centre line")
                     }
                 ]
-            , column []
+            , column [ spacing 5 ]
                 [ Input.checkbox []
                     { onChange = TogglePillars
                     , icon = checkboxIcon
@@ -3382,6 +3400,15 @@ minutes and will be lost if I make changes)"""
                     , icon = checkboxIcon
                     , checked = model.displayOptions.roadCones
                     , label = Input.labelRight [ centerY ] (E.text "Trackpoint cones")
+                    }
+                ]
+
+            , column [ spacing 5 ]
+                [ Input.checkbox []
+                    { onChange = ToggleLighting
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.withLighting
+                    , label = Input.labelRight [ centerY ] (E.text "Lighting")
                     }
                 ]
             ]
@@ -3806,7 +3833,7 @@ viewRoadSegment model =
                     withMouseCapture
                   <|
                     html <|
-                        Scene3d.sunny
+                        render3dScene model.displayOptions.withLighting
                             { camera = camera
                             , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.lightBlue
@@ -3815,9 +3842,6 @@ viewRoadSegment model =
                                 model.varyingVisualEntities
                                     ++ model.staticVisualEntities
                                     ++ model.terrainEntities
-                            , upDirection = positiveZ
-                            , sunlightDirection = negativeZ
-                            , shadows = True
                             }
                 , zoomSlider model.zoomLevelFirstPerson ZoomLevelFirstPerson
                 ]
@@ -4165,7 +4189,7 @@ viewCurrentNode model =
                     withMouseCapture
                   <|
                     html <|
-                        Scene3d.sunny
+                        render3dScene model.displayOptions.withLighting
                             { camera = camera
                             , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.lightBlue
@@ -4174,9 +4198,6 @@ viewCurrentNode model =
                                 model.varyingVisualEntities
                                     ++ model.staticVisualEntities
                                     ++ model.terrainEntities
-                            , upDirection = positiveZ
-                            , sunlightDirection = negativeZ
-                            , shadows = True
                             }
                 , zoomSlider model.zoomLevelThirdPerson ZoomLevelThirdPerson
                 ]
@@ -4218,72 +4239,18 @@ viewCurrentNodePlanView model node =
             row [ padding 5, spacing 10 ]
                 [ el withMouseCapture <|
                     html <|
-                        Scene3d.sunny
+                        render3dScene False
                             { camera = camera
                             , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.darkGreen
                             , clipDepth = Length.meters 1.0
                             , entities = model.varyingVisualEntities ++ model.staticVisualEntities
-                            , upDirection = positiveZ
-                            , sunlightDirection = negativeZ
-                            , shadows = True
                             }
                 , zoomSlider model.zoomLevelPlan ZoomLevelPlan
                 ]
 
         Nothing ->
             none
-
-
-viewCentredPlanViewForMap : BoundingBox3d Length.Meters LocalCoords -> Model -> Element Msg
-viewCentredPlanViewForMap box model =
-    -- Challenge is to optimize zoom level to fit map.
-    let
-        { minX, maxX, minY, maxY, minZ, maxZ } =
-            BoundingBox3d.extrema box
-
-        focus =
-            BoundingBox3d.centerPoint box
-
-        ( xSize, ySize, zSize ) =
-            BoundingBox3d.dimensions box
-
-        eyePoint =
-            Point3d.translateBy
-                (Vector3d.meters 0.0 0.0 5000.0)
-                Point3d.origin
-
-        viewPort =
-            Length.meters <|
-                max
-                    (Length.inMeters ySize)
-                    (Length.inMeters xSize * view3dHeight / view3dWidth)
-
-        camera =
-            Camera3d.orthographic
-                { viewpoint =
-                    Viewpoint3d.lookAt
-                        { focalPoint = focus
-                        , eyePoint = eyePoint
-                        , upDirection = positiveY
-                        }
-                , viewportHeight = viewPort
-                }
-    in
-    el
-        [ alignLeft, alignTop ]
-    <|
-        html <|
-            Scene3d.sunny
-                { camera = camera
-                , dimensions = view3dDimensions
-                , background = Scene3d.transparentBackground
-                , clipDepth = Length.meters 1.0
-                , entities = model.mapVisualEntities
-                , upDirection = positiveZ
-                , sunlightDirection = negativeZ
-                , shadows = True
-                }
 
 
 profileCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
@@ -4322,15 +4289,12 @@ viewRouteProfile model node =
                     withMouseCapture
                   <|
                     html <|
-                        Scene3d.sunny
+                        render3dScene False
                             { camera = camera
                             , dimensions = view3dDimensions
                             , background = Scene3d.backgroundColor Color.lightCharcoal
                             , clipDepth = Length.meters 1.0
                             , entities = model.varyingProfileEntities ++ model.staticProfileEntities
-                            , upDirection = positiveZ
-                            , sunlightDirection = negativeZ
-                            , shadows = True
                             }
                 , zoomSlider model.zoomLevelProfile ZoomLevelProfile
                 ]
