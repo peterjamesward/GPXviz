@@ -32,7 +32,7 @@ import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
 import Iso8601
 import Json.Decode as E exposing (..)
-import Length
+import Length exposing (inMeters, meters)
 import List exposing (drop, take)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import Msg exposing (..)
@@ -1668,10 +1668,7 @@ switchViewMode model mode =
 
         ( _, _ ) ->
             -- Map not involved, happy days.
-            ( { model
-                | viewingMode = mode
-                , flythrough = Nothing
-              }
+            ( { model | viewingMode = mode  }
                 |> deriveVaryingVisualEntities
                 |> checkSceneCamera
             , Cmd.none
@@ -4169,7 +4166,7 @@ thirdPersonCamera model =
             Camera3d.perspective
                 { viewpoint =
                     Viewpoint3d.orbitZ
-                        { focalPoint = model.cameraFocusThirdPerson
+                        { focalPoint = focalPoint
                         , azimuth = model.azimuth
                         , elevation = model.elevation
                         , distance =
@@ -4179,6 +4176,15 @@ thirdPersonCamera model =
                         }
                 , verticalFieldOfView = Angle.degrees 30.0
                 }
+
+        focalPoint =
+            case model.flythrough of
+                Nothing ->
+                    model.cameraFocusThirdPerson
+
+                Just flying ->
+                    flying.cameraPosition
+
     in
     Just camera
 
@@ -4213,8 +4219,15 @@ planCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 planCamera model =
     let
         focus =
-            Point3d.projectOnto Plane3d.xy
-                model.cameraFocusPlan
+            case model.flythrough of
+                Nothing ->
+                    Point3d.projectOnto Plane3d.xy
+                        model.cameraFocusPlan
+
+                Just flying ->
+                    Point3d.projectOnto
+                        Plane3d.xy
+                        flying.cameraPosition
 
         eyePoint =
             Point3d.translateBy
@@ -4259,15 +4272,32 @@ viewCurrentNodePlanView model node =
 profileCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 profileCamera model =
     let
+
+        --focus node =
+        --    Point3d.projectOnto
+        --        Plane3d.yz
+        --        node.location
+
         focus node =
-            Point3d.projectOnto
-                Plane3d.yz
-                node.location
+            case model.flythrough of
+                Nothing ->
+                    Point3d.projectOnto Plane3d.yz node.location
+
+                Just flying ->
+                    let
+
+                        fixForFlythrough =
+                            Point3d.toRecord inMeters node.location
+                    in
+                    Point3d.projectOnto
+                        Plane3d.yz
+                        (Point3d.fromRecord meters { fixForFlythrough | y = flying.metresFromRouteStart })
+
 
         eyePoint node =
             Point3d.translateBy
                 (Vector3d.meters 100.0 0.0 0.0)
-                node.location
+                (focus node)
 
         camera road =
             Camera3d.orthographic
