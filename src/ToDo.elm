@@ -1,12 +1,12 @@
 module ToDo exposing (..)
 
---TODO: USABILITY - Prompt for file Save when navigating away. Should be poss now it's an Application.
+--CAN'T: USABILITY - Prompt for file Save when navigating away. Should be poss now it's an Application.
+-- This seems to be impossible.
 
 --TODO: USABILITY - Save As ...
 
 --TODO: BUG - About text won't scroll after viewing map. Weird rendering thing?
-
---TODO: BUG - Disable everything until file loaded. (Though barely a bug.)
+-- This is weird browser shit.
 
 --TODO: Sponsorship link.
 
@@ -31,8 +31,8 @@ module ToDo exposing (..)
 --TODO: "Split track" to show warning (+ Feather icon) if segments less than the maximum segment?
 
 --TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
-NB Komoot uses the client_id:client_secret format.
-Waiting for a response from Komoot. Need client_id.
+--NB Komoot uses the client_id:client_secret format.
+--Waiting for a response from Komoot. Need client_id.
 
 --TODO: Say if filename is too long for Magic Roads. (50 chars.)
 

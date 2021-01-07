@@ -70,11 +70,11 @@ viewAboutText =
         , Background.color <| rgb255 220 220 200
         , clipY
         , scrollbarY
-        , height <| px viewMapHeight
         , padding 20
+        , width <| px viewMapWidth
         ]
         [ paragraph
-            [ width <| px viewMapWidth
+            [ width fill
             , height <| px viewMapHeight
             ]
           <|

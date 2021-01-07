@@ -3104,7 +3104,11 @@ view model =
                     , saveButtonIfChanged model
                     ]
                 , row [ alignLeft, moveRight 200 ]
-                    [ viewModeChoices model
+                    [ if model.gpxSource /= GpxNone then
+                        viewModeChoices model
+
+                      else
+                        none
                     ]
                 , case ( model.gpx, model.trackPoints ) of
                     ( _, tp1 :: _ ) ->
@@ -3402,7 +3406,6 @@ minutes and will be lost if I make changes)"""
                     , label = Input.labelRight [ centerY ] (E.text "Trackpoint cones")
                     }
                 ]
-
             , column [ spacing 5 ]
                 [ Input.checkbox []
                     { onChange = ToggleLighting
