@@ -3108,7 +3108,7 @@ view model =
                         viewModeChoices model
 
                       else
-                        none
+                        el [ height (px 40) ] none
                     ]
                 , case ( model.gpx, model.trackPoints ) of
                     ( _, tp1 :: _ ) ->

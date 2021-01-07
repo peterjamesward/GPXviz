@@ -59,29 +59,6 @@ type ButtonPosition
 
 
 radioButton position label state =
-    let
-        borders =
-            case position of
-                First ->
-                    { left = 2, right = 2, top = 2, bottom = 2 }
-
-                Mid ->
-                    { left = 0, right = 2, top = 2, bottom = 2 }
-
-                Last ->
-                    { left = 0, right = 2, top = 2, bottom = 2 }
-
-        corners =
-            case position of
-                First ->
-                    { topLeft = 6, bottomLeft = 6, topRight = 0, bottomRight = 0 }
-
-                Mid ->
-                    { topLeft = 0, bottomLeft = 0, topRight = 0, bottomRight = 0 }
-
-                Last ->
-                    { topLeft = 0, bottomLeft = 0, topRight = 6, bottomRight = 6 }
-    in
     el
         [ padding 10
         , spacing 2
