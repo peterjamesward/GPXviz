@@ -1,10 +1,12 @@
 module ToDo exposing (..)
 
---TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
-NB Komoot uses the client_id:client_secret format.
-Waiting for a response from Komoot. Need client_id.
+--TODO: Autofix to work on selection also.
 
 --TODO: Debt. Drop the big lists and just use arrays. Reduce duplication.
+
+--TODO: Imperial measurements in views.
+
+--TODO: Is there anything I can do to make it faster for big routes?
 
 --TODO: Debt. Factor out duplicated code chunks.
 
@@ -13,6 +15,10 @@ Waiting for a response from Komoot. Need client_id.
 --TODO: Popup tool help on all accordion tabs?
 
 --TODO: "Split track" to show warning (+ Feather icon) if segments less than the maximum segment?
+
+--TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
+NB Komoot uses the client_id:client_secret format.
+Waiting for a response from Komoot. Need client_id.
 
 --TODO: Say if filename is too long for Magic Roads. (50 chars.)
 
