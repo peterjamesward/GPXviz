@@ -11,9 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-08_
+> _This text updated 2021-01-08 (late afternoon)_
 
 ## Changes
+
+- Harmonization of zoom levels. They are now consistent with the Map view. Zoom out to see the whole globe, or zoom in to see a single track point. Makes a better job at setting the zoom when you switch routes.
+
+- Changed orientation of third person view to match the Map projection.
 
 - Will not allow connection to Strava if you have unsaved edits.
 
