@@ -906,6 +906,7 @@ update msg model =
 
         ZoomLevelPlan level ->
             ( { model | zoomLevelPlan = level }
+                |> checkSceneCamera
             , Cmd.none
             )
 
@@ -4150,7 +4151,7 @@ thirdPersonCamera model =
                         { focalPoint = focalPoint
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| 1000.0 * ( metresPerPixel model.zoomLevelThirdPerson latitude)
+                        , distance = Length.meters <| 1200.0 * ( metresPerPixel model.zoomLevelThirdPerson latitude)
                         }
                 , verticalFieldOfView = Angle.degrees 30.0
                 }
@@ -4195,6 +4196,9 @@ viewCurrentNode model =
 planCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 planCamera model =
     let
+        latitude =
+            degrees <| Length.inMeters <| BoundingBox3d.midY model.trackPointBox
+
         focus =
             case model.flythrough of
                 Nothing ->
@@ -4219,7 +4223,7 @@ planCamera model =
                         , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
-                , viewportHeight = Length.meters <| 2.0 * 10.0 ^ (5.0 - model.zoomLevelPlan)
+                , viewportHeight = Length.meters <| 1200.0 * ( metresPerPixel model.zoomLevelPlan latitude)
                 }
     in
     Just camera
