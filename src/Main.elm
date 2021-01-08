@@ -35,6 +35,7 @@ import Json.Decode as E exposing (..)
 import Length exposing (inMeters, meters)
 import List exposing (drop, take)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
+import MapboxStuff exposing (zoomLevelFromBoundingBox)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import OAuthPorts exposing (randomBytes)
@@ -1583,28 +1584,17 @@ switchViewMode model mode =
                     Nothing
 
         newMapInfo box =
-            { mapState = WaitingForNode
-            , box = box
-            , points = model.trackPoints
-            , nextView = MapView
-            , centreLon = Length.inMeters <| BoundingBox3d.midX box
-            , centreLat = Length.inMeters <| BoundingBox3d.midY box
-            , mapZoom = 12.0
-            , current =
-                case current of
-                    Just m ->
-                        ( m.trackPoint.lon, m.trackPoint.lat )
-
-                    Nothing ->
-                        ( 0.0, 0.0 )
-            , marker =
-                case marked of
-                    Just m ->
-                        Just ( m.trackPoint.lon, m.trackPoint.lat )
-
-                    Nothing ->
-                        Nothing
-            }
+            updatedMapInfo
+                { mapState = WaitingForNode
+                , box = box
+                , points = model.trackPoints
+                , nextView = MapView
+                , centreLon = Length.inMeters <| BoundingBox3d.midX box
+                , centreLat = Length.inMeters <| BoundingBox3d.midY box
+                , mapZoom = zoomLevelFromBoundingBox model.trackPointBox
+                , current = ( 0.0, 0.0 )
+                , marker = Nothing
+                }
 
         updatedMapInfo info =
             { info
@@ -2684,17 +2674,11 @@ deriveNodesAndRoads model =
 resetViewSettings : Model -> Model
 resetViewSettings model =
     let
-        ( x, y, z ) =
-            BoundingBox3d.dimensions model.nodeBox
-
         focus =
             BoundingBox3d.centerPoint model.nodeBox
 
         zoomLevel =
-            -- Empirical!
-            clamp 1.0 4.0 <|
-                5.0
-                    - logBase 10 (max (Length.inMeters x) (Length.inMeters y))
+            zoomLevelFromBoundingBox model.trackPointBox
 
         newMapInfo : BoundingBox3d Length.Meters GPXCoords -> MapInfo -> MapInfo
         newMapInfo box info =
@@ -2704,7 +2688,7 @@ resetViewSettings model =
                 , points = model.trackPoints
                 , centreLat = Length.inMeters <| BoundingBox3d.midY box
                 , centreLon = Length.inMeters <| BoundingBox3d.midX box
-                , mapZoom = 12.0 -- TODO: Adjust for bounding box dimensions.
+                , mapZoom = zoomLevel
             }
 
         displayOptions options =
@@ -4410,6 +4394,6 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-        , Time.every 50 Tick
+        , Time.every 5000 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

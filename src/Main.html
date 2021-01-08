@@ -149,6 +149,7 @@ function incomingMessageHandler(msg) {
             if (isMapCreated) {
                 addLineToMap(msg.data, msg.points);
                 map.setCenter([msg.lon, msg.lat]);
+                map.setZoom(msg.zoom)
             }
             break;
 
