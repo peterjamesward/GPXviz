@@ -1,10 +1,5 @@
 module ToDo exposing (..)
 
---TODO: USABILITY - Save As ... (make filename an input field !!)
-
---TODO: When segment header loads, say if it's not in the bounding box.
--- and provide optiom to unsert between markers. (scale and rotate!)
-
 --TODO: Autofix to work on selection also. (?)
 
 --TODO: Better zoom reset on new model load.

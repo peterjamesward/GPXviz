@@ -45,7 +45,7 @@ onContextMenu msg =
 displayName n =
     case n of
         Just s ->
-            el [ Font.size 20, padding 8 ]
+            el [ Font.size 20 ]
                 (text s)
 
         _ ->

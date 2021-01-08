@@ -48,9 +48,9 @@ import Scene3d exposing (Entity)
 import ScenePainter exposing (render3dScene)
 import Spherical exposing (metresPerDegree)
 import StravaAuth exposing (getStravaToken, stravaButton)
-import StravaDataLoad exposing (requestStravaRoute, requestStravaSegment, requestStravaSegmentStreams, stravaApiRoot)
+import StravaDataLoad exposing (requestStravaRoute, requestStravaRouteHeader, requestStravaSegment, requestStravaSegmentStreams, stravaApiRoot, stravaProcessRoute, stravaProcessSegment, stravaRouteName)
 import StravaPasteStreams exposing (pasteStreams)
-import StravaTypes exposing (StravaRoute, StravaSegment)
+import StravaTypes exposing (StravaRoute, StravaRouteStatus(..), StravaSegment, StravaSegmentStatus(..))
 import Task
 import Terrain exposing (makeTerrain)
 import Time
@@ -191,8 +191,8 @@ type alias Model =
     , metricFilteredNodes : List Int -- candidate track points to be removed to simplify a big track.
     , externalSegmentId : String
     , externalRouteId : String
-    , externalSegment : Maybe (Result Http.Error StravaSegment)
-    , externalRoute : Maybe (Result Http.Error StravaRoute)
+    , externalSegment : StravaSegmentStatus
+    , stravaRoute : StravaRouteStatus
     , stravaAuthentication : O.Model
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
@@ -273,9 +273,9 @@ init mflags origin navigationKey =
       , cameraFocusPlan = Point3d.origin
       , metricFilteredNodes = []
       , externalSegmentId = ""
-      , externalSegment = Nothing
+      , externalSegment = SegmentNone
       , externalRouteId = ""
-      , externalRoute = Nothing
+      , stravaRoute = StravaRouteNone
       , stravaAuthentication = authData
       , mapNodesDraggable = False
       , lastHttpError = Nothing
@@ -675,6 +675,9 @@ update msg model =
         NoOpMsg ->
             ( model, Cmd.none )
 
+        UserChangedFilename txt ->
+            ( { model | filename = Just txt }, Cmd.none )
+
         UserChangedSegmentId url ->
             let
                 segmentId =
@@ -682,7 +685,7 @@ update msg model =
             in
             ( { model
                 | externalSegmentId = segmentId
-                , externalSegment = Nothing
+                , externalSegment = SegmentNone
               }
             , Cmd.none
             )
@@ -1405,7 +1408,7 @@ update msg model =
         LoadExternalSegment ->
             case getStravaToken model.stravaAuthentication of
                 Just token ->
-                    ( model
+                    ( { model | externalSegment = SegmentRequested }
                     , requestStravaSegment HandleSegmentData model.externalSegmentId token
                     )
 
@@ -1423,13 +1426,15 @@ update msg model =
                     ( model, Cmd.none )
 
         HandleSegmentData response ->
-            ( { model | externalSegment = Just response }
+            ( { model
+                | externalSegment = stravaProcessSegment response model.trackPointBox
+              }
             , Cmd.none
             )
 
         HandleSegmentStreams response ->
             case ( response, model.externalSegment ) of
-                ( Ok streams, Just (Ok segment) ) ->
+                ( Ok streams, SegmentOk segment ) ->
                     model
                         |> addToUndoStack "Paste Strava segment"
                         |> (\m -> { m | trackPoints = pasteStreams m.trackPoints segment streams })
@@ -1444,17 +1449,29 @@ update msg model =
         LoadExternalRoute ->
             case getStravaToken model.stravaAuthentication of
                 Just token ->
-                    ( model
-                    , requestStravaRoute GpxDownloaded model.externalRouteId token
+                    ( { model | stravaRoute = StravaRouteRequested }
+                    , requestStravaRouteHeader HandleRouteData model.externalRouteId token
                     )
 
                 Nothing ->
                     ( model, Cmd.none )
 
         HandleRouteData response ->
-            ( { model | externalRoute = Just response }
-            , Cmd.none
-            )
+            case getStravaToken model.stravaAuthentication of
+                Just token ->
+                    let
+                        stravaRoute =
+                            stravaProcessRoute response
+                    in
+                    ( { model
+                        | stravaRoute = stravaRoute
+                        , filename = stravaRouteName stravaRoute
+                      }
+                    , requestStravaRoute GpxDownloaded model.externalRouteId token
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         ToggleMapNodesDraggable state ->
             ( { model | mapNodesDraggable = state }
@@ -1671,7 +1688,7 @@ switchViewMode model mode =
 
         ( _, _ ) ->
             -- Map not involved, happy days.
-            ( { model | viewingMode = mode  }
+            ( { model | viewingMode = mode }
                 |> deriveVaryingVisualEntities
                 |> checkSceneCamera
             , Cmd.none
@@ -2525,34 +2542,19 @@ outputGPX model =
         gpxString =
             writeGPX model.trackName model.trackPoints
 
-        iso8601 =
-            Iso8601.fromTime model.time
-
         outputFilename =
             case model.filename of
-                Just fn ->
-                    let
-                        dropAfterLastDot s =
-                            s
-                                |> String.split "."
-                                |> List.reverse
-                                |> List.drop 1
-                                |> List.reverse
-                                |> String.join "."
+                Just filename ->
+                    filename
+                        ++ (if not (String.endsWith ".GPX" (String.toUpper filename)) then
+                                ".gpx"
 
-                        prefix =
-                            dropAfterLastDot fn
-
-                        timestamp =
-                            dropAfterLastDot iso8601
-
-                        suffix =
-                            "gpx"
-                    in
-                    prefix ++ "_" ++ timestamp ++ "." ++ suffix
+                            else
+                                ""
+                           )
 
                 Nothing ->
-                    iso8601
+                    "NOFILENAME"
     in
     Download.string outputFilename "text/gpx" gpxString
 
@@ -3045,40 +3047,25 @@ stravaRouteOption model =
             none
 
 
-viewSourceDetails : Model -> Element Msg
-viewSourceDetails model =
+viewAndEditFilename : Model -> Element Msg
+viewAndEditFilename model =
+    let
+        filename =
+            Maybe.withDefault "" model.filename
+    in
     case model.gpxSource of
-        GpxLocalFile ->
-            case model.filename of
-                Just name ->
-                    column [ Font.size 14 ]
-                        [ displayName model.trackName
-                        , E.text <| "Filename: " ++ name
-                        ]
-
-                Nothing ->
-                    none
-
         GpxNone ->
-            E.text "Nothing loaded yet"
+            E.none
 
-        GpxStrava ->
-            let
-                stravaUrl =
-                    Builder.crossOrigin stravaApiRoot [ "routes", model.externalRouteId ] []
-            in
+        _ ->
             column [ Font.size 14 ]
                 [ displayName model.trackName
-                , E.newTabLink [ Font.color stravaOrange ]
-                    { url = stravaUrl
-                    , label = E.text "View on Strava"
+                , Input.text [ width (px 200) ]
+                    { onChange = UserChangedFilename
+                    , text = filename
+                    , placeholder = Nothing
+                    , label = Input.labelHidden "File name"
                     }
-                ]
-
-        GpxKomoot ->
-            column [ Font.size 14 ]
-                [ displayName model.trackName
-                , E.text "View on Komoot link here"
                 ]
 
 
@@ -3099,11 +3086,12 @@ view model =
                 [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
                     [ loadButton
                     , if model.changeCounter == 0 then
-                         stravaButton model.stravaAuthentication wrapAuthMessage
+                        stravaButton model.stravaAuthentication wrapAuthMessage
+
                       else
                         E.text "Save your work before\nconnecting to Strava"
                     , stravaRouteOption model
-                    , viewSourceDetails model
+                    , viewAndEditFilename model
                     , saveButtonIfChanged model
                     ]
                 , row [ alignLeft, moveRight 200 ]
@@ -4190,7 +4178,6 @@ thirdPersonCamera model =
 
                 Just flying ->
                     flying.cameraPosition
-
     in
     Just camera
 
@@ -4278,12 +4265,10 @@ viewCurrentNodePlanView model node =
 profileCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 profileCamera model =
     let
-
         --focus node =
         --    Point3d.projectOnto
         --        Plane3d.yz
         --        node.location
-
         focus node =
             case model.flythrough of
                 Nothing ->
@@ -4291,14 +4276,12 @@ profileCamera model =
 
                 Just flying ->
                     let
-
                         fixForFlythrough =
                             Point3d.toRecord inMeters node.location
                     in
                     Point3d.projectOnto
                         Plane3d.yz
                         (Point3d.fromRecord meters { fixForFlythrough | y = flying.metresFromRouteStart })
-
 
         eyePoint node =
             Point3d.translateBy
@@ -4358,35 +4341,63 @@ viewStravaDataAccessTab model =
             -- 1. After a URL change, to load the segment header;
             -- 2. After header loaded, to load and paste the streams.
             case model.externalSegment of
-                Just (Ok segment) ->
+                SegmentOk segment ->
                     button
                         prettyButtonStyles
                         { onPress = Just LoadSegmentStreams
                         , label = E.text <| "Apply segment"
                         }
 
-                _ ->
+                SegmentNone ->
                     button
                         prettyButtonStyles
                         { onPress = Just LoadExternalSegment
                         , label = E.text <| "Fetch header"
                         }
 
+                SegmentNotInRoute _ ->
+                    E.text "This segment is not\ncontained in the route"
+
+                _ ->
+                    E.none
+
         segmentInfo =
             case model.externalSegment of
-                Nothing ->
+                SegmentRequested ->
+                    E.text "Waiting for segment"
+
+                SegmentError err ->
+                    E.text err
+
+                SegmentNone ->
                     E.text "Segment data not loaded, or not yet."
 
-                Just response ->
-                    case response of
-                        Ok segment ->
-                            E.text segment.name
+                SegmentOk segment ->
+                    E.text segment.name
 
-                        Err err ->
-                            E.text <| httpErrorString err
+                SegmentNotInRoute segment ->
+                    E.text segment.name
+
+        stravaLink =
+            let
+                stravaUrl =
+                    Builder.crossOrigin stravaApiRoot [ "routes", model.externalRouteId ] []
+            in
+            if model.gpxSource == GpxStrava then
+                column [ Font.size 14, padding 5 ]
+                    [ displayName model.trackName
+                    , E.newTabLink [ Font.color stravaOrange ]
+                        { url = stravaUrl
+                        , label = E.text "View on Strava"
+                        }
+                    ]
+
+            else
+                E.none
     in
     column [ spacing 10, padding 10, width fill ]
-        [ row []
+        [ stravaLink
+        , row [ spacing 10 ]
             [ segmentIdField
             , segmentButton
             ]

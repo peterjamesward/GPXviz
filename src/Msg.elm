@@ -87,6 +87,7 @@ type Msg
     | OAuthMessage OAuthMsg
     | ToggleMapNodesDraggable Bool
     | AutoFix (List Int)
+    | UserChangedFilename String
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =

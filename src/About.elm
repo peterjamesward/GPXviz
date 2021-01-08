@@ -15,15 +15,19 @@ aboutText =
 
 ## Changes
 
-- _FIXED STRAVA ROUTE LOADING BUG_
+- Will not allow connection to Strava if you have unsaved edits.
 
-- Bug fix: Switching back from Map view, About text now scrolls properly.
+- Will not allow pasting of Strava segment into a route that does not contain the segment.
+
+- About text now scrolls properly after switching back from Map view.
 
 - View selection menu is not visible until a route is loaded.
 
-- Flythrough now works (again) in all modes except Map (no, it won't).
+- Fly-through now works in all modes except Map.
 
-- Graphics are by default simplified on routes with over 2000 track points. You can turn these options back on in the Visual Styles tab. It seems to help the graphics performance, but loading and other operations may still be slow.
+- You can now edit the filename at the top under the route name.
+
+- Saved files no longer have a timestamp attached. This was making file names too long for Magic Roads. Your system will now either add a suffix to avoid overwriting or ask you to confirm that the file can be overwritten. In either case, it's best not to have your master GPX files in the same place as your Downloads.
 
 ## Guidance on use
 
