@@ -35,7 +35,7 @@ import Json.Decode as E exposing (..)
 import Length exposing (inMeters, meters)
 import List exposing (drop, take)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
-import MapboxStuff exposing (zoomLevelFromBoundingBox)
+import MapboxStuff exposing (metresPerPixel, zoomLevelFromBoundingBox)
 import Msg exposing (..)
 import NodesAndRoads exposing (..)
 import OAuthPorts exposing (randomBytes)
@@ -237,10 +237,10 @@ init mflags origin navigationKey =
       , nodeArray = Array.empty
       , roadArray = Array.empty
       , zoomLevelOverview = 1.0
-      , zoomLevelFirstPerson = 1.0
-      , zoomLevelThirdPerson = 2.0
-      , zoomLevelProfile = 1.0
-      , zoomLevelPlan = 1.0
+      , zoomLevelFirstPerson = 12.0
+      , zoomLevelThirdPerson = 12.0
+      , zoomLevelProfile = 12.0
+      , zoomLevelPlan = 12.0
       , displayOptions = defaultDisplayOptions
       , abruptGradientChanges = []
       , abruptBearingChanges = []
@@ -1307,7 +1307,7 @@ update msg model =
                         FirstPersonView ->
                             { model
                                 | zoomLevelFirstPerson =
-                                    clamp 1.0 5.0 <|
+                                    clamp 0.0 22.0 <|
                                         model.zoomLevelFirstPerson
                                             + deltaY
                                             * factor
@@ -1316,7 +1316,7 @@ update msg model =
                         ThirdPersonView ->
                             { model
                                 | zoomLevelThirdPerson =
-                                    clamp 0.0 6.0 <|
+                                    clamp 0.0 22.0 <|
                                         model.zoomLevelThirdPerson
                                             + deltaY
                                             * factor
@@ -1325,7 +1325,7 @@ update msg model =
                         ProfileView ->
                             { model
                                 | zoomLevelProfile =
-                                    clamp 1.0 5.0 <|
+                                    clamp 0.0 22.0 <|
                                         model.zoomLevelProfile
                                             + deltaY
                                             * factor
@@ -1334,7 +1334,7 @@ update msg model =
                         PlanView ->
                             { model
                                 | zoomLevelPlan =
-                                    clamp 1.0 5.0 <|
+                                    clamp 0.0 22.0 <|
                                         model.zoomLevelPlan
                                             + deltaY
                                             * factor
@@ -2701,11 +2701,11 @@ resetViewSettings model =
     in
     { model
         | zoomLevelOverview = zoomLevel
-        , zoomLevelFirstPerson = zoomLevel
+        , zoomLevelFirstPerson = 2.0
         , zoomLevelThirdPerson = zoomLevel
         , zoomLevelProfile = zoomLevel
         , zoomLevelPlan = zoomLevel
-        , azimuth = Angle.degrees 0.0
+        , azimuth = Angle.degrees -90.0
         , elevation = Angle.degrees 30.0
         , currentNode = 0
         , markedNode = Nothing
@@ -3795,7 +3795,7 @@ firstPersonCamera model =
             Just <|
                 Camera3d.perspective
                     { viewpoint = cameraViewpoint road
-                    , verticalFieldOfView = Angle.degrees <| 120.0 / model.zoomLevelFirstPerson
+                    , verticalFieldOfView = Angle.degrees <| 120.0 / (1 + model.zoomLevelFirstPerson / 2.0)
                     }
 
         Nothing ->
@@ -4140,6 +4140,9 @@ lookupRoad model idx =
 thirdPersonCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 thirdPersonCamera model =
     let
+        latitude =
+            degrees <| Length.inMeters <| BoundingBox3d.midY model.trackPointBox
+
         camera =
             Camera3d.perspective
                 { viewpoint =
@@ -4147,10 +4150,7 @@ thirdPersonCamera model =
                         { focalPoint = focalPoint
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance =
-                            Length.meters <|
-                                10.0
-                                    ^ (5.0 - model.zoomLevelThirdPerson)
+                        , distance = Length.meters <| 1000.0 * ( metresPerPixel model.zoomLevelThirdPerson latitude)
                         }
                 , verticalFieldOfView = Angle.degrees 30.0
                 }
@@ -4394,6 +4394,6 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-        , Time.every 5000 Tick
+        , Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

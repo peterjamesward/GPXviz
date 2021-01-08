@@ -105,8 +105,8 @@ zoomSlider value msg =
         { onChange = msg
         , label =
             Input.labelHidden "Zoom"
-        , min = 1.0
-        , max = 4.0
+        , min = 0.0
+        , max = 22.0
         , step = Nothing
         , value = value
         , thumb = Input.defaultThumb
