@@ -26,8 +26,6 @@ module ToDo exposing (..)
 --NB Komoot uses the client_id:client_secret format.
 --Waiting for a response from Komoot. Need client_id.
 
---TODO: Say if filename is too long for Magic Roads. (50 chars.)
-
 --CAN'T: USABILITY - Prompt for file Save when navigating away. Should be poss now it's an Application.
 -- This seems to be impossible.
 
