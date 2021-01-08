@@ -4151,7 +4151,7 @@ thirdPersonCamera model =
                         { focalPoint = focalPoint
                         , azimuth = model.azimuth
                         , elevation = model.elevation
-                        , distance = Length.meters <| 1200.0 * ( metresPerPixel model.zoomLevelThirdPerson latitude)
+                        , distance = Length.meters <| 1200.0 * metresPerPixel model.zoomLevelThirdPerson latitude
                         }
                 , verticalFieldOfView = Angle.degrees 30.0
                 }
@@ -4223,7 +4223,7 @@ planCamera model =
                         , eyePoint = eyePoint
                         , upDirection = positiveY
                         }
-                , viewportHeight = Length.meters <| 1200.0 * ( metresPerPixel model.zoomLevelPlan latitude)
+                , viewportHeight = Length.meters <| 1200.0 * metresPerPixel model.zoomLevelPlan latitude
                 }
     in
     Just camera
@@ -4253,10 +4253,13 @@ viewCurrentNodePlanView model node =
 profileCamera : Model -> Maybe (Camera3d Length.Meters LocalCoords)
 profileCamera model =
     let
-        --focus node =
-        --    Point3d.projectOnto
-        --        Plane3d.yz
-        --        node.location
+        latitude =
+            degrees <| Length.inMeters <| BoundingBox3d.midY model.trackPointBox
+
+        trackLength =
+            Maybe.withDefault 10000.0 <|
+                Maybe.map .trackLength model.summary
+
         focus node =
             case model.flythrough of
                 Nothing ->
@@ -4284,7 +4287,10 @@ profileCamera model =
                         , eyePoint = eyePoint road.profileStartsAt
                         , upDirection = positiveZ
                         }
-                , viewportHeight = Length.meters <| 1.0 * 10.0 ^ (4.0 - model.zoomLevelProfile)
+                , viewportHeight =
+                    Length.meters <|
+                        metresPerPixel model.zoomLevelProfile latitude
+                            * (trackLength / viewMapWidth)
                 }
     in
     Maybe.map camera (Array.get model.cameraFocusProfileNode model.roadArray)
