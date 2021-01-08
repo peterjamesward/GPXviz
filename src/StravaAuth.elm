@@ -15,6 +15,7 @@ import OAuthPorts exposing (genRandomBytes)
 import OAuthTypes exposing (..)
 import StravaClientSecret
 import Url exposing (Protocol(..), Url)
+import Url.Builder as Builder
 
 
 {-| OAuth configuration.
@@ -307,6 +308,9 @@ stravaButton model msgWrapper =
     let
         styles =
             []
+
+        imgUrl =
+            Builder.relative ["images", "btn_strava_connectwith_orange.svg" ] []
     in
     case model.flow of
         Done userInfo _ ->
@@ -323,7 +327,7 @@ stravaButton model msgWrapper =
                     image
                         [ mouseOver [ alpha 0.7 ]
                         ]
-                        { src = "images/btn_strava_connectwith_orange.svg"
+                        { src = imgUrl
                         , description = "Connect to Strava"
                         }
                 }

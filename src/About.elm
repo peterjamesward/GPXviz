@@ -11,11 +11,17 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-07_
+> _This text updated 2021-01-08_
 
 ## Changes
 
 - _FIXED STRAVA ROUTE LOADING BUG_
+
+- Bug fix: Switching back from Map view, About text now scrolls properly.
+
+- View selection menu is not visible until a route is loaded.
+
+- Flythrough now works (again) in all modes except Map (no, it won't).
 
 - Graphics are by default simplified on routes with over 2000 track points. You can turn these options back on in the Visual Styles tab. It seems to help the graphics performance, but loading and other operations may still be slow.
 

@@ -163,7 +163,7 @@ type alias Model =
     , zeroLengths : List DrawingRoad -- segments that should not be here.
     , gradientChangeThreshold : Float
     , bearingChangeThreshold : Int
-    , hasBeenChanged : Bool
+    , changeCounter : Int
     , smoothingEndIndex : Maybe Int
     , undoStack : List UndoEntry
     , redoStack : List UndoEntry
@@ -246,7 +246,7 @@ init mflags origin navigationKey =
       , zeroLengths = []
       , gradientChangeThreshold = 10.0 -- Note, this is not an angle, it's a percentage (tangent).
       , bearingChangeThreshold = 90
-      , hasBeenChanged = False
+      , changeCounter = 0
       , smoothingEndIndex = Nothing
       , undoStack = []
       , redoStack = []
@@ -367,6 +367,7 @@ addToUndoStack label model =
             }
                 :: List.take 9 model.undoStack
         , redoStack = []
+        , changeCounter = model.changeCounter + 1
     }
 
 
@@ -394,7 +395,7 @@ clearTheModel model =
         , abruptGradientChanges = []
         , abruptBearingChanges = []
         , zeroLengths = []
-        , hasBeenChanged = False
+        , changeCounter = 0
         , smoothingEndIndex = Nothing
         , undoStack = []
         , redoStack = []
@@ -1133,7 +1134,7 @@ update msg model =
                 |> trackHasChanged
 
         OutputGPX ->
-            ( { model | hasBeenChanged = False }
+            ( { model | changeCounter = 0 }
             , outputGPX model
             )
 
@@ -1165,6 +1166,7 @@ update msg model =
                         , redoStack = { action | trackPoints = model.trackPoints } :: model.redoStack
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
+                        , changeCounter = model.changeCounter - 1
                     }
                         |> trackHasChanged
 
@@ -1180,6 +1182,7 @@ update msg model =
                         , undoStack = { action | trackPoints = model.trackPoints } :: model.undoStack
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
+                        , changeCounter = model.changeCounter + 1
                     }
                         |> trackHasChanged
 
@@ -2578,7 +2581,7 @@ parseGPXintoModel content model =
         | gpx = Just content
         , trackName = parseTrackName content
         , trackPoints = filterCloseTrackPoints (parseTrackPoints content)
-        , hasBeenChanged = False
+        , changeCounter = 0
     }
 
 
@@ -3095,7 +3098,10 @@ view model =
                 []
                 [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
                     [ loadButton
-                    , stravaButton model.stravaAuthentication wrapAuthMessage
+                    , if model.changeCounter == 0 then
+                         stravaButton model.stravaAuthentication wrapAuthMessage
+                      else
+                        E.text "Save your work before\nconnecting to Strava"
                     , stravaRouteOption model
                     , viewSourceDetails model
                     , saveButtonIfChanged model

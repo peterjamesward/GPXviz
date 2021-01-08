@@ -1,24 +1,21 @@
 module ToDo exposing (..)
 
---CAN'T: USABILITY - Prompt for file Save when navigating away. Should be poss now it's an Application.
--- This seems to be impossible.
+--TODO: USABILITY - Save As ... (make filename an input field !!)
 
---TODO: USABILITY - Save As ...
+--TODO: When segment header loads, say if it's not in the bounding box.
+-- and provide optiom to unsert between markers. (scale and rotate!)
 
---TODO: BUG - About text won't scroll after viewing map. Weird rendering thing?
--- This is weird browser shit.
-
---TODO: Sponsorship link.
-
---TODO: Fly-through should work in 3rd per. Used to.
+--TODO: Autofix to work on selection also. (?)
 
 --TODO: Better zoom reset on new model load.
 
---TODO: Autofix to work on selection also. (?)
+--TODO: Sponsorship link.
 
 --TODO: Put Autofix and Simplify on new Tab?
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
+-- Loads of functions can move -- just need to explicitly list the fields they need
+-- in the type signature, instead of using Model!
 
 --TODO: Debt. Reduce duplication.
 
@@ -35,5 +32,8 @@ module ToDo exposing (..)
 --Waiting for a response from Komoot. Need client_id.
 
 --TODO: Say if filename is too long for Magic Roads. (50 chars.)
+
+--CAN'T: USABILITY - Prompt for file Save when navigating away. Should be poss now it's an Application.
+-- This seems to be impossible.
 
 
