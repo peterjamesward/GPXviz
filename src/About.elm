@@ -11,27 +11,15 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-08 (late afternoon)_
+> _This text updated 2021-01-09_
 
 ## Changes
 
-- Harmonization of zoom levels. They are now consistent with the Map view. Zoom out to see the whole globe, or zoom in to see a single track point. Makes a better job at setting the zoom when you switch routes.
+- Stopped using Web Mercator projection. The Map uses it, but it messes with the shape of bends, especially in the latitudes popular with cyclists (all of them). My preferred projection is locally "flat" and is quite adequate for small regions, such as a typical bike ride. If you have a ride that is circular in real-life, it will look like a circle, not an egg.
 
-- Changed orientation of third person view to match the Map projection.
+- Consistent with projection change, Bend Smoother Mk III. Generally seems to produce cleaner entry and exit.
 
-- Will not allow connection to Strava if you have unsaved edits.
-
-- Will not allow pasting of Strava segment into a route that does not contain the segment.
-
-- About text now scrolls properly after switching back from Map view.
-
-- View selection menu is not visible until a route is loaded.
-
-- Fly-through now works in all modes except Map.
-
-- You can now edit the filename at the top under the route name.
-
-- Saved files no longer have a timestamp attached. This was making file names too long for Magic Roads. Your system will now either add a suffix to avoid overwriting or ask you to confirm that the file can be overwritten. In either case, it's best not to have your master GPX files in the same place as your Downloads.
+- NB, the bend smooth preview (yellow line) sometimes does not show on the map. A click on the track usually wakes it up.
 
 ## Guidance on use
 

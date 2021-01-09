@@ -15,8 +15,8 @@ type alias SmoothedBend =
     { nodes : List (Point3d Length.Meters LocalCoords) -- make ourselves work entirely in Meters LocalCoords
     , centre : Point2d Length.Meters LocalCoords
     , radius : Float
-    , startIndex : Int -- First node to be replaced if bend is smoothed
-    , endIndex : Int -- ... and last
+    , startIndex : Int -- Lead-in node that is NOT to be replaced
+    , endIndex : Int -- ... and lead-out, not to be replaced.
     }
 
 
@@ -153,14 +153,15 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             (elevationArcEnd - elevationArcStart) / toFloat numberPointsOnArc
 
         newArcPoints =
-            List.map2
-                (\seg i ->
-                    withElevation
-                        (elevationArcStart + toFloat i * eleIncrement)
-                        (LineSegment2d.midpoint seg)
-                )
-                segments
-                (List.range 0 (numberPointsOnArc - 1))
+            List.drop 1 <|
+                List.map2
+                    (\seg i ->
+                        withElevation
+                            (elevationArcStart + toFloat i * eleIncrement)
+                            (LineSegment2d.startPoint seg)
+                    )
+                    segments
+                    (List.range 0 (numberPointsOnArc - 1))
     in
     { nodes =
         [ tang1 ]

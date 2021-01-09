@@ -1,9 +1,5 @@
 module ToDo exposing (..)
 
---TODO; Stop using Mercator. Use locally flat (cos).
---- map uses TP so unaffected.
---- Do bend smoothing in LocalCoords and convert back to GPXCoords.
---- Rationalise divergent band smoother case.
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 -- Loads of functions can move -- just need to explicitly list the fields they need
@@ -28,3 +24,5 @@ module ToDo exposing (..)
 --Waiting for a response from Komoot. Need client_id.
 
 --TODO: Still worth checking if we can trap any navigate-away actions.
+
+%% this stops auto format

@@ -43,7 +43,7 @@ import OAuthTypes as O exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
-import Point3d exposing (Point3d, distanceFromAxis, yCoordinate, zCoordinate)
+import Point3d exposing (Point3d, distanceFromAxis, xCoordinate, yCoordinate, zCoordinate)
 import Rectangle2d
 import Scene3d exposing (Entity)
 import ScenePainter exposing (render3dScene)
@@ -1490,6 +1490,7 @@ trackHasChanged model =
         |> deriveProblems
         |> lookForSimplifications
         |> clearTerrain
+        |> tryBendSmoother
         |> deriveVaryingVisualEntities
         |> synchroniseMap
 
@@ -1535,11 +1536,30 @@ nodeToTrackPoint trackCenter node =
     --projectedY lon lat =
     --    lat * metresPerDegree
     let
+        ( centerX, centerY ) =
+            -- It's just a lat/long in a Point3d wrapper!
+            ( Length.inMeters <| xCoordinate trackCenter
+            , Length.inMeters <| yCoordinate trackCenter )
+
+        projectedX lon lat =
+            lon * metresPerDegree * cos (degrees lat)
+
+        projectedY lon lat =
+            lat * metresPerDegree
+
+        ( projectedCentreX, projectedCentreY ) =
+            ( projectedX centerX centerY
+            , projectedY centerX centerY )
+
         newLat =
-            (Length.inMeters <| yCoordinate node) / metresPerDegree
+            (projectedCentreY + (Length.inMeters <| yCoordinate node))
+                / metresPerDegree
     in
     { lat = newLat
-    , lon = (Length.inMeters <| yCoordinate node) / metresPerDegree / cos newLat
+    , lon =
+        ((Length.inMeters <| xCoordinate node) + projectedCentreX)
+            / metresPerDegree
+            / cos (degrees newLat)
     , ele = Length.inMeters <| zCoordinate node
     , idx = 0
     }
@@ -2508,7 +2528,7 @@ smoothBend model =
         Just bend ->
             let
                 numCurrentPoints =
-                    abs (model.currentNode - marker)
+                    abs (model.currentNode - marker) - 1
 
                 numNewPoints =
                     List.length bend.nodes
@@ -2536,9 +2556,9 @@ smoothBend model =
                     { m
                         | trackPoints =
                             reindexTrackpoints <|
-                                List.take bend.startIndex m.trackPoints
+                                List.take (bend.startIndex + 1) m.trackPoints
                                     ++ newTrackPoints
-                                    ++ List.drop (1 + bend.endIndex) m.trackPoints
+                                    ++ List.drop (bend.endIndex) m.trackPoints
                         , smoothedBend = Nothing
                         , currentNode = newCurrent
                         , markedNode = Just newMark

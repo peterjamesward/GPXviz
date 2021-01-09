@@ -409,7 +409,7 @@ makeVaryingVisualEntities context _ =
                 _ ->
                     []
 
-        bendInRoadSegments bend =
+        bendAsRoadSegments bend =
             List.map2
                 (\n1 n2 ->
                     { startsAt = { location = n1 }
@@ -427,7 +427,7 @@ makeVaryingVisualEntities context _ =
                 (List.drop 1 context.smoothedBend)
 
         suggestedBend =
-            List.map (nudgeElement Color.lightYellow) (bendInRoadSegments context.smoothedBend)
+            List.map (nudgeElement Color.lightYellow) (bendAsRoadSegments context.smoothedBend)
 
         nudges =
             List.map (nudgeElement Color.lightOrange) context.nudgedRoads
