@@ -15,6 +15,10 @@ type LocalCoords
     = LocalCoords
 
 
+type Mercator
+    = Mercator
+
+
 type alias ScalingInfo =
     { nodeBox : BoundingBox3d Length.Meters LocalCoords
     , trackPointBox : BoundingBox3d Length.Meters GPXCoords
@@ -72,21 +76,21 @@ deriveNodes box tps =
             Point3d.toTuple Length.inMeters <|
                 BoundingBox3d.centerPoint box
 
-        mercatorX lon =
-            lon * 20037508.34 / 180
+        projectedX lon lat =
+            lon * metresPerDegree * cos (degrees lat)
 
-        mercatorY lat =
-            (20037508.34 / pi) * logBase e (tan (degrees (45 + lat / 2.0)))
+        projectedY lon lat =
+            lat * metresPerDegree
 
         ( midX, midY ) =
-            ( mercatorX midLon, mercatorY midLat )
+            ( projectedX midLon midLat, projectedY midLon midLat )
 
         prepareDrawingNode tp =
             { trackPoint = tp
             , location =
                 Point3d.meters
-                    (mercatorX tp.lon - midX)
-                    (mercatorY tp.lat - midY)
+                    (projectedX tp.lon tp.lat - midX)
+                    (projectedY tp.lon tp.lat - midY)
                     tp.ele
             , costMetric = Nothing
             }
@@ -148,7 +152,7 @@ deriveRoads drawingNodes =
                                 | location =
                                     Point3d.xyz
                                         (Length.meters 0.0)
-                                        (Length.meters <| dist / 5.0)
+                                        (Length.meters dist)
                                         (Point3d.zCoordinate startNode.location)
                             }
 
@@ -158,7 +162,7 @@ deriveRoads drawingNodes =
                                     --TODO: The divide by 5.0 should not be happening here.
                                     Point3d.xyz
                                         (Length.meters 0.0)
-                                        (Length.meters <| (dist + road.length) / 5.0)
+                                        (Length.meters <| dist + road.length)
                                         (Point3d.zCoordinate endNode.location)
                             }
                     in

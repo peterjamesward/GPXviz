@@ -43,7 +43,7 @@ import OAuthTypes as O exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
-import Point3d exposing (Point3d, distanceFromAxis)
+import Point3d exposing (Point3d, distanceFromAxis, yCoordinate, zCoordinate)
 import Rectangle2d
 import Scene3d exposing (Entity)
 import ScenePainter exposing (render3dScene)
@@ -169,7 +169,6 @@ type alias Model =
     , undoStack : List UndoEntry
     , redoStack : List UndoEntry
     , smoothedBend : Maybe SmoothedBend -- computed track points
-    , smoothedRoads : List DrawingRoad -- derived road from above,
     , bendTrackPointSpacing : Float -- How far apart TPs are when bend smoothed.
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
@@ -252,7 +251,6 @@ init mflags origin navigationKey =
       , undoStack = []
       , redoStack = []
       , smoothedBend = Nothing
-      , smoothedRoads = []
       , bendTrackPointSpacing = 3
       , bumpinessFactor = 0.0
       , flythrough = Nothing
@@ -401,7 +399,6 @@ clearTheModel model =
         , undoStack = []
         , redoStack = []
         , smoothedBend = Nothing
-        , smoothedRoads = []
         , flythrough = Nothing
         , loopiness = NotALoop 0.0
         , nudgedNodeRoads = []
@@ -1526,6 +1523,36 @@ centreViewOnCurrentNode model =
             model
 
 
+nodeToTrackPoint :
+    Point3d Length.Meters GPXCoords
+    -> Point3d Length.Meters LocalCoords
+    -> TrackPoint
+nodeToTrackPoint trackCenter node =
+    -- This is the inverse of our map projection ...
+    --projectedX lon lat =
+    --    lon * metresPerDegree * cos (degrees lat)
+    --
+    --projectedY lon lat =
+    --    lat * metresPerDegree
+    let
+        newLat =
+            (Length.inMeters <| yCoordinate node) / metresPerDegree
+    in
+    { lat = newLat
+    , lon = (Length.inMeters <| yCoordinate node) / metresPerDegree / cos newLat
+    , ele = Length.inMeters <| zCoordinate node
+    , idx = 0
+    }
+
+
+nodesToTrackPoints :
+    Point3d Length.Meters GPXCoords
+    -> List (Point3d Length.Meters LocalCoords)
+    -> List TrackPoint
+nodesToTrackPoints trackCenter nodes =
+    List.map (nodeToTrackPoint trackCenter) nodes
+
+
 updateMapVaryingElements : Model -> Cmd Msg
 updateMapVaryingElements model =
     let
@@ -1541,20 +1568,27 @@ updateMapVaryingElements model =
         nudgedTrackPoints =
             List.map (.startsAt >> .trackPoint) (List.take 1 model.nudgedNodeRoads)
                 ++ List.map (.endsAt >> .trackPoint) model.nudgedNodeRoads
+
+        centre =
+            BoundingBox3d.centerPoint model.trackPointBox
     in
     case ( currentNode, markedNode ) of
         ( Just node1, Just node2 ) ->
             MapController.addMarkersToMap
                 ( node1.trackPoint.lon, node1.trackPoint.lat )
                 (Just ( node2.trackPoint.lon, node2.trackPoint.lat ))
-                (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
+                (Maybe.withDefault [] <|
+                    Maybe.map (.nodes >> nodesToTrackPoints centre) model.smoothedBend
+                )
                 nudgedTrackPoints
 
         ( Just node1, Nothing ) ->
             MapController.addMarkersToMap
                 ( node1.trackPoint.lon, node1.trackPoint.lat )
                 Nothing
-                (Maybe.withDefault [] <| Maybe.map .trackPoints model.smoothedBend)
+                (Maybe.withDefault [] <|
+                    Maybe.map (.nodes >> nodesToTrackPoints centre) model.smoothedBend
+                )
                 nudgedTrackPoints
 
         _ ->
@@ -2317,7 +2351,6 @@ tryBendSmoother model =
         failed =
             { model
                 | smoothedBend = Nothing
-                , smoothedRoads = []
                 , nudgedNodeRoads = []
                 , nudgeValue = 0.0
                 , verticalNudgeValue = 0.0
@@ -2341,27 +2374,13 @@ tryBendSmoother model =
         case ( entrySegment, exitSegment ) of
             ( Just road1, Just road2 ) ->
                 let
-                    ( pa, pb ) =
-                        ( road1.startsAt.trackPoint
-                        , road1.endsAt.trackPoint
-                        )
-
-                    ( pc, pd ) =
-                        ( road2.startsAt.trackPoint
-                        , road2.endsAt.trackPoint
-                        )
-
-                    newTrack =
-                        bendIncircle model.bendTrackPointSpacing pa pb pc pd
+                    newBend =
+                        bendIncircle model.bendTrackPointSpacing road1 road2
                 in
-                case newTrack of
-                    Just track ->
+                case newBend of
+                    Just bend ->
                         { model
-                            | smoothedBend = newTrack
-                            , smoothedRoads =
-                                deriveRoads <|
-                                    deriveNodes model.trackPointBox <|
-                                        track.trackPoints
+                            | smoothedBend = Just bend
                             , nudgedNodeRoads = []
                             , nudgeValue = 0.0
                             , verticalNudgeValue = 0.0
@@ -2470,8 +2489,8 @@ smoothGradient model gradient =
 
 smoothBend : Model -> Model
 smoothBend model =
-    -- The replacement bend is a pre-computed list of trackpoints,
-    -- so we need only splice them in.
+    -- The replacement bend is a pre-computed list of Point3d,
+    -- We splice them in as Trackpoints.
     let
         undoMessage bend =
             "bend smoothing\nfrom "
@@ -2492,7 +2511,12 @@ smoothBend model =
                     abs (model.currentNode - marker)
 
                 numNewPoints =
-                    List.length bend.trackPoints
+                    List.length bend.nodes
+
+                newTrackPoints =
+                    nodesToTrackPoints
+                        (BoundingBox3d.centerPoint model.trackPointBox)
+                        bend.nodes
 
                 newCurrent =
                     if model.currentNode > bend.startIndex then
@@ -2513,10 +2537,9 @@ smoothBend model =
                         | trackPoints =
                             reindexTrackpoints <|
                                 List.take bend.startIndex m.trackPoints
-                                    ++ bend.trackPoints
+                                    ++ newTrackPoints
                                     ++ List.drop (1 + bend.endIndex) m.trackPoints
                         , smoothedBend = Nothing
-                        , smoothedRoads = []
                         , currentNode = newCurrent
                         , markedNode = Just newMark
                     }
@@ -2891,7 +2914,7 @@ deriveStaticVisualEntities model =
                         Nothing
             , nodeBox = model.nodeBox
             , viewingMode = model.viewingMode
-            , smoothedBend = model.smoothedRoads
+            , smoothedBend = Maybe.withDefault [] <| Maybe.map .nodes model.smoothedBend
             , horizontalNudge = model.nudgeValue
             , verticalNudge = model.verticalNudgeValue
             , nudgedRoads = model.nudgedNodeRoads
@@ -2925,7 +2948,7 @@ deriveTerrain model =
                         Nothing
             , nodeBox = model.nodeBox
             , viewingMode = model.viewingMode
-            , smoothedBend = model.smoothedRoads
+            , smoothedBend = Maybe.withDefault [] <| Maybe.map .nodes model.smoothedBend
             , horizontalNudge = model.nudgeValue
             , verticalNudge = model.verticalNudgeValue
             , nudgedRoads = model.nudgedNodeRoads
@@ -2963,7 +2986,7 @@ deriveVaryingVisualEntities model =
                         Nothing
             , nodeBox = model.nodeBox
             , viewingMode = model.viewingMode
-            , smoothedBend = model.smoothedRoads
+            , smoothedBend = Maybe.withDefault [] <| Maybe.map .nodes model.smoothedBend
             , nudgedRoads = model.nudgedNodeRoads
             , nudgedRegionStart = Just model.nudgedRegionStart
             , horizontalNudge = model.nudgeValue

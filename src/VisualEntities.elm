@@ -5,7 +5,7 @@ import BoundingBox3d
 import Color
 import Cone3d
 import Cylinder3d
-import Direction3d exposing (negativeZ, positiveZ)
+import Direction3d exposing (negativeZ, positiveZ, xComponent, yComponent)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import LineSegment3d
@@ -409,13 +409,30 @@ makeVaryingVisualEntities context _ =
                 _ ->
                     []
 
+        bendInRoadSegments bend =
+            List.map2
+                (\n1 n2 ->
+                    { startsAt = { location = n1 }
+                    , endsAt = { location = n2 }
+                    , bearing =
+                        case Direction3d.from n1 n2 of
+                            Just direction ->
+                                atan2 (yComponent direction) (xComponent direction)
+
+                            Nothing ->
+                                0.0
+                    }
+                )
+                context.smoothedBend
+                (List.drop 1 context.smoothedBend)
+
         suggestedBend =
-            List.map (bendElement Color.lightYellow) context.smoothedBend
+            List.map (nudgeElement Color.lightYellow) (bendInRoadSegments context.smoothedBend)
 
         nudges =
-            List.map (bendElement Color.lightOrange) context.nudgedRoads
+            List.map (nudgeElement Color.lightOrange) context.nudgedRoads
 
-        bendElement colour road =
+        nudgeElement colour road =
             let
                 ( halfX, halfY ) =
                     -- Width of the line.
