@@ -6,7 +6,7 @@ import Angle exposing (Angle, inDegrees)
 import Area
 import Array exposing (Array)
 import AutoFix exposing (autoFix)
-import BendSmoother exposing (SmoothedBend, bendIncircle)
+import BendSmoother exposing (SmoothedBend, lookForSmoothBendOption)
 import BoundingBox3d exposing (BoundingBox3d)
 import Browser exposing (application)
 import Browser.Navigation exposing (Key)
@@ -2375,7 +2375,7 @@ tryBendSmoother model =
             ( Just road1, Just road2 ) ->
                 let
                     newBend =
-                        bendIncircle model.bendTrackPointSpacing road1 road2
+                        lookForSmoothBendOption model.bendTrackPointSpacing road1 road2
                 in
                 case newBend of
                     Just bend ->

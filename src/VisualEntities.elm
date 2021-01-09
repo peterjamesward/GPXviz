@@ -417,7 +417,7 @@ makeVaryingVisualEntities context _ =
                     , bearing =
                         case Direction3d.from n1 n2 of
                             Just direction ->
-                                atan2 (yComponent direction) (xComponent direction)
+                                atan2 (xComponent direction) (yComponent direction)
 
                             Nothing ->
                                 0.0

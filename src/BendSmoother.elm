@@ -7,13 +7,13 @@ import Length exposing (Meters, inMeters)
 import LineSegment2d
 import NodesAndRoads exposing (DrawingRoad, LocalCoords)
 import Point2d exposing (Point2d)
-import Point3d exposing (Point3d, xCoordinate, yCoordinate)
+import Point3d exposing (Point3d, xCoordinate, yCoordinate, zCoordinate)
 import Polyline2d
 
 
 type alias SmoothedBend =
     { nodes : List (Point3d Length.Meters LocalCoords) -- make ourselves work entirely in Meters LocalCoords
-    , centre : (Point2d Length.Meters LocalCoords)
+    , centre : Point2d Length.Meters LocalCoords
     , radius : Float
     , startIndex : Int -- First node to be replaced if bend is smoothed
     , endIndex : Int -- ... and last
@@ -54,8 +54,8 @@ isAfter r p =
     antiInterpolate p r.startAt r.endsAt > 1.0
 
 
-bendIncircle : Float -> DrawingRoad -> DrawingRoad -> Maybe SmoothedBend
-bendIncircle trackPointSpacing roadAB roadCD =
+lookForSmoothBendOption : Float -> DrawingRoad -> DrawingRoad -> Maybe SmoothedBend
+lookForSmoothBendOption trackPointSpacing roadAB roadCD =
     let
         ( roadIn, roadOut ) =
             ( roadToGeometry roadAB, roadToGeometry roadCD )
@@ -78,7 +78,7 @@ bendIncircle trackPointSpacing roadAB roadCD =
     Maybe.map (makeSmoothBend trackPointSpacing roadAB roadCD) arc
 
 
-withoutElevation : (Point3d Length.Meters LocalCoords) -> (Point2d Length.Meters LocalCoords)
+withoutElevation : Point3d Length.Meters LocalCoords -> Point2d Length.Meters LocalCoords
 withoutElevation p3 =
     let
         { x, y, z } =
@@ -87,7 +87,7 @@ withoutElevation p3 =
     Point2d.fromMeters { x = x, y = y }
 
 
-withElevation : Float -> (Point2d Length.Meters LocalCoords) -> (Point3d Length.Meters LocalCoords)
+withElevation : Float -> Point2d Length.Meters LocalCoords -> Point3d Length.Meters LocalCoords
 withElevation elevation p2 =
     let
         { x, y } =
@@ -123,34 +123,40 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             , G.distance p2 (toPoint roadCD.startsAt.location)
             )
 
-        (elevationTang1, elevationTang2) =
-             ( distancePaP1 / roadAB.length
-             , distanceP2Pc / roadCD.length)
+        ( fractionalDistanceToTang1, fractionalDistanceToTang2 ) =
+            ( distancePaP1 / roadAB.length
+            , distanceP2Pc / roadCD.length
+            )
 
         tang1 =
             Point3d.interpolateFrom
                 roadAB.startsAt.location
                 roadAB.endsAt.location
-                elevationTang1
+                fractionalDistanceToTang1
 
         tang2 =
             Point3d.interpolateFrom
                 roadCD.startsAt.location
                 roadCD.endsAt.location
-                elevationTang2
+                fractionalDistanceToTang2
+
+        ( elevationArcStart, elevationArcEnd ) =
+            ( Length.inMeters <| zCoordinate tang1
+            , Length.inMeters <| zCoordinate tang2
+            )
 
         segments =
             Arc2d.segments numberPointsOnArc arc
                 |> Polyline2d.segments
 
         eleIncrement =
-            (elevationTang2 - elevationTang1) / toFloat numberPointsOnArc
+            (elevationArcEnd - elevationArcStart) / toFloat numberPointsOnArc
 
         newArcPoints =
             List.map2
                 (\seg i ->
                     withElevation
-                        (elevationTang1 + toFloat i * eleIncrement)
+                        (elevationArcStart + toFloat i * eleIncrement)
                         (LineSegment2d.midpoint seg)
                 )
                 segments
@@ -161,7 +167,7 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             ++ newArcPoints
             ++ [ tang2 ]
     , centre = Arc2d.centerPoint arc
-    , radius = (inMeters <| Arc2d.radius arc)
+    , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index
     , endIndex = roadCD.index + 1
     }
@@ -201,7 +207,9 @@ divergentRoadsArc p r1 r2 =
                     { startAt = p, endsAt = centre }
 
                 midArcPoint =
-                    pointAlongRoad bisectorAsRoad radius
+                    pointAlongRoad
+                        bisectorAsRoad
+                        (radius + distance p centre)
             in
             Arc2d.throughPoints
                 (Point2d.meters firstTangentPoint.x firstTangentPoint.y)
