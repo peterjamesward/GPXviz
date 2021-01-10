@@ -1,7 +1,6 @@
 module ToDo exposing (..)
 
 --TODO: Call an API to log the basic details which we will pull from the headers.
---TODO: Parallel lines case in bend smoother.
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 -- Loads of functions can move -- just need to explicitly list the fields they need

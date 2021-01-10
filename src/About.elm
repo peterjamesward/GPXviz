@@ -11,11 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-09_
+> _This text updated 2021-01-10_
 
 ## Changes
 
 - Nudging a group of points sideways better preserves the wiggles.
+
+- Bend smoother _may_ now offer a bend when the entry and exit roads are parallel. This was a special case not previously handled.
 
 ## Guidance on use
 
