@@ -1539,7 +1539,8 @@ nodeToTrackPoint trackCenter node =
         ( centerX, centerY ) =
             -- It's just a lat/long in a Point3d wrapper!
             ( Length.inMeters <| xCoordinate trackCenter
-            , Length.inMeters <| yCoordinate trackCenter )
+            , Length.inMeters <| yCoordinate trackCenter
+            )
 
         projectedX lon lat =
             lon * metresPerDegree * cos (degrees lat)
@@ -1549,7 +1550,8 @@ nodeToTrackPoint trackCenter node =
 
         ( projectedCentreX, projectedCentreY ) =
             ( projectedX centerX centerY
-            , projectedY centerX centerY )
+            , projectedY centerX centerY
+            )
 
         newLat =
             (projectedCentreY + (Length.inMeters <| yCoordinate node))
@@ -1788,16 +1790,23 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
 
         getBearingForNode : DrawingNode -> Float
         getBearingForNode node =
-            -- We need roads only to get the bearing that we use to nudge sideways.
-            if node.trackPoint.idx < Array.length model.roadArray then
-                Array.get node.trackPoint.idx model.roadArray
-                    |> Maybe.map .bearing
-                    |> Maybe.withDefault 0.0
+            let
+                precedingRoad =
+                    Array.get (node.trackPoint.idx - 1) model.roadArray
 
-            else
-                Array.get (Array.length model.roadArray - 1) model.roadArray
-                    |> Maybe.map .bearing
-                    |> Maybe.withDefault 0.0
+                followingRoad =
+                    Array.get node.trackPoint.idx model.roadArray
+
+                neighbouringRoads =
+                    [ precedingRoad, followingRoad ]
+
+                sumBearings =
+                    List.sum <| List.filterMap (Maybe.map .bearing) neighbouringRoads
+
+                numBearings =
+                    List.length <| List.filterMap (Maybe.map .bearing) neighbouringRoads
+            in
+            sumBearings / toFloat numBearings
 
         unmovedEndPoint =
             -- Only if we are not at the end of the track.
@@ -2558,7 +2567,7 @@ smoothBend model =
                             reindexTrackpoints <|
                                 List.take (bend.startIndex + 1) m.trackPoints
                                     ++ newTrackPoints
-                                    ++ List.drop (bend.endIndex) m.trackPoints
+                                    ++ List.drop bend.endIndex m.trackPoints
                         , smoothedBend = Nothing
                         , currentNode = newCurrent
                         , markedNode = Just newMark

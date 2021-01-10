@@ -15,11 +15,7 @@ aboutText =
 
 ## Changes
 
-- Stopped using Web Mercator projection. The Map uses it, but it messes with the shape of bends, especially in the latitudes popular with cyclists (all of them). My preferred projection is locally "flat" and is quite adequate for small regions, such as a typical bike ride. If you have a ride that is circular in real-life, it will look like a circle, not an egg.
-
-- Consistent with projection change, Bend Smoother Mk III. Generally seems to produce cleaner entry and exit.
-
-- NB, the bend smooth preview (yellow line) sometimes does not show on the map. A click on the track usually wakes it up.
+- Nudging a group of points sideways better preserves the wiggles.
 
 ## Guidance on use
 
