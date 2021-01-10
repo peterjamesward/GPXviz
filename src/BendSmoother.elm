@@ -269,5 +269,54 @@ convergentRoadsArc p r1 r2 =
 
 
 parallelFindSemicircle : Road -> Road -> Maybe (Arc2d Meters LocalCoords)
-parallelFindSemicircle _ _ =
-    Nothing
+parallelFindSemicircle r1 r2 =
+    let
+        ( ( pa, pb ), ( pc, pd ) ) =
+            ( ( r1.startAt, r1.endsAt )
+            , ( r2.startAt, r2.endsAt )
+            )
+
+        ( midAB, midBC ) =
+            ( interpolateLine 0.5 pa pb
+            , interpolateLine 0.5 pb pc
+            )
+
+        ( midCD, midDA ) =
+            ( interpolateLine 0.5 pc pd
+            , interpolateLine 0.5 pd pa
+            )
+
+        middle =
+            -- As lines are parallel, we can use this as the circle centre.
+            interpolateLine 0.5 midBC midDA
+
+        centreLine =
+            { startAt = middle, endsAt = midBC }
+
+        ( r1Equation, r2Equation ) =
+            ( lineEquationFromTwoPoints pa pb, lineEquationFromTwoPoints pc pd )
+
+        ( radiusToFirstTangentPoint, radiusToSecondTangentPoint ) =
+            ( linePerpendicularTo r1Equation middle, linePerpendicularTo r2Equation middle )
+
+        ( firstTangentPoint, secondTangentPoint ) =
+            ( lineIntersection r1Equation radiusToFirstTangentPoint
+            , lineIntersection r2Equation radiusToSecondTangentPoint
+            )
+    in
+    case ( firstTangentPoint, secondTangentPoint ) of
+        ( Just t1, Just t2 ) ->
+            let
+                radius =
+                    distance middle t1
+
+                midArcPoint =
+                    pointAlongRoad centreLine radius
+            in
+            Arc2d.throughPoints
+                (Point2d.meters t1.x t1.y)
+                (Point2d.meters midArcPoint.x midArcPoint.y)
+                (Point2d.meters t2.x t2.y)
+
+        _ ->
+            Nothing
