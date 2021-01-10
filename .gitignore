@@ -6,3 +6,5 @@ Main.js
 index.html
 src/StravaClientSecret.elm
 StravaClientSecret.elm
+src/IpStackKey.elm
+IpStackKey.elm

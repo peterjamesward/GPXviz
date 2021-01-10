@@ -26,6 +26,7 @@ import File.Download as Download
 import File.Select as Select
 import FlatColors.FlatUIPalette exposing (wetAsphalt)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
+import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
@@ -37,6 +38,7 @@ import List exposing (drop, take)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import MapboxStuff exposing (metresPerPixel, zoomLevelFromBoundingBox)
 import Msg exposing (..)
+import MyIP exposing (processIpInfo, requestIpInformation)
 import NodesAndRoads exposing (..)
 import OAuthPorts exposing (randomBytes)
 import OAuthTypes as O exposing (..)
@@ -196,6 +198,7 @@ type alias Model =
     , stravaAuthentication : O.Model
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
+    , ipInfo : Maybe IpInfo
     }
 
 
@@ -278,8 +281,13 @@ init mflags origin navigationKey =
       , stravaAuthentication = authData
       , mapNodesDraggable = False
       , lastHttpError = Nothing
+      , ipInfo = Nothing
       }
-    , Cmd.batch [ Task.perform AdjustTimeZone Time.here, authCmd ]
+    , Cmd.batch
+        [ Task.perform AdjustTimeZone Time.here
+        , requestIpInformation ReceivedIpDetails
+        , authCmd
+        ]
     )
 
 
@@ -1471,6 +1479,18 @@ update msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
+
+        ReceivedIpDetails response ->
+            let
+                ipInfo =
+                    MyIP.processIpInfo response
+            in
+            ( { model | ipInfo = ipInfo }
+            , MyIP.sendIpInfo IpInfoAcknowledged ipInfo
+            )
+
+        IpInfoAcknowledged _ ->
+            ( model, Cmd.none )
 
         ToggleMapNodesDraggable state ->
             ( { model | mapNodesDraggable = state }

@@ -125,6 +125,7 @@ requestStravaRoute msg routeId token =
         , tracker = Nothing
         }
 
+
 requestStravaRouteHeader : (Result Http.Error StravaRoute -> msg) -> String -> Token -> Cmd msg
 requestStravaRouteHeader msg routeId token =
     Http.request

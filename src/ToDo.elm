@@ -6,6 +6,8 @@ module ToDo exposing (..)
 -- Loads of functions can move -- just need to explicitly list the fields they need
 -- in the type signature, instead of using Model!
 
+--Start by moving out the Nudge code; it looks fairly clean.
+
 --TODO: Debt. Reduce duplication.
 
 --TODO: Autofix to work on selection also. (?)

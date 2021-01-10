@@ -3,6 +3,7 @@ module Msg exposing (..)
 import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import File exposing (File)
+import GeoCodeDecoders exposing (IpInfo, IpInfo)
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
@@ -88,6 +89,8 @@ type Msg
     | ToggleMapNodesDraggable Bool
     | AutoFix (List Int)
     | UserChangedFilename String
+    | ReceivedIpDetails (Result Http.Error IpInfo)
+    | IpInfoAcknowledged (Result Http.Error String )
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =
