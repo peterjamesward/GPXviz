@@ -25,21 +25,20 @@ import File exposing (File)
 import File.Download as Download
 import File.Select as Select
 import Filters exposing (applyWeightedAverageFilter)
-import FlatColors.FlatUIPalette exposing (wetAsphalt)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
-import Iso8601
 import Json.Decode as E exposing (..)
 import Length exposing (inMeters, meters)
 import List exposing (drop, take)
+import Loop exposing (..)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import MapboxStuff exposing (metresPerPixel, zoomLevelFromBoundingBox)
 import Msg exposing (..)
-import MyIP exposing (processIpInfo, requestIpInformation)
+import MyIP exposing (requestIpInformation)
 import NodesAndRoads exposing (..)
 import OAuthPorts exposing (randomBytes)
 import OAuthTypes as O exposing (..)
@@ -103,12 +102,6 @@ type alias UndoEntry =
     , currentNode : Int
     , markedNode : Maybe Int
     }
-
-
-type Loopiness
-    = NotALoop Float
-    | IsALoop
-    | AlmostLoop Float -- if, say, less than 200m back to start.
 
 
 type DragAction
@@ -635,6 +628,7 @@ detectHit model event =
 
 findBracketedRange : Model -> ( Int, Int )
 findBracketedRange model =
+    -- For tools that default to whole track if no range. (Some tools default to single node.)
     case model.markedNode of
         Just marker ->
             ( min model.currentNode marker, max model.currentNode marker )
@@ -1424,7 +1418,14 @@ update msg model =
                     "Weighted average filter"
 
                 replaceTrackPoints old =
-                    { old | trackPoints = applyWeightedAverageFilter model.trackPoints }
+                    { old
+                        | trackPoints =
+                            applyWeightedAverageFilter
+                                rangeStart
+                                rangeEnd
+                                model.loopiness
+                                model.trackPoints
+                    }
 
                 newModel =
                     model
@@ -4183,25 +4184,45 @@ viewGradientFixerPane model =
         [ gradientSmoothControls ]
 
 
-viewTrackPointTools : Model -> Element Msg
-viewTrackPointTools model =
+wholeTrackTextHelper model =
     let
         wholeTrack =
             case model.markedNode of
-                Just m -> m == model.currentNode
-                Nothing -> True
+                Just m ->
+                    m == model.currentNode
+
+                Nothing ->
+                    True
+
+        isLoop =
+            model.loopiness == IsALoop
     in
+    row [ spacing 5 ]
+    [ html <| FeatherIcons.toHtml [] FeatherIcons.info
+      ,  case (wholeTrack, isLoop) of
+            (True, True) ->
+                E.text "Applies to the whole route and include the start/finish."
+
+            (True, False) ->
+                E.text "Applies to the whole route but not the start/finish."
+
+            (False, True) ->
+                E.text "Applies between the marker cones, avoiding the start/finish."
+
+            (False, False) ->
+                E.text "Applies between the marker cones only."
+    ]
+
+
+viewTrackPointTools : Model -> Element Msg
+viewTrackPointTools model =
     column [ padding 10, spacing 10, centerX ] <|
         [ row [ spacing 20 ]
             [ insertNodeOptionsBox model.currentNode
             , deleteNodeButton model.currentNode
             ]
         , splitSegmentOptions model.maxSegmentSplitSize
-        , case wholeTrack of
-            True ->
-                E.text "Will apply to the whole route."
-            False ->
-                E.text "Will apply between the marker cones."
+        , wholeTrackTextHelper model
         ]
 
 
@@ -4515,6 +4536,7 @@ viewFilterControls model =
             { onPress = Just FilterWeightedAverage
             , label = E.text <| "Five point weighted average"
             }
+        , wholeTrackTextHelper model
         ]
 
 

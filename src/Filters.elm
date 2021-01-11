@@ -2,47 +2,78 @@ module Filters exposing (applyWeightedAverageFilter)
 
 import Array
 import List.Extra
+import Loop exposing (..)
 import TrackPoint exposing (TrackPoint)
 
 
-applyWeightedAverageFilter : List TrackPoint -> List TrackPoint
-applyWeightedAverageFilter points =
+
+applyWeightedAverageFilter : Int -> Int -> Loopiness -> List TrackPoint -> List TrackPoint
+applyWeightedAverageFilter start finish loopiness points =
     let
-        reversed =
-            List.reverse points
+        firstPoint =
+            List.take 1 points
+
+        numPoints =
+            List.length points
+
+        loopedPoints =
+            List.Extra.cycle (numPoints * 2) points
+
+        filteredLoop =
+            List.map5
+                (weightedAverage start finish)
+                (List.drop (numPoints - 2) loopedPoints)
+                (List.drop (numPoints - 1) loopedPoints)
+                points
+                (List.drop 1 loopedPoints)
+                (List.drop 2 loopedPoints)
 
         filtered =
             List.map5
-                weightedAverage
-                (List.take 2 points ++ points)
-                (List.take 1 points ++ points)
+                (weightedAverage start finish)
+                (firstPoint ++ firstPoint ++ points) -- So first point is averaged with itself.
+                (firstPoint ++ points)
                 points
-                (List.drop 1 points)
-                (List.drop 2 points)
-                ++ (List.reverse <| List.take 2 reversed)
+                (List.drop 1 loopedPoints)
+                (List.drop 2 loopedPoints)
 
-        reversedWithoutEnds =
-            let
-                temp =
-                    Array.fromList filtered
-            in
-            temp
-                |> Array.slice 1 (Array.length temp - 2)
-                |> Array.toList
+        withinRange =
+                Array.fromList
+                >> Array.slice (start + 1) finish
+                >> Array.toList
 
         ( fixedFirst, fixedLast ) =
-            ( List.take 1 points, List.take 1 reversed )
+            ( List.take (start + 1) points, List.drop finish points )
     in
-    fixedFirst ++ reversedWithoutEnds ++ fixedLast
+    case loopiness of
+        IsALoop ->
+            --TODO: First and last points must remain together!
+            --TODO: That they don't, suggests a logic bug.
+            fixedFirst ++ (withinRange filteredLoop) ++ fixedLast
+
+        _ ->
+            fixedFirst ++ (withinRange filtered) ++ fixedLast
 
 
-weightedAverage : TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint
-weightedAverage p0 p1 p2 p3 p4 =
-    { lon = withWeights .lon p0 p1 p2 p3 p4
-    , lat = withWeights .lat p0 p1 p2 p3 p4
-    , ele = withWeights .ele p0 p1 p2 p3 p4
-    , idx = p2.idx
-    }
+weightedAverage :
+    Int
+    -> Int
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+weightedAverage start finish p0 p1 p2 p3 p4 =
+    if p2.idx >= start && p2.idx <= finish then
+        { lon = withWeights .lon p0 p1 p2 p3 p4
+        , lat = withWeights .lat p0 p1 p2 p3 p4
+        , ele = withWeights .ele p0 p1 p2 p3 p4
+        , idx = p2.idx
+        }
+
+    else
+        p2
 
 
 withWeights :

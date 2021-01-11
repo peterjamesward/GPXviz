@@ -1,8 +1,6 @@
 module ToDo exposing (..)
 
 
---TODO: Filter over bracketed range of nodes. And, BTW, don't apply to first and last
-
 --TODO: If track is loop, "wrap" the filtering. (Wrap the input lists, and apply to the whole list.)
 
 --TODO: Filter for lat/lon or elev'n separately. (Andrew Turner.)
@@ -17,9 +15,7 @@ module ToDo exposing (..)
 
 --TODO: Debt. Reduce duplication.
 
---TODO: Autofix to work on selection also. (?)
-
---TODO: Put Autofix and Simplify on new Tab?
+--TODO: Put Autofix and Simplify on new Tab? -- Filter tab now it's there??
 
 --TODO: Sponsorship link.
 
