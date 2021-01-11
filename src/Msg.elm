@@ -91,6 +91,7 @@ type Msg
     | UserChangedFilename String
     | ReceivedIpDetails (Result Http.Error IpInfo)
     | IpInfoAcknowledged (Result Http.Error ())
+    | FilterWeightedAverage
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =

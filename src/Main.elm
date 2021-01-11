@@ -24,6 +24,7 @@ import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
+import Filters exposing (applyWeightedAverageFilter)
 import FlatColors.FlatUIPalette exposing (wetAsphalt)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
@@ -285,7 +286,6 @@ init mflags origin navigationKey =
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
-        , requestIpInformation ReceivedIpDetails
         , authCmd
         ]
     )
@@ -323,6 +323,10 @@ toolsAccordion model =
     , { label = "Strava"
       , state = Contracted
       , content = viewStravaDataAccessTab model
+      }
+    , { label = "Filters"
+      , state = Contracted
+      , content = viewFilterControls model
       }
     ]
 
@@ -735,7 +739,8 @@ update msg model =
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }
-            , Cmd.none
+            , requestIpInformation ReceivedIpDetails
+              -- wait until we have local time!
             )
 
         GpxRequested ->
@@ -1406,6 +1411,29 @@ update msg model =
                                 Nothing ->
                                     identity
                            )
+            in
+            trackHasChanged newModel
+
+        FilterWeightedAverage ->
+            let
+                ( rangeStart, rangeEnd ) =
+                    --TODO: Apply over bracket.
+                    findBracketedRange model
+
+                undoMessage =
+                    "Weighted average filter"
+
+                replaceTrackPoints old =
+                    { old
+                        | trackPoints =
+                            reindexTrackpoints <|
+                                applyWeightedAverageFilter model.trackPoints
+                    }
+
+                newModel =
+                    model
+                        |> addToUndoStack undoMessage
+                        |> replaceTrackPoints
             in
             trackHasChanged newModel
 
@@ -4468,6 +4496,19 @@ viewStravaDataAccessTab model =
             , segmentButton
             ]
         , segmentInfo
+        ]
+
+
+viewFilterControls : Model -> Element Msg
+viewFilterControls model =
+    column [ spacing 10, padding 10 ]
+        [ E.text "Smooth the track by applying some filters."
+        , E.text "Note that repeatedly applying approximates to Gaussian smoothing."
+        , button
+            prettyButtonStyles
+            { onPress = Just FilterWeightedAverage
+            , label = E.text <| "Five point weighted average"
+            }
         ]
 
 
