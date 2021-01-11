@@ -17,7 +17,7 @@ aboutText =
 
 - Filter tab added to house new smoothing magic, as and when.
 
-- First occupant is a quick and effective weighted average. It will make youe track smoother. That might not be what you want, being the obvious caveat. Future release will allow selective application.
+- First occupant is a quick and effective weighted average. It will make youe track smoother. That might not be what you want, being the obvious caveat. Note: it will move your start and end points. Future release will allow selective application.
 
 ## Guidance on use
 
