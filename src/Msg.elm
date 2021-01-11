@@ -76,7 +76,6 @@ type Msg
     | ImageRelease Mouse.Event
     | NoOpMsg
     | SimplifyTrack
-    | Autosmooth (List Int)
     | UserChangedSegmentId String
     | LoadExternalSegment
     | UserChangedRouteId String

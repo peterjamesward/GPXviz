@@ -1,18 +1,39 @@
 module Filters exposing (applyWeightedAverageFilter)
 
+import Array
+import List.Extra
 import TrackPoint exposing (TrackPoint)
 
 
 applyWeightedAverageFilter : List TrackPoint -> List TrackPoint
 applyWeightedAverageFilter points =
-    List.map5
-        weightedAverage
-        (List.take 2 points ++ points)
-        (List.take 1 points ++ points)
-        points
-        (List.drop 1 points)
-        (List.drop 2 points)
-        ++ (List.reverse <| List.take 2 <| List.reverse points)
+    let
+        reversed =
+            List.reverse points
+
+        filtered =
+            List.map5
+                weightedAverage
+                (List.take 2 points ++ points)
+                (List.take 1 points ++ points)
+                points
+                (List.drop 1 points)
+                (List.drop 2 points)
+                ++ (List.reverse <| List.take 2 reversed)
+
+        reversedWithoutEnds =
+            let
+                temp =
+                    Array.fromList filtered
+            in
+            temp
+                |> Array.slice 1 (Array.length temp - 2)
+                |> Array.toList
+
+        ( fixedFirst, fixedLast ) =
+            ( List.take 1 points, List.take 1 reversed )
+    in
+    fixedFirst ++ reversedWithoutEnds ++ fixedLast
 
 
 weightedAverage : TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint -> TrackPoint

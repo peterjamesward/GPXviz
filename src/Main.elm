@@ -1424,11 +1424,7 @@ update msg model =
                     "Weighted average filter"
 
                 replaceTrackPoints old =
-                    { old
-                        | trackPoints =
-                            reindexTrackpoints <|
-                                applyWeightedAverageFilter model.trackPoints
-                    }
+                    { old | trackPoints = applyWeightedAverageFilter model.trackPoints }
 
                 newModel =
                     model
@@ -1436,9 +1432,6 @@ update msg model =
                         |> replaceTrackPoints
             in
             trackHasChanged newModel
-
-        Autosmooth nodes ->
-            trackHasChanged model
 
         LoadExternalSegment ->
             case getStravaToken model.stravaAuthentication of
