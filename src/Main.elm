@@ -1993,9 +1993,14 @@ splitRoad model =
             Maybe.withDefault model.currentNode model.markedNode
 
         ( startNode, endNode ) =
-            ( min model.currentNode marker
-            , max model.currentNode marker
-            )
+            if model.currentNode == marker then
+                -- Apply to whole track
+                ( 0, Array.length model.nodeArray - 1 )
+
+            else
+                ( min model.currentNode marker
+                , max model.currentNode marker
+                )
 
         undoMessage =
             "Split between " ++ String.fromInt startNode ++ " and " ++ String.fromInt endNode
@@ -2051,11 +2056,7 @@ splitRoad model =
                         model.markedNode
             }
     in
-    if startNode < endNode then
-        model |> addToUndoStack undoMessage |> makeItSo
-
-    else
-        model
+    model |> addToUndoStack undoMessage |> makeItSo
 
 
 closeTheLoop : Model -> Model
@@ -4182,13 +4183,25 @@ viewGradientFixerPane model =
         [ gradientSmoothControls ]
 
 
+viewTrackPointTools : Model -> Element Msg
 viewTrackPointTools model =
+    let
+        wholeTrack =
+            case model.markedNode of
+                Just m -> m == model.currentNode
+                Nothing -> True
+    in
     column [ padding 10, spacing 10, centerX ] <|
         [ row [ spacing 20 ]
             [ insertNodeOptionsBox model.currentNode
             , deleteNodeButton model.currentNode
             ]
         , splitSegmentOptions model.maxSegmentSplitSize
+        , case wholeTrack of
+            True ->
+                E.text "Will apply to the whole route."
+            False ->
+                E.text "Will apply between the marker cones."
         ]
 
 

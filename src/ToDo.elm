@@ -1,14 +1,9 @@
 module ToDo exposing (..)
 
---TODO: Don't need to reindex after filters.
 
 --TODO: Filter over bracketed range of nodes. And, BTW, don't apply to first and last
 
---TODO: Don't filter first and last of whole track.
-
 --TODO: If track is loop, "wrap" the filtering. (Wrap the input lists, and apply to the whole list.)
-
---TODO: Adding nodes should work on whole track if no range selected. Text should explain this.
 
 --TODO: Filter for lat/lon or elev'n separately. (Andrew Turner.)
 
