@@ -15,9 +15,9 @@ aboutText =
 
 ## Changes
 
-- Nudging a group of points sideways better preserves the wiggles.
+- Filter tab added to house new smoothing magic, as and when.
 
-- Bend smoother _may_ now offer a bend when the entry and exit roads are parallel. This was a special case not previously handled.
+- First occupant is a quick and effective weighted average. It will make youe track smoother. That might not be what you want, being the obvious caveat. Future release will allow selective application.
 
 ## Guidance on use
 
