@@ -36,6 +36,16 @@ type alias IpInfo =
     , longitude : Float
     }
 
+type alias LogInfo =
+    { timestamp : String -- YYYY-MM-DD, so we only store each IP daily.
+    , ip : String
+    , country : String
+    , region : String
+    , city : String
+    , zip : String
+    , latitude : Float
+    , longitude : Float
+    }
 
 ipInfoDecoder : Decoder IpInfo
 ipInfoDecoder =
@@ -53,6 +63,19 @@ encodeIpInfo : IpInfo -> Json.Encode.Value
 encodeIpInfo record =
     Json.Encode.object
         [ ( "ip", Json.Encode.string <| record.ip )
+        , ( "country", Json.Encode.string <| record.country )
+        , ( "region", Json.Encode.string <| record.region )
+        , ( "city", Json.Encode.string <| record.city )
+        , ( "zip", Json.Encode.string <| record.zip )
+        , ( "lat", Json.Encode.float <| record.latitude )
+        , ( "lon", Json.Encode.float <| record.longitude )
+        ]
+
+encodeLogInfo : LogInfo -> Json.Encode.Value
+encodeLogInfo record =
+    Json.Encode.object
+        [ ( "timestamp", Json.Encode.string <| record.timestamp )
+        , ( "ip", Json.Encode.string <| record.ip )
         , ( "country", Json.Encode.string <| record.country )
         , ( "region", Json.Encode.string <| record.region )
         , ( "city", Json.Encode.string <| record.city )

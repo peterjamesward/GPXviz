@@ -1486,7 +1486,7 @@ update msg model =
                     MyIP.processIpInfo response
             in
             ( { model | ipInfo = ipInfo }
-            , MyIP.sendIpInfo IpInfoAcknowledged ipInfo
+            , MyIP.sendIpInfo model.time IpInfoAcknowledged ipInfo
             )
 
         IpInfoAcknowledged _ ->

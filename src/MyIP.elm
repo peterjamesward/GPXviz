@@ -1,7 +1,10 @@
-module MyIP exposing (requestIpInformation, sendIpInfo, processIpInfo)
+module MyIP exposing (processIpInfo, requestIpInformation, sendIpInfo)
 
-import GeoCodeDecoders exposing (IpInfo, encodeIpInfo, ipInfoDecoder)
-import Http
+import GeoCodeDecoders exposing (IpInfo, encodeIpInfo, encodeLogInfo, ipInfoDecoder)
+import Http exposing (header)
+import Iso8601
+import Msg exposing (Msg(..))
+import Time exposing (Posix)
 import Url.Builder as Builder
 
 
@@ -32,6 +35,10 @@ apiRoot =
     "http://ip-api.com"
 
 
+loggerRoot =
+
+    "https://apfcgnwhhh.execute-api.eu-west-1.amazonaws.com"
+
 requestIpInformation : (Result Http.Error IpInfo -> msg) -> Cmd msg
 requestIpInformation msg =
     Http.request
@@ -55,19 +62,31 @@ processIpInfo response =
             Nothing
 
 
-sendIpInfo : (Result Http.Error String -> msg) -> Maybe IpInfo -> Cmd msg
-sendIpInfo msg ipInfo =
-    --case ipInfo of
-    --    Just info ->
-    --         Http.request
-    --             { method = "POST"
-    --             , headers = []
-    --             , url = Builder.crossOrigin apiRoot [ "json" ] []
-    --             , body = encodeIpInfo info
-    --             , expect = Http.expectString
-    --             , timeout = Nothing
-    --             , tracker = Nothing
-    --             }
-    --
-    --    Nothing ->
-    Cmd.none
+sendIpInfo : Posix -> (Result Http.Error () -> msg) -> Maybe IpInfo -> Cmd msg
+sendIpInfo time msg ipInfo =
+    case ipInfo of
+        Just info ->
+            let
+                logInfo =
+                    { timestamp = String.left 10 <| Iso8601.fromTime time
+                    , ip = info.ip
+                    , country = info.country
+                    , region = info.region
+                    , city = info.city
+                    , zip = info.zip
+                    , latitude = info.latitude
+                    , longitude = info.longitude
+                    }
+            in
+            Http.request
+                { method = "POST"
+                , headers = []
+                , url = Builder.crossOrigin loggerRoot [ "live" ] []
+                , body = Http.jsonBody <| encodeLogInfo logInfo
+                , expect = Http.expectWhatever msg
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+
+        Nothing ->
+            Cmd.none

@@ -90,7 +90,7 @@ type Msg
     | AutoFix (List Int)
     | UserChangedFilename String
     | ReceivedIpDetails (Result Http.Error IpInfo)
-    | IpInfoAcknowledged (Result Http.Error String )
+    | IpInfoAcknowledged (Result Http.Error ())
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =
