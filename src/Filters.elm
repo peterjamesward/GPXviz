@@ -6,9 +6,23 @@ import Loop exposing (..)
 import TrackPoint exposing (TrackPoint)
 
 
+type alias FilterFunction =
+    (TrackPoint -> Float)
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> TrackPoint
+    -> Float
 
-applyWeightedAverageFilter : Int -> Int -> Loopiness -> List TrackPoint -> List TrackPoint
-applyWeightedAverageFilter start finish loopiness points =
+
+applyWeightedAverageFilter :
+    ( Int, Int )
+    -> ( Bool, Bool )
+    -> Loopiness
+    -> List TrackPoint
+    -> List TrackPoint
+applyWeightedAverageFilter ( start, finish ) ( filterXY, filterZ ) loopiness points =
     let
         firstPoint =
             List.take 1 points
@@ -17,11 +31,29 @@ applyWeightedAverageFilter start finish loopiness points =
             List.length points
 
         loopedPoints =
-            List.Extra.cycle (numPoints * 2) points
+            points ++ List.drop 1 points
+
+        ( latFn, lonFn, eleFn ) =
+            ( if filterXY then
+                withWeights
+
+              else
+                centreValue
+            , if filterXY then
+                withWeights
+
+              else
+                centreValue
+            , if filterZ then
+                withWeights
+
+              else
+                centreValue
+            )
 
         filteredLoop =
             List.map5
-                (weightedAverage start finish)
+                (weightedAverage ( latFn, lonFn, eleFn ))
                 (List.drop (numPoints - 2) loopedPoints)
                 (List.drop (numPoints - 1) loopedPoints)
                 points
@@ -30,60 +62,45 @@ applyWeightedAverageFilter start finish loopiness points =
 
         filtered =
             List.map5
-                (weightedAverage start finish)
-                (firstPoint ++ firstPoint ++ points) -- So first point is averaged with itself.
+                (weightedAverage ( latFn, lonFn, eleFn ))
+                (firstPoint ++ firstPoint ++ points)
                 (firstPoint ++ points)
                 points
                 (List.drop 1 loopedPoints)
                 (List.drop 2 loopedPoints)
 
         withinRange =
-                Array.fromList
+            Array.fromList
                 >> Array.slice (start + 1) finish
                 >> Array.toList
 
         ( fixedFirst, fixedLast ) =
             ( List.take (start + 1) points, List.drop finish points )
     in
-    case loopiness of
-        IsALoop ->
-            --TODO: First and last points must remain together!
-            --TODO: That they don't, suggests a logic bug.
-            fixedFirst ++ (withinRange filteredLoop) ++ fixedLast
+    if start == finish && loopiness == IsALoop then
+        filteredLoop
 
-        _ ->
-            fixedFirst ++ (withinRange filtered) ++ fixedLast
+    else
+        fixedFirst ++ withinRange filtered ++ fixedLast
 
 
 weightedAverage :
-    Int
-    -> Int
+    ( FilterFunction, FilterFunction, FilterFunction )
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
-weightedAverage start finish p0 p1 p2 p3 p4 =
-    if p2.idx >= start && p2.idx <= finish then
-        { lon = withWeights .lon p0 p1 p2 p3 p4
-        , lat = withWeights .lat p0 p1 p2 p3 p4
-        , ele = withWeights .ele p0 p1 p2 p3 p4
-        , idx = p2.idx
-        }
-
-    else
-        p2
+weightedAverage ( latFn, lonFn, eleFn ) p0 p1 p2 p3 p4 =
+    { lon = lonFn .lon p0 p1 p2 p3 p4
+    , lat = latFn .lat p0 p1 p2 p3 p4
+    , ele = eleFn .ele p0 p1 p2 p3 p4
+    , idx = p2.idx
+    }
 
 
-withWeights :
-    (TrackPoint -> Float)
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> Float
+withWeights : FilterFunction
 withWeights f p0 p1 p2 p3 p4 =
     let
         ( x0, x1, x2 ) =
@@ -93,3 +110,8 @@ withWeights f p0 p1 p2 p3 p4 =
             ( f p3, f p4 )
     in
     (x0 + x1 * 2 + x2 * 4 + x3 * 2 + x4) / 10.0
+
+
+centreValue : FilterFunction
+centreValue f _ _ p2 _ _ =
+    f p2

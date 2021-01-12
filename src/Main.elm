@@ -1421,8 +1421,8 @@ update msg model =
                     { old
                         | trackPoints =
                             applyWeightedAverageFilter
-                                rangeStart
-                                rangeEnd
+                                ( rangeStart, rangeEnd )
+                                ( True, True )
                                 model.loopiness
                                 model.trackPoints
                     }
@@ -4198,20 +4198,20 @@ wholeTrackTextHelper model =
             model.loopiness == IsALoop
     in
     row [ spacing 5 ]
-    [ html <| FeatherIcons.toHtml [] FeatherIcons.info
-      ,  case (wholeTrack, isLoop) of
-            (True, True) ->
+        [ html <| FeatherIcons.toHtml [] FeatherIcons.info
+        , case ( wholeTrack, isLoop ) of
+            ( True, True ) ->
                 E.text "Applies to the whole route and include the start/finish."
 
-            (True, False) ->
+            ( True, False ) ->
                 E.text "Applies to the whole route but not the start/finish."
 
-            (False, True) ->
+            ( False, True ) ->
                 E.text "Applies between the marker cones, avoiding the start/finish."
 
-            (False, False) ->
+            ( False, False ) ->
                 E.text "Applies between the marker cones only."
-    ]
+        ]
 
 
 viewTrackPointTools : Model -> Element Msg

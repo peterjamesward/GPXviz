@@ -1,11 +1,9 @@
 module ToDo exposing (..)
 
-
---TODO: If track is loop, "wrap" the filtering. (Wrap the input lists, and apply to the whole list.)
-
 --TODO: Filter for lat/lon or elev'n separately. (Andrew Turner.)
+(code is in the Filter, just need the options checkboxes.)
 
---TODO: Tweak filter parameters.
+--TODO: Adjustable/selectable filter parameters.
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 -- Loads of functions can move -- just need to explicitly list the fields they need
