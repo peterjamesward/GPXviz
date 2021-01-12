@@ -53,17 +53,23 @@ Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan
 
 **Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.
 
+**Filter** applies a simple (but fairly effective) smoothing algorithm that takes a weighted average (1,2,4,2,1) of the five points centred on each point. You can do this just for position or elevation or (oreferably) both. Better results are achieved if you insert some track points first (see above). You can do this selectively on parts of the route.
+
 **Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current. The AutoFix option is available, but should not be taken for granted.
 
-Click the blue button at the page top to choose a file.
+Click the blue button at the page top to choose a GPX route file, or load one from Strava.
 
 **Remember to save** your changes often. The Save button writes to your download folder only (this is a security limitation of browsers).
 
-## Legally required notice
+## Legally required notices
 
-Compatible with Strava, for the purpose of loading segment data.
+Compatible with Strava, for the purpose of loading route and segment data.
 
-> _Peter Ward, 2020_
+Your IP address is logged for the purpose of aggregate usage recording; no personal details are stored.
+
+No cookies are used, though they may not be true for the site as a whole.
+
+> _Peter Ward, 2021_
 """
 
 

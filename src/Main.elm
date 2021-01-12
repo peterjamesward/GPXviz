@@ -41,6 +41,7 @@ import MapboxStuff exposing (metresPerPixel, zoomLevelFromBoundingBox)
 import Msg exposing (..)
 import MyIP exposing (requestIpInformation)
 import NodesAndRoads exposing (..)
+import Nudge exposing (nudgeTrackPoint)
 import OAuthPorts exposing (randomBytes)
 import OAuthTypes as O exposing (..)
 import Pixels exposing (Pixels)
@@ -1807,31 +1808,6 @@ switchViewMode model mode =
             )
 
 
-nudgeTrackPoint : TrackPoint -> Float -> Float -> Float -> TrackPoint
-nudgeTrackPoint baseTP roadBearing horizontal vertical =
-    let
-        roadVector =
-            -- The negation because, no idea.
-            Vector2d.rTheta (Length.meters 1.0)
-                (Angle.radians <| -1.0 * roadBearing)
-                |> Vector2d.rotateClockwise
-
-        nudgeVector =
-            Vector2d.perpendicularTo roadVector
-                |> Vector2d.scaleBy (horizontal / metresPerDegree)
-
-        trackPoint2d =
-            Point2d.meters baseTP.lon baseTP.lat
-
-        nudgedTrackPoint2d =
-            Point2d.translateBy nudgeVector trackPoint2d
-    in
-    { baseTP
-        | lat = Length.inMeters <| Point2d.yCoordinate nudgedTrackPoint2d
-        , lon = Length.inMeters <| Point2d.xCoordinate nudgedTrackPoint2d
-        , ele = baseTP.ele + vertical
-    }
-
 
 simulateNudgeNode : Model -> Float -> Float -> Model
 simulateNudgeNode model horizontal vertical =
@@ -1847,7 +1823,7 @@ simulateNudgeNode model horizontal vertical =
     simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
 
 
-simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
+--simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
 simulateNodeRangeNudge model node1 nodeN horizontal vertical =
     let
         targetNodes =

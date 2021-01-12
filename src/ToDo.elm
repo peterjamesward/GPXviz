@@ -1,31 +1,24 @@
 module ToDo exposing (..)
 
---TODO: Filter for lat/lon or elev'n separately. (Andrew Turner.)
-(code is in the Filter, just need the options checkboxes.)
+--TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
+-- route loading. This would give plenty of space for local, Strava and Komoot loads.
+-- Maybe also for some rarely needed, load-related tools ("Simplify").
 
---TODO: Adjustable/selectable filter parameters.
+--TODO: Guidance text on tabs.
 
 --TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
 -- Loads of functions can move -- just need to explicitly list the fields they need
 -- in the type signature, instead of using Model!
 
---Start by moving out the Nudge code; it looks fairly clean.
-
 --TODO: Debt. Reduce duplication.
+
+--TODO: Adjustable/selectable filter parameters.
 
 --TODO: Put Autofix and Simplify on new Tab? -- Filter tab now it's there??
 
---TODO: Sponsorship link.
-
 --TODO: Imperial measurements in views.
 
---TODO: Popup tool help on all accordion tabs?
-
 --TODO: "Split track" to show warning (+ Feather icon) if segments less than the maximum segment?
-
---TODO: Komoot for similar integration (for me). Then RideWithGPS maybe.
---NB Komoot uses the client_id:client_secret format.
---Waiting for a response from Komoot. Need client_id.
 
 --TODO: Still worth checking if we can trap any navigate-away actions.
 
