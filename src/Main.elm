@@ -193,6 +193,7 @@ type alias Model =
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
     , ipInfo : Maybe IpInfo
+    , filterModes : ( Bool, Bool ) -- (XY, Z)
     }
 
 
@@ -276,6 +277,7 @@ init mflags origin navigationKey =
       , mapNodesDraggable = False
       , lastHttpError = Nothing
       , ipInfo = Nothing
+      , filterModes = ( True, True )
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -1408,6 +1410,24 @@ update msg model =
             in
             trackHasChanged newModel
 
+        ToggleFilterXY setting ->
+            let
+                ( filterXY, filterZ ) =
+                    model.filterModes
+            in
+            ( { model | filterModes = ( not filterXY, filterZ ) }
+            , Cmd.none
+            )
+
+        ToggleFilterZ setting ->
+            let
+                ( filterXY, filterZ ) =
+                    model.filterModes
+            in
+            ( { model | filterModes = ( filterXY, not filterZ ) }
+            , Cmd.none
+            )
+
         FilterWeightedAverage ->
             let
                 ( rangeStart, rangeEnd ) =
@@ -1422,7 +1442,7 @@ update msg model =
                         | trackPoints =
                             applyWeightedAverageFilter
                                 ( rangeStart, rangeEnd )
-                                ( True, True )
+                                model.filterModes
                                 model.loopiness
                                 model.trackPoints
                     }
@@ -4197,20 +4217,33 @@ wholeTrackTextHelper model =
         isLoop =
             model.loopiness == IsALoop
     in
-    row [ spacing 5 ]
+    row [ padding 5, spacing 10, Background.color warningColor, width fill ]
         [ html <| FeatherIcons.toHtml [] FeatherIcons.info
         , case ( wholeTrack, isLoop ) of
             ( True, True ) ->
-                E.text "Applies to the whole route and include the start/finish."
+                column []
+                    [ E.text "Applies to the whole route and include the start/finish."
+                    , E.text "Position markers to apply only to a range of points."
+                    ]
 
             ( True, False ) ->
-                E.text "Applies to the whole route but not the start/finish."
+                column []
+                    [ E.text "Applies to the whole route but not the start/finish."
+                    , E.text "Position markers to apply only to a range of points."
+                    , E.text "Convert the track to a loop to smooth the start/finish."
+                    ]
 
             ( False, True ) ->
-                E.text "Applies between the marker cones, avoiding the start/finish."
+                column []
+                    [ E.text "Applies between the marker cones, avoiding the start/finish."
+                    , E.text "Clear the marker to apply to the whole route."
+                    ]
 
             ( False, False ) ->
-                E.text "Applies between the marker cones only."
+                column []
+                    [ E.text "Applies between the marker cones only."
+                    , E.text "Clear the marker to apply to the whole route."
+                    ]
         ]
 
 
@@ -4528,9 +4561,37 @@ viewStravaDataAccessTab model =
 
 viewFilterControls : Model -> Element Msg
 viewFilterControls model =
+    let
+        ( filterXY, filterZ ) =
+            model.filterModes
+    in
     column [ spacing 10, padding 10 ]
         [ E.text "Smooth the track by applying some filters."
+        , E.text "Better results may be achieved by inserting track points first."
         , E.text "Note that repeatedly applying approximates to Gaussian smoothing."
+        , row [ padding 3, spacing 3 ]
+            [ Input.checkbox []
+                { onChange = ToggleFilterXY
+                , icon = checkboxIcon
+                , checked = filterXY
+                , label = Input.labelRight [ centerY ] (E.text "Filter latitude & longitude")
+                }
+            , Input.checkbox []
+                { onChange = ToggleFilterZ
+                , icon = checkboxIcon
+                , checked = filterZ
+                , label = Input.labelRight [ centerY ] (E.text "Filter elevation")
+                }
+            ]
+        , case model.filterModes of
+            ( True, False ) ->
+                E.text "That might be weird, but it's your call."
+
+            ( False, False ) ->
+                E.text "You know that won't do anything."
+
+            _ ->
+                E.none
         , button
             prettyButtonStyles
             { onPress = Just FilterWeightedAverage

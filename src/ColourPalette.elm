@@ -11,6 +11,7 @@ stravaOrange =
 white =
     rgb255 0xFF 0xFF 0xFF
 
+warningColor = sunFlower
 
 buttonBackground =
     belizeHole

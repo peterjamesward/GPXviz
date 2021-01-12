@@ -11,11 +11,17 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-10_
+> _This text updated 2021-01-12_
 
 ## Changes
 
-- Filtering does not move track start and end.
+- Filter whole track or between markers.
+
+- Filter will smooth the start/finish transition if the route is a loop.
+
+- Filter can be set to position or height independently.
+
+- Some guidance text added on the Filter tab.
 
 ## Guidance on use
 
