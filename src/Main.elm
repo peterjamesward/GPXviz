@@ -13,6 +13,7 @@ import Browser.Navigation exposing (Key)
 import Camera3d exposing (Camera3d)
 import Color
 import ColourPalette exposing (..)
+import Delay exposing (TimeUnit(..), after)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element as E exposing (..)
@@ -735,8 +736,7 @@ update msg model =
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }
-            , requestIpInformation ReceivedIpDetails
-              -- wait until we have local time!
+            , MyIP.requestIpInformation ReceivedIpDetails
             )
 
         GpxRequested ->
@@ -1528,8 +1528,11 @@ update msg model =
                     MyIP.processIpInfo response
             in
             ( { model | ipInfo = ipInfo }
-            , MyIP.sendIpInfo model.time IpInfoAcknowledged ipInfo
+            , after 1 Second SendIpInfo
             )
+
+        SendIpInfo ->
+            ( model, MyIP.sendIpInfo model.time IpInfoAcknowledged model.ipInfo )
 
         IpInfoAcknowledged _ ->
             ( model, Cmd.none )
