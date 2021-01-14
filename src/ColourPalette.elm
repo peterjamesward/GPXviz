@@ -30,7 +30,7 @@ buttonGroupBackground =
 
 
 expandedTabBorder =
-    clouds
+    FlatColors.FlatUIPalette.asbestos
 
 
 collapsedTabBorder =

@@ -3120,7 +3120,7 @@ stravaRouteOption model =
     in
     case getStravaToken model.stravaAuthentication of
         Just token ->
-            row [ spacing 10 ]
+            row [ spacing 20, centerX, padding 10 ]
                 [ routeIdField
                 , routeButton
                 ]
@@ -3165,31 +3165,20 @@ view model =
           <|
             column
                 []
-                [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
+                [ row [ alignLeft, spacing 20, padding 20 ]
                     [ loadButton
-                    , if model.changeCounter == 0 then
-                        stravaButton model.stravaAuthentication wrapAuthMessage
-
-                      else
-                        E.text "Save your work before\nconnecting to Strava"
-                    , stravaRouteOption model
                     , viewAndEditFilename model
                     , saveButtonIfChanged model
                     ]
-                , row [ alignLeft, moveRight 200 ]
-                    [ if model.gpxSource /= GpxNone then
-                        viewModeChoices model
-
-                      else
-                        el [ height (px 40) ] none
-                    ]
-                , case ( model.gpx, model.trackPoints ) of
-                    ( _, tp1 :: _ ) ->
-                        -- Must have at least one track point.
-                        row [ alignLeft, alignTop ]
-                            [ view3D model.nodeBox model
-                            , column
-                                [ width fill, spacing 10, alignTop, centerX ]
+                , row [ alignLeft, alignTop ]
+                    [ column []
+                        [ viewModeChoices model
+                        , view3D model.nodeBox model
+                        ]
+                    , case ( model.gpx, model.trackPoints ) of
+                        ( _, tp1 :: _ ) ->
+                            -- Must have at least one track point.
+                            column [ width fill, spacing 10, alignTop, centerX, moveDown 38 ]
                                 [ undoButton model
                                 , markerButton model
                                 , accordionView
@@ -3199,13 +3188,10 @@ view model =
                                     (updatedAccordion model model.infoAccordion infoAccordion)
                                     AccordionMessage
                                 ]
-                            ]
 
-                    ( Just _, [] ) ->
-                        viewInputError model
-
-                    _ ->
-                        viewAboutText
+                        _ ->
+                            none
+                    ]
                 , compatibleWithStrava
                 ]
         ]
@@ -3228,6 +3214,20 @@ saveButtonIfChanged model =
 
 viewModeChoices : Model -> Element Msg
 viewModeChoices model =
+    let
+        alwaysAvailable =
+            [ Input.optionWith ConnectionsView <| radioButton Mid "Connections"
+            , Input.optionWith AboutView <| radioButton Last "About"
+            ]
+
+        onlyWithCourse =
+            [ Input.optionWith ThirdPersonView <| radioButton First "Third person"
+            , Input.optionWith FirstPersonView <| radioButton Mid "First person"
+            , Input.optionWith ProfileView <| radioButton Mid "Elevation"
+            , Input.optionWith PlanView <| radioButton Mid "Plan"
+            , Input.optionWith MapView <| radioButton Mid "Map"
+            ]
+    in
     Input.radioRow
         [ Border.rounded 6
         , Border.shadow { offset = ( 0, 0 ), size = 3, blur = 10, color = rgb255 0xE0 0xE0 0xE0 }
@@ -3237,13 +3237,11 @@ viewModeChoices model =
         , label =
             Input.labelHidden "Choose view"
         , options =
-            [ Input.optionWith ThirdPersonView <| radioButton First "Third person"
-            , Input.optionWith FirstPersonView <| radioButton Mid "First person"
-            , Input.optionWith ProfileView <| radioButton Mid "Elevation"
-            , Input.optionWith PlanView <| radioButton Mid "Plan"
-            , Input.optionWith MapView <| radioButton Mid "Map"
-            , Input.optionWith AboutView <| radioButton Last "About"
-            ]
+            if model.gpxSource == GpxNone then
+                alwaysAvailable
+
+            else
+                onlyWithCourse ++ alwaysAvailable
         }
 
 
@@ -3269,6 +3267,9 @@ view3D scale model =
             PlanView ->
                 viewPlanView model
 
+            ConnectionsView ->
+                viewConnections model
+
             MapView ->
                 -- We merely create the placeholder, the work is done by messages through the map port.
                 el
@@ -3279,6 +3280,38 @@ view3D scale model =
                     , htmlAttribute (id "map")
                     ]
                     none
+
+
+viewConnections : Model -> Element Msg
+viewConnections model =
+    row
+        [ width <| px viewMapWidth
+        , height <| px viewMapHeight
+        , Border.width 3
+        , Border.color ColourPalette.buttonShadow
+        , alignTop
+        ]
+        [ viewStravaPane model
+        , viewKomootPane model
+        ]
+
+
+viewStravaPane : Model -> Element Msg
+viewStravaPane model =
+    column [ alignTop, centerX, width <| fillPortion 1 ]
+        [ if model.changeCounter == 0 then
+            stravaButton model.stravaAuthentication wrapAuthMessage
+
+          else
+            E.text "Save your work before\nconnecting to Strava"
+        , stravaRouteOption model
+        ]
+
+
+viewKomootPane : Model -> Element Msg
+viewKomootPane model =
+    column [ alignTop, centerX, width <| fillPortion 1 ]
+    []
 
 
 viewInputError : Model -> Element Msg

@@ -9,6 +9,7 @@ type ViewingMode
     | ProfileView
     | PlanView
     | MapView
+    | ConnectionsView
 
 
 type alias Coordinate =

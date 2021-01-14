@@ -1,5 +1,6 @@
 module About exposing (..)
 
+import ColourPalette
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -73,18 +74,21 @@ No cookies are used, though they may not be true for the site as a whole.
 
 viewAboutText : Element Msg
 viewAboutText =
-    el [] <|
+    el
+        [ width <| px viewMapWidth
+        , Border.color ColourPalette.buttonShadow
+        , Background.color ColourPalette.accordionContentBackground
+        ]
+    <|
         row
             [ centerX
-            , Background.color <| rgb255 220 220 200
             , clipY
             , scrollbarY
-            , padding 20
-            , width <| px viewMapWidth
             ]
             [ paragraph
                 [ width fill
                 , height <| px viewMapHeight
+                , padding 20
                 ]
               <|
                 [ html <| Markdown.toHtml [] aboutText ]

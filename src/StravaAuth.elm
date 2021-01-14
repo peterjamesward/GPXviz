@@ -306,22 +306,19 @@ stravaButton : Model -> (OAuthMsg -> msg) -> Element msg
 stravaButton model msgWrapper =
     --TODO: Strava logo.
     let
-        styles =
-            []
-
         imgUrl =
             Builder.relative ["images", "btn_strava_connectwith_orange.svg" ] []
     in
     case model.flow of
         Done userInfo _ ->
-            column []
+            column [ padding 10, centerX, spacing 5 ]
                 [ text "Connected to Strava as"
                 , text <| userInfo.firstname ++ " " ++ userInfo.lastname
                 ]
 
         _ ->
             button
-                styles
+                [ centerX, padding 10 ]
                 { onPress = Just <| msgWrapper SignInRequested
                 , label =
                     image
