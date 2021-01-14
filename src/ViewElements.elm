@@ -256,13 +256,19 @@ splitSegmentOptions maxSegLength =
         ]
 
 
-deleteNodeButton c =
+deleteNodeButton ( start, finish ) =
+    let
+        message =
+            if start == finish then
+                "Delete current point"
+
+            else
+                "Delete from " ++ String.fromInt start ++ " to " ++ String.fromInt finish
+    in
     button
         prettyButtonStyles
-        { onPress = Just (DeleteCurrentPoint c)
-        , label =
-            text <|
-                "Delete current TrackPoint"
+        { onPress = Just (DeleteTrackPoints (start, finish))
+        , label = text message
         }
 
 
@@ -305,7 +311,7 @@ verticalNudgeSlider value =
 
 compatibleWithStrava =
     image
-        [ height (px 50), width (px 100) , alignLeft ]
+        [ height (px 50), width (px 100), alignLeft ]
         { src = "images/api_logo_cptblWith_strava_stack_gray.svg"
         , description = "Compatible with Strava"
         }

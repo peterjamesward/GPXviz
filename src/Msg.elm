@@ -62,7 +62,7 @@ type Msg
     | NudgeNode Float Float -- Horizontal, Vertical
     | SplitRoad
     | AccordionMessage (AccordionEntry Msg)
-    | DeleteCurrentPoint Int
+    | DeleteTrackPoints (Int, Int)
     | ChangeLoopStart Int
     | ReverseTrack
     | SetMaxTrackpointSpacing Float

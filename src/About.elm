@@ -15,6 +15,8 @@ aboutText =
 
 ## Changes
 
+- Delete will now work on a range of points indicated by the orange and purple cones.
+
 - Map projection was skewing high latitude routes.
 
 ## Guidance on use

@@ -1243,8 +1243,8 @@ update msg model =
             insertTrackPoint node model
                 |> trackHasChanged
 
-        DeleteCurrentPoint c ->
-            deleteTrackPoint c model
+        DeleteTrackPoints range ->
+            deleteTrackPoints range model
                 |> trackHasChanged
 
         ChangeLoopStart c ->
@@ -1808,7 +1808,6 @@ switchViewMode model mode =
             )
 
 
-
 simulateNudgeNode : Model -> Float -> Float -> Model
 simulateNudgeNode model horizontal vertical =
     let
@@ -1823,7 +1822,10 @@ simulateNudgeNode model horizontal vertical =
     simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
 
 
+
 --simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
+
+
 simulateNodeRangeNudge model node1 nodeN horizontal vertical =
     let
         targetNodes =
@@ -2175,18 +2177,18 @@ insertTrackPoint n model =
             model
 
 
-deleteTrackPoint : Int -> Model -> Model
-deleteTrackPoint n model =
+deleteTrackPoints : ( Int, Int ) -> Model -> Model
+deleteTrackPoints ( start, finish ) model =
     let
         undoMessage =
-            "Delete track point " ++ String.fromInt n
+            "Delete track points " ++ String.fromInt start ++ "-" ++ String.fromInt finish
     in
     let
         precedingTPs =
-            model.trackPoints |> List.take n
+            List.take start model.trackPoints
 
         remainingTPs =
-            model.trackPoints |> List.drop (n + 1)
+            List.drop (finish + 1) model.trackPoints
 
         newTPs =
             precedingTPs ++ remainingTPs
@@ -2194,7 +2196,8 @@ deleteTrackPoint n model =
         makeItSo m =
             { m
                 | trackPoints = reindexTrackpoints newTPs
-                , currentNode = min n (List.length newTPs - 2)
+                , currentNode = min start (List.length newTPs - 1)
+                , markedNode = Nothing
             }
     in
     model |> addToUndoStack undoMessage |> makeItSo
@@ -4228,10 +4231,19 @@ wholeTrackTextHelper model =
 
 viewTrackPointTools : Model -> Element Msg
 viewTrackPointTools model =
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( start, finish ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+    in
     column [ padding 10, spacing 10, centerX ] <|
         [ row [ spacing 20 ]
             [ insertNodeOptionsBox model.currentNode
-            , deleteNodeButton model.currentNode
+            , deleteNodeButton ( start, finish )
             ]
         , splitSegmentOptions model.maxSegmentSplitSize
         , wholeTrackTextHelper model
