@@ -1,5 +1,6 @@
 module StravaAuth exposing (..)
 
+import AuthCommon exposing (convertBytes, defaultHttpsUrl)
 import Base64.Encode as Base64
 import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
@@ -317,40 +318,6 @@ signOutRequested model =
     )
 
 
-toBytes : List Int -> Bytes
-toBytes =
-    List.map Bytes.unsignedInt8 >> Bytes.sequence >> Bytes.encode
-
-
-base64 : Bytes -> String
-base64 =
-    Base64.bytes >> Base64.encode
-
-
-convertBytes : List Int -> { state : String }
-convertBytes =
-    toBytes >> base64 >> (\state -> { state = state })
-
-
-oauthErrorToString : { error : OAuth.ErrorCode, errorDescription : Maybe String } -> String
-oauthErrorToString { error, errorDescription } =
-    let
-        desc =
-            errorDescription |> Maybe.withDefault "" |> String.replace "+" " "
-    in
-    OAuth.errorCodeToString error ++ ": " ++ desc
-
-
-defaultHttpsUrl : Url
-defaultHttpsUrl =
-    { protocol = Https
-    , host = ""
-    , path = ""
-    , port_ = Nothing
-    , query = Nothing
-    , fragment = Nothing
-    }
-
 
 stravaButton : Model -> (OAuthMsg -> msg) -> Element msg
 stravaButton model msgWrapper =
@@ -368,7 +335,7 @@ stravaButton model msgWrapper =
 
         _ ->
             button
-                [ centerX, padding 10 ]
+                [ centerX, padding 10, width <| px 250, height <| px 60 ]
                 { onPress = Just <| msgWrapper SignInRequested
                 , label =
                     image

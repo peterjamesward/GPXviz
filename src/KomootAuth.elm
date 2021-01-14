@@ -1,5 +1,6 @@
 module KomootAuth exposing (..)
 
+import AuthCommon exposing (convertBytes, defaultHttpsUrl)
 import Base64.Encode as Base64
 import Browser.Navigation as Navigation exposing (Key)
 import Bytes exposing (Bytes)
@@ -9,10 +10,10 @@ import Element exposing (..)
 import Element.Input exposing (button)
 import Http
 import Json.Decode as Json
+import KomootClientSecret
 import OAuth
 import OAuth.AuthorizationCode as OAuth
 import OAuthPorts exposing (genRandomBytes)
-import KomootClientSecret
 import Url exposing (Protocol(..), Url)
 import Url.Builder as Builder
 
@@ -21,6 +22,10 @@ type alias Model =
     { redirectUri : Url
     , flow : Flow
     }
+
+
+dummyModel =
+    Model defaultHttpsUrl Idle
 
 
 type Flow
@@ -78,24 +83,28 @@ hence the user info endpoint and JSON decoder
 <https://www.strava.com/api/v3/athlete>
 
 -}
+host =
+    "https://auth.komoot.de"
+
+
 configuration : Configuration
 configuration =
     { authorizationEndpoint =
-        { defaultHttpsUrl | host = "www.strava.com", path = "/oauth/authorize" }
+        { defaultHttpsUrl | host = host, path = "/oauth/authorize" }
     , tokenEndpoint =
-        { defaultHttpsUrl | host = "www.strava.com", path = "/oauth/token" }
+        { defaultHttpsUrl | host = host, path = "/oauth/token" }
     , userInfoEndpoint =
-        { defaultHttpsUrl | host = "www.strava.com", path = "/api/v3/athlete" }
+        { defaultHttpsUrl | host = host, path = "/api/v3/athlete" }
     , userInfoDecoder =
         Json.map3 UserInfo
-            (Json.field "id" Json.int)
-            (Json.field "firstname" Json.string)
-            (Json.field "lastname" Json.string)
+            (Json.succeed 0)
+            (Json.field "username" Json.string)
+            (Json.field "username" Json.string)
     , clientId =
-        "59195"
-    , clientSecret = StravaClientSecret.clientSecret
+        "gpxmagic-64qn28"
+    , clientSecret = KomootClientSecret.secret
     , scope =
-        [ "read_all" ]
+        [ "profile" ]
     }
 
 
@@ -250,7 +259,7 @@ getAccessToken { clientId, tokenEndpoint } redirectUri code =
         OAuth.makeTokenRequest GotAccessToken
             { credentials =
                 { clientId = clientId
-                , secret = Just StravaClientSecret.clientSecret
+                , secret = Just KomootClientSecret.secret
                 }
             , code = code
             , url = tokenEndpoint
@@ -287,7 +296,7 @@ gotAccessToken model authenticationResponse =
 
         Ok { token } ->
             ( { model | flow = Authenticated token }
-            , after 100 Millisecond UserInfoRequested
+            , Cmd.none
             )
 
 
@@ -317,53 +326,17 @@ signOutRequested model =
     )
 
 
-toBytes : List Int -> Bytes
-toBytes =
-    List.map Bytes.unsignedInt8 >> Bytes.sequence >> Bytes.encode
-
-
-base64 : Bytes -> String
-base64 =
-    Base64.bytes >> Base64.encode
-
-
-convertBytes : List Int -> { state : String }
-convertBytes =
-    toBytes >> base64 >> (\state -> { state = state })
-
-
-oauthErrorToString : { error : OAuth.ErrorCode, errorDescription : Maybe String } -> String
-oauthErrorToString { error, errorDescription } =
-    let
-        desc =
-            errorDescription |> Maybe.withDefault "" |> String.replace "+" " "
-    in
-    OAuth.errorCodeToString error ++ ": " ++ desc
-
-
-defaultHttpsUrl : Url
-defaultHttpsUrl =
-    { protocol = Https
-    , host = ""
-    , path = ""
-    , port_ = Nothing
-    , query = Nothing
-    , fragment = Nothing
-    }
-
-
-stravaButton : Model -> (OAuthMsg -> msg) -> Element msg
-stravaButton model msgWrapper =
-    --TODO: Strava logo.
+komootButton : Model -> (OAuthMsg -> msg) -> Element msg
+komootButton model msgWrapper =
     let
         imgUrl =
-            Builder.relative [ "images", "btn_strava_connectwith_orange.svg" ] []
+            Builder.relative [ "images", "komoot.svg" ] []
     in
     case model.flow of
         Done userInfo _ ->
             column [ padding 10, centerX, spacing 5 ]
-                [ text "Connected to Strava as"
-                , text <| userInfo.firstname ++ " " ++ userInfo.lastname
+                [ text "Connected to Komoot as"
+                , text <| userInfo.firstname
                 ]
 
         _ ->
@@ -373,31 +346,23 @@ stravaButton model msgWrapper =
                 , label =
                     image
                         [ mouseOver [ alpha 0.7 ]
+                        , width <| px 250
+                        , height <| px 60
                         ]
                         { src = imgUrl
-                        , description = "Connect to Strava"
+                        , description = "Connect to Komoot"
                         }
                 }
 
 
-getStravaToken : Model -> Maybe OAuth.Token
-getStravaToken model =
+getToken : Model -> Maybe OAuth.Token
+getToken model =
     case model.flow of
         Done info token ->
             Just token
 
         Authenticated token ->
             Just token
-
-        _ ->
-            Nothing
-
-
-getStravaAthlete : Model -> Maybe Int
-getStravaAthlete model =
-    case model.flow of
-        Done info token ->
-            Just info.id
 
         _ ->
             Nothing

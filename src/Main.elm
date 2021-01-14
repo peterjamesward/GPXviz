@@ -5,6 +5,7 @@ import Accordion exposing (..)
 import Angle exposing (Angle, inDegrees)
 import Area
 import Array exposing (Array)
+import AuthCommon exposing (convertBytes)
 import AutoFix exposing (autoFix)
 import BendSmoother exposing (SmoothedBend, lookForSmoothBendOption)
 import BoundingBox3d exposing (BoundingBox3d)
@@ -33,6 +34,7 @@ import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
 import Json.Decode as E exposing (..)
+import KomootAuth exposing (komootButton)
 import Length exposing (inMeters, meters)
 import List exposing (drop, take)
 import Loop exposing (..)
@@ -77,7 +79,7 @@ main =
     -- This is the 'main' from OAuth example/
     application
         { init =
-            Maybe.map StravaAuth.convertBytes >> init
+            Maybe.map convertBytes >> init
         , update =
             update
         , subscriptions = subscriptions
@@ -191,6 +193,7 @@ type alias Model =
     , externalSegment : StravaSegmentStatus
     , stravaRoute : StravaRouteStatus
     , stravaAuthentication : StravaAuth.Model
+    , komootAuthentication : KomootAuth.Model
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
     , ipInfo : Maybe IpInfo
@@ -203,7 +206,7 @@ init mflags origin navigationKey =
     -- We stitch in the OAuth init stuff somehow here.
     let
         ( authData, authCmd ) =
-            StravaAuth.init mflags origin navigationKey wrapAuthMessage
+            StravaAuth.init mflags origin navigationKey wrapStravaAuthMessage
     in
     ( { gpx = Nothing
       , gpxSource = GpxNone
@@ -275,6 +278,7 @@ init mflags origin navigationKey =
       , externalRouteId = ""
       , stravaRoute = StravaRouteNone
       , stravaAuthentication = authData
+      , komootAuthentication = KomootAuth.dummyModel
       , mapNodesDraggable = False
       , lastHttpError = Nothing
       , ipInfo = Nothing
@@ -678,6 +682,9 @@ update msg model =
             ( { model | stravaAuthentication = newAuthData }
             , Cmd.map StravaAuthMessage authCmd
             )
+
+        KomootAuthMessage authMsg ->
+            ( model, Cmd.none )
 
         NoOpMsg ->
             ( model, Cmd.none )
@@ -3299,7 +3306,7 @@ viewStravaPane : Model -> Element Msg
 viewStravaPane model =
     column [ alignTop, centerX, width <| fillPortion 1 ]
         [ if model.changeCounter == 0 then
-            stravaButton model.stravaAuthentication wrapAuthMessage
+            stravaButton model.stravaAuthentication wrapStravaAuthMessage
 
           else
             E.text "Save your work before\nconnecting to Strava"
@@ -3311,7 +3318,7 @@ viewKomootPane : Model -> Element Msg
 viewKomootPane model =
     column [ alignTop, centerX, width <| fillPortion 1 ]
         [ if model.changeCounter == 0 then
-            komootButton --model.stravaAuthentication wrapAuthMessage
+            komootButton model.komootAuthentication wrapKomootAuthMessage
 
           else
             E.text "Save your work before\nconnecting to Komoot"

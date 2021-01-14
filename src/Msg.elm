@@ -7,6 +7,7 @@ import GeoCodeDecoders exposing (IpInfo, IpInfo)
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
+import KomootAuth
 import StravaAuth as StravaAuth
 import StravaTypes exposing (StravaRoute, StravaSegment, StravaSegmentStreams)
 import Time
@@ -84,6 +85,7 @@ type Msg
     | HandleSegmentData (Result Http.Error StravaSegment)
     | HandleSegmentStreams (Result Http.Error StravaSegmentStreams)
     | HandleRouteData (Result Http.Error StravaRoute)
+    | KomootAuthMessage KomootAuth.OAuthMsg
     | StravaAuthMessage StravaAuth.OAuthMsg
     | ToggleMapNodesDraggable Bool
     | AutoFix (List Int)
@@ -95,9 +97,13 @@ type Msg
     | ToggleFilterXY Bool
     | ToggleFilterZ Bool
 
-wrapAuthMessage : StravaAuth.OAuthMsg -> Msg
-wrapAuthMessage msg =
+wrapStravaAuthMessage : StravaAuth.OAuthMsg -> Msg
+wrapStravaAuthMessage msg =
     StravaAuthMessage msg
+
+wrapKomootAuthMessage : KomootAuth.OAuthMsg -> Msg
+wrapKomootAuthMessage msg =
+    KomootAuthMessage msg
 
 
 type NodeSplitDirection
