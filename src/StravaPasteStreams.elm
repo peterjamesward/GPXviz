@@ -20,20 +20,38 @@ pasteStreams trackPoints segment streams =
                 (\latLon ele -> TrackPoint latLon.lat latLon.lng ele 0)
                 streams.latLngs.data
                 streams.altitude.data
+
+        newRoute =
+            case ( pStartingTrackPoint, pEndingTrackPoint ) of
+                ( Just startingTrackPoint, Just endingTrackPoint ) ->
+                    let
+                        start =
+                            startingTrackPoint.idx
+
+                        finish =
+                            endingTrackPoint.idx
+
+                        orientedSegment =
+                            if start == finish then
+                                []
+
+                            else if start < finish then
+                                trackPointsFromStreams
+
+                            else
+                                List.reverse trackPointsFromStreams
+
+                        precedingPoints =
+                            List.take (min start finish) trackPoints
+
+                        remainingPoints =
+                            List.drop (max start finish + 1) trackPoints
+                    in
+                    precedingPoints
+                        ++ orientedSegment
+                        ++ remainingPoints
+
+                _ ->
+                    trackPoints
     in
-    case ( pStartingTrackPoint, pEndingTrackPoint ) of
-        ( Just startingTrackPoint, Just endingTrackPoint ) ->
-            let
-                precedingPoints =
-                    List.take startingTrackPoint.idx trackPoints
-
-                remainingPoints =
-                    List.drop (endingTrackPoint.idx + 1) trackPoints
-            in
-            reindexTrackpoints <|
-                precedingPoints
-                    ++ trackPointsFromStreams
-                    ++ remainingPoints
-
-        _ ->
-            trackPoints
+    reindexTrackpoints newRoute

@@ -60,12 +60,14 @@ type alias StravaSegmentStreams =
     , altitude : StravaAltitudeStream
     }
 
+
 type StravaSegmentStatus
     = SegmentNone
     | SegmentRequested
     | SegmentError String
     | SegmentOk StravaSegment
     | SegmentNotInRoute StravaSegment
+
 
 type StravaRouteStatus
     = StravaRouteNone

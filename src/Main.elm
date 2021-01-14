@@ -4487,10 +4487,35 @@ viewStravaDataAccessTab model =
             -- 2. After header loaded, to load and paste the streams.
             case model.externalSegment of
                 SegmentOk segment ->
+                    let
+                        pStartingTrackPoint =
+                            trackPointFromLatLon
+                                segment.start_latitude
+                                segment.start_longitude
+                                model.trackPoints
+
+                        pEndingTrackPoint =
+                            trackPointFromLatLon
+                                segment.end_latitude
+                                segment.end_longitude
+                                model.trackPoints
+
+                        buttonText =
+                            case ( pStartingTrackPoint, pEndingTrackPoint ) of
+                                ( Just start, Just finish ) ->
+                                    if start.idx < finish.idx then
+                                        "Paste segment into route"
+
+                                    else
+                                        "Reverse segment and paste into route"
+
+                                _ ->
+                                    "Oh! Can't work out how to paste this."
+                    in
                     button
                         prettyButtonStyles
                         { onPress = Just LoadSegmentStreams
-                        , label = E.text <| "Apply segment"
+                        , label = E.text buttonText
                         }
 
                 SegmentNone ->
