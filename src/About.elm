@@ -15,11 +15,7 @@ aboutText =
 
 ## Changes
 
-- Reverses Strava segment if necessary to suit direction of route.
-
-- Delete will now work on a range of points indicated by the orange and purple cones.
-
-- Map projection was skewing high latitude routes.
+- Temporary fix for bend smoothing error.
 
 ## Guidance on use
 

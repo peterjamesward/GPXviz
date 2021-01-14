@@ -146,7 +146,7 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             )
 
         segments =
-            Arc2d.segments numberPointsOnArc arc
+            Arc2d.segments (numberPointsOnArc - 1) arc
                 |> Polyline2d.segments
 
         eleIncrement =
@@ -164,9 +164,11 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
                     (List.range 0 (numberPointsOnArc - 1))
     in
     { nodes =
-        [ tang1 ]
+        []
+            --[ tang1 ]
             ++ newArcPoints
-            ++ [ tang2 ]
+
+    --++ [ tang2 ]
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index

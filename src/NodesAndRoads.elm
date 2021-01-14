@@ -76,22 +76,14 @@ deriveNodes box tps =
             Point3d.toTuple Length.inMeters <|
                 BoundingBox3d.centerPoint box
 
-        projectedX lon lat =
-            lon * metresPerDegree
-
-        projectedY lon lat =
-            lat * metresPerDegree
-
-        ( midX, midY ) =
-            ( projectedX midLon midLat, projectedY midLon midLat )
-
         prepareDrawingNode tp =
+            let
+                y = metresPerDegree * (tp.lat - midLat)
+                x = metresPerDegree * (tp.lon - midLon) * cos (degrees tp.lat)
+                z = tp.ele
+            in
             { trackPoint = tp
-            , location =
-                Point3d.meters
-                    ((projectedX tp.lon tp.lat - midX) * cos (degrees tp.lat))
-                    (projectedY tp.lon tp.lat - midY)
-                    tp.ele
+            , location = Point3d.fromTuple Length.meters (x, y, z)
             , costMetric = Nothing
             }
     in

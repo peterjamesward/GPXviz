@@ -1,6 +1,7 @@
 module ToDo exposing (..)
 
---TODO: Flip segment if "wrong way round".
+--TODO: Bend smoother bug with many small segments gong past the tangent points.
+?? Rounding error ?? Simple division error ?? Coordinate conversion error ??
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.

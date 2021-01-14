@@ -1602,32 +1602,24 @@ nodeToTrackPoint trackCenter node =
     --projectedY lon lat =
     --    lat * metresPerDegree
     let
-        ( centerX, centerY ) =
-            -- It's just a lat/long in a Point3d wrapper!
+        ( centerLon, centerLat ) =
             ( Length.inMeters <| xCoordinate trackCenter
             , Length.inMeters <| yCoordinate trackCenter
             )
 
-        projectedX lon lat =
-            lon * metresPerDegree * cos (degrees lat)
-
-        projectedY lon lat =
-            lat * metresPerDegree
-
-        ( projectedCentreX, projectedCentreY ) =
-            ( projectedX centerX centerY
-            , projectedY centerX centerY
+        ( x, y ) =
+            ( Length.inMeters <| xCoordinate node
+            , Length.inMeters <| yCoordinate node
             )
 
-        newLat =
-            (projectedCentreY + (Length.inMeters <| yCoordinate node))
-                / metresPerDegree
+        degreesLat =
+            centerLat + y / metresPerDegree
+
+        degreesLon =
+            centerLon + x  / metresPerDegree / cos (degrees degreesLat)
     in
-    { lat = newLat
-    , lon =
-        ((Length.inMeters <| xCoordinate node) + projectedCentreX)
-            / metresPerDegree
-            / cos (degrees newLat)
+    { lat = degreesLat
+    , lon = degreesLon
     , ele = Length.inMeters <| zCoordinate node
     , idx = 0
     }
