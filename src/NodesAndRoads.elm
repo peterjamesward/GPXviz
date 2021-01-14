@@ -77,7 +77,7 @@ deriveNodes box tps =
                 BoundingBox3d.centerPoint box
 
         projectedX lon lat =
-            lon * metresPerDegree * cos (degrees lat)
+            lon * metresPerDegree
 
         projectedY lon lat =
             lat * metresPerDegree
@@ -89,7 +89,7 @@ deriveNodes box tps =
             { trackPoint = tp
             , location =
                 Point3d.meters
-                    (projectedX tp.lon tp.lat - midX)
+                    ((projectedX tp.lon tp.lat - midX) * cos (degrees tp.lat))
                     (projectedY tp.lon tp.lat - midY)
                     tp.ele
             , costMetric = Nothing
