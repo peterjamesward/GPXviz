@@ -43,7 +43,6 @@ import MyIP exposing (requestIpInformation)
 import NodesAndRoads exposing (..)
 import Nudge exposing (nudgeTrackPoint)
 import OAuthPorts exposing (randomBytes)
-import OAuthTypes as O exposing (..)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
@@ -83,9 +82,9 @@ main =
             update
         , subscriptions = subscriptions
         , onUrlRequest =
-            always (OAuthMessage NoOp)
+            always (StravaAuthMessage StravaAuth.NoOp)
         , onUrlChange =
-            always (OAuthMessage NoOp)
+            always (StravaAuthMessage StravaAuth.NoOp)
         , view =
             view
         }
@@ -191,7 +190,7 @@ type alias Model =
     , externalRouteId : String
     , externalSegment : StravaSegmentStatus
     , stravaRoute : StravaRouteStatus
-    , stravaAuthentication : O.Model
+    , stravaAuthentication : StravaAuth.Model
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
     , ipInfo : Maybe IpInfo
@@ -668,7 +667,7 @@ update msg model =
     case msg of
         -- Delegate wrapped OAuthmessages. Be bowled over if this works first time. Or fiftieth.
         -- Maybe look after to see if there is yet a token. Easy way to know.
-        OAuthMessage authMsg ->
+        StravaAuthMessage authMsg ->
             let
                 ( newAuthData, authCmd ) =
                     StravaAuth.update authMsg model.stravaAuthentication
@@ -677,7 +676,7 @@ update msg model =
                     getStravaToken newAuthData
             in
             ( { model | stravaAuthentication = newAuthData }
-            , Cmd.map OAuthMessage authCmd
+            , Cmd.map StravaAuthMessage authCmd
             )
 
         NoOpMsg ->
@@ -3311,7 +3310,13 @@ viewStravaPane model =
 viewKomootPane : Model -> Element Msg
 viewKomootPane model =
     column [ alignTop, centerX, width <| fillPortion 1 ]
-    []
+        [ if model.changeCounter == 0 then
+            komootButton --model.stravaAuthentication wrapAuthMessage
+
+          else
+            E.text "Save your work before\nconnecting to Komoot"
+        , none --stravaRouteOption model
+        ]
 
 
 viewInputError : Model -> Element Msg
@@ -4656,5 +4661,5 @@ subscriptions model =
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
         , Time.every 50 Tick
-        , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
+        , randomBytes (\ints -> StravaAuthMessage (StravaAuth.GotRandomBytes ints))
         ]

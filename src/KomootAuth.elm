@@ -1,4 +1,4 @@
-module StravaAuth exposing (..)
+module KomootAuth exposing (..)
 
 import Base64.Encode as Base64
 import Browser.Navigation as Navigation exposing (Key)
@@ -12,7 +12,7 @@ import Json.Decode as Json
 import OAuth
 import OAuth.AuthorizationCode as OAuth
 import OAuthPorts exposing (genRandomBytes)
-import StravaClientSecret
+import KomootClientSecret
 import Url exposing (Protocol(..), Url)
 import Url.Builder as Builder
 

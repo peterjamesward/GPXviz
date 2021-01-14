@@ -7,7 +7,7 @@ import GeoCodeDecoders exposing (IpInfo, IpInfo)
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
-import OAuthTypes exposing (OAuthMsg)
+import StravaAuth as StravaAuth
 import StravaTypes exposing (StravaRoute, StravaSegment, StravaSegmentStreams)
 import Time
 import ViewTypes exposing (ViewingMode)
@@ -84,7 +84,7 @@ type Msg
     | HandleSegmentData (Result Http.Error StravaSegment)
     | HandleSegmentStreams (Result Http.Error StravaSegmentStreams)
     | HandleRouteData (Result Http.Error StravaRoute)
-    | OAuthMessage OAuthMsg
+    | StravaAuthMessage StravaAuth.OAuthMsg
     | ToggleMapNodesDraggable Bool
     | AutoFix (List Int)
     | UserChangedFilename String
@@ -95,9 +95,9 @@ type Msg
     | ToggleFilterXY Bool
     | ToggleFilterZ Bool
 
-wrapAuthMessage : OAuthMsg -> Msg
+wrapAuthMessage : StravaAuth.OAuthMsg -> Msg
 wrapAuthMessage msg =
-    OAuthMessage msg
+    StravaAuthMessage msg
 
 
 type NodeSplitDirection

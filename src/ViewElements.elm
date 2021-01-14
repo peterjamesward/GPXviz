@@ -12,7 +12,6 @@ import Html.Events.Extra.Mouse as Mouse
 import Html.Events.Extra.Wheel as Wheel
 import Json.Decode as D
 import Msg exposing (Msg(..))
-import OAuthTypes exposing (OAuthMsg(..))
 import Utils exposing (scrollbarThickness, showDecimal2)
 
 
