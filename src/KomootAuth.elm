@@ -13,7 +13,7 @@ import Json.Decode as Json
 import KomootClientSecret
 import OAuth
 import OAuth.AuthorizationCode as OAuth
-import OAuthPorts exposing (genRandomBytes)
+import OAuthPorts exposing (genRandomBytesKomoot)
 import Url exposing (Protocol(..), Url)
 import Url.Builder as Builder
 
@@ -68,23 +68,11 @@ type OAuthMsg
     | GotRandomBytes (List Int)
     | AccessTokenRequested
     | GotAccessToken (Result Http.Error OAuth.AuthenticationSuccess)
-    | UserInfoRequested
-    | GotUserInfo (Result Http.Error UserInfo)
     | SignOutRequested
 
 
-{-| OAuth configuration.
-
-Note that this demo also fetches basic user information with the obtained access token,
-hence the user info endpoint and JSON decoder
-
-<http://www.strava.com/oauth/authorize?client_id=59195&response_type=code&redirect_uri=http://localhost/exchange_token&scope=read>
-
-<https://www.strava.com/api/v3/athlete>
-
--}
 host =
-    "https://auth.komoot.de"
+    "auth.komoot.de"
 
 
 configuration : Configuration
@@ -94,7 +82,7 @@ configuration =
     , tokenEndpoint =
         { defaultHttpsUrl | host = host, path = "/oauth/token" }
     , userInfoEndpoint =
-        { defaultHttpsUrl | host = host, path = "/api/v3/athlete" }
+        { defaultHttpsUrl | host = host, path = "" }
     , userInfoDecoder =
         Json.map3 UserInfo
             (Json.succeed 0)
@@ -171,19 +159,6 @@ init mflags origin navigationKey wrapperMsg =
             )
 
 
-getUserInfo : Configuration -> OAuth.Token -> Cmd OAuthMsg
-getUserInfo { userInfoDecoder, userInfoEndpoint } token =
-    Http.request
-        { method = "GET"
-        , body = Http.emptyBody
-        , headers = OAuth.useToken token []
-        , url = Url.toString userInfoEndpoint
-        , expect = Http.expectJson GotUserInfo userInfoDecoder
-        , timeout = Nothing
-        , tracker = Nothing
-        }
-
-
 update : OAuthMsg -> Model -> ( Model, Cmd OAuthMsg )
 update msg model =
     case ( model.flow, msg ) of
@@ -198,12 +173,6 @@ update msg model =
 
         ( Authorized _, GotAccessToken authenticationResponse ) ->
             gotAccessToken model authenticationResponse
-
-        ( Authenticated token, UserInfoRequested ) ->
-            userInfoRequested model token
-
-        ( Authenticated _, GotUserInfo userInfoResponse ) ->
-            gotUserInfo model userInfoResponse
 
         ( Done _ _, SignOutRequested ) ->
             signOutRequested model
@@ -220,7 +189,7 @@ noOp model =
 signInRequested : Model -> ( Model, Cmd OAuthMsg )
 signInRequested model =
     ( { model | flow = Idle }
-    , genRandomBytes 16
+    , genRandomBytesKomoot 16
     )
 
 
@@ -243,13 +212,6 @@ gotRandomBytes model bytes =
         |> OAuth.makeAuthorizationUrl
         |> Url.toString
         |> Navigation.load
-    )
-
-
-userInfoRequested : Model -> OAuth.Token -> ( Model, Cmd OAuthMsg )
-userInfoRequested model token =
-    ( { model | flow = Authenticated token }
-    , getUserInfo configuration token
     )
 
 
@@ -296,25 +258,6 @@ gotAccessToken model authenticationResponse =
 
         Ok { token } ->
             ( { model | flow = Authenticated token }
-            , Cmd.none
-            )
-
-
-gotUserInfo : Model -> Result Http.Error UserInfo -> ( Model, Cmd OAuthMsg )
-gotUserInfo model userInfoResponse =
-    case ( model.flow, userInfoResponse ) of
-        ( _, Err _ ) ->
-            ( { model | flow = Errored ErrHTTPGetUserInfo }
-            , Cmd.none
-            )
-
-        ( Authenticated token, Ok userInfo ) ->
-            ( { model | flow = Done userInfo token }
-            , Cmd.none
-            )
-
-        _ ->
-            ( { model | flow = Errored ErrStateMismatch }
             , Cmd.none
             )
 

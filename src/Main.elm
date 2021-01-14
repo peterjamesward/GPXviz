@@ -44,7 +44,7 @@ import Msg exposing (..)
 import MyIP exposing (requestIpInformation)
 import NodesAndRoads exposing (..)
 import Nudge exposing (nudgeTrackPoint)
-import OAuthPorts exposing (randomBytes)
+import OAuthPorts exposing (randomBytesKomoot, randomBytesStrava)
 import Pixels exposing (Pixels)
 import Plane3d
 import Point2d exposing (Point2d)
@@ -206,7 +206,8 @@ init mflags origin navigationKey =
     -- We stitch in the OAuth init stuff somehow here.
     let
         ( authData, authCmd ) =
-            StravaAuth.init mflags origin navigationKey wrapStravaAuthMessage
+            --StravaAuth.init mflags origin navigationKey wrapStravaAuthMessage
+            KomootAuth.init mflags origin navigationKey wrapKomootAuthMessage
     in
     ( { gpx = Nothing
       , gpxSource = GpxNone
@@ -277,8 +278,8 @@ init mflags origin navigationKey =
       , externalSegment = SegmentNone
       , externalRouteId = ""
       , stravaRoute = StravaRouteNone
-      , stravaAuthentication = authData
-      , komootAuthentication = KomootAuth.dummyModel
+      , stravaAuthentication = StravaAuth.dummyModel
+      , komootAuthentication = authData
       , mapNodesDraggable = False
       , lastHttpError = Nothing
       , ipInfo = Nothing
@@ -591,48 +592,6 @@ detectHit model event =
             model
 
 
-
--- placeholder
-{-
-   Here's some handy stuff from 'unsoundscapes' via slack.
-   (decodeMouseRay camera width height MouseDown)
-
-   decodeMouseRay :
-       Camera3d Meters WorldCoordinates
-       -> Quantity Float Pixels
-       -> Quantity Float Pixels
-       -> (Axis3d Meters WorldCoordinates -> msg)
-       -> Decoder msg
-   decodeMouseRay camera3d width height rayToMsg =
-       Json.Decode.map2
-           (\x y ->
-               rayToMsg
-                   (Camera3d.ray
-                       camera3d
-                       (Rectangle2d.with
-                           { x1 = pixels 0
-                           , y1 = height
-                           , x2 = width
-                           , y2 = pixels 0
-                           }
-                       )
-                       (Point2d.pixels x y)
-                   )
-           )
-           (Json.Decode.field "pageX" Json.Decode.float)
-           (Json.Decode.field "pageY" Json.Decode.float)
-
-           ...
-
-           MouseDown mouseRay ->
-               { model
-                   | selection =
-                       World.raycast mouseRay world
-                           |> Maybe.map (\{ body } -> Body.data body)
-               }
--}
-
-
 findBracketedRange : Model -> ( Int, Int )
 findBracketedRange model =
     -- For tools that default to whole track if no range. (Some tools default to single node.)
@@ -684,7 +643,13 @@ update msg model =
             )
 
         KomootAuthMessage authMsg ->
-            ( model, Cmd.none )
+            let
+                ( newAuthData, authCmd ) =
+                    KomootAuth.update authMsg model.komootAuthentication
+            in
+            ( { model | komootAuthentication = newAuthData }
+            , Cmd.map KomootAuthMessage authCmd
+            )
 
         NoOpMsg ->
             ( model, Cmd.none )
@@ -4668,5 +4633,6 @@ subscriptions model =
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
         , Time.every 50 Tick
-        , randomBytes (\ints -> StravaAuthMessage (StravaAuth.GotRandomBytes ints))
+        , randomBytesStrava (\ints -> StravaAuthMessage (StravaAuth.GotRandomBytes ints))
+        , randomBytesKomoot (\ints -> KomootAuthMessage (KomootAuth.GotRandomBytes ints))
         ]

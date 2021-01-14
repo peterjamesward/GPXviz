@@ -12,7 +12,7 @@ import Http
 import Json.Decode as Json
 import OAuth
 import OAuth.AuthorizationCode as OAuth
-import OAuthPorts exposing (genRandomBytes)
+import OAuthPorts exposing (genRandomBytesStrava)
 import StravaClientSecret
 import Url exposing (Protocol(..), Url)
 import Url.Builder as Builder
@@ -23,6 +23,7 @@ type alias Model =
     , flow : Flow
     }
 
+dummyModel = Model defaultHttpsUrl Idle
 
 type Flow
     = Idle
@@ -212,7 +213,7 @@ noOp model =
 signInRequested : Model -> ( Model, Cmd OAuthMsg )
 signInRequested model =
     ( { model | flow = Idle }
-    , genRandomBytes 16
+    , genRandomBytesStrava 16
     )
 
 

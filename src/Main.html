@@ -30,12 +30,23 @@ function rememberedBytes() {
 /* Generate high entropy random bytes using the Web Crypto API and
 remember them so that they are preserved between redirections. This
 allows to protect for XSS & authorization code attacks */
-app.ports.genRandomBytes.subscribe(n => {
+app.ports.genRandomBytesStrava.subscribe(n => {
     const buffer = new Uint8Array(n);
     crypto.getRandomValues(buffer);
     const bytes = Array.from(buffer);
     localStorage.setItem("bytes", bytes);
-    app.ports.randomBytes.send(bytes);
+    app.ports.randomBytesStrava.send(bytes);
+});
+
+/* Generate high entropy random bytes using the Web Crypto API and
+remember them so that they are preserved between redirections. This
+allows to protect for XSS & authorization code attacks */
+app.ports.genRandomBytesKomoot.subscribe(n => {
+    const buffer = new Uint8Array(n);
+    crypto.getRandomValues(buffer);
+    const bytes = Array.from(buffer);
+    localStorage.setItem("bytes", bytes);
+    app.ports.randomBytesKomoot.send(bytes);
 });
 
 // Mapbox integration ...
