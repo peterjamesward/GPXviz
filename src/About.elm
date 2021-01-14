@@ -15,7 +15,7 @@ aboutText =
 
 ## Changes
 
-- Temporary fix for bend smoothing error.
+- Bend smoother is working as it should. Not necessarily as it was. I find that it brings the radius in a bit tight, but that can be tweaked with Nudge. Spacing of less than 2m is probably pointless BTW.
 
 ## Guidance on use
 

@@ -158,17 +158,14 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
                     (\seg i ->
                         withElevation
                             (elevationArcStart + toFloat i * eleIncrement)
-                            (LineSegment2d.startPoint seg)
+                            (LineSegment2d.midpoint seg)
                     )
                     segments
                     (List.range 0 (numberPointsOnArc - 1))
     in
     { nodes =
-        []
             --[ tang1 ]
-            ++ newArcPoints
-
-    --++ [ tang2 ]
+            newArcPoints --++ [ tang2 ]
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index

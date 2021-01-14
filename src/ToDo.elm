@@ -1,7 +1,8 @@
 module ToDo exposing (..)
 
---TODO: Bend smoother bug with many small segments gong past the tangent points.
-?? Rounding error ?? Simple division error ?? Coordinate conversion error ??
+--TODO: Deployment script !!!!!
+
+--TODO: Let user choose whether bend smoother should smooth gradient to markers or bend only. (??)
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
