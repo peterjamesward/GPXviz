@@ -8,3 +8,5 @@ src/StravaClientSecret.elm
 StravaClientSecret.elm
 src/IpStackKey.elm
 IpStackKey.elm
+src/KomootClientSecret.elm
+KomootClientSecret.elm
