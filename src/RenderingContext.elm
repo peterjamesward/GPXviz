@@ -6,7 +6,6 @@ import Length
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, LocalCoords, ScalingInfo)
 import Point3d exposing (Point3d)
 import ViewTypes exposing (ViewingMode)
-import BendSmoother exposing (SmoothedBend)
 
 
 type alias RenderingContext =
