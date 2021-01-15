@@ -2,9 +2,9 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Bend preview should show lead-in and lead-out.
+--TODO: Smooth sideways scroll on profile.
 
---TODO: MOve "Simplify" into "Straighten" tab.
+--TODO: Move "Simplify" into "Straighten" tab.
 
 --TODO: Let user choose whether bend smoother should smooth gradient to markers or bend only. (??)
 

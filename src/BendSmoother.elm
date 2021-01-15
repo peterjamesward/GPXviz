@@ -106,6 +106,7 @@ makeSmoothBend :
     -> Arc2d Meters LocalCoords
     -> SmoothedBend
 makeSmoothBend trackPointSpacing roadAB roadCD arc =
+    -- Note return list here includes points A and D.
     let
         trueArcLength =
             (abs <| Angle.inRadians <| Arc2d.sweptAngle arc)
@@ -161,17 +162,19 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
                 point2d
 
         newArcPoints =
-            (List.map2
+            List.map2
                 elevate
-                (List.map  LineSegment2d.startPoint  (List.take 1 segments))
-                [ 0 ] )
+                (List.map LineSegment2d.startPoint (List.take 1 segments))
+                [ 0 ]
                 ++ List.map2
                     elevate
                     (List.map LineSegment2d.startPoint segments)
-                    (List.range 1 (numberPointsOnArc + 10) )
+                    (List.range 1 (numberPointsOnArc + 10))
     in
     { nodes =
-        newArcPoints
+        roadAB.startsAt.location
+            :: newArcPoints
+            ++ [ roadCD.endsAt.location ]
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index

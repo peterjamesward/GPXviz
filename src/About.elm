@@ -11,11 +11,11 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-14_
+> _This text updated 2021-01-15_
 
 ## Changes
 
-- Bend smoother is working as it should. Not necessarily as it was. I find that it brings the radius in a bit tight, but that can be tweaked with Nudge. Spacing of less than 2m is probably pointless BTW.
+- Bend smoother is working as it should. Better at rejecting 'fake' bends. Preview gives accurate impression of result.
 
 ## Guidance on use
 

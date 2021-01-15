@@ -2576,6 +2576,10 @@ smoothBend model =
                 numCurrentPoints =
                     abs (model.currentNode - marker) - 1
 
+                pointsOnArc =
+                    -- NOTE bend smoother return includes points A and D
+                    List.drop 1 <| List.take (List.length bend.nodes - 1) bend.nodes
+
                 numNewPoints =
                     List.length bend.nodes
 
