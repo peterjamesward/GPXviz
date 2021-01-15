@@ -64,8 +64,11 @@ lookForSmoothBendOption trackPointSpacing roadAB roadCD =
             if isBefore roadIn p && isAfter roadOut p then
                 divergentRoadsArc p roadIn roadOut
 
-            else
+            else if isAfter roadIn p && isBefore roadOut p then
                 convergentRoadsArc p roadIn roadOut
+
+            else
+                Nothing
 
         arc =
             case findIntercept roadIn roadOut of
@@ -152,20 +155,23 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
         eleIncrement =
             (elevationArcEnd - elevationArcStart) / toFloat numberPointsOnArc
 
+        elevate point2d i =
+            withElevation
+                (elevationArcStart + toFloat i * eleIncrement)
+                point2d
+
         newArcPoints =
-            List.drop 1 <|
-                List.map2
-                    (\seg i ->
-                        withElevation
-                            (elevationArcStart + toFloat i * eleIncrement)
-                            (LineSegment2d.midpoint seg)
-                    )
-                    segments
-                    (List.range 0 (numberPointsOnArc - 1))
+            (List.map2
+                elevate
+                (List.map  LineSegment2d.startPoint  (List.take 1 segments))
+                [ 0 ] )
+                ++ List.map2
+                    elevate
+                    (List.map LineSegment2d.startPoint segments)
+                    (List.range 1 (numberPointsOnArc + 10) )
     in
     { nodes =
-            --[ tang1 ]
-            newArcPoints --++ [ tang2 ]
+        newArcPoints
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index
@@ -186,7 +192,8 @@ divergentRoadsArc p r1 r2 =
             ( lineEquationFromTwoPoints pa pb, lineEquationFromTwoPoints pc pd )
 
         ( firstTangentPoint, secondTangentPoint ) =
-            if distance p midAB <= distance p midCD then
+            -- For divergence, choose midpoint farthest from interesct p.
+            if distance p midAB >= distance p midCD then
                 ( midAB, pointAlongRoad (pointsToGeometry p pc) (distance p midAB) )
 
             else

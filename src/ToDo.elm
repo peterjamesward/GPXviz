@@ -2,6 +2,10 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
+--TODO: Bend preview should show lead-in and lead-out.
+
+--TODO: MOve "Simplify" into "Straighten" tab.
+
 --TODO: Let user choose whether bend smoother should smooth gradient to markers or bend only. (??)
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
