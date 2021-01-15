@@ -2,8 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Smooth sideways scroll on profile.
-
 --TODO: Move "Simplify" into "Straighten" tab.
 
 --TODO: Let user choose whether bend smoother should smooth gradient to markers or bend only. (??)
@@ -22,12 +20,13 @@ module ToDo exposing (..)
 
 --TODO: Adjustable/selectable filter parameters.
 
---TODO: Put Autofix and Simplify on new Tab? -- Filter tab now it's there??
-
 --TODO: Imperial measurements in views.
 
 --TODO: "Split track" to show warning (+ Feather icon) if segments less than the maximum segment?
 
 --TODO: Still worth checking if we can trap any navigate-away actions.
+
+--TODO: Smooth sideways scroll on profile. (Not worth the effort unless they complain.)
+
 
 %% this stops auto format

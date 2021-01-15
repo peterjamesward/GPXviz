@@ -1616,7 +1616,7 @@ nodeToTrackPoint trackCenter node =
             centerLat + y / metresPerDegree
 
         degreesLon =
-            centerLon + x  / metresPerDegree / cos (degrees degreesLat)
+            centerLon + x / metresPerDegree / cos (degrees degreesLat)
     in
     { lat = degreesLat
     , lon = degreesLon
@@ -2411,8 +2411,7 @@ resetFlythrough model =
 
 tryBendSmoother : Model -> Model
 tryBendSmoother model =
-    -- Note we work here in trackpoint space, not node/road space.
-    -- This because we will need to create GPX entries, so better to start there IMHO.
+    -- Note we work here in node/road space and must convert back to lat/lon.
     let
         failed =
             { model
@@ -3635,17 +3634,6 @@ viewLoopTools model =
                         "Reverse the track"
                 }
 
-        simplifyButton =
-            button
-                prettyButtonStyles
-                { onPress = Just SimplifyTrack
-                , label =
-                    E.text <|
-                        "Remove "
-                            ++ String.fromInt (List.length model.metricFilteredNodes)
-                            ++ " track points\nto simplify the route."
-                }
-
         changeStartButton c =
             button
                 prettyButtonStyles
@@ -3658,7 +3646,6 @@ viewLoopTools model =
         commonButtons =
             wrappedRow [ spacing 10, padding 20, centerX ]
                 [ reverseButton
-                , simplifyButton
                 ]
     in
     column [ spacing 10, padding 5, centerX ] <|
@@ -4020,6 +4007,17 @@ viewStraightenTools model =
     let
         marker =
             Maybe.withDefault model.currentNode model.markedNode
+
+        simplifyButton =
+            button
+                prettyButtonStyles
+                { onPress = Just SimplifyTrack
+                , label =
+                    E.text <|
+                        "Remove up to "
+                            ++ String.fromInt (List.length model.metricFilteredNodes)
+                            ++ " track points\nto simplify the route."
+                }
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ if model.currentNode /= marker then
@@ -4030,6 +4028,8 @@ viewStraightenTools model =
                 [ E.text "The straighten tool requires a range."
                 , E.text "Drop the marker and move it away from the current pointer."
                 ]
+        , simplifyButton
+        , E.text "Simplify works across a range if available,\notherwise the whole track."
         ]
 
 

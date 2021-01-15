@@ -15,6 +15,10 @@ aboutText =
 
 ## Changes
 
+- Strava connection repaired.
+
+- Moved "Simplify" into the "Straighten" tab, which feels like a better home for it.
+
 - Bend smoother is working as it should. Better at rejecting 'fake' bends. Preview gives accurate impression of result.
 
 ## Guidance on use
