@@ -37,7 +37,7 @@ apiRoot =
 
 loggerRoot =
 
-    "https://apfcgnwhhh.execute-api.eu-west-1.amazonaws.com"
+    "https://9vrfiscge1.execute-api.eu-west-1.amazonaws.com"
 
 requestIpInformation : (Result Http.Error IpInfo -> msg) -> Cmd msg
 requestIpInformation msg =
@@ -81,7 +81,7 @@ sendIpInfo time msg ipInfo =
             Http.request
                 { method = "POST"
                 , headers = []
-                , url = Builder.crossOrigin loggerRoot [ "live" ] []
+                , url = Builder.crossOrigin loggerRoot [ "prod" ] []
                 , body = Http.jsonBody <| encodeLogInfo logInfo
                 , expect = Http.expectWhatever msg
                 , timeout = Nothing
