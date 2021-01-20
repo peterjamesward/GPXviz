@@ -1,14 +1,11 @@
 module ToDo exposing (..)
 
+--TODO: Faster load not using grep??
+
 --TODO: Deployment script !!!!!
-
---TODO: Move "Simplify" into "Straighten" tab.
-
---TODO: Let user choose whether bend smoother should smooth gradient to markers or bend only. (??)
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
--- Maybe also for some rarely needed, load-related tools ("Simplify").
 
 --TODO: Guidance text on tabs.
 

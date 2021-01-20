@@ -91,6 +91,16 @@ main =
         }
 
 
+type LoadingStep
+    = LoadNone
+    | LoadGetFileDetails
+    | LoadReadFile
+    | LoadParseFile
+    | LoadDeriveNodes
+    | LoadDeriveVisuals
+    | LoadFinishUp
+
+
 type alias AbruptChange =
     { node : DrawingNode
     , before : DrawingRoad
@@ -122,7 +132,8 @@ type GpxSource
 
 
 type alias Model =
-    { gpx : Maybe String
+    { loadingStep : LoadingStep
+    , gpx : Maybe String
     , gpxSource : GpxSource
     , filename : Maybe String
     , trackName : Maybe String
@@ -206,7 +217,8 @@ init mflags origin navigationKey =
         ( authData, authCmd ) =
             StravaAuth.init mflags origin navigationKey wrapAuthMessage
     in
-    ( { gpx = Nothing
+    ( { loadingStep = LoadNone
+      , gpx = Nothing
       , gpxSource = GpxNone
       , filename = Nothing
       , time = Time.millisToPosix 0
@@ -358,6 +370,9 @@ infoAccordion model =
 
 initialiseAccordion : Model -> Model
 initialiseAccordion model =
+    let
+        _ = Debug.log "Resetting tools" ""
+    in
     { model
         | toolsAccordion = toolsAccordion model
         , infoAccordion = infoAccordion model
@@ -380,6 +395,9 @@ addToUndoStack label model =
 
 
 clearTheModel model =
+    let
+        _ = Debug.log "Clearing the model" 0
+    in
     { model
         | gpx = Nothing
         , timeOfLastSave = Time.millisToPosix 0
@@ -737,7 +755,7 @@ update msg model =
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }
-            , MyIP.requestIpInformation ReceivedIpDetails
+            , Cmd.none
             )
 
         GpxRequested ->
@@ -746,6 +764,9 @@ update msg model =
             )
 
         GpxSelected file ->
+            let
+                _ = Debug.log "Loading GPX from " file
+            in
             ( { model | filename = Just (File.name file) }
             , Task.perform GpxLoaded (File.toString file)
             )
@@ -1529,11 +1550,8 @@ update msg model =
                     MyIP.processIpInfo response
             in
             ( { model | ipInfo = ipInfo }
-            , after 1 Second SendIpInfo
+            , MyIP.sendIpInfo model.time IpInfoAcknowledged ipInfo
             )
-
-        SendIpInfo ->
-            ( model, MyIP.sendIpInfo model.time IpInfoAcknowledged model.ipInfo )
 
         IpInfoAcknowledged _ ->
             ( model, Cmd.none )
@@ -1563,6 +1581,9 @@ trackHasChanged model =
 
 lookForSimplifications : Model -> Model
 lookForSimplifications model =
+    let
+        _ = Debug.log "Check for simplifications " 0
+    in
     { model | metricFilteredNodes = metricFilteredNodes model.nodes }
 
 
@@ -2662,6 +2683,9 @@ deleteZeroLengthSegments model =
 
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
+    let
+        _ = Debug.log "About to parse " content
+    in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
@@ -2673,6 +2697,8 @@ parseGPXintoModel content model =
 deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     let
+        _ = Debug.log "Found track points " model.trackPoints
+
         trackPointAsPoint tp =
             Point3d.meters tp.lon tp.lat tp.ele
 
@@ -2767,6 +2793,8 @@ deriveNodesAndRoads model =
 resetViewSettings : Model -> Model
 resetViewSettings model =
     let
+        _ = Debug.log "Resetting the views " model.nodeBox
+
         focus =
             BoundingBox3d.centerPoint model.nodeBox
 
@@ -2837,6 +2865,8 @@ checkSceneCamera model =
 deriveProblems : Model -> Model
 deriveProblems model =
     let
+        _ = Debug.log "Looking for issues " (List.length model.roads)
+
         suddenGradientChanges =
             List.filterMap identity <|
                 -- Filters out Nothings (nice)
@@ -2962,6 +2992,8 @@ deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
     let
+        _ = Debug.log "Making the 3D forms " model.displayOptions
+
         newMapInfo =
             Maybe.map updateMapInfo model.mapInfo
 
@@ -3034,6 +3066,8 @@ deriveVaryingVisualEntities model =
     -- Refers to the current and marked nodes.
     -- These need building each time the user changes current or marked nodes.
     let
+        _ = Debug.log "Making moving entities " model.currentNode
+
         currentRoad =
             lookupRoad model model.currentNode
 

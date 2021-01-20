@@ -89,7 +89,6 @@ type Msg
     | AutoFix (List Int)
     | UserChangedFilename String
     | ReceivedIpDetails (Result Http.Error IpInfo)
-    | SendIpInfo
     | IpInfoAcknowledged (Result Http.Error ())
     | FilterWeightedAverage
     | ToggleFilterXY Bool
