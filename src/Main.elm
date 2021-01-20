@@ -755,7 +755,7 @@ update msg model =
 
         AdjustTimeZone newZone ->
             ( { model | zone = newZone }
-            , Cmd.none
+            , MyIP.requestIpInformation ReceivedIpDetails
             )
 
         GpxRequested ->
