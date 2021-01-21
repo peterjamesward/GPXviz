@@ -370,9 +370,6 @@ infoAccordion model =
 
 initialiseAccordion : Model -> Model
 initialiseAccordion model =
-    let
-        _ = Debug.log "Resetting tools" ""
-    in
     { model
         | toolsAccordion = toolsAccordion model
         , infoAccordion = infoAccordion model
@@ -395,9 +392,6 @@ addToUndoStack label model =
 
 
 clearTheModel model =
-    let
-        _ = Debug.log "Clearing the model" 0
-    in
     { model
         | gpx = Nothing
         , timeOfLastSave = Time.millisToPosix 0
@@ -764,9 +758,6 @@ update msg model =
             )
 
         GpxSelected file ->
-            let
-                _ = Debug.log "Loading GPX from " file
-            in
             ( { model | filename = Just (File.name file) }
             , Task.perform GpxLoaded (File.toString file)
             )
@@ -1184,10 +1175,20 @@ update msg model =
             let
                 undoMessage =
                     "AutoFix " ++ String.fromInt (List.length nodes) ++ " issues"
+
+                current =
+                    Array.get model.currentNode model.nodeArray
             in
             model
                 |> addToUndoStack undoMessage
                 |> (\m -> { m | trackPoints = autoFix model.trackPoints nodes })
+                |> (case current of
+                        Just node ->
+                            makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
+
+                        Nothing ->
+                            identity
+                   )
                 |> trackHasChanged
 
         Undo ->
@@ -1581,9 +1582,6 @@ trackHasChanged model =
 
 lookForSimplifications : Model -> Model
 lookForSimplifications model =
-    let
-        _ = Debug.log "Check for simplifications " 0
-    in
     { model | metricFilteredNodes = metricFilteredNodes model.nodes }
 
 
@@ -2683,13 +2681,10 @@ deleteZeroLengthSegments model =
 
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
-    let
-        _ = Debug.log "About to parse " content
-    in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = filterCloseTrackPoints (parseTrackPoints content)
+        , trackPoints = reindexTrackpoints <| filterCloseTrackPoints <| parseTrackPoints content
         , changeCounter = 0
     }
 
@@ -2697,8 +2692,6 @@ parseGPXintoModel content model =
 deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     let
-        _ = Debug.log "Found track points " model.trackPoints
-
         trackPointAsPoint tp =
             Point3d.meters tp.lon tp.lat tp.ele
 
@@ -2793,8 +2786,6 @@ deriveNodesAndRoads model =
 resetViewSettings : Model -> Model
 resetViewSettings model =
     let
-        _ = Debug.log "Resetting the views " model.nodeBox
-
         focus =
             BoundingBox3d.centerPoint model.nodeBox
 
@@ -2865,8 +2856,6 @@ checkSceneCamera model =
 deriveProblems : Model -> Model
 deriveProblems model =
     let
-        _ = Debug.log "Looking for issues " (List.length model.roads)
-
         suddenGradientChanges =
             List.filterMap identity <|
                 -- Filters out Nothings (nice)
@@ -2992,8 +2981,6 @@ deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
     let
-        _ = Debug.log "Making the 3D forms " model.displayOptions
-
         newMapInfo =
             Maybe.map updateMapInfo model.mapInfo
 
@@ -3066,8 +3053,6 @@ deriveVaryingVisualEntities model =
     -- Refers to the current and marked nodes.
     -- These need building each time the user changes current or marked nodes.
     let
-        _ = Debug.log "Making moving entities " model.currentNode
-
         currentRoad =
             lookupRoad model model.currentNode
 

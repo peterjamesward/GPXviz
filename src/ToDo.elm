@@ -1,6 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Faster load not using grep??
 
 --TODO: Deployment script !!!!!
 

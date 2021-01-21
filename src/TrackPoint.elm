@@ -238,17 +238,24 @@ meanTrackPoint tp0 tp1 =
 
 filterCloseTrackPoints : List TrackPoint -> List TrackPoint
 filterCloseTrackPoints tps =
-    reindexTrackpoints <|
-        case tps of
-            t0 :: t1 :: tpRest ->
-                if trackPointSeparation t0 t1 < 0.5 then
-                    meanTrackPoint t0 t1 :: filterCloseTrackPoints tpRest
+    let
+        helper : TrackPoint -> List TrackPoint -> List TrackPoint -> List TrackPoint
+        helper tPrev stack tTail =
+            case tTail of
+                [] -> List.reverse stack
+                t1 :: ts ->
+                    if trackPointSeparation tPrev t1 < 0.1 then
+                        helper tPrev stack ts
+                    else
+                        helper t1 (t1 :: stack) ts
+    in
+    case tps of
+        [] -> []
 
-                else
-                    t0 :: filterCloseTrackPoints (t1 :: tpRest)
+        t0 :: tRest ->
+            helper t0 [t0] tRest
 
-            _ ->
-                tps
+
 
 
 trackPointSeparation tp1 tp2 =

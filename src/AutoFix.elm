@@ -1,37 +1,48 @@
 module AutoFix exposing (..)
 
+import List.Extra as List
 import TrackPoint exposing (TrackPoint, interpolateSegment, meanTrackPoint, reindexTrackpoints, trackPointSeparation)
 
 
 autoFix : List TrackPoint -> List Int -> List TrackPoint
 autoFix tps nodesToFix =
     reindexTrackpoints <|
-        autoFixInternal tps nodesToFix
+        autoFixInternal tps nodesToFix []
 
 
 autoFixInternal :
     List TrackPoint -- original track point list
     -> List Int -- list of TPs to be fixed (somehow)
+    -> List (List TrackPoint) -- difference list of partial results
     -> List TrackPoint -- The outcome!
-autoFixInternal inputs nodesToFix =
-    -- Both input lists are sorted in index order.
-    case ( inputs, nodesToFix ) of
-        ( tp0 :: tp1 :: tp2 :: tpRest, n1 :: nRest ) ->
-            if tp1.idx == n1 then
-                chamfer tp0 tp1 tp2
-                    ++ autoFixInternal
-                        tpRest
-                        nRest
-
-            else if tp1.idx < n1 then
-                tp0 :: autoFixInternal (tp1 :: tp2 :: tpRest) nodesToFix
-
-            else
-                -- somehow nodes out of order
-                autoFixInternal inputs nRest
-
-        ( _, _ ) ->
-            inputs
+autoFixInternal inputs nodesToFix diffList =
+    case nodesToFix of
+        [] -> List.concat <| List.reverse (inputs :: diffList)
+        ( n :: nRest ) ->
+            let
+                firstSplit = List.splitWhen (\t -> t.idx == n - 1) inputs
+            in
+            case firstSplit of
+                Just (skipped, notSkipped) ->
+                    let
+                        secondSplit = List.splitAt 3 notSkipped
+                    in
+                    case secondSplit of
+                        ([t0, t1, t2], remaining) ->
+                            autoFixInternal
+                                remaining
+                                nRest
+                                (chamfer t0 t1 t2 :: skipped :: diffList)
+                        _ ->
+                            autoFixInternal
+                                inputs
+                                nRest
+                                diffList
+                _ ->
+                            autoFixInternal
+                                inputs
+                                nRest
+                                diffList
 
 
 chamfer : TrackPoint -> TrackPoint -> TrackPoint -> List TrackPoint

@@ -11,15 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-15_
+> _This text updated 2021-01-21_
 
 ## Changes
 
-- Strava connection repaired.
+- Loading should be faster and more reliable on large files. Thanks to Steve Taylor.
 
-- Moved "Simplify" into the "Straighten" tab, which feels like a better home for it.
-
-- Bend smoother is working as it should. Better at rejecting 'fake' bends. Preview gives accurate impression of result.
+- Replaced two routines with similar limitations.
 
 ## Guidance on use
 
