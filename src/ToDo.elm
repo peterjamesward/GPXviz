@@ -1,5 +1,6 @@
 module ToDo exposing (..)
 
+--TODO: Nudge bug. Some nodes go the wrong way. Bearing related??
 
 --TODO: Deployment script !!!!!
 
