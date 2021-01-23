@@ -1833,34 +1833,28 @@ simulateNudgeNode model horizontal vertical =
     simulateNodeRangeNudge model firstNudgeNode lastNudgeNode horizontal vertical
 
 
-
---simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
-
-
+simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
 simulateNodeRangeNudge model node1 nodeN horizontal vertical =
     let
         targetNodes =
             List.drop node1 <| List.take (nodeN + 1) model.nodes
 
-        getBearingForNode : DrawingNode -> Float
-        getBearingForNode node =
-            let
-                precedingRoad =
-                    Array.get (node.trackPoint.idx - 1) model.roadArray
+        precedingNodes =
+            List.drop (node1 - 1) <| model.nodes
 
-                followingRoad =
-                    Array.get node.trackPoint.idx model.roadArray
+        followingNodes =
+            List.drop 1 targetNodes
 
-                neighbouringRoads =
-                    [ precedingRoad, followingRoad ]
+        effectiveBearings =
+            List.map3
+                getBearingForNode
+                targetNodes
+                precedingNodes
+                followingNodes
 
-                sumBearings =
-                    List.sum <| List.filterMap (Maybe.map .bearing) neighbouringRoads
-
-                numBearings =
-                    List.length <| List.filterMap (Maybe.map .bearing) neighbouringRoads
-            in
-            sumBearings / toFloat numBearings
+        getBearingForNode : DrawingNode -> DrawingNode -> DrawingNode -> Float
+        getBearingForNode thisNode beforeNode nextNode =
+            trackPointBearing beforeNode.trackPoint nextNode.trackPoint
 
         unmovedEndPoint =
             -- Only if we are not at the end of the track.
@@ -1875,15 +1869,16 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
             Array.get (node1 - 1) model.nodeArray
 
         nudgedStartPoints =
-            List.map
-                (\node ->
+            List.map2
+                (\node bearing ->
                     nudgeTrackPoint
                         node.trackPoint
-                        (getBearingForNode node)
+                        bearing
                         horizontal
                         vertical
                 )
                 targetNodes
+                effectiveBearings
 
         nudgedListForVisuals =
             (case prevNode of

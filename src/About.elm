@@ -15,9 +15,7 @@ aboutText =
 
 ## Changes
 
-- Loading should be faster and more reliable on large files. Thanks to Steve Taylor.
-
-- Replaced two routines with similar limitations.
+- Fixes a bug where nudged nodes moved the wrong way if the bearing was near 180.
 
 ## Guidance on use
 

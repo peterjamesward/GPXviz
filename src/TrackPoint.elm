@@ -242,20 +242,22 @@ filterCloseTrackPoints tps =
         helper : TrackPoint -> List TrackPoint -> List TrackPoint -> List TrackPoint
         helper tPrev stack tTail =
             case tTail of
-                [] -> List.reverse stack
+                [] ->
+                    List.reverse stack
+
                 t1 :: ts ->
                     if trackPointSeparation tPrev t1 < 0.1 then
                         helper tPrev stack ts
+
                     else
                         helper t1 (t1 :: stack) ts
     in
     case tps of
-        [] -> []
+        [] ->
+            []
 
         t0 :: tRest ->
-            helper t0 [t0] tRest
-
-
+            helper t0 [ t0 ] tRest
 
 
 trackPointSeparation tp1 tp2 =
@@ -274,3 +276,10 @@ trackPointFromLatLon lat lon tps =
         |> List.sortBy Tuple.second
         |> List.map Tuple.first
         |> List.head
+
+
+trackPointBearing : TrackPoint -> TrackPoint -> Float
+trackPointBearing tp1 tp2 =
+    Spherical.findBearingToTarget
+        ( tp1.lat, tp1.lon )
+        ( tp2.lat, tp2.lon )

@@ -1,7 +1,5 @@
 module ToDo exposing (..)
 
---TODO: Nudge bug. Some nodes go the wrong way. Bearing related??
-
 --TODO: Deployment script !!!!!
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
