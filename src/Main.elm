@@ -919,6 +919,7 @@ update msg model =
 
         ZoomLevelProfile level ->
             ( { model | zoomLevelProfile = level }
+                |> deriveVaryingVisualEntities
                 |> checkSceneCamera
             , Cmd.none
             )
@@ -1360,6 +1361,7 @@ update msg model =
                                             + deltaY
                                             * factor
                             }
+                                |> deriveVaryingVisualEntities
 
                         PlanView ->
                             { model
@@ -2810,7 +2812,7 @@ resetViewSettings model =
         | zoomLevelOverview = zoomLevel
         , zoomLevelFirstPerson = 2.0
         , zoomLevelThirdPerson = zoomLevel
-        , zoomLevelProfile = zoomLevel
+        , zoomLevelProfile = 8.0
         , zoomLevelPlan = zoomLevel
         , azimuth = Angle.degrees -90.0
         , elevation = Angle.degrees 30.0
@@ -3002,6 +3004,7 @@ deriveStaticVisualEntities model =
             , verticalNudge = model.verticalNudgeValue
             , nudgedRoads = model.nudgedNodeRoads
             , nudgedRegionStart = Just model.nudgedRegionStart
+            , zoomLevel = model.zoomLevelProfile
             }
     in
     { model
@@ -3036,6 +3039,7 @@ deriveTerrain model =
             , verticalNudge = model.verticalNudgeValue
             , nudgedRoads = model.nudgedNodeRoads
             , nudgedRegionStart = Just model.nudgedRegionStart
+            , zoomLevel = model.zoomLevelProfile
             }
     in
     { model
@@ -3048,14 +3052,8 @@ deriveVaryingVisualEntities model =
     -- Refers to the current and marked nodes.
     -- These need building each time the user changes current or marked nodes.
     let
-        currentRoad =
-            lookupRoad model model.currentNode
-
         marker =
             Maybe.withDefault model.currentNode model.markedNode
-
-        markedRoad =
-            lookupRoad model marker
 
         context =
             { displayOptions = model.displayOptions
@@ -3074,6 +3072,7 @@ deriveVaryingVisualEntities model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , horizontalNudge = model.nudgeValue
             , verticalNudge = model.verticalNudgeValue
+            , zoomLevel = model.zoomLevelProfile
             }
 
         profileContext =
@@ -4433,11 +4432,14 @@ profileCamera model =
                     in
                     Point3d.projectOnto
                         Plane3d.yz
-                        (Point3d.fromRecord meters { fixForFlythrough | y = flying.metresFromRouteStart })
+                        (Point3d.fromRecord
+                            meters
+                            { fixForFlythrough | y = flying.metresFromRouteStart }
+                        )
 
         eyePoint node =
             Point3d.translateBy
-                (Vector3d.meters 100.0 0.0 0.0)
+                (Vector3d.meters 10000.0 0.0 0.0)
                 (focus node)
 
         camera road =
@@ -4449,9 +4451,12 @@ profileCamera model =
                         , upDirection = positiveZ
                         }
                 , viewportHeight =
+                    -- factor here is empirical.
                     Length.meters <|
-                        metresPerPixel model.zoomLevelProfile latitude
-                            * (trackLength / viewMapWidth)
+                        2.0
+                            * metresPerPixel model.zoomLevelProfile latitude
+
+                --                            * (trackLength / viewMapWidth)
                 }
     in
     Maybe.map camera (Array.get model.cameraFocusProfileNode model.roadArray)

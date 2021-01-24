@@ -14,9 +14,10 @@ import Plane3d
 import Point3d
 import Quantity
 import RenderingContext exposing (RenderingContext)
-import Scene3d exposing (Entity, cone, cylinder, sphere)
+import Scene3d exposing (Entity, cone, cylinder, sphere, triangle)
 import Scene3d.Material as Material
 import Sphere3d exposing (Sphere3d)
+import Triangle3d exposing (Triangle3d)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
 import ViewTypes exposing (ViewingMode(..))
@@ -475,19 +476,37 @@ makeVaryingProfileEntities context roadList =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We might draw things differently to suit the projection.
     let
+        triangleForNode : DrawingNode -> Triangle3d Length.Meters LocalCoords
+        triangleForNode node =
+            let
+                relativeSize =
+                    2.0 ^ (14.0 - context.zoomLevel)
+
+                apex =
+                    Point3d.translateBy
+                        (Vector3d.meters 0.0 0.0 0.3)
+                        node.location
+
+                leftTop =
+                    Point3d.translateBy
+                        (Vector3d.meters 0.0 (-0.3 * relativeSize) relativeSize)
+                        apex
+
+                rightTop =
+                    Point3d.translateBy
+                        (Vector3d.meters 0.0 (0.3 * relativeSize) relativeSize)
+                        apex
+            in
+            Triangle3d.fromVertices
+                ( leftTop, rightTop, apex )
+
         currentPositionDisc =
+            -- Try a triangle instead of a cone.
             case context.currentNode of
                 Just node ->
-                    [ cone (Material.color Color.lightOrange) <|
-                        Cone3d.startingAt
-                            (Point3d.translateBy
-                                (Vector3d.meters 0.0 0.0 2.0)
-                                node.location
-                            )
-                            negativeZ
-                            { radius = meters 0.3
-                            , length = meters 1.9
-                            }
+                    [ triangle
+                        (Material.color Color.lightOrange)
+                        (triangleForNode node)
                     ]
 
                 _ ->
@@ -496,16 +515,9 @@ makeVaryingProfileEntities context roadList =
         markedNode =
             case context.markedNode of
                 Just node ->
-                    [ cone (Material.color Color.purple) <|
-                        Cone3d.startingAt
-                            (Point3d.translateBy
-                                (Vector3d.meters 0.0 0.0 2.1)
-                                node.location
-                            )
-                            negativeZ
-                            { radius = meters 0.25
-                            , length = meters 2.0
-                            }
+                    [ triangle
+                        (Material.color Color.purple)
+                        (triangleForNode node)
                     ]
 
                 _ ->
@@ -516,10 +528,6 @@ makeVaryingProfileEntities context roadList =
             case context.nudgedRegionStart of
                 Just node1 ->
                     let
-                        prevNode =
-                            -- Fugly way to get neighbouring nodes, but hey-ho.
-                            List.drop (node1 - 1) roadList
-
                         baselineWithElevationFromNudged baseline nudged =
                             let
                                 baselineRecord =
@@ -542,12 +550,7 @@ makeVaryingProfileEntities context roadList =
                                     baseline.profileEndsAt.location
                                     nudged.endsAt.location
                                 )
-                                --(Point3d.translateBy elevationVector baseline.profileStartsAt.location)
-                                --(Point3d.translateBy elevationVector baseline.profileEndsAt.location)
                                 baseline.profileEndsAt.location
-
-                        elevationVector =
-                            Vector3d.meters 0.0 0.0 context.verticalNudge
 
                         segmentsInvolved =
                             -- If the lowest marker is not at zero, then
@@ -576,6 +579,3 @@ makeVaryingProfileEntities context roadList =
         ++ markedNode
         ++ nudgedNodes
 
-
-
--- i.e. nudge preview.

@@ -19,4 +19,5 @@ type alias RenderingContext =
     , nudgedRegionStart : Maybe Int
     , verticalNudge : Float
     , horizontalNudge : Float
+    , zoomLevel : Float
     }

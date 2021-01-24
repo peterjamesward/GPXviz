@@ -2,6 +2,10 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
+--TODO: Slider to control vertical emphasis on elevation view.
+
+--TODO: Easy screenshots? (https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
 

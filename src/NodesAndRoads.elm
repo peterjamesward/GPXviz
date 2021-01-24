@@ -78,12 +78,17 @@ deriveNodes box tps =
 
         prepareDrawingNode tp =
             let
-                y = metresPerDegree * (tp.lat - midLat)
-                x = metresPerDegree * (tp.lon - midLon) * cos (degrees tp.lat)
-                z = tp.ele
+                y =
+                    metresPerDegree * (tp.lat - midLat)
+
+                x =
+                    metresPerDegree * (tp.lon - midLon) * cos (degrees tp.lat)
+
+                z =
+                    tp.ele
             in
             { trackPoint = tp
-            , location = Point3d.fromTuple Length.meters (x, y, z)
+            , location = Point3d.fromTuple Length.meters ( x, y, z )
             , costMetric = Nothing
             }
     in
@@ -133,11 +138,8 @@ deriveRoads drawingNodes =
             List.foldl
                 (\road ( idx, dist, done ) ->
                     let
-                        startNode =
-                            road.startsAt
-
-                        endNode =
-                            road.endsAt
+                        ( startNode, endNode ) =
+                            ( road.startsAt, road.endsAt )
 
                         profileStartAt =
                             { startNode
@@ -151,7 +153,6 @@ deriveRoads drawingNodes =
                         profileEndAt =
                             { endNode
                                 | location =
-                                    --TODO: The divide by 5.0 should not be happening here.
                                     Point3d.xyz
                                         (Length.meters 0.0)
                                         (Length.meters <| dist + road.length)
@@ -270,16 +271,6 @@ summaryData maybeRoad =
                         , text <| showDecimal2 road.endDistance
                         ]
                     ]
-
-                --, row [ padding 10, centerX, alignTop, spacing 10 ]
-                --    [ text <|
-                --        case road.startsAt.costMetric of
-                --            Just x ->
-                --                String.fromFloat x
-                --
-                --            Nothing ->
-                --                "No cost metric"
-                --    ]
                 ]
 
         Nothing ->
