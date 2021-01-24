@@ -20,4 +20,5 @@ type alias RenderingContext =
     , verticalNudge : Float
     , horizontalNudge : Float
     , zoomLevel : Float
+    , verticalExaggeration : Float
     }

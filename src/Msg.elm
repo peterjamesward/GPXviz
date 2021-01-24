@@ -48,6 +48,7 @@ type Msg
     | MarkerForwardOne
     | MarkerBackOne
     | SetBendTrackPointSpacing Float
+    | SetVerticalExaggeration Float
     | SetBumpinessFactor Float
     | SetFlythroughSpeed Float
     | RunFlythrough Bool

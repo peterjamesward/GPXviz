@@ -1,6 +1,7 @@
 module VisualEntities exposing (..)
 
 import Array exposing (Array)
+import Axis3d
 import BoundingBox3d
 import Color
 import Cone3d
@@ -272,12 +273,32 @@ makeMapEntities context roadList =
     roadSurfaces
 
 
+exaggerateRoad context road =
+    { road
+        | profileStartsAt = exaggerateNode context road.profileStartsAt
+        , profileEndsAt = exaggerateNode context road.profileEndsAt
+    }
+
+
+exaggerateNode context node =
+    { node
+        | location =
+            Point3d.scaleAbout
+                (Point3d.projectOntoAxis Axis3d.y node.location)
+                context.verticalExaggeration
+                node.location
+    }
+
+
 makeStaticProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
-makeStaticProfileEntities context roadList =
+makeStaticProfileEntities context beforeExaggeration =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We manipulate the context to get the scaling right.
     -- Decided to duplicate the function so we can have different shapes to suit the view.
     let
+        roadList =
+            List.map (exaggerateRoad context) beforeExaggeration
+
         brownPillar loc =
             cylinder (Material.color Color.brown) <|
                 Cylinder3d.startingAt
@@ -472,10 +493,13 @@ makeVaryingVisualEntities context _ =
 
 
 makeVaryingProfileEntities : RenderingContext -> List DrawingRoad -> List (Entity LocalCoords)
-makeVaryingProfileEntities context roadList =
+makeVaryingProfileEntities context beforeExaggeration =
     -- Same thing as above but "unrolled" view of road for viewing profile.
     -- We might draw things differently to suit the projection.
     let
+        roadList =
+            List.map (exaggerateRoad context) beforeExaggeration
+
         triangleForNode : DrawingNode -> Triangle3d Length.Meters LocalCoords
         triangleForNode node =
             let
@@ -506,7 +530,7 @@ makeVaryingProfileEntities context roadList =
                 Just node ->
                     [ triangle
                         (Material.color Color.lightOrange)
-                        (triangleForNode node)
+                        (triangleForNode <| exaggerateNode context node)
                     ]
 
                 _ ->
@@ -517,7 +541,7 @@ makeVaryingProfileEntities context roadList =
                 Just node ->
                     [ triangle
                         (Material.color Color.purple)
-                        (triangleForNode node)
+                        (triangleForNode <| exaggerateNode context node)
                     ]
 
                 _ ->
@@ -537,7 +561,7 @@ makeVaryingProfileEntities context roadList =
                                     Point3d.toMeters nudged
                             in
                             Point3d.fromMeters
-                                { baselineRecord | z = nudgedRecord.z }
+                                { baselineRecord | z = nudgedRecord.z * context.verticalExaggeration }
 
                         blendTheRoadData baseline nudged =
                             Scene3d.quad (Material.color Color.lightYellow)
@@ -557,10 +581,6 @@ makeVaryingProfileEntities context roadList =
                             -- the nudged roads includes the "on-ramp" from
                             -- the previous node, as well as the "off-ramp"
                             -- after the second node.
-                            if node1 == 0 then
-                                roadList
-
-                            else
                                 List.drop (node1 - 1) roadList
 
                         nudgedRoads =
@@ -568,7 +588,7 @@ makeVaryingProfileEntities context roadList =
                             List.map2
                                 blendTheRoadData
                                 segmentsInvolved
-                                context.nudgedRoads
+                                <| List.map (exaggerateRoad context) context.nudgedRoads
                     in
                     nudgedRoads
 
@@ -578,4 +598,3 @@ makeVaryingProfileEntities context roadList =
     currentPositionDisc
         ++ markedNode
         ++ nudgedNodes
-

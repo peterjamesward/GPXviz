@@ -179,6 +179,7 @@ type alias Model =
     , redoStack : List UndoEntry
     , smoothedBend : Maybe SmoothedBend -- computed track points
     , bendTrackPointSpacing : Float -- How far apart TPs are when bend smoothed.
+    , verticalExaggeration : Float
     , bumpinessFactor : Float -- 0.0 => average gradient, 1 => original gradients
     , flythroughSpeed : Float
     , flythrough : Maybe Flythrough
@@ -292,6 +293,7 @@ init mflags origin navigationKey =
       , lastHttpError = Nothing
       , ipInfo = Nothing
       , filterModes = ( True, True )
+      , verticalExaggeration = 1.0
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -1140,17 +1142,21 @@ update msg model =
             )
 
         SetBearingChangeThreshold threshold ->
-            ( { model
-                | bearingChangeThreshold = round threshold
-              }
+            ( { model | bearingChangeThreshold = round threshold }
                 |> deriveProblems
             , Cmd.none
             )
 
         SetFlythroughSpeed speed ->
-            ( { model
-                | flythroughSpeed = speed
-              }
+            ( { model | flythroughSpeed = speed }
+            , Cmd.none
+            )
+
+        SetVerticalExaggeration factor ->
+            ( { model | verticalExaggeration = factor }
+                |> deriveStaticVisualEntities
+                |> deriveVaryingVisualEntities
+                |> checkSceneCamera
             , Cmd.none
             )
 
@@ -1300,9 +1306,8 @@ update msg model =
             let
                 newModel =
                     simulateNudgeNode model horizontal model.verticalNudgeValue
-                        |> deriveVaryingVisualEntities
             in
-            ( newModel
+            ( newModel |> deriveVaryingVisualEntities
             , updateMapVaryingElements newModel
             )
 
@@ -1310,9 +1315,8 @@ update msg model =
             let
                 newModel =
                     simulateNudgeNode model model.nudgeValue vertical
-                        |> deriveVaryingVisualEntities
             in
-            ( newModel
+            ( newModel |> deriveVaryingVisualEntities
             , updateMapVaryingElements newModel
             )
 
@@ -1845,7 +1849,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
             List.drop (node1 - 1) <| model.nodes
 
         followingNodes =
-            List.drop 1 targetNodes
+            List.drop (node1 + 1) <| model.nodes
 
         effectiveBearings =
             List.map3
@@ -3005,6 +3009,7 @@ deriveStaticVisualEntities model =
             , nudgedRoads = model.nudgedNodeRoads
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
+            , verticalExaggeration = model.verticalExaggeration
             }
     in
     { model
@@ -3040,6 +3045,7 @@ deriveTerrain model =
             , nudgedRoads = model.nudgedNodeRoads
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
+            , verticalExaggeration = model.verticalExaggeration
             }
     in
     { model
@@ -3073,6 +3079,7 @@ deriveVaryingVisualEntities model =
             , horizontalNudge = model.nudgeValue
             , verticalNudge = model.verticalNudgeValue
             , zoomLevel = model.zoomLevelProfile
+            , verticalExaggeration = model.verticalExaggeration
             }
 
         profileContext =
@@ -3453,11 +3460,6 @@ minutes and will be lost if I make changes)"""
                 { onPress = Just ClearTerrain
                 , label = E.text "Remove the terrain."
                 }
-        , paragraph
-            [ padding 10
-            ]
-          <|
-            [ E.text "Select view elements" ]
         , row [ spacing 5 ]
             [ column [ spacing 5 ]
                 [ Input.checkbox []
@@ -3493,6 +3495,20 @@ minutes and will be lost if I make changes)"""
                     , icon = checkboxIcon
                     , checked = model.displayOptions.withLighting
                     , label = Input.labelRight [ centerY ] (E.text "Lighting")
+                    }
+                , Input.slider
+                    commonShortHorizontalSliderStyles
+                    { onChange = SetVerticalExaggeration
+                    , label =
+                        Input.labelBelow [] <|
+                            E.text <|
+                                "Elevation exaggeration = "
+                                    ++ showDecimal2 model.verticalExaggeration
+                    , min = 1.0
+                    , max = 10.0
+                    , step = Nothing
+                    , value = model.verticalExaggeration
+                    , thumb = Input.defaultThumb
                     }
                 ]
             ]
@@ -4423,12 +4439,15 @@ profileCamera model =
         focus node =
             case model.flythrough of
                 Nothing ->
-                    Point3d.projectOnto Plane3d.yz node.location
+                    Point3d.projectOnto
+                        Plane3d.yz
+                        (.location <| exaggerateNode { verticalExaggeration = model.verticalExaggeration } node)
 
                 Just flying ->
                     let
                         fixForFlythrough =
-                            Point3d.toRecord inMeters node.location
+                            Point3d.toRecord inMeters
+                                (.location <| exaggerateNode { verticalExaggeration = model.verticalExaggeration } node)
                     in
                     Point3d.projectOnto
                         Plane3d.yz
@@ -4455,8 +4474,6 @@ profileCamera model =
                     Length.meters <|
                         2.0
                             * metresPerPixel model.zoomLevelProfile latitude
-
-                --                            * (trackLength / viewMapWidth)
                 }
     in
     Maybe.map camera (Array.get model.cameraFocusProfileNode model.roadArray)

@@ -11,11 +11,13 @@ import Utils exposing (view3dDimensions, view3dHeight, view3dWidth, viewMapHeigh
 aboutText =
     """## Thank you for trying GPXmagic. It is freely provided without warranty.
 
-> _This text updated 2021-01-21_
-
 ## Changes
 
-- Fixes a bug where nudged nodes moved the wrong way if the bearing was near 180.
+- 2021-01-24 Visul styles has a slider that will emphasise verticals in the Elevation view only.
+
+- 2021-01-24 Marker size if fixed regardless of zoom level in Elevation view.
+
+- 2021-01-23 Fixes a bug where nudged nodes moved the wrong way if the bearing was near 180.
 
 ## Guidance on use
 
