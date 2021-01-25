@@ -2600,7 +2600,7 @@ smoothBend model =
                     List.drop 1 <| List.take (List.length bend.nodes - 1) bend.nodes
 
                 numNewPoints =
-                    List.length bend.nodes
+                    List.length bend.nodes - 2
 
                 newTrackPoints =
                     nodesToTrackPoints
@@ -2625,9 +2625,9 @@ smoothBend model =
                     { m
                         | trackPoints =
                             reindexTrackpoints <|
-                                List.take (bend.startIndex + 1) m.trackPoints
+                                List.take (bend.startIndex) m.trackPoints
                                     ++ newTrackPoints
-                                    ++ List.drop bend.endIndex m.trackPoints
+                                    ++ List.drop (bend.endIndex + 1) m.trackPoints
                         , smoothedBend = Nothing
                         , currentNode = newCurrent
                         , markedNode = Just newMark

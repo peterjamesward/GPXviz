@@ -168,7 +168,7 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
                 [ 0 ]
                 ++ List.map2
                     elevate
-                    (List.map LineSegment2d.startPoint segments)
+                    (List.map LineSegment2d.endPoint segments)
                     (List.range 1 (numberPointsOnArc + 10))
     in
     { nodes =
