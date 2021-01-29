@@ -3180,8 +3180,9 @@ view model =
           <|
             column
                 []
-                [ row [ centerX, spaceEvenly, spacing 10, padding 10 ]
-                    [ loadButton
+                [ row [ spaceEvenly, spacing 10, padding 10 ]
+                    [ donateButton
+                    , loadButton
                     , if model.changeCounter == 0 then
                         stravaButton model.stravaAuthentication wrapAuthMessage
 

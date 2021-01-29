@@ -6,6 +6,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (button)
+import FeatherIcons
 import Html.Attributes exposing (style)
 import Html.Events as HE
 import Html.Events.Extra.Mouse as Mouse
@@ -139,6 +140,18 @@ loadButton =
         }
 
 
+donateButton =
+    newTabLink
+        [ alignLeft ]
+        { url = "https://paypal.me/peterjamesward?locale.x=en_GB"
+        , label =
+            row []
+                [ text "Donate"
+                , html <| FeatherIcons.toHtml [] FeatherIcons.dollarSign
+                ]
+        }
+
+
 checkboxIcon : Bool -> Element msg
 checkboxIcon isChecked =
     el
@@ -267,7 +280,7 @@ deleteNodeButton ( start, finish ) =
     in
     button
         prettyButtonStyles
-        { onPress = Just (DeleteTrackPoints (start, finish))
+        { onPress = Just (DeleteTrackPoints ( start, finish ))
         , label = text message
         }
 

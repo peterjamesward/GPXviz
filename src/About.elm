@@ -15,6 +15,10 @@ aboutText =
 
 - 2021-01-25 Fixes bend smoother bug that added a duplicate track point.
 
+## Donations
+
+A few users have asked if I would accept any payment. Thank you but no, I do this for fun and challenge; like cycling. If you feel the urge, I have added a link that allows you to contribute towards a fund that will go to our local hospice. Or you can just give a gift to any cause; it's the spirit that counts.
+
 ## Guidance on use
 
 Load a local GPX file by clicking on the aptly-labelled button. Or connect to Strava by clicking on the equally-apt brand-compliant button and authorize GPXmagic to access your routes. You can then enter a numeric route ID (you'll find this at the end of the URL for a route) and get the GPX by clicking "Fetch route". The Strava connection is valid for six hours.
