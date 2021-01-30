@@ -25,7 +25,7 @@ import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import Filters exposing (applyWeightedAverageFilter)
+import Filters exposing (applyGaussianSmoothing)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
@@ -207,7 +207,8 @@ type alias Model =
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
     , ipInfo : Maybe IpInfo
-    , filterModes : ( Bool, Bool ) -- (XY, Z)
+    , gaussianSigma : Float -- curve smoothing with Gaussian convolution (ooh, matron).
+    , gaussianSigmaZ : Float -- additional smoothing for elevation only.
     }
 
 
@@ -292,8 +293,9 @@ init mflags origin navigationKey =
       , mapNodesDraggable = False
       , lastHttpError = Nothing
       , ipInfo = Nothing
-      , filterModes = ( True, True )
       , verticalExaggeration = 1.0
+      , gaussianSigma = 10.0
+      , gaussianSigmaZ = 50.0
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -335,7 +337,7 @@ toolsAccordion model =
       , state = Contracted
       , content = viewStravaDataAccessTab model
       }
-    , { label = "Filters"
+    , { label = "Dan Connelly"
       , state = Contracted
       , content = viewFilterControls model
       }
@@ -1439,39 +1441,32 @@ update msg model =
             in
             trackHasChanged newModel
 
-        ToggleFilterXY setting ->
-            let
-                ( filterXY, filterZ ) =
-                    model.filterModes
-            in
-            ( { model | filterModes = ( not filterXY, filterZ ) }
+        SetSigmaXYZ setting ->
+            ( { model | gaussianSigma = setting }
             , Cmd.none
             )
 
-        ToggleFilterZ setting ->
-            let
-                ( filterXY, filterZ ) =
-                    model.filterModes
-            in
-            ( { model | filterModes = ( filterXY, not filterZ ) }
+        SetSigmaZ setting ->
+            ( { model | gaussianSigmaZ = setting }
             , Cmd.none
             )
 
-        FilterWeightedAverage ->
+        SmoothGaussian xyz ->
             let
                 ( rangeStart, rangeEnd ) =
                     --TODO: Apply over bracket.
                     findBracketedRange model
 
                 undoMessage =
-                    "Weighted average filter"
+                    "Gaussian smoothing"
 
                 replaceTrackPoints old =
                     { old
                         | trackPoints =
-                            applyWeightedAverageFilter
+                            applyGaussianSmoothing
                                 ( rangeStart, rangeEnd )
-                                model.filterModes
+                                ( model.gaussianSigma, model.gaussianSigmaZ )
+                                xyz
                                 model.loopiness
                                 model.trackPoints
                     }
@@ -2625,7 +2620,7 @@ smoothBend model =
                     { m
                         | trackPoints =
                             reindexTrackpoints <|
-                                List.take (bend.startIndex) m.trackPoints
+                                List.take bend.startIndex m.trackPoints
                                     ++ newTrackPoints
                                     ++ List.drop (bend.endIndex + 1) m.trackPoints
                         , smoothedBend = Nothing
@@ -4610,42 +4605,25 @@ viewStravaDataAccessTab model =
 
 viewFilterControls : Model -> Element Msg
 viewFilterControls model =
-    let
-        ( filterXY, filterZ ) =
-            model.filterModes
-    in
-    column [ spacing 10, padding 10 ]
-        [ E.text "Smooth the track by applying some filters."
-        , E.text "Better results may be achieved by inserting track points first."
-        , E.text "Note that repeatedly applying approximates to Gaussian smoothing."
-        , row [ padding 3, spacing 3 ]
-            [ Input.checkbox []
-                { onChange = ToggleFilterXY
-                , icon = checkboxIcon
-                , checked = filterXY
-                , label = Input.labelRight [ centerY ] (E.text "Filter latitude & longitude")
+    column [ spacing 10, padding 10, centerX ]
+        [ E.text "Smooth the track with Gaussian convolution."
+        , E.text "With acknowledgements to Dan Connelly."
+        , row [ padding 3, spacing 20 ]
+            [ gaussianSlider model.gaussianSigma
+            , gaussianSliderZ model.gaussianSigmaZ
+            ]
+        , row [ padding 3, width fill, spacing 20 ]
+            [ button
+                (prettyButtonStyles)
+                { onPress = Just (SmoothGaussian False)
+                , label = E.text <| "Smooth all"
                 }
-            , Input.checkbox []
-                { onChange = ToggleFilterZ
-                , icon = checkboxIcon
-                , checked = filterZ
-                , label = Input.labelRight [ centerY ] (E.text "Filter elevation")
+            , button
+                (prettyButtonStyles)
+                { onPress = Just (SmoothGaussian True)
+                , label = E.text <| "Elevation only"
                 }
             ]
-        , case model.filterModes of
-            ( True, False ) ->
-                E.text "That might be weird, but it's your call."
-
-            ( False, False ) ->
-                E.text "You know that won't do anything."
-
-            _ ->
-                E.none
-        , button
-            prettyButtonStyles
-            { onPress = Just FilterWeightedAverage
-            , label = E.text <| "Five point weighted average"
-            }
         , wholeTrackTextHelper model
         ]
 

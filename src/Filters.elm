@@ -1,73 +1,55 @@
-module Filters exposing (applyWeightedAverageFilter)
+module Filters exposing (applyGaussianSmoothing)
 
 import Array
 import List.Extra
 import Loop exposing (..)
 import TrackPoint exposing (TrackPoint)
+import Zipper exposing (Zipper(..))
 
 
 type alias FilterFunction =
-    (TrackPoint -> Float)
+    Float
+    -> (TrackPoint -> Float)
     -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
+    -> List TrackPoint
     -> Float
 
 
-applyWeightedAverageFilter :
+applyGaussianSmoothing :
     ( Int, Int )
-    -> ( Bool, Bool )
+    -> ( Float, Float )
+    -> Bool
     -> Loopiness
     -> List TrackPoint
     -> List TrackPoint
-applyWeightedAverageFilter ( start, finish ) ( filterXY, filterZ ) loopiness points =
+applyGaussianSmoothing ( start, finish ) ( sigmaXYZ, sigmaZ ) zOnly loopiness points =
+    -- Using my old filter as a framework but Gaussian is more involved:
+    -- 1. Add track points so that spacing is less than sigma.
+    -- 2. Smooth XYZ or Z only
+    -- 3. Remove co-linear points (using existing cost metric)
+    -- 4. Stitch into anchored points if necessary (because smoothing inevitable draws in the end points).
+    -- Don't worry about efficiency. Deal with that if we need to.
     let
-        firstPoint =
-            List.take 1 points
+        zipper =
+            case points of
+                pFirst :: pRest ->
+                    Just (Zipper [] pFirst pRest)
 
-        numPoints =
-            List.length points
-
-        loopedPoints =
-            points ++ List.drop 1 points
+                _ ->
+                    Nothing
 
         ( latFn, lonFn, eleFn ) =
-            ( if filterXY then
-                withWeights
+            if zOnly then
+                ( centreValue, centreValue, withWeights sigmaZ )
 
-              else
-                centreValue
-            , if filterXY then
-                withWeights
+            else
+                ( withWeights sigmaXYZ, withWeights sigmaXYZ, withWeights sigmaXYZ )
 
-              else
-                centreValue
-            , if filterZ then
-                withWeights
-
-              else
-                centreValue
-            )
-
-        filteredLoop =
-            List.map5
-                (weightedAverage ( latFn, lonFn, eleFn ))
-                (List.drop (numPoints - 2) loopedPoints)
-                (List.drop (numPoints - 1) loopedPoints)
-                points
-                (List.drop 1 loopedPoints)
-                (List.drop 2 loopedPoints)
-
-        filtered =
-            List.map5
-                (weightedAverage ( latFn, lonFn, eleFn ))
-                (firstPoint ++ firstPoint ++ points)
-                (firstPoint ++ points)
-                points
-                (List.drop 1 loopedPoints)
-                (List.drop 2 loopedPoints)
+        filtered zipper =
+            Zipper.toList <|
+                Zipper.extend
+                    (gaussianKernel ( latFn, lonFn, eleFn ) sigmas)
+                    zipper
 
         withinRange =
             Array.fromList
@@ -77,31 +59,31 @@ applyWeightedAverageFilter ( start, finish ) ( filterXY, filterZ ) loopiness poi
         ( fixedFirst, fixedLast ) =
             ( List.take (start + 1) points, List.drop finish points )
     in
-    if start == finish && loopiness == IsALoop then
-        filteredLoop
+    points
+        |> isolateAffectedPoints
+        |> interpolatePoints (min sigmaXYZ sigmaZ)
+        |> smoothPoints
+        |> removeRedundantPoints
+        |> spliceIntoRoute
+        |> reindex
 
-    else
-        fixedFirst ++ withinRange filtered ++ fixedLast
 
-
-weightedAverage :
+gaussianKernel :
     ( FilterFunction, FilterFunction, FilterFunction )
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-weightedAverage ( latFn, lonFn, eleFn ) p0 p1 p2 p3 p4 =
-    { lon = lonFn .lon p0 p1 p2 p3 p4
-    , lat = latFn .lat p0 p1 p2 p3 p4
-    , ele = eleFn .ele p0 p1 p2 p3 p4
-    , idx = p2.idx
+    -> Zipper TrackPoint
+    -> Maybe TrackPoint
+gaussianKernel ( latFn, lonFn, eleFn ) zp =
+    -- We shall gather track points with 2.sigma each side and apply convolution.
+    -- So passing in a zipper would be quite neat here.
+    { lon = lonFn .lon p0 ps
+    , lat = latFn .lat p0 ps
+    , ele = eleFn .ele p0 ps
+    , idx = p0.idx
     }
 
 
 withWeights : FilterFunction
-withWeights f p0 p1 p2 p3 p4 =
+withWeights sigma f x xs =
     let
         ( x0, x1, x2 ) =
             ( f p0, f p1, f p2 )
@@ -113,5 +95,5 @@ withWeights f p0 p1 p2 p3 p4 =
 
 
 centreValue : FilterFunction
-centreValue f _ _ p2 _ _ =
-    f p2
+centreValue f x0 _ =
+    f x0

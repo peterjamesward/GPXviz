@@ -2,7 +2,10 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Easy screenshots? (https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toDataURL)
+--TODO: Dan's Gaussian smoothing.
+
+--TODO: Check that bumps are not anywhere being amplified e.g. coordinate conversion.
+-- ORRR -- could be the focus point shifting!!
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.

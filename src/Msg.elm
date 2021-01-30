@@ -92,8 +92,9 @@ type Msg
     | ReceivedIpDetails (Result Http.Error IpInfo)
     | IpInfoAcknowledged (Result Http.Error ())
     | FilterWeightedAverage
-    | ToggleFilterXY Bool
-    | ToggleFilterZ Bool
+    | SetSigmaXYZ Float
+    | SetSigmaZ Float
+    | SmoothGaussian Bool
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =
