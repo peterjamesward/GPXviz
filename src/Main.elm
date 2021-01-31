@@ -35,6 +35,7 @@ import Http
 import Json.Decode as E exposing (..)
 import Length exposing (inMeters, meters)
 import List exposing (drop, take)
+import List.Extra
 import Loop exposing (..)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import MapboxStuff exposing (metresPerPixel, zoomLevelFromBoundingBox)
@@ -1447,7 +1448,6 @@ update msg model =
         FilterWeightedAverage ->
             let
                 ( rangeStart, rangeEnd ) =
-                    --TODO: Apply over bracket.
                     findBracketedRange model
 
                 undoMessage =
@@ -1472,10 +1472,71 @@ update msg model =
 
         BezierSplines ->
             let
-                newModel =
-                    { model | trackPoints = reindexTrackpoints <| bezierSplines model.trackPoints }
+                ( rangeStart, rangeEnd ) =
+                    --TODO: Apply over bracket.
+                    findBracketedRange model
+
+                actualPointerPosition =
+                    Maybe.map .trackPoint (Array.get model.currentNode model.nodeArray)
+
+                actualMarkerPosition =
+                    case model.markedNode of
+                        Just mark ->
+                            Maybe.map .trackPoint (Array.get mark model.nodeArray)
+
+                        Nothing ->
+                            Nothing
+
+                treatAsLoop =
+                    model.markedNode == Nothing && model.loopiness == IsALoop
+
+                ( beforeEnd, afterEnd ) =
+                    List.Extra.splitAt rangeEnd model.trackPoints
+
+                ( beforeStart, toProcess ) =
+                    List.Extra.splitAt rangeStart beforeEnd
+
+                replacementPoints =
+                    bezierSplines treatAsLoop toProcess
+
+                reassembled =
+                    reindexTrackpoints <|
+                        beforeStart
+                            ++ replacementPoints
+                            ++ afterEnd
+
+                newPointerPosition =
+                    case actualPointerPosition of
+                        Just pointer ->
+                            Maybe.withDefault 0 <|
+                                Maybe.map .idx <|
+                                    trackPointFromLatLon pointer.lat pointer.lon reassembled
+
+                        Nothing ->
+                            0
+
+                newMarkerPosition =
+                    case actualMarkerPosition of
+                        Just marker ->
+                            Just <|
+                                Maybe.withDefault 0 <|
+                                    Maybe.map .idx <|
+                                        trackPointFromLatLon marker.lat marker.lon reassembled
+
+                        Nothing ->
+                            Nothing
+
+                replaceTrackPoints m =
+                    { m
+                        | trackPoints = reassembled
+                        , currentNode = newPointerPosition
+                        , markedNode = newMarkerPosition
+                    }
             in
-            trackHasChanged newModel
+            model
+                |> addToUndoStack "Bezier splines"
+                |> replaceTrackPoints
+                |> trackHasChanged
 
         LoadExternalSegment ->
             case getStravaToken model.stravaAuthentication of

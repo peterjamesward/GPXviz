@@ -2,7 +2,11 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Splines.
+--TODO: Splines:
+-- add loop support,
+-- remove superfluous track points,
+-- Expose 'tolerance' and 'tension'?
+-- Put Spline on its own tab??
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.

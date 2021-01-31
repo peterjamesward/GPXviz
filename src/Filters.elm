@@ -86,8 +86,8 @@ weightedAverage bias p0 p1 p2 =
     }
 
 
-bezierSplines : List TrackPoint -> List TrackPoint
-bezierSplines points =
+bezierSplines : Bool -> List TrackPoint -> List TrackPoint
+bezierSplines isLoop points =
     let
         _ =
             Debug.log "Look, ma! Splines!" asTrackPointsAgain
