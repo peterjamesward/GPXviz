@@ -25,7 +25,7 @@ import FeatherIcons
 import File exposing (File)
 import File.Download as Download
 import File.Select as Select
-import Filters exposing (applyWeightedAverageFilter)
+import Filters exposing (applyWeightedAverageFilter, bezierSplines)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
@@ -1467,6 +1467,13 @@ update msg model =
                     model
                         |> addToUndoStack undoMessage
                         |> replaceTrackPoints
+            in
+            trackHasChanged newModel
+
+        BezierSplines ->
+            let
+                newModel =
+                    { model | trackPoints = reindexTrackpoints <| bezierSplines model.trackPoints }
             in
             trackHasChanged newModel
 
@@ -4598,7 +4605,8 @@ viewStravaDataAccessTab model =
 viewFilterControls : Model -> Element Msg
 viewFilterControls model =
     let
-        bias = model.filterBias * 100.0
+        bias =
+            model.filterBias * 100.0
     in
     column [ spacing 10, padding 10, centerX ]
         [ E.text "Smooth the track by applying some filters."
@@ -4621,6 +4629,11 @@ viewFilterControls model =
             prettyButtonStyles
             { onPress = Just FilterWeightedAverage
             , label = E.text <| "Centroid averaging"
+            }
+        , button
+            prettyButtonStyles
+            { onPress = Just BezierSplines
+            , label = E.text <| "Bezier splines"
             }
         , wholeTrackTextHelper model
         ]

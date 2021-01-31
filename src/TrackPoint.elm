@@ -4,8 +4,9 @@ import BoundingBox3d
 import Element exposing (..)
 import Geometry101 exposing (distance)
 import Json.Encode as E
+import Length
 import Msg exposing (..)
-import Point3d
+import Point3d exposing (Point3d)
 import Regex
 import Spherical exposing (metresPerDegree)
 import Utils exposing (asRegex)
@@ -283,3 +284,17 @@ trackPointBearing tp1 tp2 =
     Spherical.findBearingToTarget
         ( tp1.lat, tp1.lon )
         ( tp2.lat, tp2.lon )
+
+
+pointFromTrackpoint : TrackPoint -> Point3d Length.Meters GPXCoords
+pointFromTrackpoint tp =
+    Point3d.fromMeters { x = tp.lon, y = tp.lat, z = tp.ele }
+
+
+pointAsTrackPoint : Point3d Length.Meters GPXCoords -> TrackPoint
+pointAsTrackPoint p =
+    let
+        { x, y, z } =
+            Point3d.toMeters p
+    in
+    { lat = y, lon = x, ele = z, idx = 0 }

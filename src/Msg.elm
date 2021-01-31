@@ -93,6 +93,7 @@ type Msg
     | IpInfoAcknowledged (Result Http.Error ())
     | FilterWeightedAverage
     | SetFilterBias Float
+    | BezierSplines
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =
