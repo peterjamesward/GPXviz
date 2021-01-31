@@ -18,11 +18,11 @@ type alias FilterFunction =
 
 applyWeightedAverageFilter :
     ( Int, Int )
-    -> ( Bool, Bool )
+    -> Float
     -> Loopiness
     -> List TrackPoint
     -> List TrackPoint
-applyWeightedAverageFilter ( start, finish ) ( filterXY, filterZ ) loopiness points =
+applyWeightedAverageFilter ( start, finish ) filterBias loopiness points =
     let
         firstPoint =
             List.take 1 points
@@ -33,41 +33,19 @@ applyWeightedAverageFilter ( start, finish ) ( filterXY, filterZ ) loopiness poi
         loopedPoints =
             points ++ List.drop 1 points
 
-        ( latFn, lonFn, eleFn ) =
-            ( if filterXY then
-                withWeights
-
-              else
-                centreValue
-            , if filterXY then
-                withWeights
-
-              else
-                centreValue
-            , if filterZ then
-                withWeights
-
-              else
-                centreValue
-            )
-
         filteredLoop =
-            List.map5
-                (weightedAverage ( latFn, lonFn, eleFn ))
-                (List.drop (numPoints - 2) loopedPoints)
+            List.map3
+                (weightedAverage filterBias)
                 (List.drop (numPoints - 1) loopedPoints)
                 points
                 (List.drop 1 loopedPoints)
-                (List.drop 2 loopedPoints)
 
         filtered =
-            List.map5
-                (weightedAverage ( latFn, lonFn, eleFn ))
-                (firstPoint ++ firstPoint ++ points)
+            List.map3
+                (weightedAverage filterBias)
                 (firstPoint ++ points)
                 points
                 (List.drop 1 loopedPoints)
-                (List.drop 2 loopedPoints)
 
         withinRange =
             Array.fromList
@@ -85,33 +63,15 @@ applyWeightedAverageFilter ( start, finish ) ( filterXY, filterZ ) loopiness poi
 
 
 weightedAverage :
-    ( FilterFunction, FilterFunction, FilterFunction )
+    Float
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
     -> TrackPoint
-    -> TrackPoint
-    -> TrackPoint
-weightedAverage ( latFn, lonFn, eleFn ) p0 p1 p2 p3 p4 =
-    { lon = lonFn .lon p0 p1 p2 p3 p4
-    , lat = latFn .lat p0 p1 p2 p3 p4
-    , ele = eleFn .ele p0 p1 p2 p3 p4
-    , idx = p2.idx
+weightedAverage bias p0 p1 p2 =
+    { lon = (1.0 - bias) * p1.lon + bias * (p0.lon + p1.lon + p2.lon) / 3.0
+    , lat = (1.0 - bias) * p1.lat + bias * (p0.lat + p1.lat + p2.lat) / 3.0
+    , ele = (1.0 - bias) * p1.ele + bias * (p0.ele + p1.ele + p2.ele) / 3.0
+    , idx = p1.idx
     }
 
-
-withWeights : FilterFunction
-withWeights f p0 p1 p2 p3 p4 =
-    let
-        ( x0, x1, x2 ) =
-            ( f p0, f p1, f p2 )
-
-        ( x3, x4 ) =
-            ( f p3, f p4 )
-    in
-    (x0 + x1 * 2 + x2 * 4 + x3 * 2 + x4) / 10.0
-
-
-centreValue : FilterFunction
-centreValue f _ _ p2 _ _ =
-    f p2

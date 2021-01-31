@@ -207,7 +207,7 @@ type alias Model =
     , mapNodesDraggable : Bool
     , lastHttpError : Maybe Http.Error
     , ipInfo : Maybe IpInfo
-    , filterModes : ( Bool, Bool ) -- (XY, Z)
+    , filterBias : Float -- 0.0 == unchanged, 1.0 == full filter effect
     }
 
 
@@ -292,7 +292,7 @@ init mflags origin navigationKey =
       , mapNodesDraggable = False
       , lastHttpError = Nothing
       , ipInfo = Nothing
-      , filterModes = ( True, True )
+      , filterBias = 0.5
       , verticalExaggeration = 1.0
       }
     , Cmd.batch
@@ -1439,21 +1439,8 @@ update msg model =
             in
             trackHasChanged newModel
 
-        ToggleFilterXY setting ->
-            let
-                ( filterXY, filterZ ) =
-                    model.filterModes
-            in
-            ( { model | filterModes = ( not filterXY, filterZ ) }
-            , Cmd.none
-            )
-
-        ToggleFilterZ setting ->
-            let
-                ( filterXY, filterZ ) =
-                    model.filterModes
-            in
-            ( { model | filterModes = ( filterXY, not filterZ ) }
+        SetFilterBias setting ->
+            ( { model | filterBias = setting / 100.0 }
             , Cmd.none
             )
 
@@ -1464,14 +1451,14 @@ update msg model =
                     findBracketedRange model
 
                 undoMessage =
-                    "Weighted average filter"
+                    "Centroid filter"
 
                 replaceTrackPoints old =
                     { old
                         | trackPoints =
                             applyWeightedAverageFilter
                                 ( rangeStart, rangeEnd )
-                                model.filterModes
+                                model.filterBias
                                 model.loopiness
                                 model.trackPoints
                     }
@@ -2625,7 +2612,7 @@ smoothBend model =
                     { m
                         | trackPoints =
                             reindexTrackpoints <|
-                                List.take (bend.startIndex) m.trackPoints
+                                List.take bend.startIndex m.trackPoints
                                     ++ newTrackPoints
                                     ++ List.drop (bend.endIndex + 1) m.trackPoints
                         , smoothedBend = Nothing
@@ -4611,40 +4598,29 @@ viewStravaDataAccessTab model =
 viewFilterControls : Model -> Element Msg
 viewFilterControls model =
     let
-        ( filterXY, filterZ ) =
-            model.filterModes
+        bias = model.filterBias * 100.0
     in
-    column [ spacing 10, padding 10 ]
+    column [ spacing 10, padding 10, centerX ]
         [ E.text "Smooth the track by applying some filters."
         , E.text "Better results may be achieved by inserting track points first."
-        , E.text "Note that repeatedly applying approximates to Gaussian smoothing."
-        , row [ padding 3, spacing 3 ]
-            [ Input.checkbox []
-                { onChange = ToggleFilterXY
-                , icon = checkboxIcon
-                , checked = filterXY
-                , label = Input.labelRight [ centerY ] (E.text "Filter latitude & longitude")
-                }
-            , Input.checkbox []
-                { onChange = ToggleFilterZ
-                , icon = checkboxIcon
-                , checked = filterZ
-                , label = Input.labelRight [ centerY ] (E.text "Filter elevation")
-                }
-            ]
-        , case model.filterModes of
-            ( True, False ) ->
-                E.text "That might be weird, but it's your call."
-
-            ( False, False ) ->
-                E.text "You know that won't do anything."
-
-            _ ->
-                E.none
+        , Input.slider commonShortHorizontalSliderStyles
+            { onChange = SetFilterBias
+            , label =
+                Input.labelBelow [] <|
+                    E.text <|
+                        "Smoothing "
+                            ++ String.fromInt (round bias)
+                            ++ "%"
+            , min = 0.0
+            , max = 100.0
+            , step = Just 5.0
+            , value = bias
+            , thumb = Input.defaultThumb
+            }
         , button
             prettyButtonStyles
             { onPress = Just FilterWeightedAverage
-            , label = E.text <| "Five point weighted average"
+            , label = E.text <| "Centroid averaging"
             }
         , wholeTrackTextHelper model
         ]
