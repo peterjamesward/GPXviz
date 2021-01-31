@@ -19,8 +19,6 @@ module ToDo exposing (..)
 
 --TODO: Debt. Reduce duplication.
 
---TODO: Adjustable/selectable filter parameters.
-
 --TODO: Imperial measurements in views.
 
 --TODO: "Split track" to show warning (+ Feather icon) if segments less than the maximum segment?

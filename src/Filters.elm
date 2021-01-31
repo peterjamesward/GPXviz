@@ -122,11 +122,23 @@ bezierSplines isLoop points =
 
         makeTriangles : List (Triangle3d Length.Meters GPXCoords)
         makeTriangles =
+            let
+                shiftedBack =
+                    if isLoop then
+                        lastPoint ++ points
+                    else
+                        firstPoint ++ points
+                shiftedForwards =
+                    if isLoop then
+                        (List.drop 1 points ++ firstPoint)
+                    else
+                        (List.drop 1 points ++ lastPoint)
+            in
             List.map3
                 makeTriangleForTrackPoint
-                (firstPoint ++ points)
+                shiftedBack
                 points
-                (List.drop 1 points ++ lastPoint)
+                shiftedForwards
 
         controlPointsFromTriangle :
             Triangle3d Length.Meters GPXCoords
