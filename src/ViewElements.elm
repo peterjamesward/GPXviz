@@ -303,6 +303,42 @@ horizontalNudgeSlider value =
         }
 
 
+gaussianSlider value =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetSigmaXYZ
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Smoothing = "
+                        ++ showDecimal2 value
+                        ++ "m"
+        , min = 3.0
+        , max = 20.0
+        , step = Nothing
+        , value = value
+        , thumb = Input.defaultThumb
+        }
+
+
+gaussianSliderZ value =
+    Input.slider
+        commonShortHorizontalSliderStyles
+        { onChange = SetSigmaZ
+        , label =
+            Input.labelBelow [] <|
+                text <|
+                    "Elevation smoothing = "
+                        ++ showDecimal2 value
+                        ++ "m"
+        , min = 3.0
+        , max = 20.0
+        , step = Nothing
+        , value = value
+        , thumb = Input.defaultThumb
+        }
+
+
 verticalNudgeSlider value =
     el [ width <| px 80, centerX ] <|
         Input.slider
