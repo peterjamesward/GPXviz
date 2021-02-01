@@ -1,9 +1,10 @@
 module Flythrough exposing (..)
 
 import Length
-import NodesAndRoads exposing (DrawingRoad, LocalCoords)
+import NodesAndRoads exposing (DrawingRoad)
 import Point3d exposing (Point3d)
 import Time
+import UbiquitousTypes exposing (LocalCoords)
 import Vector3d
 
 

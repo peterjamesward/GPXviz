@@ -5,10 +5,11 @@ import Arc2d exposing (Arc2d)
 import Geometry101 as G exposing (..)
 import Length exposing (Meters, inMeters)
 import LineSegment2d
-import NodesAndRoads exposing (DrawingRoad, LocalCoords)
+import NodesAndRoads exposing (DrawingRoad)
 import Point2d exposing (Point2d)
 import Point3d exposing (Point3d, xCoordinate, yCoordinate, zCoordinate)
 import Polyline2d
+import UbiquitousTypes exposing (LocalCoords)
 
 
 type alias SmoothedBend =

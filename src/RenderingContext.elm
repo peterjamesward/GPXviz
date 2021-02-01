@@ -3,8 +3,9 @@ module RenderingContext exposing (..)
 import BoundingBox3d exposing (BoundingBox3d)
 import DisplayOptions exposing (DisplayOptions)
 import Length
-import NodesAndRoads exposing (DrawingNode, DrawingRoad, LocalCoords, ScalingInfo)
+import NodesAndRoads exposing (DrawingNode, DrawingRoad, ScalingInfo)
 import Point3d exposing (Point3d)
+import UbiquitousTypes exposing (LocalCoords)
 import ViewTypes exposing (ViewingMode)
 
 

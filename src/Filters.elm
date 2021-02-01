@@ -9,11 +9,12 @@ import Point3d exposing (Point3d)
 import Polyline3d exposing (Polyline3d)
 import TrackPoint exposing (GPXCoords, TrackPoint, pointAsTrackPoint, pointFromTrackpoint)
 import Triangle3d exposing (Triangle3d)
+import UbiquitousTypes exposing (LocalCoords)
 import Vector3d
 
 
 type alias ControlPoint =
-    Point3d Length.Meters GPXCoords
+    Point3d Length.Meters LocalCoords
 
 
 type alias FilterFunction =
@@ -86,11 +87,11 @@ weightedAverage bias p0 p1 p2 =
     }
 
 
-bezierSplines : Bool -> List TrackPoint -> List TrackPoint
+bezierSplines : Bool -> List ControlPoint -> List ControlPoint
 bezierSplines isLoop points =
     let
         _ =
-            Debug.log "Look, ma! Splines!" asTrackPointsAgain
+            Debug.log "Look, ma! Splines!" asPointsAgain
 
         tension =
             -- This seems to be empirical measure of smoothness.
@@ -107,41 +108,31 @@ bezierSplines isLoop points =
             -- Inefficient but avoids Maybe.
             List.take 1 <| List.reverse points
 
-        makeTriangleForTrackPoint :
-            TrackPoint
-            -> TrackPoint
-            -> TrackPoint
-            -> Triangle3d Length.Meters GPXCoords
-        makeTriangleForTrackPoint pa pb pc =
-            -- Note order of points here is shaped by the way that Triangle3d returns edges.
-            -- We're really interested in pa-pc, since that determines pb's control points.
-            Triangle3d.from
-                (pointFromTrackpoint pb)
-                (pointFromTrackpoint pa)
-                (pointFromTrackpoint pc)
-
-        makeTriangles : List (Triangle3d Length.Meters GPXCoords)
+        makeTriangles : List (Triangle3d Length.Meters LocalCoords)
         makeTriangles =
             let
                 shiftedBack =
                     if isLoop then
                         lastPoint ++ points
+
                     else
                         firstPoint ++ points
+
                 shiftedForwards =
                     if isLoop then
-                        (List.drop 1 points ++ firstPoint)
+                        List.drop 1 points ++ firstPoint
+
                     else
-                        (List.drop 1 points ++ lastPoint)
+                        List.drop 1 points ++ lastPoint
             in
             List.map3
-                makeTriangleForTrackPoint
-                shiftedBack
-                points
-                shiftedForwards
+                Triangle3d.from
+                    shiftedBack
+                    points
+                    shiftedForwards
 
         controlPointsFromTriangle :
-            Triangle3d Length.Meters GPXCoords
+            Triangle3d Length.Meters LocalCoords
             -> ( ControlPoint, ControlPoint, ControlPoint )
         controlPointsFromTriangle triangle =
             let
@@ -188,7 +179,7 @@ bezierSplines isLoop points =
         makeSpline :
             ( ControlPoint, ControlPoint, ControlPoint )
             -> ( ControlPoint, ControlPoint, ControlPoint )
-            -> CubicSpline3d Length.Meters GPXCoords
+            -> CubicSpline3d Length.Meters LocalCoords
         makeSpline ( _, start, control1 ) ( control2, end, _ ) =
             CubicSpline3d.fromControlPoints
                 start
@@ -196,32 +187,32 @@ bezierSplines isLoop points =
                 control2
                 end
 
-        makeSplines : List (CubicSpline3d Length.Meters GPXCoords)
+        makeSplines : List (CubicSpline3d Length.Meters LocalCoords)
         makeSplines =
             List.map2
                 makeSpline
                 makeControlPoints
                 (List.drop 1 makeControlPoints)
 
-        asPolylines : List (Polyline3d Length.Meters GPXCoords)
+        asPolylines : List (Polyline3d Length.Meters LocalCoords)
         asPolylines =
             List.map
                 (CubicSpline3d.approximate (Length.meters tolerance))
                 makeSplines
 
-        asSegments : List (LineSegment3d Length.Meters GPXCoords)
+        asSegments : List (LineSegment3d Length.Meters LocalCoords)
         asSegments =
             List.concatMap
                 Polyline3d.segments
                 asPolylines
 
-        asTrackPointsAgain : List TrackPoint
-        asTrackPointsAgain =
+        asPointsAgain : List ControlPoint
+        asPointsAgain =
             List.map
-                (LineSegment3d.startPoint >> pointAsTrackPoint)
-                (List.take 1 asSegments) ++
-            List.map
-                (LineSegment3d.endPoint >> pointAsTrackPoint)
-                asSegments
+                LineSegment3d.startPoint
+                (List.take 1 asSegments)
+                ++ List.map
+                    LineSegment3d.endPoint
+                    asSegments
     in
-    asTrackPointsAgain
+    asPointsAgain

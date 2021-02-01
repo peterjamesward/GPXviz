@@ -10,7 +10,7 @@ import Direction3d exposing (negativeZ, positiveZ, xComponent, yComponent)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import LineSegment3d
-import NodesAndRoads exposing (DrawingNode, DrawingRoad, LocalCoords)
+import NodesAndRoads exposing (DrawingNode, DrawingRoad)
 import Plane3d
 import Point3d
 import Quantity
@@ -19,6 +19,7 @@ import Scene3d exposing (Entity, cone, cylinder, sphere, triangle)
 import Scene3d.Material as Material
 import Sphere3d exposing (Sphere3d)
 import Triangle3d exposing (Triangle3d)
+import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
 import Vector3d
 import ViewTypes exposing (ViewingMode(..))

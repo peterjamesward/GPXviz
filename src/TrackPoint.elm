@@ -2,10 +2,10 @@ module TrackPoint exposing (..)
 
 import BoundingBox3d
 import Element exposing (..)
-import Geometry101 exposing (distance)
 import Json.Encode as E
 import Length
 import Msg exposing (..)
+import UbiquitousTypes exposing (LocalCoords)
 import Point3d exposing (Point3d)
 import Regex
 import Spherical exposing (metresPerDegree)
@@ -286,12 +286,12 @@ trackPointBearing tp1 tp2 =
         ( tp2.lat, tp2.lon )
 
 
-pointFromTrackpoint : TrackPoint -> Point3d Length.Meters GPXCoords
+pointFromTrackpoint : TrackPoint -> Point3d Length.Meters LocalCoords
 pointFromTrackpoint tp =
     Point3d.fromMeters { x = tp.lon, y = tp.lat, z = tp.ele }
 
 
-pointAsTrackPoint : Point3d Length.Meters GPXCoords -> TrackPoint
+pointAsTrackPoint : Point3d Length.Meters LocalCoords -> TrackPoint
 pointAsTrackPoint p =
     let
         { x, y, z } =

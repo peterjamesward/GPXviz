@@ -8,15 +8,8 @@ import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (GPXCoords, TrackPoint)
 import Triangle3d
+import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
-
-
-type LocalCoords
-    = LocalCoords
-
-
-type Mercator
-    = Mercator
 
 
 type alias ScalingInfo =

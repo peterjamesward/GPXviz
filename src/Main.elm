@@ -62,6 +62,7 @@ import Terrain exposing (makeTerrain)
 import Time
 import TrackPoint exposing (..)
 import Triangle3d
+import UbiquitousTypes exposing (LocalCoords)
 import Url exposing (Url)
 import Url.Builder as Builder
 import Utils exposing (..)
@@ -1497,7 +1498,9 @@ update msg model =
                     List.Extra.splitAt rangeStart beforeEnd
 
                 replacementPoints =
-                    bezierSplines treatAsLoop toProcess
+                    List.map pointAsTrackPoint <|
+                        bezierSplines treatAsLoop <|
+                            List.map pointFromTrackpoint toProcess
 
                 reassembled =
                     reindexTrackpoints <|

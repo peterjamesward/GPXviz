@@ -8,13 +8,14 @@ import Dict
 import Length exposing (Meters)
 import LineSegment3d
 import List
-import NodesAndRoads exposing (DrawingRoad, LocalCoords, deriveNodes, deriveRoads)
+import NodesAndRoads exposing (DrawingRoad, deriveNodes, deriveRoads)
 import Point3d exposing (Point3d)
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
 import Scene3d.Material as Material
 import SketchPlane3d
 import Triangle3d
+import UbiquitousTypes exposing (LocalCoords)
 import Vector3d
 
 
