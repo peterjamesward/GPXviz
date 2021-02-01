@@ -87,20 +87,9 @@ weightedAverage bias p0 p1 p2 =
     }
 
 
-bezierSplines : Bool -> List ControlPoint -> List ControlPoint
-bezierSplines isLoop points =
+bezierSplines : Bool -> Float -> Float -> List ControlPoint -> List ControlPoint
+bezierSplines isLoop tension tolerance points =
     let
-        _ =
-            Debug.log "Look, ma! Splines!" asPointsAgain
-
-        tension =
-            -- This seems to be empirical measure of smoothness.
-            0.5
-
-        tolerance =
-            -- As is this, given we're in weird coordinate land!
-            1.0
-
         firstPoint =
             List.take 1 points
 

@@ -286,12 +286,12 @@ trackPointBearing tp1 tp2 =
         ( tp2.lat, tp2.lon )
 
 
-pointFromTrackpoint : TrackPoint -> Point3d Length.Meters LocalCoords
+pointFromTrackpoint : TrackPoint -> Point3d Length.Meters GPXCoords
 pointFromTrackpoint tp =
     Point3d.fromMeters { x = tp.lon, y = tp.lat, z = tp.ele }
 
 
-pointAsTrackPoint : Point3d Length.Meters LocalCoords -> TrackPoint
+pointAsTrackPoint : Point3d Length.Meters GPXCoords -> TrackPoint
 pointAsTrackPoint p =
     let
         { x, y, z } =

@@ -3,9 +3,7 @@ module ToDo exposing (..)
 --TODO: Deployment script !!!!!
 
 --TODO: Splines:
--- Put Spline on its own tab.
--- Expose 'tolerance' and 'tension' Yes, with special (cosine) slider for tension.
--- Remove superfluous track points, might not need this with the Tolerance option.
+-- It seemed better when working in GPXCoords. Can't think why.
 
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.

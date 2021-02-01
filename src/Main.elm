@@ -210,6 +210,8 @@ type alias Model =
     , lastHttpError : Maybe Http.Error
     , ipInfo : Maybe IpInfo
     , filterBias : Float -- 0.0 == unchanged, 1.0 == full filter effect
+    , bezierTension : Float -- controls loopiness of splines
+    , bezierTolerance : Float -- controls how closely segments approximate splines
     }
 
 
@@ -296,6 +298,8 @@ init mflags origin navigationKey =
       , ipInfo = Nothing
       , filterBias = 0.5
       , verticalExaggeration = 1.0
+      , bezierTension = 0.5
+      , bezierTolerance = 5.0
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -1471,6 +1475,12 @@ update msg model =
             in
             trackHasChanged newModel
 
+        SetBezierTension tension ->
+            ( { model | bezierTension = tension }, Cmd.none )
+
+        SetBezierTolerance tolerance ->
+            ( { model | bezierTolerance = tolerance }, Cmd.none )
+
         BezierSplines ->
             let
                 ( rangeStart, rangeEnd ) =
@@ -1506,7 +1516,7 @@ update msg model =
                     List.Extra.splitAt rangeStart nodesBeforeEnd
 
                 replacementNodes =
-                        bezierSplines treatAsLoop <|
+                        bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
                             List.map .location nodesToProcess
 
                 replacementTrackPoints =
@@ -4683,34 +4693,71 @@ viewFilterControls model =
     let
         bias =
             model.filterBias * 100.0
+
+        centroidFilterControls =
+            [ Input.slider commonShortHorizontalSliderStyles
+                { onChange = SetFilterBias
+                , label =
+                    Input.labelBelow [] <|
+                        E.text <|
+                            "Smoothing "
+                                ++ String.fromInt (round bias)
+                                ++ "%"
+                , min = 0.0
+                , max = 100.0
+                , step = Just 5.0
+                , value = bias
+                , thumb = Input.defaultThumb
+                }
+            , button
+                prettyButtonStyles
+                { onPress = Just FilterWeightedAverage
+                , label = E.text <| "Centroid averaging"
+                }
+            ]
+
+        bezierControls =
+            [ Input.slider commonShortHorizontalSliderStyles
+                { onChange = SetBezierTension
+                , label =
+                    Input.labelBelow [] <|
+                        E.text <|
+                            "Tension "
+                                ++ showDecimal2 model.bezierTension
+                , min = 0.0
+                , max = 1.0
+                , step = Just 0.1
+                , value = model.bezierTension
+                , thumb = Input.defaultThumb
+                }
+            , Input.slider commonShortHorizontalSliderStyles
+                { onChange = SetBezierTolerance
+                , label =
+                    Input.labelBelow [] <|
+                        E.text <|
+                            "Tolerance "
+                                ++ showDecimal2 model.bezierTolerance
+                , min = 1.0
+                , max = 10.0
+                , step = Just 0.5
+                , value = model.bezierTolerance
+                , thumb = Input.defaultThumb
+                }
+            , button
+                prettyButtonStyles
+                { onPress = Just BezierSplines
+                , label = E.text <| "Bezier splines"
+                }
+            ]
     in
-    column [ spacing 10, padding 10, centerX ]
-        [ E.text "Smooth the track by applying some filters."
-        , E.text "Better results may be achieved by inserting track points first."
-        , Input.slider commonShortHorizontalSliderStyles
-            { onChange = SetFilterBias
-            , label =
-                Input.labelBelow [] <|
-                    E.text <|
-                        "Smoothing "
-                            ++ String.fromInt (round bias)
-                            ++ "%"
-            , min = 0.0
-            , max = 100.0
-            , step = Just 5.0
-            , value = bias
-            , thumb = Input.defaultThumb
-            }
-        , button
-            prettyButtonStyles
-            { onPress = Just FilterWeightedAverage
-            , label = E.text <| "Centroid averaging"
-            }
-        , button
-            prettyButtonStyles
-            { onPress = Just BezierSplines
-            , label = E.text <| "Bezier splines"
-            }
+    column [ spacing 10, padding 10, centerX, width fill ]
+        [ E.text "Centroid averaging reduces local deviations."
+        , E.text "Splines create new points to smooth between existing points."
+        , row
+            [ width fill, spacing 20, centerX ]
+            [ column [ width <| fillPortion 1, spacing 10, centerX ] centroidFilterControls
+            , column [ width <| fillPortion 1, spacing 10, centerX ] bezierControls
+            ]
         , wholeTrackTextHelper model
         ]
 

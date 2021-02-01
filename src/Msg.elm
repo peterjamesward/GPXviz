@@ -94,6 +94,8 @@ type Msg
     | FilterWeightedAverage
     | SetFilterBias Float
     | BezierSplines
+    | SetBezierTension Float
+    | SetBezierTolerance Float
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =

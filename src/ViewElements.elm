@@ -182,7 +182,7 @@ checkboxIcon isChecked =
 commonShortHorizontalSliderStyles =
     [ height <| px 20
     , width <| px 150
-    , centerY
+    , centerY, centerX
     , behindContent <|
         -- Slider track
         el
