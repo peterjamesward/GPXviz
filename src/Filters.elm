@@ -99,7 +99,7 @@ bezierSplines isLoop points =
 
         tolerance =
             -- As is this, given we're in weird coordinate land!
-            0.01
+            1.0
 
         firstPoint =
             List.take 1 points

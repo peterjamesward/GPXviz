@@ -1491,29 +1491,41 @@ update msg model =
                 treatAsLoop =
                     model.markedNode == Nothing && model.loopiness == IsALoop
 
-                ( beforeEnd, afterEnd ) =
+                ( trackPointsBeforeEnd, trackPointsAfterEnd ) =
+                    -- We will eventually reassemble trackpoints
                     List.Extra.splitAt rangeEnd model.trackPoints
 
-                ( beforeStart, toProcess ) =
-                    List.Extra.splitAt rangeStart beforeEnd
+                ( trackPointsBeforeStart, trackPointsToProcess ) =
+                    List.Extra.splitAt rangeStart trackPointsBeforeEnd
 
-                replacementPoints =
-                    List.map pointAsTrackPoint <|
+                ( nodesBeforeEnd, _ ) =
+                    -- But I want to work in LocalCoords, hence on Node locations
+                    List.Extra.splitAt rangeEnd model.nodes
+
+                ( _, nodesToProcess ) =
+                    List.Extra.splitAt rangeStart nodesBeforeEnd
+
+                replacementNodes =
                         bezierSplines treatAsLoop <|
-                            List.map pointFromTrackpoint toProcess
+                            List.map .location nodesToProcess
 
-                reassembled =
+                replacementTrackPoints =
+                    nodesToTrackPoints
+                        (BoundingBox3d.centerPoint model.trackPointBox)
+                        replacementNodes
+
+                reassembledTrackPoints =
                     reindexTrackpoints <|
-                        beforeStart
-                            ++ replacementPoints
-                            ++ afterEnd
+                        trackPointsBeforeStart
+                            ++ replacementTrackPoints
+                            ++ trackPointsAfterEnd
 
                 newPointerPosition =
                     case actualPointerPosition of
                         Just pointer ->
                             Maybe.withDefault 0 <|
                                 Maybe.map .idx <|
-                                    trackPointFromLatLon pointer.lat pointer.lon reassembled
+                                    trackPointFromLatLon pointer.lat pointer.lon reassembledTrackPoints
 
                         Nothing ->
                             0
@@ -1524,14 +1536,14 @@ update msg model =
                             Just <|
                                 Maybe.withDefault 0 <|
                                     Maybe.map .idx <|
-                                        trackPointFromLatLon marker.lat marker.lon reassembled
+                                        trackPointFromLatLon marker.lat marker.lon reassembledTrackPoints
 
                         Nothing ->
                             Nothing
 
                 replaceTrackPoints m =
                     { m
-                        | trackPoints = reassembled
+                        | trackPoints = reassembledTrackPoints
                         , currentNode = newPointerPosition
                         , markedNode = newMarkerPosition
                     }
