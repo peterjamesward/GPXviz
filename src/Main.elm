@@ -4724,7 +4724,7 @@ viewFilterControls model =
                         E.text <|
                             "Tension "
                                 ++ showDecimal2 model.bezierTension
-                , min = 0.0
+                , min = -1.0
                 , max = 1.0
                 , step = Just 0.1
                 , value = model.bezierTension

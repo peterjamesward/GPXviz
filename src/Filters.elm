@@ -125,7 +125,7 @@ bezierSplines isLoop tension tolerance points =
             -> ( ControlPoint, ControlPoint, ControlPoint )
         controlPointsFromTriangle triangle =
             let
-                ( b, _, _ ) =
+                ( _, b, _ ) =
                     Triangle3d.vertices triangle
 
                 ( entryEdge, oppositeEdge, exitEdge ) =
