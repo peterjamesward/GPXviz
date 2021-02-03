@@ -13,7 +13,7 @@ aboutText =
 
 ## Changes
 
-- 2021-01-31 New slider on Filter tab lets you adjust the strength of the filtering effect.
+- 2021-02-02 Under Filters, new tool for Bezier splines. See notes below.
 
 ## Donations
 
@@ -49,7 +49,11 @@ Once a file is loaded, **Third person**, **First person**, **Elevation**, **Plan
 
 **Trackpoints** allows you to add track points before and after the current point (same as in the Gradient panel). Another option, useful on long straights near bends, is to add a new point in the middle of a road segment. Repeat as required. Delete will delete the current track point.
 
-**Filter** applies a simple (but fairly effective) smoothing algorithm that takes a weighted average (1,2,4,2,1) of the five points centred on each point. You can do this just for position or elevation or (oreferably) both. Better results are achieved if you insert some track points first (see above). You can do this selectively on parts of the route.
+**Filter** "_Centroid averaging_" applies a simple smoothing algorithm that takes a weighted average for each point. Better results are achieved if you insert some track points first (see above). You can do this selectively on parts of the route.
+
+"_Bezier splines_" add track points to create a flowing track that passes through existing track points. 'Tension' affects how sweeping the new route will be, 'Tolerance' determines how many track points are added. Bezier works best when there are not many points to start with -- so you may even want to remove some using "Straighten" -- and the results may benefit from applying the Centroid averaging.
+
+Both filters will work over a range, if one is selected, but default to the whole track, and will apply across the start/finish point if the route is a loop (according to Loop maker).
 
 **Gradient problems** and **Bend problems** highlight track points that may be of interest. Click on any entry to make that current. The AutoFix option is available, but should not be taken for granted.
 

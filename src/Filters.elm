@@ -36,27 +36,41 @@ applyWeightedAverageFilter :
 applyWeightedAverageFilter ( start, finish ) filterBias loopiness points =
     let
         firstPoint =
-            List.take 1 points
+            -- This is used for wrap-around on loop, in which case use second point
+            if loopiness == IsALoop then
+                List.take 1 <| List.drop 1 points
+
+            else
+                List.take 1 points
+
+        lastPoint =
+            -- This is used for wrap-around on loop, in which case use penultimate point
+            if loopiness == IsALoop then
+                List.take 1 <| List.drop 1 <| List.reverse points
+
+            else
+                List.take 1  <| List.reverse points
 
         numPoints =
             List.length points
 
         loopedPoints =
-            points ++ List.drop 1 points
+            points ++ firstPoint
 
         filteredLoop =
             List.map3
                 (weightedAverage filterBias)
-                (List.drop (numPoints - 1) loopedPoints)
+                (lastPoint ++ points)
                 points
-                (List.drop 1 loopedPoints)
+                (List.drop 1 points ++ firstPoint)
+
 
         filtered =
             List.map3
                 (weightedAverage filterBias)
                 (firstPoint ++ points)
                 points
-                (List.drop 1 loopedPoints)
+                (List.drop 1 points ++ lastPoint)
 
         withinRange =
             Array.fromList
@@ -91,11 +105,20 @@ bezierSplines : Bool -> Float -> Float -> List ControlPoint -> List ControlPoint
 bezierSplines isLoop tension tolerance points =
     let
         firstPoint =
-            List.take 1 points
+            -- This is used for wrap-around on loop, in which case use second point
+            if isLoop then
+                List.take 1 <| List.drop 1 points
+
+            else
+                List.take 1 points
 
         lastPoint =
-            -- Inefficient but avoids Maybe.
-            List.take 1 <| List.reverse points
+            -- This is used for wrap-around on loop, in which case use penultimate point
+            if isLoop then
+                List.take 1 <| List.drop 1 <| List.reverse points
+
+            else
+                List.take 1  <| List.reverse points
 
         makeTriangles : List (Triangle3d Length.Meters LocalCoords)
         makeTriangles =
@@ -116,9 +139,9 @@ bezierSplines isLoop tension tolerance points =
             in
             List.map3
                 Triangle3d.from
-                    shiftedBack
-                    points
-                    shiftedForwards
+                shiftedBack
+                points
+                shiftedForwards
 
         controlPointsFromTriangle :
             Triangle3d Length.Meters LocalCoords

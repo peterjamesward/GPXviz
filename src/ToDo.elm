@@ -2,9 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Splines:
--- It seemed better when working in GPXCoords. Can't think why.
-
 --TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
 
