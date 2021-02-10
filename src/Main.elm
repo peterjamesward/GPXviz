@@ -16,6 +16,7 @@ import ColourPalette exposing (..)
 import Delay exposing (TimeUnit(..), after)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
+import Editor exposing (Section, Traversal)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -126,6 +127,7 @@ type GpxSource
 type alias Model =
     { gpx : Maybe String
     , gpxSource : GpxSource
+    , sections : List Section -- our library
     , filename : Maybe String
     , trackName : Maybe String
     , time : Time.Posix
@@ -135,6 +137,7 @@ type alias Model =
     , trackPoints : List TrackPoint
     , trackPointBox : BoundingBox3d Length.Meters GPXCoords
     , nodeBox : BoundingBox3d Length.Meters LocalCoords
+    , traversals : List Traversal -- the route sections actually in use
     , nodes : List DrawingNode
     , roads : List DrawingRoad
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
