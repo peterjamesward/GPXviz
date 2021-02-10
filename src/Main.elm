@@ -13,10 +13,9 @@ import Browser.Navigation exposing (Key)
 import Camera3d exposing (Camera3d)
 import Color
 import ColourPalette exposing (..)
-import Delay exposing (TimeUnit(..), after)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
-import Editor exposing (Section, Traversal)
+import Editor exposing (Clip, Film)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -67,7 +66,6 @@ import UbiquitousTypes exposing (LocalCoords)
 import Url exposing (Url)
 import Url.Builder as Builder
 import Utils exposing (..)
-import Vector2d
 import Vector3d
 import ViewElements exposing (..)
 import ViewTypes exposing (..)
@@ -127,7 +125,7 @@ type GpxSource
 type alias Model =
     { gpx : Maybe String
     , gpxSource : GpxSource
-    , sections : List Section -- our library
+    , sections : List Clip -- our library
     , filename : Maybe String
     , trackName : Maybe String
     , time : Time.Posix
@@ -137,7 +135,7 @@ type alias Model =
     , trackPoints : List TrackPoint
     , trackPointBox : BoundingBox3d Length.Meters GPXCoords
     , nodeBox : BoundingBox3d Length.Meters LocalCoords
-    , traversals : List Traversal -- the route sections actually in use
+    , theRoute : Film -- the route sections actually in use
     , nodes : List DrawingNode
     , roads : List DrawingRoad
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
@@ -291,6 +289,8 @@ init mflags origin navigationKey =
       , verticalExaggeration = 1.0
       , bezierTension = 0.5
       , bezierTolerance = 5.0
+      , sections = []
+      , theRoute = { scenes = [] }
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -422,6 +422,8 @@ clearTheModel model =
         , flythrough = Nothing
         , loopiness = NotALoop 0.0
         , nudgedNodeRoads = []
+        , theRoute = { scenes = [] }
+        , sections = [] -- or maybe we want to keep them ??
     }
 
 
