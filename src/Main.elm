@@ -93,16 +93,6 @@ main =
         }
 
 
-type LoadingStep
-    = LoadNone
-    | LoadGetFileDetails
-    | LoadReadFile
-    | LoadParseFile
-    | LoadDeriveNodes
-    | LoadDeriveVisuals
-    | LoadFinishUp
-
-
 type alias AbruptChange =
     { node : DrawingNode
     , before : DrawingRoad
@@ -134,8 +124,7 @@ type GpxSource
 
 
 type alias Model =
-    { loadingStep : LoadingStep
-    , gpx : Maybe String
+    { gpx : Maybe String
     , gpxSource : GpxSource
     , filename : Maybe String
     , trackName : Maybe String
@@ -222,8 +211,7 @@ init mflags origin navigationKey =
         ( authData, authCmd ) =
             StravaAuth.init mflags origin navigationKey wrapAuthMessage
     in
-    ( { loadingStep = LoadNone
-      , gpx = Nothing
+    ( { gpx = Nothing
       , gpxSource = GpxNone
       , filename = Nothing
       , time = Time.millisToPosix 0

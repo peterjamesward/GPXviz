@@ -2,7 +2,19 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Komoot. Thinking of adding a new view Tab visible on load (and after) for
+--TODO: Display currently selected range.
+
+--TODO: John Bytheway suggestion.
+-- New concept. "Composer" -- new View tab.
+-- User can split track, at one marker (2 bits) or both (3 bits).
+-- Then can compose bits together (we know where the joins are).
+-- Can be ridden either way.
+-- Can focus on one section, or look at whole thing (must be contiguous).
+-- When outputting, can repeat any loops.
+-- Should flag when sections have same start & end, encourage user to keep only one.
+
+--TODO: Komoot.
+-- Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
 
 --TODO: Guidance text on tabs.
