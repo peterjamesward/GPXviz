@@ -15,7 +15,7 @@ import Color
 import ColourPalette exposing (..)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
-import Editor exposing (Clip, Film)
+import Editor exposing (Clip, Film, createDefaultClip, createFilm)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -125,7 +125,7 @@ type GpxSource
 type alias Model =
     { gpx : Maybe String
     , gpxSource : GpxSource
-    , sections : List Clip -- our library
+    , clips : List Clip -- our library
     , filename : Maybe String
     , trackName : Maybe String
     , time : Time.Posix
@@ -289,7 +289,7 @@ init mflags origin navigationKey =
       , verticalExaggeration = 1.0
       , bezierTension = 0.5
       , bezierTolerance = 5.0
-      , sections = []
+      , clips = []
       , theRoute = { scenes = [] }
       }
     , Cmd.batch
@@ -423,7 +423,7 @@ clearTheModel model =
         , loopiness = NotALoop 0.0
         , nudgedNodeRoads = []
         , theRoute = { scenes = [] }
-        , sections = [] -- or maybe we want to keep them ??
+        , clips = [] -- or maybe we want to keep them ?? what does this comment mean?
     }
 
 
@@ -2755,10 +2755,19 @@ deleteZeroLengthSegments model =
 
 parseGPXintoModel : String -> Model -> Model
 parseGPXintoModel content model =
+    let
+        trackPoints =
+            content |> parseTrackPoints |> filterCloseTrackPoints |> reindexTrackpoints
+
+        clip =
+            createDefaultClip trackPoints
+    in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = reindexTrackpoints <| filterCloseTrackPoints <| parseTrackPoints content
+        , trackPoints = trackPoints
+        , clips = [ clip ]
+        , theRoute = createFilm clip
         , changeCounter = 0
     }
 

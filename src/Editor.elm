@@ -3,7 +3,6 @@ module Editor exposing (..)
 -- Attempt to co-locate the logic to do with having a level of indirection
 -- between the road (nodes) and the trackpoints, so we can traverse sections
 -- of track points multiple times and in each direction.
-
 -- I'm going to migrate current functionality to this before creating the editing suite.
 
 import TrackPoint exposing (TrackPoint)
@@ -16,7 +15,7 @@ type Direction
 
 type alias Clip =
     { trackPoints : List TrackPoint
-    , sectionName : String -- so they can be saved to file?
+    , clipName : String -- so they can be saved to file?
     }
 
 
@@ -36,3 +35,28 @@ type alias Scene =
 
 type alias Film =
     { scenes : List Scene }
+
+
+createFilm : Clip -> Film
+createFilm clip =
+    let
+        appearance : Appearance
+        appearance =
+            { clip = clip
+            , direction = Forwards
+            , centrelineOffset = 0.0
+            }
+
+        scene : Scene
+        scene =
+            { appearances = [ appearance ]
+            , repeats = Nothing
+            }
+    in
+    { scenes = [ scene ] }
+
+
+createDefaultClip trackpoints =
+    { trackPoints = trackpoints
+    , clipName = "Default"
+    }
