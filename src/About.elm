@@ -13,7 +13,7 @@ aboutText =
 
 ## Changes
 
-- 2021-02-02 Under Filters, new tool for Bezier splines. See notes below.
+- 2021-02-12 Ignores direction instructions in routes from plotaroute.com.
 
 ## Donations
 

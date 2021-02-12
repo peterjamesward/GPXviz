@@ -4,6 +4,8 @@ module ToDo exposing (..)
 
 --TODO: Display currently selected range.
 
+--TODO: Mkae it so we can handle plotaroute waypoints (change grep pattern?)
+
 --TODO: John Bytheway suggestion.
 -- New concept. "Composer" -- new View tab.
 -- User can split track, at one marker (2 bits) or both (3 bits).
@@ -12,6 +14,7 @@ module ToDo exposing (..)
 -- Can focus on one section, or look at whole thing (must be contiguous).
 -- When outputting, can repeat any loops.
 -- Should flag when sections have same start & end, encourage user to keep only one.
+-- NEXT: Create Nodes & Roads from film, not from trackPoints.
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

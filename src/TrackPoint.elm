@@ -80,14 +80,22 @@ viewTrackPoint trkpnt =
 parseTrackPoints : String -> List TrackPoint
 parseTrackPoints xml =
     let
+        removedPlotARouteWaypoints =
+            -- remove lines that look like this
+            -- <wpt lat="43.015229" lon="-0.422968">
+            xml |> String.lines |> List.filter isNotWaypoint |> String.concat
+
+        isNotWaypoint line =
+            not <| String.startsWith "<wpt" line
+
         latitudes =
-            Regex.find (asRegex "lat=\\\"([\\d\\.-]*)\\\"") xml |> matches
+            Regex.find (asRegex "lat=\\\"([\\d\\.-]*)\\\"") removedPlotARouteWaypoints |> matches
 
         longitudes =
-            Regex.find (asRegex "lon=\\\"([\\d\\.-]*)\\\"") xml |> matches
+            Regex.find (asRegex "lon=\\\"([\\d\\.-]*)\\\"") removedPlotARouteWaypoints |> matches
 
         elevations =
-            Regex.find (asRegex "<ele>([\\d\\.-]*)<\\/ele>") xml |> matches
+            Regex.find (asRegex "<ele>([\\d\\.-]*)<\\/ele>") removedPlotARouteWaypoints |> matches
 
         makeTrackPoint mayLat mayLon mayEle idx =
             case ( mayLat, mayLon, mayEle ) of
