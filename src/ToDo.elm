@@ -2,8 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: More robust parsing, e.g. by grepping first for <trk ... />, then for lat, lon & ele.
-
 --TODO: Tip jar ??
 
 --TODO: Display currently selected range.

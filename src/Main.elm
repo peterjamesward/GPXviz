@@ -60,6 +60,7 @@ import StravaTypes exposing (StravaRoute, StravaRouteStatus(..), StravaSegment, 
 import Task
 import Terrain exposing (makeTerrain)
 import Time
+import TipJar exposing (tipJar)
 import TrackPoint exposing (..)
 import Triangle3d
 import UbiquitousTypes exposing (LocalCoords)
@@ -300,7 +301,11 @@ init mflags origin navigationKey =
 
 
 toolsAccordion model =
-    [ { label = "Loop maker"
+    [ { label = "Tip jar"
+      , state = Contracted
+      , content = tipJar
+      }
+    , { label = "Loop maker"
       , state = Contracted
       , content = viewLoopTools model
       }
@@ -3263,8 +3268,8 @@ view model =
             column
                 []
                 [ row [ spaceEvenly, spacing 10, padding 10 ]
-                    [ donateButton
-                    , loadButton
+                    [ --donateButton
+                      loadButton
                     , if model.changeCounter == 0 then
                         stravaButton model.stravaAuthentication wrapAuthMessage
 
