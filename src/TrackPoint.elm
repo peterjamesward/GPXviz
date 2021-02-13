@@ -83,9 +83,6 @@ parseTrackPoints xml =
         trkpts =
             Regex.find (asRegex "<trkpt((.|\\n|\\r)*?)trkpt>") xml |> List.map .match
 
-        _ =
-            Debug.log "trackpoints" trkpts
-
         latitude trkpt =
             Regex.find (asRegex "lat=\\\"([\\d\\.-]*)\\\"") trkpt |> matches
 
