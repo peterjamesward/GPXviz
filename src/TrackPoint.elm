@@ -5,10 +5,10 @@ import Element exposing (..)
 import Json.Encode as E
 import Length
 import Msg exposing (..)
-import UbiquitousTypes exposing (LocalCoords)
 import Point3d exposing (Point3d)
 import Regex
 import Spherical exposing (metresPerDegree)
+import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (asRegex)
 
 
@@ -80,31 +80,30 @@ viewTrackPoint trkpnt =
 parseTrackPoints : String -> List TrackPoint
 parseTrackPoints xml =
     let
-        removedPlotARouteWaypoints =
-            -- remove lines that look like this
-            -- <wpt lat="43.015229" lon="-0.422968">
-            xml |> String.lines |> List.filter isNotWaypoint |> String.concat
+        trkpts =
+            Regex.find (asRegex "<trkpt((.|\\n|\\r)*?)trkpt>") xml |> List.map .match
 
-        isNotWaypoint line =
-            not <| String.startsWith "<wpt" line
+        _ =
+            Debug.log "trackpoints" trkpts
 
-        latitudes =
-            Regex.find (asRegex "lat=\\\"([\\d\\.-]*)\\\"") removedPlotARouteWaypoints |> matches
+        latitude trkpt =
+            Regex.find (asRegex "lat=\\\"([\\d\\.-]*)\\\"") trkpt |> matches
 
-        longitudes =
-            Regex.find (asRegex "lon=\\\"([\\d\\.-]*)\\\"") removedPlotARouteWaypoints |> matches
+        longitude trkpt =
+            Regex.find (asRegex "lon=\\\"([\\d\\.-]*)\\\"") trkpt |> matches
 
-        elevations =
-            Regex.find (asRegex "<ele>([\\d\\.-]*)<\\/ele>") removedPlotARouteWaypoints |> matches
+        elevation trkpt =
+            Regex.find (asRegex "<ele>([\\d\\.-]*)<\\/ele>") trkpt |> matches
 
-        makeTrackPoint mayLat mayLon mayEle idx =
-            case ( mayLat, mayLon, mayEle ) of
-                ( Just a, Just b, Just c ) ->
+        trackPoint : String -> Maybe TrackPoint
+        trackPoint trkpt =
+            case ( latitude trkpt, longitude trkpt, elevation trkpt ) of
+                ( (Just lat) :: _, (Just lon) :: _, (Just ele) :: _ ) ->
                     Just
-                        { lat = a
-                        , lon = b
-                        , ele = c
-                        , idx = idx
+                        { lat = lat
+                        , lon = lon
+                        , ele = ele
+                        , idx = 0
                         }
 
                 _ ->
@@ -121,13 +120,10 @@ parseTrackPoints xml =
                 _ ->
                     Nothing
     in
-    List.map4
-        makeTrackPoint
-        latitudes
-        longitudes
-        elevations
-        (List.range 0 (List.length latitudes))
-        |> List.filterMap identity
+    List.filterMap identity <|
+        List.map
+            trackPoint
+            trkpts
 
 
 trackToJSON : List TrackPoint -> E.Value

@@ -2,9 +2,11 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Display currently selected range.
+--TODO: More robust parsing, e.g. by grepping first for <trk ... />, then for lat, lon & ele.
 
---TODO: Mkae it so we can handle plotaroute waypoints (change grep pattern?)
+--TODO: Tip jar ??
+
+--TODO: Display currently selected range.
 
 --TODO: John Bytheway suggestion.
 -- New concept. "Composer" -- new View tab.
@@ -15,6 +17,8 @@ module ToDo exposing (..)
 -- When outputting, can repeat any loops.
 -- Should flag when sections have same start & end, encourage user to keep only one.
 -- NEXT: Create Nodes & Roads from film, not from trackPoints.
+-- THEN: Make all the existing functions work
+-- THEN: Add new cut and splice functions
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for
