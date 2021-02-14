@@ -2,8 +2,10 @@ module Msg exposing (..)
 
 import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
+import Element exposing (Element)
 import File exposing (File)
 import GeoCodeDecoders exposing (IpInfo, IpInfo)
+import Graph
 import Html.Events.Extra.Mouse as Mouse
 import Http
 import Json.Encode as E
@@ -97,10 +99,16 @@ type Msg
     | BezierSplines
     | SetBezierTension Float
     | SetBezierTolerance Float
+    | GraphMsg Graph.Msg
+
 
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =
     OAuthMessage msg
+
+wrapGraphMessage : Graph.Msg -> Msg
+wrapGraphMessage msg =
+    GraphMsg msg
 
 
 type NodeSplitDirection

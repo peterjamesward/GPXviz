@@ -13,8 +13,8 @@ import Html.Events.Extra.Mouse as Mouse
 import Html.Events.Extra.Wheel as Wheel
 import Json.Decode as D
 import Msg exposing (Msg(..))
-import OAuthTypes exposing (OAuthMsg(..))
 import Utils exposing (scrollbarThickness, showDecimal2)
+import ViewPureStyles exposing (prettyButtonStyles)
 
 
 withMouseCapture =
@@ -31,7 +31,7 @@ withMouseCapture =
     ]
 
 
-onContextMenu : Msg -> Element.Attribute Msg
+onContextMenu : a -> Element.Attribute a
 onContextMenu msg =
     HE.custom "contextmenu"
         (D.succeed
@@ -113,23 +113,6 @@ zoomSlider value msg =
         , thumb = Input.defaultThumb
         }
 
-
-prettyButtonStyles =
-    [ padding 10
-    , Border.width 2
-    , Border.rounded 16
-    , Border.color buttonBackground
-
-    --, Border.shadow { offset = ( 4, 4 ), size = 3, blur = 5, color = rgb255 0xD0 0xD0 0xD0 }
-    , Background.color buttonBackground
-    , Font.color <| buttonText
-    , Font.size 16
-    , mouseOver
-        [ Background.color buttonText, Font.color buttonBackground ]
-    , focused
-        [ Border.shadow { offset = ( 4, 0 ), size = 3, blur = 5, color = buttonShadow } ]
-    , centerX
-    ]
 
 
 loadButton =

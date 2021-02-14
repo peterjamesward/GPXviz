@@ -5,17 +5,12 @@ module ToDo exposing (..)
 --TODO: Display currently selected range.
 
 --TODO: John Bytheway suggestion.
--- New concept. "Composer" -- new View tab.
--- User can split track, at one marker (2 bits) or both (3 bits).
--- Then can compose bits together (we know where the joins are).
--- Can be ridden either way.
--- Can focus on one section, or look at whole thing (must be contiguous).
--- When outputting, can repeat any loops.
--- Should flag when sections have same start & end, encourage user to keep only one.
--- NEXT: Create Nodes & Roads from film, not from trackPoints.
--- THEN: Make all the existing functions work
--- THEN: Add new cut and splice functions
--- NOTE: Rendered composite track might NOT be editable!! Is this OK??
+-- now using automatic analysis to convert to edges in a graph.
+--NOTE must make sure that any crossroads are horizontal, not just same elevation.
+--NEXT: Derive edge list from route.
+--THEN: Convert route to new one derived from edge traversals.
+--THEN: Allow editing of Edges.
+--THEN: Compose edges to produce new output.
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for
@@ -23,9 +18,9 @@ module ToDo exposing (..)
 
 --TODO: Guidance text on tabs.
 
---TODO: Debt. More modularisation. Chop up the types and model. Main is toooo big.
--- Loads of functions can move -- just need to explicitly list the fields they need
--- in the type signature, instead of using Model!
+--TODO: Debt. More modularisation.
+-- Possible way to do this is to wrap each tab's messages and move functions into
+-- a source module for each tab. Graph is the new model for this.
 
 --TODO: Debt. Reduce duplication.
 

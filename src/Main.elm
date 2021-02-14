@@ -15,7 +15,6 @@ import Color
 import ColourPalette exposing (..)
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
-import Editor exposing (Clip, Film, createDefaultClip, createFilm)
 import Element as E exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -29,6 +28,7 @@ import Filters exposing (applyWeightedAverageFilter, bezierSplines)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
+import Graph exposing (viewGraphControls)
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
@@ -69,6 +69,7 @@ import Url.Builder as Builder
 import Utils exposing (..)
 import Vector3d
 import ViewElements exposing (..)
+import ViewPureStyles exposing (prettyButtonStyles)
 import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
@@ -126,7 +127,6 @@ type GpxSource
 type alias Model =
     { gpx : Maybe String
     , gpxSource : GpxSource
-    , clips : List Clip -- our library
     , filename : Maybe String
     , trackName : Maybe String
     , time : Time.Posix
@@ -136,7 +136,6 @@ type alias Model =
     , trackPoints : List TrackPoint
     , trackPointBox : BoundingBox3d Length.Meters GPXCoords
     , nodeBox : BoundingBox3d Length.Meters LocalCoords
-    , theRoute : Film -- the route sections actually in use
     , nodes : List DrawingNode
     , roads : List DrawingRoad
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
@@ -203,7 +202,7 @@ type alias Model =
     , filterBias : Float -- 0.0 == unchanged, 1.0 == full filter effect
     , bezierTension : Float -- controls loopiness of splines
     , bezierTolerance : Float -- controls how closely segments approximate splines
-    , graphNodes : List GraphNode
+    , graph : Graph.Graph
     }
 
 
@@ -291,9 +290,7 @@ init mflags origin navigationKey =
       , verticalExaggeration = 1.0
       , bezierTension = 0.5
       , bezierTolerance = 5.0
-      , clips = []
-      , theRoute = { scenes = [] }
-      , graphNodes = []
+      , graph = Graph.empty
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -342,6 +339,10 @@ toolsAccordion model =
     , { label = "Filters"
       , state = Contracted
       , content = viewFilterControls model
+      }
+    , { label = "Euclid"
+      , state = Contracted
+      , content =  viewGraphControls wrapGraphMessage
       }
     ]
 
@@ -429,8 +430,6 @@ clearTheModel model =
         , flythrough = Nothing
         , loopiness = NotALoop 0.0
         , nudgedNodeRoads = []
-        , theRoute = { scenes = [] }
-        , clips = [] -- or maybe we want to keep them ?? what does this comment mean?
     }
 
 
@@ -698,6 +697,11 @@ update msg model =
             in
             ( { model | stravaAuthentication = newAuthData }
             , Cmd.map OAuthMessage authCmd
+            )
+
+        GraphMsg graphMsg ->
+            ( Graph.update graphMsg model
+            , Cmd.none
             )
 
         NoOpMsg ->
@@ -2772,17 +2776,14 @@ parseGPXintoModel content model =
     let
         trackPoints =
             content |> parseTrackPoints |> filterCloseTrackPoints |> reindexTrackpoints
-
-        --clip =
-        --    createDefaultClip trackPoints
     in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
         , trackPoints = trackPoints
-        --, clips = [ clip ]
-        --, theRoute = createFilm clip
-        , graphNodes = interestingTrackPoints trackPoints
+
+        -- Do this on demand, not on loading; it's costly.
+        --, graphNodes = interestingTrackPoints trackPoints
         , changeCounter = 0
     }
 
@@ -3107,7 +3108,7 @@ deriveStaticVisualEntities model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
-            , graphNodes = deriveNodes model.trackPointBox (graphNodesToTrackPoints model.graphNodes)
+            , graphNodes = []
             }
     in
     { model
@@ -3144,7 +3145,7 @@ deriveTerrain model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
-            , graphNodes = deriveNodes model.trackPointBox (graphNodesToTrackPoints model.graphNodes)
+            , graphNodes = []
             }
     in
     { model
@@ -3179,7 +3180,7 @@ deriveVaryingVisualEntities model =
             , verticalNudge = model.verticalNudgeValue
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
-            , graphNodes = deriveNodes model.trackPointBox (graphNodesToTrackPoints model.graphNodes)
+            , graphNodes = []
             }
 
         profileContext =
@@ -4796,6 +4797,7 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
+
         --, Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]
