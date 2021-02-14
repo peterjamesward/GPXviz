@@ -13,7 +13,9 @@ aboutText =
 
 ## Changes
 
-- 2021-02-12 Ignores direction instructions in routes from plotaroute.com.
+- 2021-02-14 "Sea level" visual option lets you toggle the ground plane between sea level or 10 metres below the lowest track point.
+
+- 2021-02-12 Slightly more robust GPX parser.
 
 ## Donations
 

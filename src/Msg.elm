@@ -29,6 +29,7 @@ type Msg
     | ZoomLevelProfile Float
     | TogglePillars Bool
     | ToggleLighting Bool
+    | ToggleSeaLevel Bool
     | ToggleRoad Bool
     | ToggleCones Bool
     | ToggleCentreLine Bool

@@ -1109,6 +1109,13 @@ update msg model =
                 |> deriveStaticVisualEntities
                 |> synchroniseMap
 
+        ToggleSeaLevel _ ->
+            { model
+                | displayOptions = { options | seaLevel = not options.seaLevel }
+            }
+                |> deriveStaticVisualEntities
+                |> synchroniseMap
+
         TogglePillars _ ->
             { model
                 | displayOptions = { options | roadPillars = not options.roadPillars }
@@ -1514,8 +1521,8 @@ update msg model =
                     List.Extra.splitAt rangeStart nodesBeforeEnd
 
                 replacementNodes =
-                        bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
-                            List.map .location nodesToProcess
+                    bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
+                        List.map .location nodesToProcess
 
                 replacementTrackPoints =
                     nodesToTrackPoints
@@ -3268,8 +3275,7 @@ view model =
             column
                 []
                 [ row [ spaceEvenly, spacing 10, padding 10 ]
-                    [ --donateButton
-                      loadButton
+                    [ loadButton
                     , if model.changeCounter == 0 then
                         stravaButton model.stravaAuthentication wrapAuthMessage
 
@@ -3597,6 +3603,16 @@ minutes and will be lost if I make changes)"""
                     , step = Nothing
                     , value = model.verticalExaggeration
                     , thumb = Input.defaultThumb
+                    }
+                ]
+            ]
+        , row [ spacing 5 ]
+            [ column [ spacing 5 ]
+                [ Input.checkbox []
+                    { onChange = ToggleSeaLevel
+                    , icon = checkboxIcon
+                    , checked = model.displayOptions.seaLevel
+                    , label = Input.labelRight [ centerY ] (E.text "Sea level")
                     }
                 ]
             ]

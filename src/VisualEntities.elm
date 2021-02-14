@@ -64,12 +64,19 @@ makeStatic3DEntities context roadList =
 
                 { minX, maxX, minY, maxY, minZ, maxZ } =
                     BoundingBox3d.extrema bigger
+
+                showPlane =
+                    if context.displayOptions.seaLevel then
+                        Length.meters 0.0
+
+                    else
+                        Length.meters <| (Length.inMeters minZ) + 990.0
             in
             Scene3d.quad (Material.color Color.darkGreen)
-                (Point3d.xyz minX minY (Length.meters 0.0))
-                (Point3d.xyz minX maxY (Length.meters 0.0))
-                (Point3d.xyz maxX maxY (Length.meters 0.0))
-                (Point3d.xyz maxX minY (Length.meters 0.0))
+                (Point3d.xyz minX minY showPlane)
+                (Point3d.xyz minX maxY showPlane)
+                (Point3d.xyz maxX maxY showPlane)
+                (Point3d.xyz maxX minY showPlane)
 
         -- Convert the points to a list of entities by providing a radius and
         -- color for each point
@@ -582,14 +589,15 @@ makeVaryingProfileEntities context beforeExaggeration =
                             -- the nudged roads includes the "on-ramp" from
                             -- the previous node, as well as the "off-ramp"
                             -- after the second node.
-                                List.drop (node1 - 1) roadList
+                            List.drop (node1 - 1) roadList
 
                         nudgedRoads =
                             -- Combine the nudged roads cleverly with our unrolled ones
                             List.map2
                                 blendTheRoadData
                                 segmentsInvolved
-                                <| List.map (exaggerateRoad context) context.nudgedRoads
+                            <|
+                                List.map (exaggerateRoad context) context.nudgedRoads
                     in
                     nudgedRoads
 

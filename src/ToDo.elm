@@ -2,8 +2,6 @@ module ToDo exposing (..)
 
 --TODO: Deployment script !!!!!
 
---TODO: Tip jar ??
-
 --TODO: Display currently selected range.
 
 --TODO: John Bytheway suggestion.
@@ -17,6 +15,7 @@ module ToDo exposing (..)
 -- NEXT: Create Nodes & Roads from film, not from trackPoints.
 -- THEN: Make all the existing functions work
 -- THEN: Add new cut and splice functions
+-- NOTE: Rendered composite track might NOT be editable!! Is this OK??
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

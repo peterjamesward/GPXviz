@@ -37,6 +37,19 @@ type alias Film =
     { scenes : List Scene }
 
 
+type alias TrackPointAppearanceRecord =
+    -- We track each use so we can get back to the master version when edited.
+    -- Don't need this at all if I decree that the sections are individually editable
+    -- but the composite is NOT editable.
+    { trackPoint : TrackPoint
+    , clip : Clip
+    , appearance : Appearance
+    , scene : Scene
+    , direction : Direction
+    , offset : Float
+    }
+
+
 createFilm : Clip -> Film
 createFilm clip =
     let
