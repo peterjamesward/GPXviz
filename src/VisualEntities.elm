@@ -3,7 +3,7 @@ module VisualEntities exposing (..)
 import Array exposing (Array)
 import Axis3d
 import BoundingBox3d
-import Color
+import Color exposing (blue)
 import Cone3d
 import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ, xComponent, yComponent)
@@ -11,6 +11,7 @@ import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import LineSegment3d
 import NodesAndRoads exposing (DrawingNode, DrawingRoad)
+import Pixels exposing (pixels)
 import Plane3d
 import Point3d
 import Quantity
@@ -225,6 +226,19 @@ makeStatic3DEntities context roadList =
                 (Point3d.projectOnto Plane3d.xy road.endsAt.location)
                 (Point3d.projectOnto Plane3d.xy road.startsAt.location)
             ]
+
+        graphNodeCircles =
+            List.map
+            (\node ->
+                cone (Material.color Color.blue) <|
+                    Cone3d.startingAt
+                        node.location
+                        positiveZ
+                        { radius = meters <| 5.0
+                        , length = meters <| 5.0
+                        }
+            )
+            context.graphNodes
     in
     [ seaLevel ]
         ++ optionally context.displayOptions.roadPillars pillars
@@ -232,6 +246,7 @@ makeStatic3DEntities context roadList =
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ optionally context.displayOptions.centreLine centreLine
+        ++ graphNodeCircles
 
 
 makeMapEntities :

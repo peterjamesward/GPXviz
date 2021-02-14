@@ -22,4 +22,5 @@ type alias RenderingContext =
     , horizontalNudge : Float
     , zoomLevel : Float
     , verticalExaggeration : Float
+    , graphNodes : List DrawingNode
     }

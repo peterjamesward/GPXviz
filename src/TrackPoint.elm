@@ -1,14 +1,15 @@
 module TrackPoint exposing (..)
 
 import BoundingBox3d
+import Dict
 import Element exposing (..)
 import Json.Encode as E
 import Length
 import Msg exposing (..)
 import Point3d exposing (Point3d)
 import Regex
+import Set
 import Spherical exposing (metresPerDegree)
-import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (asRegex)
 
 
@@ -22,6 +23,15 @@ type alias TrackPoint =
     , lon : Float
     , ele : Float
     , idx : Int
+    }
+
+
+type alias GraphNode =
+    -- Beginning of trying to interpret the road as a simple Euclidean node-edge network.
+    -- Experimentally, a GraphNode is a TrackPoint with three or more distinct neighbours.
+    -- (and the start and finish).
+    { location : (Float, Float)
+    , neighbours : List (Float, Float)
     }
 
 
@@ -299,3 +309,61 @@ pointAsTrackPoint p =
             Point3d.toMeters p
     in
     { lat = y, lon = x, ele = z, idx = 0 }
+
+
+interestingTrackPoints : List TrackPoint -> List GraphNode
+interestingTrackPoints tps =
+    let
+        trackPointComparable : TrackPoint -> ( Float, Float )
+        trackPointComparable tp =
+            ( tp.lat, tp.lon )
+
+        neighbourMap =
+            tps
+                |> List.map trackPointComparable
+                |> neighbourMapHelper Dict.empty
+
+        neighbourMapHelper dict tp =
+            case tp of
+                t0 :: t1 :: t2 :: tRest ->
+                    neighbourMapHelper (addNeighbours dict t0 t1 t2) (t1 :: t2 :: tRest)
+
+                _ ->
+                    dict
+
+        addNeighbours dict n0 n1 n2 =
+            let
+                current =
+                    Dict.get n1 dict
+            in
+            Dict.insert n1
+                (case current of
+                    Just neighbours ->
+                        Set.insert n0 <| Set.insert n2 neighbours
+
+                    Nothing ->
+                        Set.insert n0 <| Set.insert n2 Set.empty
+                )
+                dict
+
+        threeDistinct _ neighbours =
+            Set.size neighbours >= 3
+
+        interesting =
+            Dict.filter threeDistinct neighbourMap
+
+        asGraphNode ( location, neighbours ) =
+            { location = location
+            , neighbours = Set.toList neighbours
+            }
+    in
+    Dict.toList interesting |> List.map asGraphNode
+
+graphNodesToTrackPoints gns =
+    List.map graphNodeToTrackPoint gns
+
+graphNodeToTrackPoint gn =
+    let
+        (lat, lon) = gn.location
+    in
+    { lat = lat, lon = lon, ele = 0.0, idx = 0 }

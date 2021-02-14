@@ -203,6 +203,7 @@ type alias Model =
     , filterBias : Float -- 0.0 == unchanged, 1.0 == full filter effect
     , bezierTension : Float -- controls loopiness of splines
     , bezierTolerance : Float -- controls how closely segments approximate splines
+    , graphNodes : List GraphNode
     }
 
 
@@ -292,6 +293,7 @@ init mflags origin navigationKey =
       , bezierTolerance = 5.0
       , clips = []
       , theRoute = { scenes = [] }
+      , graphNodes = []
       }
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
@@ -2771,15 +2773,16 @@ parseGPXintoModel content model =
         trackPoints =
             content |> parseTrackPoints |> filterCloseTrackPoints |> reindexTrackpoints
 
-        clip =
-            createDefaultClip trackPoints
+        --clip =
+        --    createDefaultClip trackPoints
     in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
         , trackPoints = trackPoints
-        , clips = [ clip ]
-        , theRoute = createFilm clip
+        --, clips = [ clip ]
+        --, theRoute = createFilm clip
+        , graphNodes = interestingTrackPoints trackPoints
         , changeCounter = 0
     }
 
@@ -3104,6 +3107,7 @@ deriveStaticVisualEntities model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
+            , graphNodes = deriveNodes model.trackPointBox (graphNodesToTrackPoints model.graphNodes)
             }
     in
     { model
@@ -3140,6 +3144,7 @@ deriveTerrain model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
+            , graphNodes = deriveNodes model.trackPointBox (graphNodesToTrackPoints model.graphNodes)
             }
     in
     { model
@@ -3174,6 +3179,7 @@ deriveVaryingVisualEntities model =
             , verticalNudge = model.verticalNudgeValue
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
+            , graphNodes = deriveNodes model.trackPointBox (graphNodesToTrackPoints model.graphNodes)
             }
 
         profileContext =
@@ -4790,6 +4796,6 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-        , Time.every 50 Tick
+        --, Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]
