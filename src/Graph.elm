@@ -42,22 +42,17 @@ type alias Node =
 
 
 type alias Edge =
-    { start : Node
-    , finish : Node
-    , firstStep : Node -- disambiguate if there are two edges between a node pair.
-    , trackPoints : List TrackPoint
-    }
+    List TrackPoint
 
 
-type alias EdgeTraversal =
+type alias Traversal =
     { edge : Edge
     , direction : Direction
-    , centrelineOffset : Float -- metres right (-ve == left) of centreline.
     }
 
 
 type alias Route =
-    { route : List EdgeTraversal }
+    { route : List Traversal }
 
 
 viewGraphControls : (Msg -> msg) -> Element msg
@@ -78,11 +73,54 @@ update msg model =
             Debug.log "Look, edges!"
                 (edges |> List.map (List.map .idx))
 
+        _ =
+            Debug.log "Canonical edges"
+                (canonicalEdges
+                    |> Dict.keys
+                    |> List.map (\( n1, _, n3 ) -> ( nodeIdx n1, nodeIdx n3 ))
+                )
+
+        _ =
+            Debug.log "Canonical route" <|
+                List.filterMap identity <|
+                    List.map
+                        (\( n1, n2, n3 ) ->
+                            let
+                                ( mstart, mfinish ) =
+                                    ( Dict.get n1 nodes, Dict.get n3 nodes )
+
+                                mtraversal =
+                                    Dict.get ( n1, n2, n3 ) canonicalEdges
+                            in
+                            case ( mstart, mfinish, mtraversal ) of
+                                ( Just start, Just finish, Just traversal ) ->
+                                    Just ( traversal.direction, start.idx, finish.idx )
+
+                                _ ->
+                                    Nothing
+                        )
+                        canonicalRoute
+
+        nodeIdx latLon =
+            case Dict.get latLon nodes of
+                Just tp ->
+                    tp.idx
+
+                Nothing ->
+                    -1
+
         nodes =
             interestingTrackPoints model.trackPoints
 
         edges =
             findDistinctEdgesAndFirstTraversal nodes model.trackPoints
+
+        canonicalEdges =
+            findCanonicalEdges nodes edges
+
+        canonicalRoute : List ( LatLon, LatLon, LatLon )
+        canonicalRoute =
+            useCanonicalEdges edges canonicalEdges
     in
     { model | graph = { nodes = nodes, edges = edges } }
 
@@ -183,17 +221,9 @@ findDistinctEdgesAndFirstTraversal :
     Dict LatLon TrackPoint
     -> List TrackPoint
     -> List (List TrackPoint)
-
-
-
----> Dict ( LatLon, LatLon ) (List ( LatLon, List TrackPoint ))
-
-
 findDistinctEdgesAndFirstTraversal nodes trackPoints =
-    -- Possible edge dict is keyed by two latlon pairs, but with the convention that the SouthWest
-    -- node is listed first (so we can traverse both ways). The latlon in the value tuple is the
-    -- nearest track point to the SW end, to disambiguate two distinct edges between a node pair.
-    -- (Mostly the value will be a singleton list.)
+    -- I probably should develop this into what I really want, but it's quite neat
+    -- and clear, so I think I'll make another pass to substitute the canonical edges.
     let
         atNode : TrackPoint -> Bool
         atNode tp =
@@ -221,10 +251,6 @@ findDistinctEdgesAndFirstTraversal nodes trackPoints =
                 Nothing ->
                     edges |> List.reverse
 
-        addTrailingNode : List TrackPoint -> List TrackPoint -> List TrackPoint
-        addTrailingNode edge1 edge2 =
-            edge1 ++ List.take 1 edge2
-
         edgeList : List (List TrackPoint)
         edgeList =
             case trackPoints of
@@ -234,4 +260,127 @@ findDistinctEdgesAndFirstTraversal nodes trackPoints =
                 _ ->
                     []
     in
-    edgeList
+    List.drop 1 edgeList
+
+
+findCanonicalEdges :
+    Dict LatLon TrackPoint
+    -> List (List TrackPoint)
+    -> Dict ( LatLon, LatLon, LatLon ) Traversal
+findCanonicalEdges nodes originalEdges =
+    -- Note we are keying on three coordinates, so we disambiguate edges between node pairs.
+    -- I am now thinking of making two entries, one for each direction.
+    -- Marginally larger dict, much easier lookup.
+    let
+        addCanonical :
+            List TrackPoint
+            -> Dict ( LatLon, LatLon, LatLon ) Traversal
+            -> Dict ( LatLon, LatLon, LatLon ) Traversal
+        addCanonical edge dict =
+            let
+                startNode =
+                    List.head edge
+
+                secondNode =
+                    List.head <| List.drop 1 edge
+
+                backwardsEdge =
+                    List.reverse edge
+
+                finishNode =
+                    List.head backwardsEdge
+
+                penultimateNode =
+                    List.head <| List.drop 1 backwardsEdge
+            in
+            case [ startNode, secondNode, penultimateNode, finishNode ] of
+                [ Just start, Just second, Just penultimate, Just finish ] ->
+                    let
+                        comp1 =
+                            trackPointComparable start
+
+                        comp2 =
+                            trackPointComparable second
+
+                        compM =
+                            trackPointComparable penultimate
+
+                        compN =
+                            trackPointComparable finish
+                    in
+                    if
+                        Dict.member ( comp1, comp2, compN ) dict
+                            || Dict.member ( compN, compM, comp1 ) dict
+                    then
+                        dict
+
+                    else
+                        -- First encounter for this edge, so this is canonical.
+                        dict
+                            |> Dict.insert ( comp1, comp2, compN )
+                                { edge = edge
+                                , direction = Forwards
+                                }
+                            |> Dict.insert ( compN, compM, comp1 )
+                                { edge = edge
+                                , direction = Backwards
+                                }
+
+                _ ->
+                    dict
+    in
+    List.foldl addCanonical Dict.empty originalEdges
+
+
+useCanonicalEdges :
+    List (List TrackPoint)
+    -> Dict ( LatLon, LatLon, LatLon ) Traversal
+    -> List ( LatLon, LatLon, LatLon )
+useCanonicalEdges edges canonicalEdges =
+    let
+        replaceEdge : List TrackPoint -> Maybe ( LatLon, LatLon, LatLon )
+        replaceEdge edge =
+            let
+                startNode =
+                    List.head edge
+
+                secondNode =
+                    List.head <| List.drop 1 edge
+
+                backwardsEdge =
+                    List.reverse edge
+
+                finishNode =
+                    List.head backwardsEdge
+
+                penultimateNode =
+                    List.head <| List.drop 1 backwardsEdge
+            in
+            case [ startNode, secondNode, penultimateNode, finishNode ] of
+                [ Just start, Just second, Just penultimate, Just finish ] ->
+                    let
+                        comp1 =
+                            trackPointComparable start
+
+                        comp2 =
+                            trackPointComparable second
+
+                        compM =
+                            trackPointComparable penultimate
+
+                        compN =
+                            trackPointComparable finish
+                    in
+                    if Dict.member ( comp1, comp2, compN ) canonicalEdges then
+                        Just ( comp1, comp2, compN )
+
+                    else if Dict.member ( compN, compM, comp1 ) canonicalEdges then
+                        Just ( compN, compM, comp1 )
+
+                    else
+                        Nothing
+
+                _ ->
+                    Nothing
+    in
+    List.map replaceEdge edges |> List.filterMap identity
