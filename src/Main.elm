@@ -342,7 +342,7 @@ toolsAccordion model =
       }
     , { label = "Euclid"
       , state = Contracted
-      , content =  viewGraphControls wrapGraphMessage
+      , content = viewGraphControls wrapGraphMessage
       }
     ]
 
@@ -700,7 +700,7 @@ update msg model =
             )
 
         GraphMsg graphMsg ->
-            ( Graph.update graphMsg model
+            ( { model | graph = Graph.update graphMsg model }
             , Cmd.none
             )
 

@@ -4,6 +4,16 @@ module Graph exposing (..)
 -- between the road (nodes) and the trackpoints, so we can traverse sections
 -- of track points multiple times and in each direction.
 -- I'm going to migrate current functionality to this before creating the editing suite.
+-- OBSERVATIONS. Each non-node trackpoint belongs to one edge.
+-- When we draw the graph, the user needs to be able to select edges,
+-- both for editing and for adding to a route.
+-- Thus, each non-node TP must have an edge number.
+-- Edges then referenced by number, as are nodes.
+-- Once we've canonicalised, everything is by the numbers.
+-- For completeness, each trackpoint is either a Node (optionally S/F) point or an Edge point.
+-- Backwards compatibility? = After loading, there is one edge from S to F.
+-- Or are we modal, as so much changes (visuals, editing tools) ??
+--TODO: Check if last TP = first TP => same node (loop). Or that comes out in the wash?
 
 import Dict exposing (Dict)
 import Element as E exposing (Element)
@@ -24,13 +34,28 @@ type alias LatLon =
 
 
 type alias Graph =
-    { nodes : Dict LatLon Node
-    , edges : List (List TrackPoint) -- Edge
+    { nodes : Dict LatLon TrackPoint -- I want this to be Dict Int Node
+    , edges : List (List TrackPoint) -- and Dict (Int, Int, LatLon) Edge
+    , route : List Traversal -- this is OK.
     }
 
+type PointType
+    = StartPoint Int
+    | FinishPoint Int
+    | JunctionPoint Int
+    | OtherPoint Int Int -- Store both the edge number and the unique number (which might be locally unique).
+
+type alias PointOnGraph =
+    -- This will become our new "enhanced" track point.
+    { lat : Float
+    , lon : Float
+    , ele : Float
+    , idx : Int
+    , info : PointType -- we know the point's context and behaviours.
+    }
 
 empty =
-    { nodes = Dict.empty, edges = [] }
+    { nodes = Dict.empty, edges = [], route = [] }
 
 
 type Msg
@@ -64,14 +89,20 @@ viewGraphControls wrapper =
 
 
 update msg model =
+    case msg of
+        GraphAnalyse ->
+            deriveTrackPointGraph model.trackPoints
+
+
+deriveTrackPointGraph trackPoints =
     let
         _ =
             Debug.log "Look, nodes!"
-                (nodes |> Dict.toList |> List.map (\( k, v ) -> v.idx) |> List.sort)
+                (rawNodes |> Dict.toList |> List.map (\( k, v ) -> v.idx) |> List.sort)
 
         _ =
             Debug.log "Look, edges!"
-                (edges |> List.map (List.map .idx))
+                (rawEdges |> List.map (List.map .idx))
 
         _ =
             Debug.log "Canonical edges"
@@ -87,7 +118,7 @@ update msg model =
                         (\( n1, n2, n3 ) ->
                             let
                                 ( mstart, mfinish ) =
-                                    ( Dict.get n1 nodes, Dict.get n3 nodes )
+                                    ( Dict.get n1 rawNodes, Dict.get n3 rawNodes )
 
                                 mtraversal =
                                     Dict.get ( n1, n2, n3 ) canonicalEdges
@@ -102,27 +133,61 @@ update msg model =
                         canonicalRoute
 
         nodeIdx latLon =
-            case Dict.get latLon nodes of
+            case Dict.get latLon rawNodes of
                 Just tp ->
                     tp.idx
 
                 Nothing ->
                     -1
 
-        nodes =
-            interestingTrackPoints model.trackPoints
+        rawNodes =
+            interestingTrackPoints trackPoints
 
-        edges =
-            findDistinctEdgesAndFirstTraversal nodes model.trackPoints
+        rawEdges =
+            findDistinctEdges rawNodes trackPoints
 
         canonicalEdges =
-            findCanonicalEdges nodes edges
+            findCanonicalEdges rawNodes rawEdges
 
         canonicalRoute : List ( LatLon, LatLon, LatLon )
         canonicalRoute =
-            useCanonicalEdges edges canonicalEdges
+            useCanonicalEdges rawEdges canonicalEdges
+
+        reindexNodeDict : LatLon -> TrackPoint -> Dict Int PointOnGraph -> Dict Int PointOnGraph
+        reindexNodeDict latLon tp dict =
+            -- Final pass, in which we normalise our indexing.
+            Dict.insert tp.idx
+                { lat = tp.lat
+                , lon = tp.lon
+                , ele = tp.ele
+                , idx = tp.idx
+                , info = case tp.idx of
+                            0 -> StartPoint 0
+                            _ -> JunctionPoint tp.idx
+                }
+                dict
+
+        finalNodeDict : Dict LatLon TrackPoint -> Dict Int PointOnGraph
+        finalNodeDict =
+            -- Rebuild the node dict keyed by the original trackpoint ID (because it's convenient).
+            Dict.foldl
+                reindexNodeDict
+                Dict.empty
+
+        packageTheEdge : List TrackPoint -> Dict Int Edge -> Dict Int Edge
+        packageTheEdge tps dict =
+            let
+                edgeStartNode = List.head tps
+                edgeEndNode = List.last tps
+                otherNodes = List.take (List.length tps - 1) tps |> List.drop 1
+            in
+            Dict.empty
+
+        finalEdgeDict : List (List TrackPoint) -> Dict Int Edge
+        finalEdgeDict listOfLostOfTP =
+            List.foldl packageTheEdge Dict.empty listOfLostOfTP
     in
-    { model | graph = { nodes = nodes, edges = edges } }
+    { nodes = rawNodes, edges = rawEdges, route = [] }
 
 
 trackPointComparable : TrackPoint -> LatLon
@@ -132,6 +197,7 @@ trackPointComparable tp =
 
 interestingTrackPoints : List TrackPoint -> Dict LatLon TrackPoint
 interestingTrackPoints tps =
+    --TODO: this should return PointOnGraph, so the end points are distinctive.
     let
         endPoints =
             -- Subtle point: if the start and end co-incide we want the start point to "win".
@@ -217,11 +283,11 @@ interestingTrackPoints tps =
         |> addPointsFromList endPoints
 
 
-findDistinctEdgesAndFirstTraversal :
+findDistinctEdges :
     Dict LatLon TrackPoint
     -> List TrackPoint
     -> List (List TrackPoint)
-findDistinctEdgesAndFirstTraversal nodes trackPoints =
+findDistinctEdges nodes trackPoints =
     -- I probably should develop this into what I really want, but it's quite neat
     -- and clear, so I think I'll make another pass to substitute the canonical edges.
     let
