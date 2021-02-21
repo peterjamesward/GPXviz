@@ -340,7 +340,7 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-    , { label = "Euclid"
+    , { label = "The Lab"
       , state = Contracted
       , content = viewGraphControls wrapGraphMessage
       }
@@ -1738,6 +1738,7 @@ nodeToTrackPoint trackCenter node =
     , lon = degreesLon
     , ele = Length.inMeters <| zCoordinate node
     , idx = 0
+    , info = AnyPoint
     }
 
 
@@ -2189,6 +2190,7 @@ closeTheLoop model =
             , lon = Length.inMeters <| Point2d.xCoordinate newLatLon
             , ele = segment.startsAt.trackPoint.ele
             , idx = 0
+            , info = AnyPoint
             }
 
         newTrack gap segment1 =
@@ -2417,6 +2419,7 @@ straightenStraight model =
                     , lon = Length.inMeters <| Point2d.xCoordinate interpolatedPoint
                     , ele = original.ele
                     , idx = 0
+                    , info = AnyPoint
                     }
 
                 splicedTPs =

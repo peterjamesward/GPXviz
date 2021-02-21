@@ -15,26 +15,26 @@ type GPXCoords
     = GPXCoords
 
 
+type TrackPointType
+    = EdgePoint Int Int -- index into edge dict, and offset along edge
+    | NodePoint Int -- index into Juntion dict
+    | StartPoint Int -- can only be zero!
+    | EndPoint Int --
+    | AnyPoint
+
+
 type alias TrackPoint =
     -- This is the basic info we extract from a GPX file. Angles in degrees.
     { lat : Float
     , lon : Float
     , ele : Float
     , idx : Int
-    }
-
-
-type alias GraphNode =
-    -- Beginning of trying to interpret the road as a simple Euclidean node-edge network.
-    -- Experimentally, a GraphNode is a TrackPoint with three or more distinct neighbours.
-    -- (and the start and finish).
-    { location : ( Float, Float )
-    , neighbours : List ( Float, Float )
+    , info : TrackPointType
     }
 
 
 singleton =
-    { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0 }
+    { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0, info = AnyPoint }
 
 
 singletonPoint =
@@ -66,14 +66,40 @@ interpolateSegment w startTP endTP =
     , lon = x
     , ele = z
     , idx = 0
+    , info = AnyPoint
     }
 
 
-reindexTrackpoints points =
-    List.map2
-        (\p i -> { p | idx = i })
-        points
-        (List.range 0 (List.length points))
+reindexTrackpoints : List TrackPoint -> List TrackPoint
+reindexTrackpoints trackPoints =
+    -- Extra info is for indexing into the To-Be graph structure.
+    let
+        helper reversed nextIdx points =
+            case points of
+                [ last ] ->
+                    helper
+                        ({ last | idx = nextIdx, info = EndPoint nextIdx } :: reversed)
+                        (nextIdx + 1)
+                        []
+
+                [] ->
+                    List.reverse reversed
+
+                point :: rest ->
+                    helper
+                        ({ point | idx = nextIdx, info = EdgePoint 0 nextIdx } :: reversed)
+                        (nextIdx + 1)
+                        rest
+    in
+    case trackPoints of
+        firstPoint :: morePoints ->
+            helper
+                [ { firstPoint | idx = 0, info = StartPoint 0 } ]
+                1
+                morePoints
+
+        _ ->
+            []
 
 
 parseTrackPoints : String -> List TrackPoint
@@ -100,6 +126,7 @@ parseTrackPoints xml =
                         , lon = lon
                         , ele = ele
                         , idx = 0
+                        , info = AnyPoint
                         }
 
                 _ ->
@@ -234,6 +261,7 @@ meanTrackPoint tp0 tp1 =
     , lon = (tp0.lon + tp1.lon) / 2.0
     , ele = (tp0.ele + tp1.ele) / 2.0
     , idx = tp0.idx
+    , info = tp0.info
     }
 
 
@@ -297,5 +325,4 @@ pointAsTrackPoint p =
         { x, y, z } =
             Point3d.toMeters p
     in
-    { lat = y, lon = x, ele = z, idx = 0 }
-
+    { lat = y, lon = x, ele = z, idx = 0, info = AnyPoint }

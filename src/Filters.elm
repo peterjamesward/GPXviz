@@ -98,6 +98,7 @@ weightedAverage bias p0 p1 p2 =
     , lat = (1.0 - bias) * p1.lat + bias * (p0.lat + p1.lat + p2.lat) / 3.0
     , ele = (1.0 - bias) * p1.ele + bias * (p0.ele + p1.ele + p2.ele) / 3.0
     , idx = p1.idx
+    , info = p1.info
     }
 
 
