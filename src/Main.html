@@ -206,6 +206,7 @@ function makeTheMap(msg) {
                 console.log('tell Elm the map is ready');
                 isMapCreated = true;
                 canvas  = map.getCanvasContainer();
+                map.addControl(new mapboxgl.NavigationControl());
                 app.ports.messageReceiver.send({ 'msg' : 'map ready' });
         });
 
