@@ -13,9 +13,7 @@ aboutText =
 
 ## Changes
 
-- 2021-02-14 "Sea level" visual option lets you toggle the ground plane between sea level or 10 metres below the lowest track point.
-
-- 2021-02-12 Slightly more robust GPX parser.
+- 2021-02-23 Double-click on any view other than the Map to centre the view will also centre the Map view on the new current node.
 
 ## Donations
 

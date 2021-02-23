@@ -340,10 +340,10 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-    , { label = "The Lab"
-      , state = Contracted
-      , content = viewGraphControls wrapGraphMessage
-      }
+    --, { label = "The Lab"
+    --  , state = Contracted
+    --  , content = viewGraphControls wrapGraphMessage
+    --  }
     ]
 
 
@@ -1682,7 +1682,15 @@ lookForSimplifications model =
     { model | metricFilteredNodes = metricFilteredNodes model.nodes }
 
 
+centreViewOnCurrentNode : Model -> Model
 centreViewOnCurrentNode model =
+    let
+        centreMap lon lat =
+            case model.mapInfo of
+                Just info ->
+                    Just { info | centreLon = lon, centreLat = lat }
+                Nothing -> Nothing
+    in
     case
         ( Array.get model.currentNode model.nodeArray
         , Array.get model.currentNode model.roadArray
@@ -1693,6 +1701,7 @@ centreViewOnCurrentNode model =
                 | cameraFocusThirdPerson = node.location
                 , cameraFocusProfileNode = model.currentNode
                 , cameraFocusPlan = node.location
+                , mapInfo = centreMap node.trackPoint.lon node.trackPoint.lat
             }
 
         ( Just node, Nothing ) ->
@@ -1700,6 +1709,7 @@ centreViewOnCurrentNode model =
                 | cameraFocusThirdPerson = node.location
                 , cameraFocusProfileNode = model.currentNode - 1
                 , cameraFocusPlan = node.location
+                , mapInfo = centreMap node.trackPoint.lon node.trackPoint.lat
             }
 
         _ ->
@@ -4801,6 +4811,6 @@ subscriptions model =
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
 
-        --, Time.every 50 Tick
+        , Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]
