@@ -70,6 +70,17 @@ createMap info =
             ]
 
 
+centreMap : Float -> Float -> Cmd Msg
+centreMap lon lat =
+    mapPort <|
+        E.object
+            [ ( "Cmd", E.string "Centre" )
+            , ( "token", E.string mapboxKey )
+            , ( "lon", E.float lon )
+            , ( "lat", E.float lat )
+            ]
+
+
 removeMap : Cmd Msg
 removeMap =
     mapPort <| E.object [ ( "Cmd", E.string "Stop" ) ]

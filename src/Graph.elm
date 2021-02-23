@@ -96,41 +96,41 @@ update msg model =
 
 deriveTrackPointGraph trackPoints =
     let
-        _ =
-            Debug.log "Look, nodes!"
-                (rawNodes |> Dict.toList |> List.map (\( k, v ) -> v.idx) |> List.sort)
-
-        _ =
-            Debug.log "Look, edges!"
-                (rawEdges |> List.map (List.map .idx))
-
-        _ =
-            Debug.log "Canonical edges"
-                (canonicalEdges
-                    |> Dict.keys
-                    |> List.map (\( n1, _, n3 ) -> ( nodeIdx n1, nodeIdx n3 ))
-                )
-
-        _ =
-            Debug.log "Canonical route" <|
-                List.filterMap identity <|
-                    List.map
-                        (\( n1, n2, n3 ) ->
-                            let
-                                ( mstart, mfinish ) =
-                                    ( Dict.get n1 rawNodes, Dict.get n3 rawNodes )
-
-                                mtraversal =
-                                    Dict.get ( n1, n2, n3 ) canonicalEdges
-                            in
-                            case ( mstart, mfinish, mtraversal ) of
-                                ( Just start, Just finish, Just traversal ) ->
-                                    Just ( traversal.direction, start.idx, finish.idx )
-
-                                _ ->
-                                    Nothing
-                        )
-                        canonicalRoute
+        --_ =
+        --    Debug.log "Look, nodes!"
+        --        (rawNodes |> Dict.toList |> List.map (\( k, v ) -> v.idx) |> List.sort)
+        --
+        --_ =
+        --    Debug.log "Look, edges!"
+        --        (rawEdges |> List.map (List.map .idx))
+        --
+        --_ =
+        --    Debug.log "Canonical edges"
+        --        (canonicalEdges
+        --            |> Dict.keys
+        --            |> List.map (\( n1, _, n3 ) -> ( nodeIdx n1, nodeIdx n3 ))
+        --        )
+        --
+        --_ =
+        --    Debug.log "Canonical route" <|
+        --        List.filterMap identity <|
+        --            List.map
+        --                (\( n1, n2, n3 ) ->
+        --                    let
+        --                        ( mstart, mfinish ) =
+        --                            ( Dict.get n1 rawNodes, Dict.get n3 rawNodes )
+        --
+        --                        mtraversal =
+        --                            Dict.get ( n1, n2, n3 ) canonicalEdges
+        --                    in
+        --                    case ( mstart, mfinish, mtraversal ) of
+        --                        ( Just start, Just finish, Just traversal ) ->
+        --                            Just ( traversal.direction, start.idx, finish.idx )
+        --
+        --                        _ ->
+        --                            Nothing
+        --                )
+        --                canonicalRoute
 
         nodeIdx latLon =
             case Dict.get latLon rawNodes of

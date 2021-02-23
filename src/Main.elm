@@ -13,6 +13,7 @@ import Browser.Navigation exposing (Key)
 import Camera3d exposing (Camera3d)
 import Color
 import ColourPalette exposing (..)
+import Dict
 import Direction3d exposing (negativeZ, positiveY, positiveZ)
 import DisplayOptions exposing (..)
 import Element as E exposing (..)
@@ -340,10 +341,10 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-    , { label = "The Lab"
-      , state = Contracted
-      , content = viewGraphControls wrapGraphMessage
-      }
+    --, { label = "The Lab"
+    --  , state = Contracted
+    --  , content = viewGraphControls wrapGraphMessage
+    --  }
     ]
 
 
@@ -799,6 +800,28 @@ update msg model =
             in
             ( newModel
             , updateMapVaryingElements newModel
+            )
+
+        LocateProblem idx ->
+            -- Almost identical to UserMovedNodeSlider.
+            let
+                newModel =
+                    { model | currentNode = idx }
+                        |> cancelFlythrough
+                        |> tryBendSmoother
+                        |> deriveVaryingVisualEntities
+                        |> centreViewOnCurrentNode
+                        |> checkSceneCamera
+
+            in
+            ( newModel
+            , Cmd.batch [ updateMapVaryingElements newModel
+            , case Array.get idx newModel.nodeArray of
+                Just node ->
+                    MapController.centreMap node.trackPoint.lon node.trackPoint.lat
+                Nothing ->
+                    Cmd.none
+            ]
             )
 
         SetSmoothingEnd idx ->
@@ -3469,7 +3492,7 @@ viewGradientChanges model =
 
         linkButton nodeNum =
             button prettyButtonStyles
-                { onPress = Just (UserMovedNodeSlider nodeNum)
+                { onPress = Just (LocateProblem nodeNum)
                 , label = E.text <| String.fromInt nodeNum
                 }
 
@@ -3505,7 +3528,7 @@ viewBearingChanges model =
 
         linkButton nodeNum =
             button prettyButtonStyles
-                { onPress = Just (UserMovedNodeSlider nodeNum)
+                { onPress = Just (LocateProblem nodeNum)
                 , label = E.text <| String.fromInt nodeNum
                 }
 
@@ -4801,6 +4824,6 @@ subscriptions model =
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
 
-        --, Time.every 50 Tick
+        , Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

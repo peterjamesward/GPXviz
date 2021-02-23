@@ -21,6 +21,7 @@ type Msg
     | GpxLoaded String
     | GpxDownloaded (Result Http.Error String)
     | UserMovedNodeSlider Int
+    | LocateProblem Int
     | PositionBackOne
     | PositionForwardOne
     | ChooseViewMode ViewingMode

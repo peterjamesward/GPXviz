@@ -13,9 +13,7 @@ aboutText =
 
 ## Changes
 
-- 2021-02-14 "Sea level" visual option lets you toggle the ground plane between sea level or 10 metres below the lowest track point.
-
-- 2021-02-12 Slightly more robust GPX parser.
+- 2021-02-23 Second attempt at making Bend & Gradient problems navigate in the Map view.
 
 ## Donations
 
