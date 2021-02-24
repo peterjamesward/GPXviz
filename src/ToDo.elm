@@ -4,6 +4,9 @@ module ToDo exposing (..)
 
 --TODO: Display currently selected range.
 
+--TODO: Highlight doubled-up trackpoints (Strava does this a lot).
+-- This may fold into the Bytheway work.
+
 --TODO: Dual-view for large monitors.
 
 --TODO: John Bytheway suggestion.
@@ -15,8 +18,6 @@ module ToDo exposing (..)
 --THEN: New view that shows nodes and edges.
 --THEN: Allow editing of Edges (one at a time?)
 --THEN: Compose edges to produce new output. With looping.
-
---TODO: Double click should centre map view on current point. Leave zoom unchanged.
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

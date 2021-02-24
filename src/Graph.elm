@@ -20,7 +20,7 @@ import Element as E exposing (Element)
 import Element.Input as I
 import List.Extra as List
 import Set exposing (Set)
-import TrackPoint exposing (TrackPoint)
+import TrackPoint exposing (TrackPoint, TrackPointType(..))
 import ViewPureStyles exposing (prettyButtonStyles)
 
 
@@ -39,11 +39,13 @@ type alias Graph =
     , route : List Traversal -- this is OK.
     }
 
+
 type PointType
     = StartPoint Int
     | FinishPoint Int
     | JunctionPoint Int
     | OtherPoint Int Int -- Store both the edge number and the unique number (which might be locally unique).
+
 
 type alias PointOnGraph =
     -- This will become our new "enhanced" track point.
@@ -53,6 +55,7 @@ type alias PointOnGraph =
     , idx : Int
     , info : PointType -- we know the point's context and behaviours.
     }
+
 
 empty =
     { nodes = Dict.empty, edges = [], route = [] }
@@ -96,41 +99,13 @@ update msg model =
 
 deriveTrackPointGraph trackPoints =
     let
+        _ =
+            Debug.log "The nodes are "
+                indexedNodes
+
         --_ =
-        --    Debug.log "Look, nodes!"
-        --        (rawNodes |> Dict.toList |> List.map (\( k, v ) -> v.idx) |> List.sort)
-        --
-        --_ =
-        --    Debug.log "Look, edges!"
-        --        (rawEdges |> List.map (List.map .idx))
-        --
-        --_ =
-        --    Debug.log "Canonical edges"
-        --        (canonicalEdges
-        --            |> Dict.keys
-        --            |> List.map (\( n1, _, n3 ) -> ( nodeIdx n1, nodeIdx n3 ))
-        --        )
-        --
-        --_ =
-        --    Debug.log "Canonical route" <|
-        --        List.filterMap identity <|
-        --            List.map
-        --                (\( n1, n2, n3 ) ->
-        --                    let
-        --                        ( mstart, mfinish ) =
-        --                            ( Dict.get n1 rawNodes, Dict.get n3 rawNodes )
-        --
-        --                        mtraversal =
-        --                            Dict.get ( n1, n2, n3 ) canonicalEdges
-        --                    in
-        --                    case ( mstart, mfinish, mtraversal ) of
-        --                        ( Just start, Just finish, Just traversal ) ->
-        --                            Just ( traversal.direction, start.idx, finish.idx )
-        --
-        --                        _ ->
-        --                            Nothing
-        --                )
-        --                canonicalRoute
+        --    Debug.log "The edges are "
+        --        finalEdgeDict
 
         nodeIdx latLon =
             case Dict.get latLon rawNodes of
@@ -153,39 +128,29 @@ deriveTrackPointGraph trackPoints =
         canonicalRoute =
             useCanonicalEdges rawEdges canonicalEdges
 
-        reindexNodeDict : LatLon -> TrackPoint -> Dict Int PointOnGraph -> Dict Int PointOnGraph
-        reindexNodeDict latLon tp dict =
-            -- Final pass, in which we normalise our indexing.
-            Dict.insert tp.idx
-                { lat = tp.lat
-                , lon = tp.lon
-                , ele = tp.ele
-                , idx = tp.idx
-                , info = case tp.idx of
-                            0 -> StartPoint 0
-                            _ -> JunctionPoint tp.idx
-                }
-                dict
+        nodeCoordinatesToIndex : Dict LatLon Int
+        nodeCoordinatesToIndex =
+            Dict.fromList <|
+                List.map2
+                    (\key idx -> ( key, idx ))
+                    (Dict.keys rawNodes)
+                    (List.range 1 (Dict.size rawNodes))
 
-        finalNodeDict : Dict LatLon TrackPoint -> Dict Int PointOnGraph
-        finalNodeDict =
-            -- Rebuild the node dict keyed by the original trackpoint ID (because it's convenient).
-            Dict.foldl
-                reindexNodeDict
-                Dict.empty
+        indexedNodes : Dict Int TrackPoint
+        indexedNodes =
+            List.map
+                (\( k, v ) -> ( Dict.get k nodeCoordinatesToIndex, v ))
+                (Dict.toList rawNodes)
+                |> List.filterMap
+                    (\( k, tp ) ->
+                        case k of
+                            Just key ->
+                                Just ( key, { tp | info = NodePoint key } )
 
-        packageTheEdge : List TrackPoint -> Dict Int Edge -> Dict Int Edge
-        packageTheEdge tps dict =
-            let
-                edgeStartNode = List.head tps
-                edgeEndNode = List.last tps
-                otherNodes = List.take (List.length tps - 1) tps |> List.drop 1
-            in
-            Dict.empty
-
-        finalEdgeDict : List (List TrackPoint) -> Dict Int Edge
-        finalEdgeDict listOfLostOfTP =
-            List.foldl packageTheEdge Dict.empty listOfLostOfTP
+                            Nothing ->
+                                Nothing
+                    )
+                |> Dict.fromList
     in
     { nodes = rawNodes, edges = rawEdges, route = [] }
 
@@ -382,15 +347,11 @@ findCanonicalEdges nodes originalEdges =
 
                     else
                         -- First encounter for this edge, so this is canonical.
-                        dict
-                            |> Dict.insert ( comp1, comp2, compN )
-                                { edge = edge
-                                , direction = Forwards
-                                }
-                            |> Dict.insert ( compN, compM, comp1 )
-                                { edge = edge
-                                , direction = Backwards
-                                }
+                        Dict.insert ( comp1, comp2, compN )
+                            { edge = edge
+                            , direction = Forwards
+                            }
+                            dict
 
                 _ ->
                     dict

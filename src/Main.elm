@@ -341,10 +341,10 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-    --, { label = "The Lab"
-    --  , state = Contracted
-    --  , content = viewGraphControls wrapGraphMessage
-    --  }
+    , { label = "Lab"
+      , state = Contracted
+      , content = viewGraphControls wrapGraphMessage
+      }
     ]
 
 
@@ -4834,6 +4834,6 @@ subscriptions model =
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
 
-        , Time.every 50 Tick
+        --, Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]
