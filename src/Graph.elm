@@ -70,11 +70,15 @@ type alias Node =
 
 
 type alias Edge =
-    List TrackPoint
+    { startNode : Int
+    , endNode : Int
+    , wayPoint : LatLon
+    , trackPoints : List TrackPoint
+    }
 
 
 type alias Traversal =
-    { edge : Edge
+    { edge : Int
     , direction : Direction
     }
 
@@ -103,9 +107,9 @@ deriveTrackPointGraph trackPoints =
             Debug.log "The nodes are "
                 indexedNodes
 
-        --_ =
-        --    Debug.log "The edges are "
-        --        finalEdgeDict
+        _ =
+            Debug.log "The route is "
+                canonicalRoute
 
         nodeIdx latLon =
             case Dict.get latLon rawNodes of
@@ -124,9 +128,26 @@ deriveTrackPointGraph trackPoints =
         canonicalEdges =
             findCanonicalEdges rawNodes rawEdges
 
-        canonicalRoute : List ( LatLon, LatLon, LatLon )
+        canonicalRoute : List Traversal
         canonicalRoute =
             useCanonicalEdges rawEdges canonicalEdges
+                |> List.map
+                    (\( key, direction ) ->
+                        let
+                            edge =
+                                Dict.get key edgeKeysToIndex
+                        in
+                        case edge of
+                            Just e ->
+                                Just
+                                    { edge = e
+                                    , direction = direction
+                                    }
+
+                            Nothing ->
+                                Nothing
+                    )
+                |> List.filterMap identity
 
         nodeCoordinatesToIndex : Dict LatLon Int
         nodeCoordinatesToIndex =
@@ -135,6 +156,14 @@ deriveTrackPointGraph trackPoints =
                     (\key idx -> ( key, idx ))
                     (Dict.keys rawNodes)
                     (List.range 1 (Dict.size rawNodes))
+
+        edgeKeysToIndex : Dict ( LatLon, LatLon, LatLon ) Int
+        edgeKeysToIndex =
+            Dict.fromList <|
+                List.map2
+                    (\key idx -> ( key, idx ))
+                    (Dict.keys canonicalEdges)
+                    (List.range 1 (Dict.size canonicalEdges))
 
         indexedNodes : Dict Int TrackPoint
         indexedNodes =
@@ -151,6 +180,46 @@ deriveTrackPointGraph trackPoints =
                                 Nothing
                     )
                 |> Dict.fromList
+
+        indexedEdges : Dict Int Edge
+        indexedEdges =
+            Dict.toList canonicalEdges
+                |> List.filterMap
+                    (\( key, tps ) ->
+                        case Dict.get key edgeKeysToIndex of
+                            Just idx ->
+                                case makeProperEdge key tps of
+                                    Just edge ->
+                                        Just ( idx, edge )
+
+                                    Nothing ->
+                                        Nothing
+
+                            Nothing ->
+                                Nothing
+                    )
+                |> Dict.fromList
+
+        makeProperEdge : ( LatLon, LatLon, LatLon ) -> List TrackPoint -> Maybe Edge
+        makeProperEdge ( start, waypoint, end ) tps =
+            let
+                findNodeIndex latlon =
+                    Dict.get latlon nodeCoordinatesToIndex
+
+                ( startIdx, endIdx ) =
+                    ( findNodeIndex start, findNodeIndex end )
+            in
+            case ( startIdx, endIdx ) of
+                ( Just startNode, Just endNode ) ->
+                    Just
+                        { startNode = startNode
+                        , endNode = endNode
+                        , wayPoint = waypoint
+                        , trackPoints = List.drop 1 <| List.take (List.length trackPoints - 1) tps
+                        }
+
+                _ ->
+                    Nothing
     in
     { nodes = rawNodes, edges = rawEdges, route = [] }
 
@@ -297,7 +366,7 @@ findDistinctEdges nodes trackPoints =
 findCanonicalEdges :
     Dict LatLon TrackPoint
     -> List (List TrackPoint)
-    -> Dict ( LatLon, LatLon, LatLon ) Traversal
+    -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
 findCanonicalEdges nodes originalEdges =
     -- Note we are keying on three coordinates, so we disambiguate edges between node pairs.
     -- I am now thinking of making two entries, one for each direction.
@@ -305,8 +374,8 @@ findCanonicalEdges nodes originalEdges =
     let
         addCanonical :
             List TrackPoint
-            -> Dict ( LatLon, LatLon, LatLon ) Traversal
-            -> Dict ( LatLon, LatLon, LatLon ) Traversal
+            -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
+            -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
         addCanonical edge dict =
             let
                 startNode =
@@ -348,9 +417,7 @@ findCanonicalEdges nodes originalEdges =
                     else
                         -- First encounter for this edge, so this is canonical.
                         Dict.insert ( comp1, comp2, compN )
-                            { edge = edge
-                            , direction = Forwards
-                            }
+                            edge
                             dict
 
                 _ ->
@@ -361,11 +428,11 @@ findCanonicalEdges nodes originalEdges =
 
 useCanonicalEdges :
     List (List TrackPoint)
-    -> Dict ( LatLon, LatLon, LatLon ) Traversal
-    -> List ( LatLon, LatLon, LatLon )
+    -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
+    -> List ( ( LatLon, LatLon, LatLon ), Direction )
 useCanonicalEdges edges canonicalEdges =
     let
-        replaceEdge : List TrackPoint -> Maybe ( LatLon, LatLon, LatLon )
+        replaceEdge : List TrackPoint -> Maybe ( ( LatLon, LatLon, LatLon ), Direction )
         replaceEdge edge =
             let
                 startNode =
@@ -399,10 +466,10 @@ useCanonicalEdges edges canonicalEdges =
                             trackPointComparable finish
                     in
                     if Dict.member ( comp1, comp2, compN ) canonicalEdges then
-                        Just ( comp1, comp2, compN )
+                        Just ( ( comp1, comp2, compN ), Forwards )
 
                     else if Dict.member ( compN, compM, comp1 ) canonicalEdges then
-                        Just ( compN, compM, comp1 )
+                        Just ( ( compN, compM, comp1 ), Backwards )
 
                     else
                         Nothing
