@@ -34,9 +34,9 @@ type alias LatLon =
 
 
 type alias Graph =
-    { nodes : Dict LatLon TrackPoint -- I want this to be Dict Int Node
-    , edges : List (List TrackPoint) -- and Dict (Int, Int, LatLon) Edge
-    , route : List Traversal -- this is OK.
+    { nodes : Dict Int TrackPoint
+    , edges : Dict Int Edge
+    , route : List Traversal
     }
 
 
@@ -58,7 +58,7 @@ type alias PointOnGraph =
 
 
 empty =
-    { nodes = Dict.empty, edges = [], route = [] }
+    { nodes = Dict.empty, edges = Dict.empty, route = [] }
 
 
 type Msg
@@ -101,6 +101,7 @@ update msg model =
             deriveTrackPointGraph model.trackPoints
 
 
+deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
         _ =
@@ -110,14 +111,6 @@ deriveTrackPointGraph trackPoints =
         _ =
             Debug.log "The route is "
                 canonicalRoute
-
-        nodeIdx latLon =
-            case Dict.get latLon rawNodes of
-                Just tp ->
-                    tp.idx
-
-                Nothing ->
-                    -1
 
         rawNodes =
             interestingTrackPoints trackPoints
@@ -221,7 +214,7 @@ deriveTrackPointGraph trackPoints =
                 _ ->
                     Nothing
     in
-    { nodes = rawNodes, edges = rawEdges, route = [] }
+    { nodes = indexedNodes, edges = indexedEdges, route = canonicalRoute }
 
 
 trackPointComparable : TrackPoint -> LatLon
@@ -478,3 +471,61 @@ useCanonicalEdges edges canonicalEdges =
                     Nothing
     in
     List.map replaceEdge edges |> List.filterMap identity
+
+
+walkTheRoute : Graph -> List TrackPoint
+walkTheRoute graph =
+    -- This will convert the original route into a route made from canonical edges.
+    -- Let us put it to test.
+    let
+        addToTrail traversal accumulator =
+            let
+                getEdge =
+                    Dict.get traversal.edge graph.edges
+            in
+            case getEdge of
+                Just edge ->
+                    let
+                        edgeStart =
+                            Dict.get edge.startNode graph.nodes
+
+                        edgeEnd =
+                            Dict.get edge.endNode graph.nodes
+                    in
+                    case ( edgeStart, edgeEnd, traversal.direction ) of
+                        ( Just start, Just end, Forwards ) ->
+                            { accumulator
+                                | points =
+                                    start
+                                        :: addEdgePoints traversal.edge edge.trackPoints
+                                        ++ [ end ]
+                                        ++ List.drop 1 accumulator.points
+                            }
+
+                        ( Just start, Just end, Backwards ) ->
+                            { accumulator
+                                | points =
+                                    end
+                                        :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
+                                        ++ [ start ]
+                                        ++ List.drop 1 accumulator.points
+                            }
+
+                        _ ->
+                            accumulator
+
+                Nothing ->
+                    accumulator
+
+        addEdgePoints : Int -> List TrackPoint -> List TrackPoint
+        addEdgePoints edge edgePoints =
+            List.map2
+                (\point n -> { point | info = EdgePoint edge n })
+                edgePoints
+                (List.range 1 (List.length edgePoints))
+    in
+    List.foldr
+        addToTrail
+        { points = [], nextIdx = 0 }
+        graph.route
+        |> .points

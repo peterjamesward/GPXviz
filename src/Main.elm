@@ -701,9 +701,15 @@ update msg model =
             )
 
         GraphMsg graphMsg ->
-            ( { model | graph = Graph.update graphMsg model }
-            , Cmd.none
-            )
+            let
+                canonicalGraph =
+                    Graph.update graphMsg model
+            in
+            { model
+                | graph = canonicalGraph
+                , trackPoints = reindexTrackpoints <| Graph.walkTheRoute canonicalGraph
+            }
+                |> trackHasChanged
 
         NoOpMsg ->
             ( model, Cmd.none )
@@ -812,16 +818,17 @@ update msg model =
                         |> deriveVaryingVisualEntities
                         |> centreViewOnCurrentNode
                         |> checkSceneCamera
-
             in
             ( newModel
-            , Cmd.batch [ updateMapVaryingElements newModel
-            , case Array.get idx newModel.nodeArray of
-                Just node ->
-                    MapController.centreMap node.trackPoint.lon node.trackPoint.lat
-                Nothing ->
-                    Cmd.none
-            ]
+            , Cmd.batch
+                [ updateMapVaryingElements newModel
+                , case Array.get idx newModel.nodeArray of
+                    Just node ->
+                        MapController.centreMap node.trackPoint.lon node.trackPoint.lat
+
+                    Nothing ->
+                        Cmd.none
+                ]
             )
 
         SetSmoothingEnd idx ->
@@ -1712,7 +1719,9 @@ centreViewOnCurrentNode model =
             case model.mapInfo of
                 Just info ->
                     Just { info | centreLon = lon, centreLat = lat }
-                Nothing -> Nothing
+
+                Nothing ->
+                    Nothing
     in
     case
         ( Array.get model.currentNode model.nodeArray
