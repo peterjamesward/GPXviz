@@ -7,17 +7,16 @@ module ToDo exposing (..)
 --TODO: Highlight doubled-up trackpoints (Strava does this a lot).
 -- This may fold into the Bytheway work.
 
---TODO: Dual-view for large monitors.
+--TODO: Dual-view for large monitors. (Triple view?)
 
 --TODO: John Bytheway suggestion.
--- now using automatic analysis to convert to edges in a graph.
---NOTE: User must make sure that any crossroads are horizontal, not just same elevation.
---DONE: Derive edge list from route.
---THEN: Convert route to new one derived from edge traversals.
---THEN: Edges used backwards need to have centre-line offset applied (global value).
+--NOTE: User must make any crossroads horizontal, not just same elevation.
+
+--THEN: UNDO -- needs to revert the graph as well as the track points.
+--THEN: Centre-line offset (global).
+--THEN: Allow editing of Edges (graph function to check that TP on same edge => editable)
 --THEN: New view that shows nodes and edges.
---THEN: Allow editing of Edges (one at a time?)
---THEN: Compose edges to produce new output. With looping.
+--THEN: Compose edges to produce new output. With looping (simple DSL with prompted editing).
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

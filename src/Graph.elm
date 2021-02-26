@@ -227,7 +227,7 @@ interestingTrackPoints tps =
     --TODO: this should return PointOnGraph, so the end points are distinctive.
     let
         endPoints =
-            -- Subtle point: if the start and end co-incide we want the start point to "win".
+            -- Subtle point: if the start and end coincide we want the start point to "win".
             List.take 1 (List.reverse tps) ++ List.take 1 tps
 
         addPointsFromList listPoints dict =
@@ -298,8 +298,9 @@ interestingTrackPoints tps =
                 dict
 
         notTwoNeighbours _ ( _, neighbours ) =
-            -- One neighbour is an end; three or more is a junction.
-            Set.size neighbours /= 2
+            -- Three or more is a junction.
+            -- Need to add S/F explicitly
+            Set.size neighbours > 2
 
         interesting =
             Dict.filter notTwoNeighbours neighbourMap

@@ -107,6 +107,7 @@ type alias UndoEntry =
     , trackPoints : List TrackPoint
     , currentNode : Int
     , markedNode : Maybe Int
+    , graph : Graph.Graph
     }
 
 
@@ -392,6 +393,7 @@ addToUndoStack label model =
             , trackPoints = model.trackPoints
             , currentNode = model.currentNode
             , markedNode = model.markedNode
+            , graph = model.graph
             }
                 :: List.take 9 model.undoStack
         , redoStack = []
@@ -705,10 +707,14 @@ update msg model =
                 canonicalGraph =
                     Graph.update graphMsg model
             in
-            { model
-                | graph = canonicalGraph
-                , trackPoints = reindexTrackpoints <| Graph.walkTheRoute canonicalGraph
-            }
+            model
+                |> addToUndoStack "Canonicalise route"
+                |> (\mod ->
+                        { mod
+                            | graph = canonicalGraph
+                            , trackPoints = reindexTrackpoints <| Graph.walkTheRoute canonicalGraph
+                        }
+                   )
                 |> trackHasChanged
 
         NoOpMsg ->
@@ -1255,6 +1261,7 @@ update msg model =
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                         , changeCounter = model.changeCounter - 1
+                        , graph = action.graph
                     }
                         |> trackHasChanged
 
@@ -1271,6 +1278,7 @@ update msg model =
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                         , changeCounter = model.changeCounter + 1
+                        , graph = action.graph
                     }
                         |> trackHasChanged
 
