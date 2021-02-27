@@ -16,11 +16,12 @@ module Graph exposing (..)
 --TODO: Check if last TP = first TP => same node (loop). Or that comes out in the wash?
 
 import Dict exposing (Dict)
-import Element as E exposing (Element)
+import Element as E exposing (Element, padding, spacing)
 import Element.Input as I
 import List.Extra as List
 import Set exposing (Set)
 import TrackPoint exposing (TrackPoint, TrackPointType(..))
+import Utils exposing (showDecimal2)
 import ViewPureStyles exposing (prettyButtonStyles)
 
 
@@ -37,32 +38,17 @@ type alias Graph =
     { nodes : Dict Int TrackPoint
     , edges : Dict Int Edge
     , route : List Traversal
-    }
-
-
-type PointType
-    = StartPoint Int
-    | FinishPoint Int
-    | JunctionPoint Int
-    | OtherPoint Int Int -- Store both the edge number and the unique number (which might be locally unique).
-
-
-type alias PointOnGraph =
-    -- This will become our new "enhanced" track point.
-    { lat : Float
-    , lon : Float
-    , ele : Float
-    , idx : Int
-    , info : PointType -- we know the point's context and behaviours.
+    , centreLineOffset : Float
     }
 
 
 empty =
-    { nodes = Dict.empty, edges = Dict.empty, route = [] }
+    { nodes = Dict.empty, edges = Dict.empty, route = [], centreLineOffset = 0.0 }
 
 
 type Msg
     = GraphAnalyse
+    | CentreLineOffset Float
 
 
 type alias Node =
@@ -87,12 +73,29 @@ type alias Route =
     { route : List Traversal }
 
 
-viewGraphControls : (Msg -> msg) -> Element msg
-viewGraphControls wrapper =
-    I.button prettyButtonStyles
-        { onPress = Just (wrapper GraphAnalyse)
-        , label = E.text "Analyse"
-        }
+viewGraphControls : Graph -> (Msg -> msg) -> Element msg
+viewGraphControls graph wrapper =
+    E.row [ spacing 10, padding 10 ]
+        [ I.slider
+            []
+            { onChange = wrapper << CentreLineOffset
+            , label =
+                I.labelBelow [] <|
+                    E.text <|
+                        "Offset = "
+                            ++ showDecimal2 graph.centreLineOffset
+                            ++ "m right"
+            , min = -5.0
+            , max = 5.0
+            , step = Just 1.0
+            , value = graph.centreLineOffset
+            , thumb = I.defaultThumb
+            }
+        , I.button prettyButtonStyles
+            { onPress = Just (wrapper GraphAnalyse)
+            , label = E.text "Analyse"
+            }
+        ]
 
 
 update msg model =
@@ -100,18 +103,25 @@ update msg model =
         GraphAnalyse ->
             deriveTrackPointGraph model.trackPoints
 
+        CentreLineOffset offset ->
+            let
+                newGraph g =
+                    { g | centreLineOffset = offset }
+            in
+            newGraph model.graph
+
 
 deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
-        _ =
-            Debug.log "The nodes are "
-                indexedNodes
-
-        _ =
-            Debug.log "The route is "
-                canonicalRoute
-
+        --_ =
+        --    Debug.log "The nodes are "
+        --        indexedNodes
+        --
+        --_ =
+        --    Debug.log "The route is "
+        --        canonicalRoute
+        --
         rawNodes =
             interestingTrackPoints trackPoints
 
@@ -214,7 +224,11 @@ deriveTrackPointGraph trackPoints =
                 _ ->
                     Nothing
     in
-    { nodes = indexedNodes, edges = indexedEdges, route = canonicalRoute }
+    { nodes = indexedNodes
+    , edges = indexedEdges
+    , route = canonicalRoute
+    , centreLineOffset = 0.0
+    }
 
 
 trackPointComparable : TrackPoint -> LatLon
@@ -222,20 +236,22 @@ trackPointComparable tp =
     ( tp.lat, tp.lon )
 
 
+endPoints tps =
+    -- Subtle point: if the start and end coincide we want the start point to "win".
+    List.take 1 (List.reverse tps) ++ List.take 1 tps
+
+
+addPointsFromList listPoints dict =
+    List.foldl
+        (\tp d -> Dict.insert (trackPointComparable tp) tp d)
+        dict
+        listPoints
+
+
 interestingTrackPoints : List TrackPoint -> Dict LatLon TrackPoint
 interestingTrackPoints tps =
     --TODO: this should return PointOnGraph, so the end points are distinctive.
     let
-        endPoints =
-            -- Subtle point: if the start and end coincide we want the start point to "win".
-            List.take 1 (List.reverse tps) ++ List.take 1 tps
-
-        addPointsFromList listPoints dict =
-            List.foldl
-                (\tp d -> Dict.insert (trackPointComparable tp) tp d)
-                dict
-                listPoints
-
         neighbourMap =
             neighbourMapHelper Dict.empty tps
 
@@ -308,7 +324,7 @@ interestingTrackPoints tps =
     -- We don't need to return the neighbour list.
     interesting
         |> Dict.map (\k ( tp, _ ) -> tp)
-        |> addPointsFromList endPoints
+        |> addPointsFromList (endPoints tps)
 
 
 findDistinctEdges :
@@ -530,3 +546,66 @@ walkTheRoute graph =
         { points = [], nextIdx = 0 }
         graph.route
         |> .points
+
+
+makeSimpleGraph : List TrackPoint -> Graph
+makeSimpleGraph trackPoints =
+    -- Use this when file is loaded, so we always have a graph.
+    -- Edge ID = 1, node IDs - 0, 1.
+    let
+        startTP =
+            List.head trackPoints
+
+        endTP =
+            List.last trackPoints
+
+        wayPointTP =
+            List.head <| List.drop 1 trackPoints
+
+        otherTP =
+            List.drop 1 <| List.take (List.length trackPoints - 1) trackPoints
+
+        addNodeInfo info tp =
+            { tp | info = info }
+
+        otherNodes =
+            List.map2
+                (\tp i -> addNodeInfo (EdgePoint 1 i) tp)
+                otherTP
+                (List.range 1 (List.length otherTP))
+    in
+    case ( startTP, wayPointTP, endTP ) of
+        ( Just start, Just end, Just way ) ->
+            let
+                startNode =
+                    addNodeInfo (StartPoint 0) start
+
+                endNode =
+                    addNodeInfo (EndPoint 1) end
+
+                nodeDict =
+                    Dict.empty
+                        |> Dict.insert 0 startNode
+                        |> Dict.insert 1 endNode
+
+                edge =
+                    { startNode = 0
+                    , endNode = 1
+                    , wayPoint = trackPointComparable way
+                    , trackPoints = otherNodes
+                    }
+
+                edgeDict =
+                    Dict.insert 1 edge Dict.empty
+
+                traversal =
+                    { edge = 1, direction = Forwards }
+            in
+            { nodes = nodeDict
+            , edges = edgeDict
+            , route = [ traversal ]
+            , centreLineOffset = 0.0
+            }
+
+        _ ->
+            empty

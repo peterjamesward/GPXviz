@@ -342,9 +342,9 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-    , { label = "Lab"
+    , { label = "Euler"
       , state = Contracted
-      , content = viewGraphControls wrapGraphMessage
+      , content = viewGraphControls model.graph wrapGraphMessage
       }
     ]
 
@@ -703,6 +703,7 @@ update msg model =
             )
 
         GraphMsg graphMsg ->
+            -- How doe we deal with many actions; what is the undo msg eg.?
             let
                 canonicalGraph =
                     Graph.update graphMsg model
@@ -2838,6 +2839,7 @@ parseGPXintoModel content model =
         -- Do this on demand, not on loading; it's costly.
         --, graphNodes = interestingTrackPoints trackPoints
         , changeCounter = 0
+        , graph = Graph.makeSimpleGraph trackPoints
     }
 
 
