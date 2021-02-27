@@ -3132,15 +3132,17 @@ trackPointGap t1 t2 =
 deriveStaticVisualEntities : Model -> Model
 deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
+    -- Should adapt for Graph format; just do one edge at a time.
     let
+        edgesAsRoads =
+            -- This might allow us to repurpose the existing code to work on graphs.
+            Graph.mapOverEdges model.graph (deriveNodes >> deriveRoads)
+
         newMapInfo =
             Maybe.map updateMapInfo model.mapInfo
 
         updateMapInfo info =
             { info | points = model.trackPoints }
-
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
 
         context =
             { displayOptions = model.displayOptions
@@ -3162,10 +3164,12 @@ deriveStaticVisualEntities model =
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
             , graphNodes = []
+            , centreLineOffset = model.graph.centreLineOffset
             }
     in
     { model
-        | staticVisualEntities = makeStatic3DEntities context model.roads
+        | staticVisualEntities = List.concatMap (makeStatic3DEntities context) edgesAsRoads
+        --makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
         , mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
@@ -3199,6 +3203,7 @@ deriveTerrain model =
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
             , graphNodes = []
+            , centreLineOffset = model.graph.centreLineOffset
             }
     in
     { model
@@ -3234,6 +3239,7 @@ deriveVaryingVisualEntities model =
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
             , graphNodes = []
+            , centreLineOffset = model.graph.centreLineOffset
             }
 
         profileContext =

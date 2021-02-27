@@ -52,12 +52,6 @@ makeStatic3DEntities :
     -> List (Entity LocalCoords)
 makeStatic3DEntities context roadList =
     let
-        ( xDelta, yDelta ) =
-            -- Convenience for making rectangles
-            ( Vector3d.withLength (Length.meters 0.5) Direction3d.x
-            , Vector3d.withLength (Length.meters 0.5) Direction3d.y
-            )
-
         seaLevel =
             let
                 bigger =
@@ -71,7 +65,7 @@ makeStatic3DEntities context roadList =
                         Length.meters 0.0
 
                     else
-                        Length.meters <| (Length.inMeters minZ) + 990.0
+                        Length.meters <| Length.inMeters minZ + 990.0
             in
             Scene3d.quad (Material.color Color.darkGreen)
                 (Point3d.xyz minX minY showPlane)
@@ -130,9 +124,10 @@ makeStatic3DEntities context roadList =
 
         roadSurface road =
             let
-                edgeHeight =
-                    -- Let's try a low wall at the road's edges.
-                    0.3
+                offsetVector =
+                    Vector3d.scaleBy
+                        context.centreLineOffset
+                        (Vector3d.meters (cos road.bearing) (sin road.bearing) 0.0)
 
                 ( kerbX, kerbY ) =
                     -- Road is assumed to be 6 m wide.
@@ -141,7 +136,8 @@ makeStatic3DEntities context roadList =
                     )
 
                 roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                    LineSegment3d.translateBy offsetVector <|
+                        LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
                 leftKerbVector =
                     Vector3d.meters
@@ -229,16 +225,16 @@ makeStatic3DEntities context roadList =
 
         graphNodeCircles =
             List.map
-            (\node ->
-                cone (Material.color Color.blue) <|
-                    Cone3d.startingAt
-                        node.location
-                        positiveZ
-                        { radius = meters <| 5.0
-                        , length = meters <| 5.0
-                        }
-            )
-            context.graphNodes
+                (\node ->
+                    cone (Material.color Color.blue) <|
+                        Cone3d.startingAt
+                            node.location
+                            positiveZ
+                            { radius = meters <| 5.0
+                            , length = meters <| 5.0
+                            }
+                )
+                context.graphNodes
     in
     [ seaLevel ]
         ++ optionally context.displayOptions.roadPillars pillars

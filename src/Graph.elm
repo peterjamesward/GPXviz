@@ -490,10 +490,50 @@ useCanonicalEdges edges canonicalEdges =
     List.map replaceEdge edges |> List.filterMap identity
 
 
+traversalAsTrackPoints : Graph -> Traversal -> List TrackPoint
+traversalAsTrackPoints graph traversal =
+    let
+        getEdge =
+            Dict.get traversal.edge graph.edges
+    in
+    case getEdge of
+        Just edge ->
+            let
+                edgeStart =
+                    Dict.get edge.startNode graph.nodes
+
+                edgeEnd =
+                    Dict.get edge.endNode graph.nodes
+            in
+            case ( edgeStart, edgeEnd, traversal.direction ) of
+                ( Just start, Just end, Forwards ) ->
+                    start
+                        :: List.map2
+                            (\point n -> { point | info = EdgePoint traversal.edge n })
+                            edge.trackPoints
+                            (List.range 1 (List.length edge.trackPoints))
+                        ++ [ end ]
+
+                ( Just start, Just end, Backwards ) ->
+                    end
+                        :: List.map2
+                            (\point n -> { point | info = EdgePoint traversal.edge n })
+                            (List.reverse edge.trackPoints)
+                            (List.range 1 (List.length edge.trackPoints))
+                        ++ [ start ]
+
+                _ ->
+                    []
+
+        Nothing ->
+            []
+
+
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
     -- This will convert the original route into a route made from canonical edges.
     -- Let us put it to test.
+    -- As we convert to Graph, we should no longer need this. (no trackpoint list in model!)
     let
         addToTrail traversal accumulator =
             let
@@ -609,3 +649,8 @@ makeSimpleGraph trackPoints =
 
         _ ->
             empty
+
+
+mapOverEdges : Graph -> (List TrackPoint -> List a) -> List (List a)
+mapOverEdges graph fn =
+    List.map (traversalAsTrackPoints graph >> fn) graph.route

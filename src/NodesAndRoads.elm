@@ -19,7 +19,7 @@ type alias ScalingInfo =
 
 
 type alias DrawingNode =
-    -- Track point with Web Mercator projection.
+    -- Track point with simple locally flat projection. (Web Mercator is rubbish for our purpose.)
     { trackPoint : TrackPoint
     , location : Point3d.Point3d Length.Meters LocalCoords
     , costMetric : Maybe Float -- impact if this node is removed, by some measure.
@@ -52,14 +52,15 @@ type alias SummaryData =
     }
 
 
-deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters LocalCoords
-deriveTrackPointBox tps =
-    Maybe.withDefault
-        (BoundingBox3d.singleton <| Point3d.meters 0.0 0.0 0.0)
-    <|
-        BoundingBox3d.hullN <|
-            List.map (\tp -> Point3d.meters tp.lon tp.lat tp.ele)
-                tps
+
+--deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters LocalCoords
+--deriveTrackPointBox tps =
+--    Maybe.withDefault
+--        (BoundingBox3d.singleton <| Point3d.meters 0.0 0.0 0.0)
+--    <|
+--        BoundingBox3d.hullN <|
+--            List.map (\tp -> Point3d.meters tp.lon tp.lat tp.ele)
+--                tps
 
 
 deriveNodes : List TrackPoint -> List DrawingNode
@@ -67,14 +68,11 @@ deriveNodes tps =
     let
         prepareDrawingNode tp =
             let
-                y =
-                    metresPerDegree * (tp.lat)
-
-                x =
-                    metresPerDegree * (tp.lon) * cos (degrees tp.lat)
-
-                z =
-                    tp.ele
+                ( y, x, z ) =
+                    ( metresPerDegree * tp.lat
+                    , metresPerDegree * tp.lon * cos (degrees tp.lat)
+                    , tp.ele
+                    )
             in
             { trackPoint = tp
             , location = Point3d.fromTuple Length.meters ( x, y, z )
