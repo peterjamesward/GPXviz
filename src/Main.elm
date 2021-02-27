@@ -2045,9 +2045,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
         , verticalNudgeValue = vertical
         , nudgedRegionStart = node1
         , nudgedNodeRoads =
-            deriveRoads <|
-                deriveNodes model.trackPointBox <|
-                    nudgedListForVisuals
+            deriveRoads <| deriveNodes nudgedListForVisuals
     }
 
 
@@ -2850,7 +2848,7 @@ deriveNodesAndRoads model =
             Point3d.meters tp.lon tp.lat tp.ele
 
         withNodes m =
-            { m | nodes = deriveNodes m.trackPointBox m.trackPoints }
+            { m | nodes = deriveNodes m.trackPoints }
 
         withTrackPointScaling m =
             { m

@@ -62,20 +62,16 @@ deriveTrackPointBox tps =
                 tps
 
 
-deriveNodes : BoundingBox3d Length.Meters GPXCoords -> List TrackPoint -> List DrawingNode
-deriveNodes box tps =
+deriveNodes : List TrackPoint -> List DrawingNode
+deriveNodes tps =
     let
-        ( midLon, midLat, _ ) =
-            Point3d.toTuple Length.inMeters <|
-                BoundingBox3d.centerPoint box
-
         prepareDrawingNode tp =
             let
                 y =
-                    metresPerDegree * (tp.lat - midLat)
+                    metresPerDegree * (tp.lat)
 
                 x =
-                    metresPerDegree * (tp.lon - midLon) * cos (degrees tp.lat)
+                    metresPerDegree * (tp.lon) * cos (degrees tp.lat)
 
                 z =
                     tp.ele
