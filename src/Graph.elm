@@ -653,4 +653,6 @@ makeSimpleGraph trackPoints =
 
 mapOverEdges : Graph -> (List TrackPoint -> List a) -> List (List a)
 mapOverEdges graph fn =
+    -- Probably not keep this. But worked as experiment.
+    -- Trouble is you get each end node twice.
     List.map (traversalAsTrackPoints graph >> fn) graph.route

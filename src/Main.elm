@@ -3134,9 +3134,9 @@ deriveStaticVisualEntities model =
     -- These need building only when a file is loaded, or a fix is applied.
     -- Should adapt for Graph format; just do one edge at a time.
     let
-        edgesAsRoads =
+        graphAsRoads =
             -- This might allow us to repurpose the existing code to work on graphs.
-            Graph.mapOverEdges model.graph (deriveNodes >> deriveRoads)
+            Graph.walkTheRoute model.graph |> deriveNodes |> deriveRoads
 
         newMapInfo =
             Maybe.map updateMapInfo model.mapInfo
@@ -3168,7 +3168,7 @@ deriveStaticVisualEntities model =
             }
     in
     { model
-        | staticVisualEntities = List.concatMap (makeStatic3DEntities context) edgesAsRoads
+        | staticVisualEntities =  makeStatic3DEntities context graphAsRoads
         --makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
         , mapVisualEntities = makeMapEntities context model.roads

@@ -14,6 +14,8 @@ module ToDo exposing (..)
 
 --THEN: UNDO -- needs to revert the graph as well as the track points.
 --THEN: Centre-line offset (global).
+-- Applying offset to roads doesn't really work - we need to apply to track points
+-- and the logic we use for Nudge should work.
 --THEN: Allow editing of Edges (graph function to check that TP on same edge => editable)
 --THEN: New view that shows nodes and edges.
 --THEN: Compose edges to produce new output. With looping (simple DSL with prompted editing).
