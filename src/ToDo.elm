@@ -12,13 +12,13 @@ module ToDo exposing (..)
 --TODO: John Bytheway suggestion.
 --NOTE: *User* must make any crossroads horizontal, not just same elevation.
 
---THEN: Centre-line offset (global).
+--URGENT - UI actions seem slower. Are we recalculating too much?
+
 -- I wonder whether the first pass of an edge is not the canonical (height difference).
 -- Applying offset to roads doesn't really work - we need to apply to track points
 -- and the logic we use for Nudge should work.
--- MAYBE makes sense to compute the offset direction when we canonicalise.
 
---THEN: Allow editing of Edges (graph function to check that TP on same edge => editable)
+--THEN: Make all editing work on Graph (check Map also). (graph function to check that TP on same edge => editable)
 --THEN: New view that shows nodes and edges.
 --THEN: Compose edges to produce new output. With looping (simple DSL with prompted editing).
 --ALSO: Allow to switch back (thaw) to non-constrained track points (with spacing).

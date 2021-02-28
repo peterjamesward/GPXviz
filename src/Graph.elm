@@ -15,13 +15,19 @@ module Graph exposing (..)
 -- Or are we modal, as so much changes (visuals, editing tools) ??
 --TODO: Check if last TP = first TP => same node (loop). Or that comes out in the wash?
 
+import Angle
+import Axis3d
 import Dict exposing (Dict)
+import Direction3d
 import Element as E exposing (Element, padding, spacing)
 import Element.Input as I
+import Length
 import List.Extra as List
+import Point3d
 import Set exposing (Set)
-import TrackPoint exposing (TrackPoint, TrackPointType(..))
+import TrackPoint exposing (TrackPoint, TrackPointType(..), reindexTrackpoints, toGPXcoords)
 import Utils exposing (showDecimal2)
+import Vector3d
 import ViewPureStyles exposing (prettyButtonStyles)
 
 
@@ -84,7 +90,16 @@ viewGraphControls graph wrapper =
                     E.text <|
                         "Offset = "
                             ++ showDecimal2 graph.centreLineOffset
-                            ++ "m right"
+                            ++ "m "
+                            ++ (if graph.centreLineOffset < 0.0 then
+                                    "left"
+
+                                else if graph.centreLineOffset > 0.0 then
+                                    "right"
+
+                                else
+                                    ""
+                               )
             , min = -5.0
             , max = 5.0
             , step = Just 1.0
@@ -593,6 +608,33 @@ walkTheRoute graph =
         { points = [], nextIdx = 0 }
         graph.route
         |> .points
+        |> reindexTrackpoints
+        |> List.map (applyCentreLineOffset graph.centreLineOffset)
+
+
+applyCentreLineOffset : Float -> TrackPoint -> TrackPoint
+applyCentreLineOffset offset trackpoint =
+    let
+        offsetDirection =
+            trackpoint.naturalBearing
+                |> Angle.radians
+                |> Direction3d.yx
+                |> Direction3d.rotateAround Axis3d.z (Angle.degrees -90)
+
+        offsetVector =
+            Vector3d.withLength (Length.meters offset) offsetDirection
+
+        newXYZ =
+            Point3d.translateBy offsetVector trackpoint.xyz
+
+        ( lon, lat, ele ) =
+            toGPXcoords newXYZ
+    in
+    { trackpoint
+        | lat = lat
+        , lon = lon
+        , xyz = newXYZ
+    }
 
 
 makeSimpleGraph : List TrackPoint -> Graph
