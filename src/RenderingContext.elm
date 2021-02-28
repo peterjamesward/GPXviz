@@ -23,5 +23,4 @@ type alias RenderingContext =
     , zoomLevel : Float
     , verticalExaggeration : Float
     , graphNodes : List DrawingNode
-    , centreLineOffset : Float
     }

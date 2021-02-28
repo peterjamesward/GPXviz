@@ -125,11 +125,6 @@ makeStatic3DEntities context roadList =
 
         roadSurface road =
             let
-                --offsetVector =
-                --    Vector3d.scaleBy
-                --        context.centreLineOffset
-                --        (Vector3d.meters (-1 * cos road.bearing) (sin road.bearing) 0.0)
-
                 ( kerbX, kerbY ) =
                     -- Road is assumed to be 6 m wide.
                     ( 3.0 * cos road.bearing
@@ -137,25 +132,8 @@ makeStatic3DEntities context roadList =
                     )
 
                 roadAsSegment =
-                    --LineSegment3d.translateBy offsetVector <|
                         LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
-                --startDisc =
-                --    Cylinder3d.centeredOn
-                --        (LineSegment3d.startPoint roadAsSegment)
-                --        Direction3d.z
-                --        { radius = Length.meters 3.0
-                --        , length = Length.meters 0.1
-                --        }
-                --
-                --endDisc =
-                --    Cylinder3d.centeredOn
-                --        (LineSegment3d.endPoint roadAsSegment)
-                --        Direction3d.z
-                --        { radius = Length.meters 3.0
-                --        , length = Length.meters 0.1
-                --        }
-                --
                 leftKerbVector =
                     Vector3d.meters
                         (-1.0 * kerbX)
@@ -175,17 +153,10 @@ makeStatic3DEntities context roadList =
                 (LineSegment3d.endPoint leftKerb)
                 (LineSegment3d.endPoint rightKerb)
                 (LineSegment3d.startPoint rightKerb)
-            --, Scene3d.cylinder (Material.matte Color.grey) startDisc
-            --, Scene3d.cylinder (Material.matte Color.grey) endDisc
             ]
 
         subtleGradientLine road =
             let
-                --offsetVector =
-                --    Vector3d.scaleBy
-                --        context.centreLineOffset
-                --        (Vector3d.meters (-1 * cos road.bearing) (sin road.bearing) 0.0)
-
                 ( halfX, halfY ) =
                     -- Width of the centre line.
                     ( 0.3 * cos road.bearing
@@ -193,7 +164,6 @@ makeStatic3DEntities context roadList =
                     )
 
                 roadAsSegment =
-                    --LineSegment3d.translateBy offsetVector <|
                         LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
                 leftVector =

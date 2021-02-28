@@ -129,7 +129,7 @@ deriveTrackPointGraph trackPoints =
             findDistinctEdges rawNodes trackPoints
 
         canonicalEdges =
-            findCanonicalEdges rawNodes rawEdges
+            findCanonicalEdges rawEdges
 
         canonicalRoute : List Traversal
         canonicalRoute =
@@ -340,10 +340,10 @@ findDistinctEdges nodes trackPoints =
             Dict.member (trackPointComparable tp) nodes
 
         routeSplitter :
-            TrackPoint
-            -> List (List TrackPoint)
-            -> List TrackPoint
-            -> List (List TrackPoint)
+            TrackPoint -- The start point of an edge == a junction or the route start
+            -> List (List TrackPoint) -- Accumulator for fold.
+            -> List TrackPoint -- The list being folded.
+            -> List (List TrackPoint) -- The result list, in the natural order.
         routeSplitter startNode edges tps =
             -- Not quite what we want as the node to appear on both edges; here it's on the departing edge.
             let
@@ -353,12 +353,18 @@ findDistinctEdges nodes trackPoints =
             in
             case split of
                 Just ( before, after0 :: after ) ->
-                    routeSplitter after0 ((startNode :: before ++ [ after0 ]) :: edges) after
+                    -- We borrow the first node of the next edge here for our edge, and pass it forwards.
+                    routeSplitter
+                        after0
+                        ((startNode :: before ++ [ after0 ]) :: edges)
+                        after
 
                 Just ( before, _ ) ->
+                    -- Last edge, so just prepend the carried forward node.
                     (startNode :: before) :: edges
 
                 Nothing ->
+                    -- Reverse list so it's in the natural order.
                     edges |> List.reverse
 
         edgeList : List (List TrackPoint)
@@ -370,14 +376,14 @@ findDistinctEdges nodes trackPoints =
                 _ ->
                     []
     in
+    -- First edge (as coded) will just contain the start node.
     List.drop 1 edgeList
 
 
 findCanonicalEdges :
-    Dict LatLon TrackPoint
-    -> List (List TrackPoint)
+    List (List TrackPoint)
     -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
-findCanonicalEdges nodes originalEdges =
+findCanonicalEdges originalEdges =
     -- Note we are keying on three coordinates, so we disambiguate edges between node pairs.
     -- I am now thinking of making two entries, one for each direction.
     -- Marginally larger dict, much easier lookup.
@@ -419,9 +425,11 @@ findCanonicalEdges nodes originalEdges =
                             trackPointComparable finish
                     in
                     if
+                        -- We may have encountered in either direction.
                         Dict.member ( comp1, comp2, compN ) dict
                             || Dict.member ( compN, compM, comp1 ) dict
                     then
+                        -- Previously encountered.
                         dict
 
                     else
@@ -649,10 +657,3 @@ makeSimpleGraph trackPoints =
 
         _ ->
             empty
-
-
-mapOverEdges : Graph -> (List TrackPoint -> List a) -> List (List a)
-mapOverEdges graph fn =
-    -- Probably not keep this. But worked as experiment.
-    -- Trouble is you get each end node twice.
-    List.map (traversalAsTrackPoints graph >> fn) graph.route

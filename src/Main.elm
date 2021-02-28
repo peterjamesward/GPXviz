@@ -35,6 +35,7 @@ import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
 import Json.Decode as E exposing (..)
 import Length exposing (inMeters, meters)
+import LineSegment3d
 import List exposing (drop, take)
 import List.Extra
 import Loop exposing (..)
@@ -53,6 +54,7 @@ import Point3d exposing (Point3d, distanceFromAxis, xCoordinate, yCoordinate, zC
 import Rectangle2d
 import Scene3d exposing (Entity)
 import ScenePainter exposing (render3dScene)
+import SketchPlane3d
 import Spherical exposing (metresPerDegree)
 import StravaAuth exposing (getStravaToken, stravaButton)
 import StravaDataLoad exposing (requestStravaRoute, requestStravaRouteHeader, requestStravaSegment, requestStravaSegmentStreams, stravaApiRoot, stravaProcessRoute, stravaProcessSegment, stravaRouteName)
@@ -1769,10 +1771,10 @@ nodeToTrackPoint trackCenter node =
     --projectedY lon lat =
     --    lat * metresPerDegree
     let
-        ( centerLon, centerLat ) =
-            ( Length.inMeters <| xCoordinate trackCenter
-            , Length.inMeters <| yCoordinate trackCenter
-            )
+        --( centerLon, centerLat ) =
+        --    ( Length.inMeters <| xCoordinate trackCenter
+        --    , Length.inMeters <| yCoordinate trackCenter
+        --    )
 
         ( x, y ) =
             ( Length.inMeters <| xCoordinate node
@@ -1780,16 +1782,18 @@ nodeToTrackPoint trackCenter node =
             )
 
         degreesLat =
-            centerLat + y / metresPerDegree
+            y / metresPerDegree
 
         degreesLon =
-            centerLon + x / metresPerDegree / cos (degrees degreesLat)
+            x / metresPerDegree / cos (degrees degreesLat)
     in
     { lat = degreesLat
     , lon = degreesLon
     , ele = Length.inMeters <| zCoordinate node
     , idx = 0
     , info = AnyPoint
+    , naturalBearing = 0.0
+    , xyz = node
     }
 
 
@@ -2223,23 +2227,22 @@ closeTheLoop model =
         backOneMeter : DrawingRoad -> TrackPoint
         backOneMeter segment =
             let
-                newLatLon : Point2d Length.Meters LocalCoords
-                newLatLon =
-                    Point2d.interpolateFrom
-                        (Point2d.meters segment.startsAt.trackPoint.lon segment.startsAt.trackPoint.lat)
-                        (Point2d.meters segment.endsAt.trackPoint.lon segment.endsAt.trackPoint.lat)
-                        backAmount
-
-                backAmount =
-                    -- Set back new point equivalent to 1 meter, but we're working in lat & lon.
-                    -- The fraction should be valid.
-                    -1.0 / segment.length
+                roadSegment = LineSegment3d.from segment.startsAt.location segment.endsAt.location
+                flattenedSegment = LineSegment3d.projectOnto Plane3d.xy roadSegment
+                shiftDirection = Vector3d.from
+                    (LineSegment3d.endPoint flattenedSegment)
+                    (LineSegment3d.startPoint flattenedSegment)
+                shiftVector = Vector3d.scaleTo (Length.meters 1.0) shiftDirection
+                newLocation = Point3d.translateBy shiftVector segment.startsAt.location
+                (lon, lat, ele) = toGPXcoords newLocation
             in
-            { lat = Length.inMeters <| Point2d.yCoordinate newLatLon
-            , lon = Length.inMeters <| Point2d.xCoordinate newLatLon
-            , ele = segment.startsAt.trackPoint.ele
+            { lat = lat
+            , lon = lon
+            , ele = ele
             , idx = 0
             , info = AnyPoint
+            , naturalBearing = segment.bearing
+            , xyz = newLocation
             }
 
         newTrack gap segment1 =
@@ -2428,14 +2431,10 @@ straightenStraight model =
         ( Just firstRoad, Just lastRoad ) ->
             let
                 startPoint =
-                    Point2d.meters
-                        firstRoad.startsAt.trackPoint.lon
-                        firstRoad.startsAt.trackPoint.lat
+                    Point3d.projectOnto Plane3d.xy firstRoad.startsAt.location
 
                 endPoint =
-                    Point2d.meters
-                        lastRoad.startsAt.trackPoint.lon
-                        lastRoad.startsAt.trackPoint.lat
+                    Point3d.projectOnto Plane3d.xy lastRoad.startsAt.location
 
                 trackPointsToMove =
                     -- Note, include startTP and it will move by zero,
@@ -2460,15 +2459,20 @@ straightenStraight model =
                         (List.reverse cumulativeLengthsReversed)
 
                 interpolateTrackPoint original fraction =
+                    -- I can now do this in LocalCoords; makes more sense really.
                     let
-                        interpolatedPoint =
-                            Point2d.interpolateFrom startPoint endPoint (fraction / affectedLength)
+                        interpolatedPointInXY =
+                            Point3d.interpolateFrom startPoint endPoint (fraction / affectedLength)
+                        (lon, lat, _) = toGPXcoords interpolatedPointInXY
+                        heightVector = Vector3d.meters 0 0 original.ele
                     in
-                    { lat = Length.inMeters <| Point2d.yCoordinate interpolatedPoint
-                    , lon = Length.inMeters <| Point2d.xCoordinate interpolatedPoint
+                    { lat = lat
+                    , lon = lon
                     , ele = original.ele
                     , idx = 0
                     , info = AnyPoint
+                    , naturalBearing = 0.0
+                    , xyz = Point3d.translateBy heightVector interpolatedPointInXY
                     }
 
                 splicedTPs =
@@ -3164,12 +3168,10 @@ deriveStaticVisualEntities model =
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
             , graphNodes = []
-            , centreLineOffset = model.graph.centreLineOffset
             }
     in
     { model
-        | staticVisualEntities =  makeStatic3DEntities context graphAsRoads
-        --makeStatic3DEntities context model.roads
+        | staticVisualEntities =  makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
         , mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
@@ -3203,7 +3205,6 @@ deriveTerrain model =
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
             , graphNodes = []
-            , centreLineOffset = model.graph.centreLineOffset
             }
     in
     { model
@@ -3239,7 +3240,6 @@ deriveVaryingVisualEntities model =
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
             , graphNodes = []
-            , centreLineOffset = model.graph.centreLineOffset
             }
 
         profileContext =

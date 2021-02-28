@@ -7,7 +7,7 @@ import LineSegment3d exposing (LineSegment3d)
 import Loop exposing (..)
 import Point3d exposing (Point3d)
 import Polyline3d exposing (Polyline3d)
-import TrackPoint exposing (GPXCoords, TrackPoint, pointAsTrackPoint, pointFromTrackpoint)
+import TrackPoint exposing (GPXCoords, TrackPoint, toGPXcoords)
 import Triangle3d exposing (Triangle3d)
 import UbiquitousTypes exposing (LocalCoords)
 import Vector3d
@@ -49,7 +49,7 @@ applyWeightedAverageFilter ( start, finish ) filterBias loopiness points =
                 List.take 1 <| List.drop 1 <| List.reverse points
 
             else
-                List.take 1  <| List.reverse points
+                List.take 1 <| List.reverse points
 
         numPoints =
             List.length points
@@ -63,7 +63,6 @@ applyWeightedAverageFilter ( start, finish ) filterBias loopiness points =
                 (lastPoint ++ points)
                 points
                 (List.drop 1 points ++ firstPoint)
-
 
         filtered =
             List.map3
@@ -94,11 +93,24 @@ weightedAverage :
     -> TrackPoint
     -> TrackPoint
 weightedAverage bias p0 p1 p2 =
-    { lon = (1.0 - bias) * p1.lon + bias * (p0.lon + p1.lon + p2.lon) / 3.0
-    , lat = (1.0 - bias) * p1.lat + bias * (p0.lat + p1.lat + p2.lat) / 3.0
-    , ele = (1.0 - bias) * p1.ele + bias * (p0.ele + p1.ele + p2.ele) / 3.0
-    , idx = p1.idx
-    , info = p1.info
+    let
+        triangle =
+            Triangle3d.fromVertices ( p0.xyz, p1.xyz, p2.xyz )
+
+        centroid =
+            Triangle3d.centroid triangle
+
+        newP1 =
+            Point3d.interpolateFrom p1.xyz centroid bias
+
+        ( lon, lat, ele ) =
+            toGPXcoords newP1
+    in
+    { p1
+        | lon = lon
+        , lat = lat
+        , ele = ele
+        , xyz = newP1
     }
 
 
@@ -119,7 +131,7 @@ bezierSplines isLoop tension tolerance points =
                 List.take 1 <| List.drop 1 <| List.reverse points
 
             else
-                List.take 1  <| List.reverse points
+                List.take 1 <| List.reverse points
 
         makeTriangles : List (Triangle3d Length.Meters LocalCoords)
         makeTriangles =
