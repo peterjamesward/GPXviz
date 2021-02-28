@@ -1775,7 +1775,6 @@ nodeToTrackPoint trackCenter node =
         --    ( Length.inMeters <| xCoordinate trackCenter
         --    , Length.inMeters <| yCoordinate trackCenter
         --    )
-
         ( x, y ) =
             ( Length.inMeters <| xCoordinate node
             , Length.inMeters <| yCoordinate node
@@ -2227,14 +2226,25 @@ closeTheLoop model =
         backOneMeter : DrawingRoad -> TrackPoint
         backOneMeter segment =
             let
-                roadSegment = LineSegment3d.from segment.startsAt.location segment.endsAt.location
-                flattenedSegment = LineSegment3d.projectOnto Plane3d.xy roadSegment
-                shiftDirection = Vector3d.from
-                    (LineSegment3d.endPoint flattenedSegment)
-                    (LineSegment3d.startPoint flattenedSegment)
-                shiftVector = Vector3d.scaleTo (Length.meters 1.0) shiftDirection
-                newLocation = Point3d.translateBy shiftVector segment.startsAt.location
-                (lon, lat, ele) = toGPXcoords newLocation
+                roadSegment =
+                    LineSegment3d.from segment.startsAt.location segment.endsAt.location
+
+                flattenedSegment =
+                    LineSegment3d.projectOnto Plane3d.xy roadSegment
+
+                shiftDirection =
+                    Vector3d.from
+                        (LineSegment3d.endPoint flattenedSegment)
+                        (LineSegment3d.startPoint flattenedSegment)
+
+                shiftVector =
+                    Vector3d.scaleTo (Length.meters 1.0) shiftDirection
+
+                newLocation =
+                    Point3d.translateBy shiftVector segment.startsAt.location
+
+                ( lon, lat, ele ) =
+                    toGPXcoords newLocation
             in
             { lat = lat
             , lon = lon
@@ -2463,8 +2473,12 @@ straightenStraight model =
                     let
                         interpolatedPointInXY =
                             Point3d.interpolateFrom startPoint endPoint (fraction / affectedLength)
-                        (lon, lat, _) = toGPXcoords interpolatedPointInXY
-                        heightVector = Vector3d.meters 0 0 original.ele
+
+                        ( lon, lat, _ ) =
+                            toGPXcoords interpolatedPointInXY
+
+                        heightVector =
+                            Vector3d.meters 0 0 original.ele
                     in
                     { lat = lat
                     , lon = lon
@@ -3171,7 +3185,7 @@ deriveStaticVisualEntities model =
             }
     in
     { model
-        | staticVisualEntities =  makeStatic3DEntities context model.roads
+        | staticVisualEntities = makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
         , mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
