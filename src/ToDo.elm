@@ -10,11 +10,10 @@ module ToDo exposing (..)
 --TODO: Dual-view for large monitors. (Triple view?)
 
 --TODO: John Bytheway suggestion.
---NOTE: User must make any crossroads horizontal, not just same elevation.
+--NOTE: *User* must make any crossroads horizontal, not just same elevation.
 
---THEN: UNDO -- needs to revert the graph as well as the track points.
 --THEN: Centre-line offset (global).
--- I suspect the first pass pf an edge is not the canonical (height difference).
+-- I wonder whether the first pass of an edge is not the canonical (height difference).
 -- Applying offset to roads doesn't really work - we need to apply to track points
 -- and the logic we use for Nudge should work.
 -- MAYBE makes sense to compute the offset direction when we canonicalise.
@@ -22,7 +21,7 @@ module ToDo exposing (..)
 --THEN: Allow editing of Edges (graph function to check that TP on same edge => editable)
 --THEN: New view that shows nodes and edges.
 --THEN: Compose edges to produce new output. With looping (simple DSL with prompted editing).
---ALSO: Allow to switch back to non-contrained trackpoints (with spacing).
+--ALSO: Allow to switch back (thaw) to non-constrained track points (with spacing).
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

@@ -25,6 +25,7 @@ pasteStreams trackPoints segment streams =
                     , info = AnyPoint
                     , naturalBearing = 0.0
                     , xyz = fromGPXcoords latLon.lng latLon.lng ele
+                    , costMetric = 0.0 -- Don't know yet.
                     }
                 )
                 streams.latLngs.data

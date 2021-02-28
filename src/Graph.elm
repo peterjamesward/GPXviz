@@ -540,8 +540,7 @@ traversalAsTrackPoints graph traversal =
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
     -- This will convert the original route into a route made from canonical edges.
-    -- Let us put it to test.
-    -- As we convert to Graph, we should no longer need this. (no trackpoint list in model!)
+    -- TODO: Apply the centre line offset.
     let
         addToTrail traversal accumulator =
             let

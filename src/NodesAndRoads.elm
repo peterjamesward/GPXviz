@@ -22,7 +22,6 @@ type alias DrawingNode =
     -- Track point with simple locally flat projection. (Web Mercator is rubbish for our purpose.)
     { trackPoint : TrackPoint
     , location : Point3d.Point3d Length.Meters LocalCoords
-    , costMetric : Maybe Float -- impact if this node is removed, by some measure.
     }
 
 
@@ -76,7 +75,6 @@ deriveNodes tps =
             in
             { trackPoint = tp
             , location = Point3d.fromTuple Length.meters ( x, y, z )
-            , costMetric = Nothing
             }
     in
     List.map prepareDrawingNode tps
@@ -274,11 +272,8 @@ metricFilteredNodes nodes =
         numberOfNodes =
             List.length nodes
 
-        nodeMetric node =
-            Maybe.withDefault (10.0 ^ 10.0) node.costMetric
-
         sortedByMetric =
-            List.sortBy nodeMetric nodes
+            List.sortBy (.trackPoint >> .costMetric) nodes
 
         fraction =
             --TODO: Expose this parameter to the user.

@@ -1793,6 +1793,7 @@ nodeToTrackPoint trackCenter node =
     , info = AnyPoint
     , naturalBearing = 0.0
     , xyz = node
+    , costMetric = 0.0
     }
 
 
@@ -2253,6 +2254,7 @@ closeTheLoop model =
             , info = AnyPoint
             , naturalBearing = segment.bearing
             , xyz = newLocation
+            , costMetric = 0.0
             }
 
         newTrack gap segment1 =
@@ -2487,6 +2489,7 @@ straightenStraight model =
                     , info = AnyPoint
                     , naturalBearing = 0.0
                     , xyz = Point3d.translateBy heightVector interpolatedPointInXY
+                    , costMetric = 0.0
                     }
 
                 splicedTPs =
@@ -2910,43 +2913,10 @@ deriveNodesAndRoads model =
                 | nodeArray = Array.fromList m.nodes
                 , roadArray = Array.fromList m.roads
             }
-
-        withMetrics m =
-            let
-                wrappedNodes =
-                    List.map Just m.nodes
-            in
-            { m
-                | nodes =
-                    List.map3
-                        costMetric
-                        (Nothing :: wrappedNodes)
-                        m.nodes
-                        (List.drop 1 wrappedNodes ++ [ Nothing ])
-            }
-
-        costMetric : Maybe DrawingNode -> DrawingNode -> Maybe DrawingNode -> DrawingNode
-        costMetric prev this next =
-            -- Let's see if area is a good metric.
-            -- Maybe just adding bearing and gradient changes is better. Test it.
-            case ( prev, next ) of
-                ( Just p, Just n ) ->
-                    { this
-                        | costMetric =
-                            Just <|
-                                Area.inSquareMeters <|
-                                    Triangle3d.area <|
-                                        Triangle3d.fromVertices
-                                            ( p.location, this.location, n.location )
-                    }
-
-                _ ->
-                    { this | costMetric = Nothing }
     in
     model
         |> withTrackPointScaling
         |> withNodes
-        |> withMetrics
         |> withNodeScaling
         |> withRoads
         |> withSummary
