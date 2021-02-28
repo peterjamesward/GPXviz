@@ -683,6 +683,7 @@ commonModelLoader model content source =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        _ = Debug.log "Message" msg
         options =
             model.displayOptions
     in
@@ -712,7 +713,7 @@ update msg model =
                 |> (\mod ->
                         { mod
                             | graph = canonicalGraph
-                            , trackPoints = reindexTrackpoints <| Graph.walkTheRoute canonicalGraph
+                            , trackPoints = Graph.walkTheRoute canonicalGraph
                         }
                    )
                 |> trackHasChanged
@@ -2845,9 +2846,6 @@ parseGPXintoModel content model =
         | gpx = Just content
         , trackName = parseTrackName content
         , trackPoints = trackPoints
-
-        -- Do this on demand, not on loading; it's costly.
-        --, graphNodes = interestingTrackPoints trackPoints
         , changeCounter = 0
         , graph = Graph.makeSimpleGraph trackPoints
     }
@@ -4402,7 +4400,8 @@ viewTrackPointTools model =
             , max model.currentNode marker
             )
     in
-    if Graph.onSameEdge model.nodeArray start finish then
+    if True then
+    --Graph.onSameEdge model.nodeArray start finish then
         column [ padding 10, spacing 10, centerX ] <|
             [ row [ spacing 20 ]
                 [ insertNodeOptionsBox model.currentNode
@@ -4424,12 +4423,6 @@ insertNodeOptionsBox c =
             { onPress = Just (InsertBeforeOrAfter c InsertNodeAfter)
             , label = E.text "Put two trackpoints in\nplace of this one"
             }
-
-        --, button
-        --    prettyButtonStyles
-        --    { onPress = Just (InsertBeforeOrAfter c InsertNodeBefore)
-        --    , label = E.text "Insert a node\nbefore this one"
-        --    }
         ]
 
 

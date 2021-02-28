@@ -12,12 +12,10 @@ module ToDo exposing (..)
 --TODO: John Bytheway suggestion.
 --NOTE: *User* must make any crossroads horizontal, not just same elevation.
 
---URGENT - UI actions seem slower. Are we recalculating too much?
--- NUFENA BLOWS THE STACK !! Aargh!! Something not tail recursive??
-
 -- Why big slopes on "round and round"?
 
--- WHEN you set pointers on a graph, they really point to the canonical edge(s) always.
+--THEN: Clicking after changing offset sometimes breaks the model.
+--THEN: you set pointers on a graph, they really point to the canonical edge(s) always.
 --THEN: Make all editing work on Graph (check Map also). (graph function to check that TP on same edge => editable)
 --THEN: New view that shows nodes and edges.
 --THEN: Compose edges to produce new output. With looping (simple DSL with prompted editing).

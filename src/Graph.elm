@@ -90,7 +90,7 @@ viewGraphControls graph wrapper =
                 I.labelBelow [] <|
                     E.text <|
                         "Offset = "
-                            ++ showDecimal2 graph.centreLineOffset
+                            ++ (showDecimal2 <| abs graph.centreLineOffset)
                             ++ "m "
                             ++ (if graph.centreLineOffset < 0.0 then
                                     "left"
@@ -130,14 +130,6 @@ update msg model =
 deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
-        --_ =
-        --    Debug.log "The nodes are "
-        --        indexedNodes
-        --
-        --_ =
-        --    Debug.log "The route is "
-        --        canonicalRoute
-        --
         rawNodes =
             interestingTrackPoints trackPoints
 

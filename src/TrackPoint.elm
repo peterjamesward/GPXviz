@@ -87,7 +87,8 @@ reindexTrackpoints trackPoints =
     -- Extra info is for indexing into the To-Be graph structure.
     -- Also going to work out the cost metric and the "natural bearing" here.
     let
-        _ = Debug.log "Reindexing" "Yes"
+        _ =
+            Debug.log "Reindexing" "Yes"
 
         helper reversed nextIdx points =
             -- Note the interesting point here is the second one. The first is context.
@@ -118,6 +119,7 @@ reindexTrackpoints trackPoints =
                             | idx = nextIdx
                             , info = EdgePoint 0 nextIdx
                             , naturalBearing =
+                                -- Yes, this means we do all the sums twice :(
                                 meanBearing
                                     (trackPointBearing previous point)
                                     (trackPointBearing point next)

@@ -1,5 +1,6 @@
 module VisualEntities exposing (..)
 
+import Angle
 import Array exposing (Array)
 import Axis3d
 import BoundingBox3d
@@ -34,7 +35,6 @@ optionally test element =
 
     else
         []
-
 
 
 makeStatic3DEntities :
@@ -115,20 +115,20 @@ makeStatic3DEntities context roadList =
 
         roadSurface road =
             let
-                ( kerbX, kerbY ) =
-                    -- Road is assumed to be 6 m wide.
-                    ( 3.0 * cos road.bearing
-                    , 3.0 * sin road.bearing
-                    )
-
                 roadAsSegment =
-                        LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
+                    LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
+
+                roadSegmentInXY =
+                    LineSegment3d.projectOnto Plane3d.xy roadAsSegment
+
+                roadVector =
+                    Vector3d.from
+                        (LineSegment3d.startPoint roadSegmentInXY)
+                        (LineSegment3d.endPoint roadSegmentInXY)
 
                 leftKerbVector =
-                    Vector3d.meters
-                        (-1.0 * kerbX)
-                        kerbY
-                        0.0
+                    Vector3d.scaleTo (Length.meters 3.0) <|
+                        Vector3d.rotateAround Axis3d.z (Angle.degrees -90) roadVector
 
                 rightKerbVector =
                     Vector3d.reverse leftKerbVector
@@ -154,7 +154,7 @@ makeStatic3DEntities context roadList =
                     )
 
                 roadAsSegment =
-                        LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
+                    LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
 
                 leftVector =
                     Vector3d.meters
@@ -227,54 +227,10 @@ makeStatic3DEntities context roadList =
         ++ optionally context.displayOptions.roadTrack roadSurfaces
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ optionally context.displayOptions.centreLine centreLine
-        ++ graphNodeCircles
 
 
-makeMapEntities :
-    RenderingContext
-    -> List DrawingRoad
-    -> List (Entity LocalCoords)
-makeMapEntities context roadList =
-    -- This is for the "old" static map, not the Mapbox GL JSv2 map.
-    let
-        roadSurfaces =
-            List.concat <|
-                List.map roadSurface <|
-                    roadList
 
-        roadSurface road =
-            let
-                ( kerbX, kerbY ) =
-                    -- Road is assumed to be 6 m wide.
-                    ( 3.0 * cos road.bearing
-                    , 3.0 * sin road.bearing
-                    )
-
-                roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
-
-                leftKerbVector =
-                    Vector3d.meters
-                        (-1.0 * kerbX)
-                        kerbY
-                        0.0
-
-                rightKerbVector =
-                    Vector3d.reverse leftKerbVector
-
-                ( leftKerb, rightKerb ) =
-                    ( LineSegment3d.translateBy leftKerbVector roadAsSegment
-                    , LineSegment3d.translateBy rightKerbVector roadAsSegment
-                    )
-            in
-            [ Scene3d.quad (Material.matte Color.lightRed)
-                (LineSegment3d.startPoint leftKerb)
-                (LineSegment3d.endPoint leftKerb)
-                (LineSegment3d.endPoint rightKerb)
-                (LineSegment3d.startPoint rightKerb)
-            ]
-    in
-    roadSurfaces
+--++ graphNodeCircles
 
 
 exaggerateRoad context road =
