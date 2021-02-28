@@ -4,9 +4,11 @@ import Area
 import BoundingBox3d exposing (BoundingBox3d)
 import Element exposing (alignTop, centerX, column, none, padding, row, spacing, text)
 import Length
+import LineSegment3d
+import Plane3d
 import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
-import TrackPoint exposing (GPXCoords, TrackPoint)
+import TrackPoint exposing (GPXCoords, TrackPoint, trackPointBearing, trackPointSeparation)
 import Triangle3d
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
@@ -18,19 +20,12 @@ type alias ScalingInfo =
     }
 
 
-type alias DrawingNode =
-    -- Track point with simple locally flat projection. (Web Mercator is rubbish for our purpose.)
-    { trackPoint : TrackPoint
-    , location : Point3d.Point3d Length.Meters LocalCoords
-    }
-
-
 type alias DrawingRoad =
     -- Everything about the gap between track points, aka road segment.
-    { startsAt : DrawingNode
-    , endsAt : DrawingNode
-    , profileStartsAt : DrawingNode -- x coord is metres from track start.
-    , profileEndsAt : DrawingNode
+    { startsAt : TrackPoint
+    , endsAt : TrackPoint
+    , profileStartsAt : TrackPoint -- x coord is metres from track start.
+    , profileEndsAt : TrackPoint
     , length : Float
     , bearing : Float
     , gradient : Float -- (percent == rise/run == tangent of slope, if you want to know)
@@ -62,45 +57,29 @@ type alias SummaryData =
 --                tps
 
 
-deriveNodes : List TrackPoint -> List DrawingNode
-deriveNodes tps =
+deriveRoads : List TrackPoint -> List DrawingRoad
+deriveRoads trackPoints =
     let
-        prepareDrawingNode tp =
-            let
-                ( y, x, z ) =
-                    ( metresPerDegree * tp.lat
-                    , metresPerDegree * tp.lon * cos (degrees tp.lat)
-                    , tp.ele
-                    )
-            in
-            { trackPoint = tp
-            , location = Point3d.fromTuple Length.meters ( x, y, z )
-            }
-    in
-    List.map prepareDrawingNode tps
-
-
-deriveRoads : List DrawingNode -> List DrawingRoad
-deriveRoads drawingNodes =
-    let
+        roadSegment : TrackPoint -> TrackPoint -> DrawingRoad
         roadSegment node1 node2 =
             let
+                lineSegment =
+                    LineSegment3d.from node1.xyz node2.xyz
+
                 zDifference =
-                    node2.trackPoint.ele - node1.trackPoint.ele
+                    node2.ele - node1.ele
+
+                lineSegmentInXy =
+                    LineSegment3d.projectOnto Plane3d.xy lineSegment
 
                 earthDistance =
-                    -- Great circle distance (!) ignoring elevation difference
-                    Spherical.range
-                        ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
-                        ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
+                    Length.inMeters <|
+                        LineSegment3d.length lineSegmentInXy
             in
             { startsAt = node1
             , endsAt = node2
             , length = earthDistance
-            , bearing =
-                Spherical.findBearingToTarget
-                    ( degrees node1.trackPoint.lat, degrees node1.trackPoint.lon )
-                    ( degrees node2.trackPoint.lat, degrees node2.trackPoint.lon )
+            , bearing = trackPointBearing node1 node2
             , gradient =
                 if earthDistance > 0 then
                     100.0 * (zDifference / earthDistance)
@@ -116,8 +95,8 @@ deriveRoads drawingNodes =
 
         roadSegments =
             List.map2 roadSegment
-                drawingNodes
-                (List.drop 1 drawingNodes)
+                trackPoints
+                (List.drop 1 trackPoints)
 
         ( _, _, withAccumulations ) =
             List.foldl
@@ -128,20 +107,20 @@ deriveRoads drawingNodes =
 
                         profileStartAt =
                             { startNode
-                                | location =
+                                | xyz =
                                     Point3d.xyz
                                         (Length.meters 0.0)
                                         (Length.meters dist)
-                                        (Point3d.zCoordinate startNode.location)
+                                        (Point3d.zCoordinate startNode.xyz)
                             }
 
                         profileEndAt =
                             { endNode
-                                | location =
+                                | xyz =
                                     Point3d.xyz
                                         (Length.meters 0.0)
                                         (Length.meters <| dist + road.length)
-                                        (Point3d.zCoordinate endNode.location)
+                                        (Point3d.zCoordinate endNode.xyz)
                             }
                     in
                     ( idx + 1
@@ -169,10 +148,10 @@ deriveSummary roadSegments =
             { trackLength = summary.trackLength + segment.length
             , highestMetres =
                 max summary.highestMetres <|
-                    max segment.startsAt.trackPoint.ele segment.endsAt.trackPoint.ele
+                    max segment.startsAt.ele segment.endsAt.ele
             , lowestMetres =
                 min summary.lowestMetres <|
-                    min segment.startsAt.trackPoint.ele segment.endsAt.trackPoint.ele
+                    min segment.startsAt.ele segment.endsAt.ele
             , climbingDistance =
                 if segment.gradient > 0 then
                     summary.climbingDistance + segment.length
@@ -187,13 +166,13 @@ deriveSummary roadSegments =
                     summary.climbingDistance
             , totalClimbing =
                 if segment.gradient > 0 then
-                    summary.totalClimbing + segment.endsAt.trackPoint.ele - segment.startsAt.trackPoint.ele
+                    summary.totalClimbing + segment.endsAt.ele - segment.startsAt.ele
 
                 else
                     summary.totalClimbing
             , totalDescending =
                 if segment.gradient < 0 then
-                    summary.totalClimbing - segment.endsAt.trackPoint.ele + segment.startsAt.trackPoint.ele
+                    summary.totalClimbing - segment.endsAt.ele + segment.startsAt.ele
 
                 else
                     summary.totalClimbing
@@ -243,16 +222,16 @@ summaryData maybeRoad =
                         ]
                     , column [ spacing 10 ]
                         [ text "At start"
-                        , text <| showDecimal6 road.startsAt.trackPoint.lat
-                        , text <| showDecimal6 road.startsAt.trackPoint.lon
-                        , text <| showDecimal2 road.startsAt.trackPoint.ele
+                        , text <| showDecimal6 road.startsAt.lat
+                        , text <| showDecimal6 road.startsAt.lon
+                        , text <| showDecimal2 road.startsAt.ele
                         , text <| showDecimal2 road.startDistance
                         ]
                     , column [ spacing 10 ]
                         [ text "At end"
-                        , text <| showDecimal6 road.endsAt.trackPoint.lat
-                        , text <| showDecimal6 road.endsAt.trackPoint.lon
-                        , text <| showDecimal2 road.endsAt.trackPoint.ele
+                        , text <| showDecimal6 road.endsAt.lat
+                        , text <| showDecimal6 road.endsAt.lon
+                        , text <| showDecimal2 road.endsAt.ele
                         , text <| showDecimal2 road.endDistance
                         ]
                     ]
@@ -265,7 +244,7 @@ summaryData maybeRoad =
                 ]
 
 
-metricFilteredNodes : List DrawingNode -> List Int
+metricFilteredNodes : List TrackPoint -> List Int
 metricFilteredNodes nodes =
     -- Tool to reduce excessive track points. (Inspired by Jarle Steffenson).
     let
@@ -273,7 +252,7 @@ metricFilteredNodes nodes =
             List.length nodes
 
         sortedByMetric =
-            List.sortBy (.trackPoint >> .costMetric) nodes
+            List.sortBy .costMetric nodes
 
         fraction =
             --TODO: Expose this parameter to the user.
@@ -288,7 +267,7 @@ metricFilteredNodes nodes =
         forRemovalInIndexOrder =
             List.sort <|
                 List.map
-                    (.trackPoint >> .idx)
+                    .idx
                     selectionForRemoval
 
         avoidingNeighbours lastRemoved suggestions =

@@ -11,8 +11,7 @@ import Direction3d exposing (negativeZ, positiveZ, xComponent, yComponent)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
 import Length exposing (meters)
 import LineSegment3d
-import NodesAndRoads exposing (DrawingNode, DrawingRoad)
-import Pixels exposing (pixels)
+import NodesAndRoads exposing (DrawingRoad)
 import Plane3d
 import Point3d
 import Quantity
@@ -20,6 +19,7 @@ import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity, cone, cylinder, sphere, triangle)
 import Scene3d.Material as Material
 import Sphere3d exposing (Sphere3d)
+import TrackPoint exposing (TrackPoint)
 import Triangle3d exposing (Triangle3d)
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (gradientColourPastel, gradientColourVivid)
@@ -35,16 +35,6 @@ optionally test element =
     else
         []
 
-
-makeHitDetectionEntities : List DrawingNode -> List ( Int, Sphere3d Length.Meters LocalCoords )
-makeHitDetectionEntities nodes =
-    let
-        trackpoint node =
-            ( node.trackPoint.idx
-            , Sphere3d.atPoint node.location (Length.meters 10.0)
-            )
-    in
-    List.map trackpoint nodes
 
 
 makeStatic3DEntities :
@@ -90,10 +80,10 @@ makeStatic3DEntities context roadList =
 
         pillars =
             List.map
-                (\r -> brownPillar r.startsAt.location)
+                (\r -> brownPillar r.startsAt.xyz)
                 (List.take 1 roadList)
                 ++ List.map
-                    (\r -> brownPillar r.endsAt.location)
+                    (\r -> brownPillar r.endsAt.xyz)
                     roadList
 
         trackpointmarker loc =
@@ -111,10 +101,10 @@ makeStatic3DEntities context roadList =
         trackpointMarkers =
             let
                 makeStartCone road =
-                    trackpointmarker road.startsAt.location
+                    trackpointmarker road.startsAt.xyz
 
                 makeEndCone road =
-                    trackpointmarker road.endsAt.location
+                    trackpointmarker road.endsAt.xyz
             in
             List.map makeStartCone (List.take 1 roadList)
                 ++ List.map makeEndCone roadList
@@ -132,7 +122,7 @@ makeStatic3DEntities context roadList =
                     )
 
                 roadAsSegment =
-                        LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                        LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
 
                 leftKerbVector =
                     Vector3d.meters
@@ -164,7 +154,7 @@ makeStatic3DEntities context roadList =
                     )
 
                 roadAsSegment =
-                        LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                        LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
 
                 leftVector =
                     Vector3d.meters
@@ -212,10 +202,10 @@ makeStatic3DEntities context roadList =
 
         curtain road =
             [ Scene3d.quad (Material.color <| curtainColour road.gradient)
-                road.startsAt.location
-                road.endsAt.location
-                (Point3d.projectOnto Plane3d.xy road.endsAt.location)
-                (Point3d.projectOnto Plane3d.xy road.startsAt.location)
+                road.startsAt.xyz
+                road.endsAt.xyz
+                (Point3d.projectOnto Plane3d.xy road.endsAt.xyz)
+                (Point3d.projectOnto Plane3d.xy road.startsAt.xyz)
             ]
 
         graphNodeCircles =
@@ -223,7 +213,7 @@ makeStatic3DEntities context roadList =
                 (\node ->
                     cone (Material.color Color.blue) <|
                         Cone3d.startingAt
-                            node.location
+                            node.xyz
                             positiveZ
                             { radius = meters <| 5.0
                             , length = meters <| 5.0
@@ -261,7 +251,7 @@ makeMapEntities context roadList =
                     )
 
                 roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                    LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
 
                 leftKerbVector =
                     Vector3d.meters
@@ -296,11 +286,11 @@ exaggerateRoad context road =
 
 exaggerateNode context node =
     { node
-        | location =
+        | xyz =
             Point3d.scaleAbout
-                (Point3d.projectOntoAxis Axis3d.y node.location)
+                (Point3d.projectOntoAxis Axis3d.y node.xyz)
                 context.verticalExaggeration
-                node.location
+                node.xyz
     }
 
 
@@ -327,10 +317,10 @@ makeStaticProfileEntities context beforeExaggeration =
 
         pillars =
             List.map
-                (\r -> brownPillar r.profileStartsAt.location)
+                (\r -> brownPillar r.profileStartsAt.xyz)
                 (List.take 1 roadList)
                 ++ List.map
-                    (\r -> brownPillar r.profileEndsAt.location)
+                    (\r -> brownPillar r.profileEndsAt.xyz)
                     roadList
 
         trackpointmarker loc =
@@ -341,10 +331,10 @@ makeStaticProfileEntities context beforeExaggeration =
 
         trackpointMarkers =
             List.map
-                (\r -> trackpointmarker r.profileStartsAt.location)
+                (\r -> trackpointmarker r.profileStartsAt.xyz)
                 (List.take 1 roadList)
                 ++ List.map
-                    (\r -> trackpointmarker r.profileEndsAt.location)
+                    (\r -> trackpointmarker r.profileEndsAt.xyz)
                     roadList
 
         curtains =
@@ -368,10 +358,10 @@ makeStaticProfileEntities context beforeExaggeration =
 
         curtain road =
             [ Scene3d.quad (Material.color <| curtainColour road.gradient)
-                road.profileStartsAt.location
-                road.profileEndsAt.location
-                (Point3d.projectOnto Plane3d.xy road.profileEndsAt.location)
-                (Point3d.projectOnto Plane3d.xy road.profileStartsAt.location)
+                road.profileStartsAt.xyz
+                road.profileEndsAt.xyz
+                (Point3d.projectOnto Plane3d.xy road.profileEndsAt.xyz)
+                (Point3d.projectOnto Plane3d.xy road.profileStartsAt.xyz)
             ]
     in
     []
@@ -390,7 +380,7 @@ makeVaryingVisualEntities context _ =
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                node.location
+                                node.xyz
                             )
                             negativeZ
                             { radius = meters <| 3.0
@@ -403,7 +393,7 @@ makeVaryingVisualEntities context _ =
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                node.location
+                                node.xyz
                             )
                             negativeZ
                             { radius = meters <| 1.5
@@ -421,7 +411,7 @@ makeVaryingVisualEntities context _ =
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                node.location
+                                node.xyz
                             )
                             negativeZ
                             { radius = meters <| 3.5
@@ -434,7 +424,7 @@ makeVaryingVisualEntities context _ =
                         Cone3d.startingAt
                             (Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 10.1)
-                                node.location
+                                node.xyz
                             )
                             negativeZ
                             { radius = meters <| 1.6
@@ -448,8 +438,8 @@ makeVaryingVisualEntities context _ =
         bendAsRoadSegments bend =
             List.map2
                 (\n1 n2 ->
-                    { startsAt = { location = n1 }
-                    , endsAt = { location = n2 }
+                    { startsAt = { xyz = n1 }
+                    , endsAt = { xyz = n2 }
                     , bearing =
                         case Direction3d.from n1 n2 of
                             Just direction ->
@@ -477,7 +467,7 @@ makeVaryingVisualEntities context _ =
                     )
 
                 roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
+                    LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
                         |> LineSegment3d.translateBy (Vector3d.meters 0.0 0.0 0.1)
 
                 leftVector =
@@ -514,7 +504,7 @@ makeVaryingProfileEntities context beforeExaggeration =
         roadList =
             List.map (exaggerateRoad context) beforeExaggeration
 
-        triangleForNode : DrawingNode -> Triangle3d Length.Meters LocalCoords
+        triangleForNode : TrackPoint -> Triangle3d Length.Meters LocalCoords
         triangleForNode node =
             let
                 relativeSize =
@@ -523,7 +513,7 @@ makeVaryingProfileEntities context beforeExaggeration =
                 apex =
                     Point3d.translateBy
                         (Vector3d.meters 0.0 0.0 0.3)
-                        node.location
+                        node.xyz
 
                 leftTop =
                     Point3d.translateBy
@@ -579,16 +569,16 @@ makeVaryingProfileEntities context beforeExaggeration =
 
                         blendTheRoadData baseline nudged =
                             Scene3d.quad (Material.color Color.lightYellow)
-                                baseline.profileStartsAt.location
+                                baseline.profileStartsAt.xyz
                                 (baselineWithElevationFromNudged
-                                    baseline.profileStartsAt.location
-                                    nudged.startsAt.location
+                                    baseline.profileStartsAt.xyz
+                                    nudged.startsAt.xyz
                                 )
                                 (baselineWithElevationFromNudged
-                                    baseline.profileEndsAt.location
-                                    nudged.endsAt.location
+                                    baseline.profileEndsAt.xyz
+                                    nudged.endsAt.xyz
                                 )
-                                baseline.profileEndsAt.location
+                                baseline.profileEndsAt.xyz
 
                         segmentsInvolved =
                             -- If the lowest marker is not at zero, then

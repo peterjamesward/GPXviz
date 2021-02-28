@@ -98,7 +98,7 @@ main =
 
 
 type alias AbruptChange =
-    { node : DrawingNode
+    { node : TrackPoint
     , before : DrawingRoad
     , after : DrawingRoad
     }
@@ -140,7 +140,6 @@ type alias Model =
     , trackPoints : List TrackPoint
     , trackPointBox : BoundingBox3d Length.Meters GPXCoords
     , nodeBox : BoundingBox3d Length.Meters LocalCoords
-    , nodes : List DrawingNode
     , roads : List DrawingRoad
     , azimuth : Angle -- Orbiting angle of the camera around the focal point
     , elevation : Angle -- Angle of the camera up from the XY plane
@@ -156,7 +155,7 @@ type alias Model =
     , markedNode : Maybe Int
     , viewingMode : ViewingMode
     , summary : Maybe SummaryData
-    , nodeArray : Array DrawingNode
+    , nodeArray : Array TrackPoint
     , roadArray : Array DrawingRoad
     , zoomLevelOverview : Float
     , zoomLevelFirstPerson : Float
@@ -227,7 +226,6 @@ init mflags origin navigationKey =
       , trackPoints = []
       , trackPointBox = BoundingBox3d.singleton Point3d.origin
       , nodeBox = BoundingBox3d.singleton Point3d.origin
-      , nodes = []
       , roads = []
       , trackName = Nothing
       , azimuth = Angle.degrees 45
@@ -410,7 +408,6 @@ clearTheModel model =
         , trackPoints = []
         , trackPointBox = BoundingBox3d.singleton Point3d.origin
         , nodeBox = BoundingBox3d.singleton Point3d.origin
-        , nodes = []
         , roads = []
         , trackName = Nothing
         , orbiting = Nothing
@@ -537,7 +534,7 @@ makeNearestNodeCurrent lon lat model =
 
         distance point =
             Geometry101.distance
-                { x = point.startsAt.trackPoint.lon, y = point.startsAt.trackPoint.lat }
+                { x = point.startsAt.lon, y = point.startsAt.lat }
                 { x = lon, y = lat }
     in
     case nearbyPoints of
@@ -581,7 +578,7 @@ detectHit model event =
                     profileNodes
 
                 _ ->
-                    model.nodes
+                    model.trackPoints
     in
     case model.currentSceneCamera of
         Just camera ->
@@ -592,8 +589,8 @@ detectHit model event =
                 distances =
                     List.map
                         (\node ->
-                            ( node.trackPoint.idx
-                            , Length.inMeters <| distanceFromAxis ray node.location
+                            ( node.idx
+                            , Length.inMeters <| distanceFromAxis ray node.xyz
                             )
                         )
                         nodeList
@@ -833,7 +830,7 @@ update msg model =
                 [ updateMapVaryingElements newModel
                 , case Array.get idx newModel.nodeArray of
                     Just node ->
-                        MapController.centreMap node.trackPoint.lon node.trackPoint.lat
+                        MapController.centreMap node.lon node.lat
 
                     Nothing ->
                         Cmd.none
@@ -1247,7 +1244,7 @@ update msg model =
                 |> (\m -> { m | trackPoints = autoFix model.trackPoints nodes })
                 |> (case current of
                         Just node ->
-                            makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
+                            makeNearestNodeCurrent node.lon node.lat
 
                         Nothing ->
                             identity
@@ -1489,7 +1486,7 @@ update msg model =
                         |> deriveNodesAndRoads
                         |> (case Array.get model.currentNode model.nodeArray of
                                 Just node ->
-                                    makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
+                                    makeNearestNodeCurrent node.lon node.lat
 
                                 Nothing ->
                                     identity
@@ -1540,12 +1537,12 @@ update msg model =
                     findBracketedRange model
 
                 actualPointerPosition =
-                    Maybe.map .trackPoint (Array.get model.currentNode model.nodeArray)
+                    (Array.get model.currentNode model.nodeArray)
 
                 actualMarkerPosition =
                     case model.markedNode of
                         Just mark ->
-                            Maybe.map .trackPoint (Array.get mark model.nodeArray)
+                            (Array.get mark model.nodeArray)
 
                         Nothing ->
                             Nothing
@@ -1562,14 +1559,14 @@ update msg model =
 
                 ( nodesBeforeEnd, _ ) =
                     -- But I want to work in LocalCoords, hence on Node locations
-                    List.Extra.splitAt rangeEnd model.nodes
+                    List.Extra.splitAt rangeEnd model.trackPoints
 
                 ( _, nodesToProcess ) =
                     List.Extra.splitAt rangeStart nodesBeforeEnd
 
                 replacementNodes =
                     bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
-                        List.map .location nodesToProcess
+                        List.map .xyz nodesToProcess
 
                 replacementTrackPoints =
                     nodesToTrackPoints
@@ -1720,7 +1717,7 @@ trackHasChanged model =
 
 lookForSimplifications : Model -> Model
 lookForSimplifications model =
-    { model | metricFilteredNodes = metricFilteredNodes model.nodes }
+    { model | metricFilteredNodes = metricFilteredNodes model.trackPoints }
 
 
 centreViewOnCurrentNode : Model -> Model
@@ -1741,18 +1738,18 @@ centreViewOnCurrentNode model =
     of
         ( Just node, Just road ) ->
             { model
-                | cameraFocusThirdPerson = node.location
+                | cameraFocusThirdPerson = node.xyz
                 , cameraFocusProfileNode = model.currentNode
-                , cameraFocusPlan = node.location
-                , mapInfo = centreMap node.trackPoint.lon node.trackPoint.lat
+                , cameraFocusPlan = node.xyz
+                , mapInfo = centreMap node.lon node.lat
             }
 
         ( Just node, Nothing ) ->
             { model
-                | cameraFocusThirdPerson = node.location
+                | cameraFocusThirdPerson = node.xyz
                 , cameraFocusProfileNode = model.currentNode - 1
-                , cameraFocusPlan = node.location
-                , mapInfo = centreMap node.trackPoint.lon node.trackPoint.lat
+                , cameraFocusPlan = node.xyz
+                , mapInfo = centreMap node.lon node.lat
             }
 
         _ ->
@@ -1760,21 +1757,15 @@ centreViewOnCurrentNode model =
 
 
 nodeToTrackPoint :
-    Point3d Length.Meters GPXCoords
-    -> Point3d Length.Meters LocalCoords
+    Point3d Length.Meters LocalCoords
     -> TrackPoint
-nodeToTrackPoint trackCenter node =
+nodeToTrackPoint node =
     -- This is the inverse of our map projection ...
     --projectedX lon lat =
     --    lon * metresPerDegree * cos (degrees lat)
-    --
     --projectedY lon lat =
     --    lat * metresPerDegree
     let
-        --( centerLon, centerLat ) =
-        --    ( Length.inMeters <| xCoordinate trackCenter
-        --    , Length.inMeters <| yCoordinate trackCenter
-        --    )
         ( x, y ) =
             ( Length.inMeters <| xCoordinate node
             , Length.inMeters <| yCoordinate node
@@ -1802,7 +1793,7 @@ nodesToTrackPoints :
     -> List (Point3d Length.Meters LocalCoords)
     -> List TrackPoint
 nodesToTrackPoints trackCenter nodes =
-    List.map (nodeToTrackPoint trackCenter) nodes
+    List.map (nodeToTrackPoint ) nodes
 
 
 updateMapVaryingElements : Model -> Cmd Msg
@@ -1818,8 +1809,8 @@ updateMapVaryingElements model =
             Array.get marker model.nodeArray
 
         nudgedTrackPoints =
-            List.map (.startsAt >> .trackPoint) (List.take 1 model.nudgedNodeRoads)
-                ++ List.map (.endsAt >> .trackPoint) model.nudgedNodeRoads
+            List.map (.startsAt) (List.take 1 model.nudgedNodeRoads)
+                ++ List.map (.endsAt) model.nudgedNodeRoads
 
         centre =
             BoundingBox3d.centerPoint model.trackPointBox
@@ -1827,8 +1818,8 @@ updateMapVaryingElements model =
     case ( currentNode, markedNode ) of
         ( Just node1, Just node2 ) ->
             MapController.addMarkersToMap
-                ( node1.trackPoint.lon, node1.trackPoint.lat )
-                (Just ( node2.trackPoint.lon, node2.trackPoint.lat ))
+                ( node1.lon, node1.lat )
+                (Just ( node2.lon, node2.lat ))
                 (Maybe.withDefault [] <|
                     Maybe.map (.nodes >> nodesToTrackPoints centre) model.smoothedBend
                 )
@@ -1836,7 +1827,7 @@ updateMapVaryingElements model =
 
         ( Just node1, Nothing ) ->
             MapController.addMarkersToMap
-                ( node1.trackPoint.lon, node1.trackPoint.lat )
+                ( node1.lon, node1.lat )
                 Nothing
                 (Maybe.withDefault [] <|
                     Maybe.map (.nodes >> nodesToTrackPoints centre) model.smoothedBend
@@ -1888,14 +1879,14 @@ switchViewMode model mode =
                 | current =
                     case current of
                         Just m ->
-                            ( m.trackPoint.lon, m.trackPoint.lat )
+                            ( m.lon, m.lat )
 
                         Nothing ->
                             ( 0.0, 0.0 )
                 , marker =
                     case marked of
                         Just m ->
-                            Just ( m.trackPoint.lon, m.trackPoint.lat )
+                            Just ( m.lon, m.lat )
 
                         Nothing ->
                             Nothing
@@ -1990,13 +1981,13 @@ simulateNodeRangeNudge : Model -> Int -> Int -> Float -> Float -> Model
 simulateNodeRangeNudge model node1 nodeN horizontal vertical =
     let
         targetNodes =
-            List.drop node1 <| List.take (nodeN + 1) model.nodes
+            List.drop node1 <| List.take (nodeN + 1) model.trackPoints
 
         precedingNodes =
-            List.drop (node1 - 1) <| model.nodes
+            List.drop (node1 - 1) <| model.trackPoints
 
         followingNodes =
-            List.drop (node1 + 1) <| model.nodes
+            List.drop (node1 + 1) <| model.trackPoints
 
         effectiveBearings =
             List.map3
@@ -2005,15 +1996,15 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
                 precedingNodes
                 followingNodes
 
-        getBearingForNode : DrawingNode -> DrawingNode -> DrawingNode -> Float
+        getBearingForNode : TrackPoint -> TrackPoint -> TrackPoint -> Float
         getBearingForNode thisNode beforeNode nextNode =
-            trackPointBearing beforeNode.trackPoint nextNode.trackPoint
+            trackPointBearing beforeNode nextNode
 
         unmovedEndPoint =
             -- Only if we are not at the end of the track.
             case Array.get (nodeN + 1) model.nodeArray of
                 Just endNode ->
-                    [ endNode.trackPoint ]
+                    [ endNode ]
 
                 Nothing ->
                     []
@@ -2025,7 +2016,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
             List.map2
                 (\node bearing ->
                     nudgeTrackPoint
-                        node.trackPoint
+                        node
                         bearing
                         horizontal
                         vertical
@@ -2039,7 +2030,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
                     []
 
                 Just prev ->
-                    [ prev.trackPoint ]
+                    [ prev ]
             )
                 ++ nudgedStartPoints
                 ++ unmovedEndPoint
@@ -2048,8 +2039,7 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
         | nudgeValue = horizontal
         , verticalNudgeValue = vertical
         , nudgedRegionStart = node1
-        , nudgedNodeRoads =
-            deriveRoads <| deriveNodes nudgedListForVisuals
+        , nudgedNodeRoads = deriveRoads nudgedListForVisuals
     }
 
 
@@ -2080,13 +2070,13 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
                 "Nudge node " ++ String.fromInt node1
 
         targetNodes =
-            List.drop node1 <| List.take (nodeN + 1) model.nodes
+            List.drop node1 <| List.take (nodeN + 1) model.trackPoints
 
-        getBearingForNode : DrawingNode -> Float
+        getBearingForNode : TrackPoint -> Float
         getBearingForNode node =
             -- We need roads only to get the bearing that we use to nudge sideways.
-            if node.trackPoint.idx < Array.length model.roadArray then
-                Array.get node.trackPoint.idx model.roadArray
+            if node.idx < Array.length model.roadArray then
+                Array.get node.idx model.roadArray
                     |> Maybe.map .bearing
                     |> Maybe.withDefault 0.0
 
@@ -2099,7 +2089,7 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
             -- Only if we are not at the end of the track.
             case Array.get (nodeN + 1) model.nodeArray of
                 Just endNode ->
-                    [ endNode.trackPoint ]
+                    [ endNode ]
 
                 Nothing ->
                     []
@@ -2111,7 +2101,7 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
             List.map
                 (\node ->
                     nudgeTrackPoint
-                        node.trackPoint
+                        node
                         (getBearingForNode node)
                         horizontal
                         vertical
@@ -2124,7 +2114,7 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
                     []
 
                 Just prev ->
-                    [ prev.trackPoint ]
+                    [ prev ]
             )
                 ++ nudgedStartPoints
                 ++ unmovedEndPoint
@@ -2175,8 +2165,8 @@ splitRoad model =
                 (\i ->
                     interpolateSegment
                         (toFloat i / toFloat trackPointsNeeded)
-                        segment.startsAt.trackPoint
-                        segment.endsAt.trackPoint
+                        segment.startsAt
+                        segment.endsAt
                 )
                 (List.range 1 trackPointsNeeded)
 
@@ -2228,7 +2218,7 @@ closeTheLoop model =
         backOneMeter segment =
             let
                 roadSegment =
-                    LineSegment3d.from segment.startsAt.location segment.endsAt.location
+                    LineSegment3d.from segment.startsAt.xyz segment.endsAt.xyz
 
                 flattenedSegment =
                     LineSegment3d.projectOnto Plane3d.xy roadSegment
@@ -2242,7 +2232,7 @@ closeTheLoop model =
                     Vector3d.scaleTo (Length.meters 1.0) shiftDirection
 
                 newLocation =
-                    Point3d.translateBy shiftVector segment.startsAt.location
+                    Point3d.translateBy shiftVector segment.startsAt.xyz
 
                 ( lon, lat, ele ) =
                     toGPXcoords newLocation
@@ -2312,14 +2302,14 @@ insertTrackPoint n model =
                 firstTP =
                     interpolateSegment
                         (commonAmountToSteal / before.length)
-                        before.endsAt.trackPoint
-                        before.startsAt.trackPoint
+                        before.endsAt
+                        before.startsAt
 
                 secondTP =
                     interpolateSegment
                         (commonAmountToSteal / after.length)
-                        after.startsAt.trackPoint
-                        after.endsAt.trackPoint
+                        after.startsAt
+                        after.endsAt
 
                 precedingTPs =
                     model.trackPoints |> List.take n
@@ -2443,10 +2433,10 @@ straightenStraight model =
         ( Just firstRoad, Just lastRoad ) ->
             let
                 startPoint =
-                    Point3d.projectOnto Plane3d.xy firstRoad.startsAt.location
+                    Point3d.projectOnto Plane3d.xy firstRoad.startsAt.xyz
 
                 endPoint =
-                    Point3d.projectOnto Plane3d.xy lastRoad.startsAt.location
+                    Point3d.projectOnto Plane3d.xy lastRoad.startsAt.xyz
 
                 trackPointsToMove =
                     -- Note, include startTP and it will move by zero,
@@ -2579,11 +2569,11 @@ resetFlythrough model =
                         , cameraPosition =
                             Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 eyeHeight)
-                                seg.startsAt.location
+                                seg.startsAt.xyz
                         , focusPoint =
                             Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 eyeHeight)
-                                seg.endsAt.location
+                                seg.endsAt.xyz
                         , lastUpdated = model.time
                         , segment = seg
                         }
@@ -2681,7 +2671,7 @@ smoothGradient model gradient =
                 ( _, adjustedTrackPoints ) =
                     List.foldl
                         adjustTrackPoint
-                        ( n.trackPoint.ele, [] )
+                        ( n.ele, [] )
                         segments
 
                 adjustTrackPoint road ( startEle, newTPs ) =
@@ -2691,7 +2681,7 @@ smoothGradient model gradient =
                             road.length * gradient / 100.0
 
                         oldTP =
-                            road.endsAt.trackPoint
+                            road.endsAt
                     in
                     ( startEle + increase
                     , { oldTP
@@ -2710,7 +2700,7 @@ smoothGradient model gradient =
                 applyBumpiness newTP oldSeg =
                     let
                         oldTP =
-                            oldSeg.endsAt.trackPoint
+                            oldSeg.endsAt
                     in
                     { oldTP
                         | ele =
@@ -2868,9 +2858,6 @@ deriveNodesAndRoads model =
         trackPointAsPoint tp =
             Point3d.meters tp.lon tp.lat tp.ele
 
-        withNodes m =
-            { m | nodes = deriveNodes m.trackPoints }
-
         withTrackPointScaling m =
             { m
                 | trackPointBox =
@@ -2888,9 +2875,9 @@ deriveNodesAndRoads model =
         withNodeScaling m =
             { m
                 | nodeBox =
-                    case m.nodes of
+                    case m.trackPoints of
                         node1 :: nodes ->
-                            BoundingBox3d.hull node1.location <| List.map .location nodes
+                            BoundingBox3d.hull node1.xyz <| List.map .xyz nodes
 
                         _ ->
                             BoundingBox3d.singleton Point3d.origin
@@ -2899,7 +2886,7 @@ deriveNodesAndRoads model =
         withRoads m =
             let
                 roads =
-                    deriveRoads m.nodes
+                    deriveRoads m.trackPoints
             in
             { m
                 | roads = roads
@@ -2910,13 +2897,12 @@ deriveNodesAndRoads model =
 
         withArrays m =
             { m
-                | nodeArray = Array.fromList m.nodes
+                | nodeArray = Array.fromList m.trackPoints
                 , roadArray = Array.fromList m.roads
             }
     in
     model
         |> withTrackPointScaling
-        |> withNodes
         |> withNodeScaling
         |> withRoads
         |> withSummary
@@ -3124,7 +3110,7 @@ deriveStaticVisualEntities model =
     let
         graphAsRoads =
             -- This might allow us to repurpose the existing code to work on graphs.
-            Graph.walkTheRoute model.graph |> deriveNodes |> deriveRoads
+            model.graph |> Graph.walkTheRoute  |> deriveRoads
 
         newMapInfo =
             Maybe.map updateMapInfo model.mapInfo
@@ -3484,10 +3470,10 @@ averageGradient model s f =
             ( Just startNode, Just endNode ) ->
                 let
                     startElevation =
-                        startNode.trackPoint.ele
+                        startNode.ele
 
                     endElevation =
-                        endNode.trackPoint.ele
+                        endNode.ele
 
                     overallLength =
                         List.sum <| List.map .length segments
@@ -3505,7 +3491,7 @@ viewGradientChanges : Model -> Element Msg
 viewGradientChanges model =
     let
         idx change =
-            change.node.trackPoint.idx
+            change.node.idx
 
         linkButton nodeNum =
             button prettyButtonStyles
@@ -3541,7 +3527,7 @@ viewBearingChanges : Model -> Element Msg
 viewBearingChanges model =
     let
         idx change =
-            change.node.trackPoint.idx
+            change.node.idx
 
         linkButton nodeNum =
             button prettyButtonStyles
@@ -4027,7 +4013,7 @@ firstPersonCamera model =
                 Nothing ->
                     Point3d.translateBy
                         (Vector3d.meters 0.0 0.0 eyeHeight)
-                        road.startsAt.location
+                        road.startsAt.xyz
 
                 Just flying ->
                     flying.cameraPosition
@@ -4040,7 +4026,7 @@ firstPersonCamera model =
                         , focalPoint =
                             Point3d.translateBy
                                 (Vector3d.meters 0.0 0.0 eyeHeight)
-                                road.endsAt.location
+                                road.endsAt.xyz
                         , upDirection = Direction3d.positiveZ
                         }
 
@@ -4559,7 +4545,7 @@ planCamera model =
     Just camera
 
 
-viewCurrentNodePlanView : Model -> DrawingNode -> Element Msg
+viewCurrentNodePlanView : Model -> TrackPoint -> Element Msg
 viewCurrentNodePlanView model node =
     case model.currentSceneCamera of
         Just camera ->
@@ -4595,13 +4581,13 @@ profileCamera model =
                 Nothing ->
                     Point3d.projectOnto
                         Plane3d.yz
-                        (.location <| exaggerateNode { verticalExaggeration = model.verticalExaggeration } node)
+                        (.xyz <| exaggerateNode { verticalExaggeration = model.verticalExaggeration } node)
 
                 Just flying ->
                     let
                         fixForFlythrough =
                             Point3d.toRecord inMeters
-                                (.location <| exaggerateNode { verticalExaggeration = model.verticalExaggeration } node)
+                                (.xyz <| exaggerateNode { verticalExaggeration = model.verticalExaggeration } node)
                     in
                     Point3d.projectOnto
                         Plane3d.yz
@@ -4633,7 +4619,7 @@ profileCamera model =
     Maybe.map camera (Array.get model.cameraFocusProfileNode model.roadArray)
 
 
-viewRouteProfile : Model -> DrawingNode -> Element Msg
+viewRouteProfile : Model -> TrackPoint -> Element Msg
 viewRouteProfile model node =
     case model.currentSceneCamera of
         Just camera ->

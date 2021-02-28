@@ -24,12 +24,12 @@ type alias SmoothedBend =
 roadToGeometry : DrawingRoad -> G.Road
 roadToGeometry road =
     { startAt =
-        { x = Length.inMeters <| xCoordinate road.startsAt.location
-        , y = Length.inMeters <| yCoordinate road.startsAt.location
+        { x = Length.inMeters <| xCoordinate road.startsAt.xyz
+        , y = Length.inMeters <| yCoordinate road.startsAt.xyz
         }
     , endsAt =
-        { x = Length.inMeters <| xCoordinate road.endsAt.location
-        , y = Length.inMeters <| yCoordinate road.endsAt.location
+        { x = Length.inMeters <| xCoordinate road.endsAt.xyz
+        , y = Length.inMeters <| yCoordinate road.endsAt.xyz
         }
     }
 
@@ -124,8 +124,8 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             )
 
         ( distancePaP1, distanceP2Pc ) =
-            ( G.distance (toPoint roadAB.startsAt.location) p1
-            , G.distance p2 (toPoint roadCD.startsAt.location)
+            ( G.distance (toPoint roadAB.startsAt.xyz) p1
+            , G.distance p2 (toPoint roadCD.startsAt.xyz)
             )
 
         ( fractionalDistanceToTang1, fractionalDistanceToTang2 ) =
@@ -135,14 +135,14 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
 
         tang1 =
             Point3d.interpolateFrom
-                roadAB.startsAt.location
-                roadAB.endsAt.location
+                roadAB.startsAt.xyz
+                roadAB.endsAt.xyz
                 fractionalDistanceToTang1
 
         tang2 =
             Point3d.interpolateFrom
-                roadCD.startsAt.location
-                roadCD.endsAt.location
+                roadCD.startsAt.xyz
+                roadCD.endsAt.xyz
                 fractionalDistanceToTang2
 
         ( elevationArcStart, elevationArcEnd ) =
@@ -173,9 +173,9 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
                     (List.range 1 (numberPointsOnArc + 10))
     in
     { nodes =
-        roadAB.startsAt.location
+        roadAB.startsAt.xyz
             :: newArcPoints
-            ++ [ roadCD.endsAt.location ]
+            ++ [ roadCD.endsAt.xyz ]
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index
