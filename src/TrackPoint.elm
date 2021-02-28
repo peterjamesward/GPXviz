@@ -87,6 +87,8 @@ reindexTrackpoints trackPoints =
     -- Extra info is for indexing into the To-Be graph structure.
     -- Also going to work out the cost metric and the "natural bearing" here.
     let
+        _ = Debug.log "Reindexing" "Yes"
+
         helper reversed nextIdx points =
             -- Note the interesting point here is the second one. The first is context.
             case points of

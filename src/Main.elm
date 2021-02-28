@@ -150,7 +150,7 @@ type alias Model =
     , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
     , varyingProfileEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
-    , mapVisualEntities : List (Entity LocalCoords) -- for map image only
+    --, mapVisualEntities : List (Entity LocalCoords) -- for map image only
     , currentNode : Int
     , markedNode : Maybe Int
     , viewingMode : ViewingMode
@@ -236,7 +236,7 @@ init mflags origin navigationKey =
       , varyingVisualEntities = []
       , staticProfileEntities = []
       , varyingProfileEntities = []
-      , mapVisualEntities = []
+      --, mapVisualEntities = []
       , terrainEntities = []
       , currentNode = 0
       , markedNode = Nothing
@@ -2338,6 +2338,7 @@ insertTrackPoint n model =
 
 deleteTrackPoints : ( Int, Int ) -> Model -> Model
 deleteTrackPoints ( start, finish ) model =
+    -- We must find the corresponding graph edge and remove the trackpoints there.
     let
         undoMessage =
             "Delete track points " ++ String.fromInt start ++ "-" ++ String.fromInt finish
@@ -2884,12 +2885,8 @@ deriveNodesAndRoads model =
             }
 
         withRoads m =
-            let
-                roads =
-                    deriveRoads m.trackPoints
-            in
             { m
-                | roads = roads
+                | roads = deriveRoads m.trackPoints
             }
 
         withSummary m =
@@ -3143,7 +3140,7 @@ deriveStaticVisualEntities model =
     { model
         | staticVisualEntities = makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
-        , mapVisualEntities = makeMapEntities context model.roads
+        --, mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
     }
 
@@ -4405,15 +4402,20 @@ viewTrackPointTools model =
             , max model.currentNode marker
             )
     in
-    column [ padding 10, spacing 10, centerX ] <|
-        [ row [ spacing 20 ]
-            [ insertNodeOptionsBox model.currentNode
-            , deleteNodeButton ( start, finish )
+    if Graph.onSameEdge model.nodeArray start finish then
+        column [ padding 10, spacing 10, centerX ] <|
+            [ row [ spacing 20 ]
+                [ insertNodeOptionsBox model.currentNode
+                , deleteNodeButton ( start, finish )
+                ]
+            , splitSegmentOptions model.maxSegmentSplitSize
+            , wholeTrackTextHelper model
             ]
-        , splitSegmentOptions model.maxSegmentSplitSize
-        , wholeTrackTextHelper model
-        ]
-
+    else
+        row [ padding 10, spacing 10, Background.color warningColor, width fill ]
+            [ html <| FeatherIcons.toHtml [] FeatherIcons.alertOctagon
+            , E.text "Sorry, the markers are not on the same track section."
+            ]
 
 insertNodeOptionsBox c =
     row [ spacing 10 ]

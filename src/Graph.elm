@@ -16,6 +16,7 @@ module Graph exposing (..)
 --TODO: Check if last TP = first TP => same node (loop). Or that comes out in the wash?
 
 import Angle
+import Array exposing (Array)
 import Axis3d
 import Dict exposing (Dict)
 import Direction3d
@@ -698,3 +699,23 @@ makeSimpleGraph trackPoints =
 
         _ ->
             empty
+
+
+onSameEdge : Array TrackPoint -> Int -> Int -> Bool
+onSameEdge array p1 p2 =
+    -- Allows editing tools to make sure user is not trying something that won't work.
+    -- And for the editing tools not to make the same mistake.
+    -- SHOULD THEY BE ON THE SAME TRAVERSAL ???
+    let
+        ( node1, node2 ) =
+            ( Array.get p1 array, Array.get p2 array )
+
+        ( info1, info2 ) =
+            ( Maybe.map .info node1, Maybe.map .info node2 )
+    in
+    case ( info1, info2 ) of
+        ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
+            e1 == e2
+
+        _ ->
+            False
