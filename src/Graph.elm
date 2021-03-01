@@ -20,7 +20,7 @@ import Array exposing (Array)
 import Axis3d
 import Dict exposing (Dict)
 import Direction3d
-import Element as E exposing (Element, padding, spacing)
+import Element as E exposing (Element, alignTop, padding, spacing)
 import Element.Input as I
 import Length
 import List.Extra as List
@@ -548,7 +548,6 @@ traversalAsTrackPoints graph traversal =
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
     -- This will convert the original route into a route made from canonical edges.
-    -- TODO: Apply the centre line offset.
     let
         addToTrail traversal accumulator =
             let
@@ -711,3 +710,28 @@ onSameEdge array p1 p2 =
 
         _ ->
             False
+
+
+showNodeInfo node =
+    case node.info of
+        StartPoint n ->
+            E.column [ alignTop ]
+                [ E.text <| "Start: " ++ String.fromInt n ]
+
+        EdgePoint e n ->
+            E.column [ alignTop ]
+                [ E.text <| "Edge: " ++ String.fromInt e
+                , E.text <| "Offset: " ++ String.fromInt n
+                ]
+
+        EndPoint n ->
+            E.column [ alignTop ]
+                [ E.text <| "End: " ++ String.fromInt n ]
+
+        NodePoint n ->
+            E.column [ alignTop ]
+                [ E.text <| "Node: " ++ String.fromInt n ]
+
+        _ ->
+            E.column [ alignTop ]
+                [ E.text "Mystery point" ]

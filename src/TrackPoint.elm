@@ -98,7 +98,6 @@ reindexTrackpoints trackPoints =
                     helper
                         ({ last
                             | idx = nextIdx + 1
-                            , info = EndPoint (nextIdx + 1)
                             , costMetric = 10 ^ 10
                             , naturalBearing = trackPointBearing penultimate last
                          }
@@ -107,7 +106,6 @@ reindexTrackpoints trackPoints =
                         (nextIdx + 1)
                         [ { last
                             | idx = nextIdx
-                            , info = EndPoint (nextIdx + 1)
                             , costMetric = 10 ^ 10
                             , naturalBearing = trackPointBearing penultimate last
                           }
@@ -117,7 +115,6 @@ reindexTrackpoints trackPoints =
                     helper
                         ({ point
                             | idx = nextIdx
-                            , info = EdgePoint 0 nextIdx
                             , naturalBearing =
                                 -- Yes, this means we do all the sums twice :(
                                 meanBearing
@@ -143,7 +140,6 @@ reindexTrackpoints trackPoints =
             helper
                 [ { firstPoint
                     | idx = 0
-                    , info = StartPoint 0
                     , costMetric = 10 ^ 10 -- i.e. do not remove me!
                     , naturalBearing = trackPointBearing firstPoint secondPoint
                   }

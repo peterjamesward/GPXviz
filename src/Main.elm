@@ -683,7 +683,6 @@ commonModelLoader model content source =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        _ = Debug.log "Message" msg
         options =
             model.displayOptions
     in

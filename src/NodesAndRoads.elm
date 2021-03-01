@@ -2,9 +2,11 @@ module NodesAndRoads exposing (..)
 
 import Area
 import BoundingBox3d exposing (BoundingBox3d)
-import Element exposing (alignTop, centerX, column, none, padding, row, spacing, text)
+import Element exposing (Element, alignTop, centerX, column, none, padding, row, spacing, text)
+import Graph
 import Length
 import LineSegment3d
+import Msg exposing (Msg)
 import Plane3d
 import Point3d exposing (Point3d)
 import Spherical exposing (metresPerDegree)
@@ -190,6 +192,7 @@ deriveSummary roadSegments =
         roadSegments
 
 
+summaryData : Maybe DrawingRoad -> Element Msg
 summaryData maybeRoad =
     case maybeRoad of
         Just road ->
@@ -211,6 +214,7 @@ summaryData maybeRoad =
                         [ text <| showDecimal2 road.gradient
                         , text <| bearingToDisplayDegrees road.bearing
                         ]
+                    , row [] [Graph.showNodeInfo road.startsAt]
                     ]
                 , row [ padding 10, centerX, alignTop, spacing 10 ]
                     [ column [ spacing 10 ]
