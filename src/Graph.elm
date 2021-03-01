@@ -130,6 +130,9 @@ update msg model =
 deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
+        _ = Debug.log "Nodes of the canon " indexedNodes
+        _ = Debug.log "Edges of the canon " indexedEdges
+
         rawNodes =
             interestingTrackPoints trackPoints
 
@@ -226,7 +229,7 @@ deriveTrackPointGraph trackPoints =
                         { startNode = startNode
                         , endNode = endNode
                         , wayPoint = waypoint
-                        , trackPoints = List.drop 1 <| List.take (List.length trackPoints - 1) tps
+                        , trackPoints = List.drop 1 <| List.take (List.length tps - 1) tps
                         }
 
                 _ ->
