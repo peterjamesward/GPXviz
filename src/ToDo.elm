@@ -14,8 +14,7 @@ module ToDo exposing (..)
 
 -- Why big slopes on "round and round"?
 
---NEXT: Fix Undo messages for Graph operations. Hmmm.
---NEXT: Clearly some node points also registering as edge points.
+--NEXT: Fix Undo messages for Graph operations. Hmm.
 
 --THEN: Clicking after changing offset sometimes breaks the model.
 --THEN: You set pointers on a graph, they really point to the canonical edge(s) always.

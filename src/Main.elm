@@ -4399,8 +4399,7 @@ viewTrackPointTools model =
             , max model.currentNode marker
             )
     in
-    if True then
-    --Graph.onSameEdge model.nodeArray start finish then
+    if Graph.onSameEdge model.nodeArray start finish then
         column [ padding 10, spacing 10, centerX ] <|
             [ row [ spacing 20 ]
                 [ insertNodeOptionsBox model.currentNode
