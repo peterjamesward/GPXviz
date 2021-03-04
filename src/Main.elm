@@ -150,7 +150,6 @@ type alias Model =
     , varyingVisualEntities : List (Entity LocalCoords) -- current position and marker node.
     , varyingProfileEntities : List (Entity LocalCoords)
     , terrainEntities : List (Entity LocalCoords)
-    --, mapVisualEntities : List (Entity LocalCoords) -- for map image only
     , currentNode : Int
     , markedNode : Maybe Int
     , viewingMode : ViewingMode
@@ -236,6 +235,7 @@ init mflags origin navigationKey =
       , varyingVisualEntities = []
       , staticProfileEntities = []
       , varyingProfileEntities = []
+
       --, mapVisualEntities = []
       , terrainEntities = []
       , currentNode = 0
@@ -1537,12 +1537,12 @@ update msg model =
                     findBracketedRange model
 
                 actualPointerPosition =
-                    (Array.get model.currentNode model.nodeArray)
+                    Array.get model.currentNode model.nodeArray
 
                 actualMarkerPosition =
                     case model.markedNode of
                         Just mark ->
-                            (Array.get mark model.nodeArray)
+                            Array.get mark model.nodeArray
 
                         Nothing ->
                             Nothing
@@ -1793,7 +1793,7 @@ nodesToTrackPoints :
     -> List (Point3d Length.Meters LocalCoords)
     -> List TrackPoint
 nodesToTrackPoints trackCenter nodes =
-    List.map (nodeToTrackPoint ) nodes
+    List.map nodeToTrackPoint nodes
 
 
 updateMapVaryingElements : Model -> Cmd Msg
@@ -1809,8 +1809,8 @@ updateMapVaryingElements model =
             Array.get marker model.nodeArray
 
         nudgedTrackPoints =
-            List.map (.startsAt) (List.take 1 model.nudgedNodeRoads)
-                ++ List.map (.endsAt) model.nudgedNodeRoads
+            List.map .startsAt (List.take 1 model.nudgedNodeRoads)
+                ++ List.map .endsAt model.nudgedNodeRoads
 
         centre =
             BoundingBox3d.centerPoint model.trackPointBox
@@ -2840,11 +2840,17 @@ parseGPXintoModel content model =
     let
         trackPoints =
             content |> parseTrackPoints |> filterCloseTrackPoints |> reindexTrackpoints
+
+        graph =
+            Graph.makeSimpleGraph trackPoints
+
+        trackPointsFromGraph =
+            Graph.walkTheRoute graph
     in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = trackPoints
+        , trackPoints = trackPointsFromGraph
         , changeCounter = 0
         , graph = Graph.makeSimpleGraph trackPoints
     }
@@ -2856,51 +2862,39 @@ deriveNodesAndRoads model =
         trackPointAsPoint tp =
             Point3d.meters tp.lon tp.lat tp.ele
 
-        withTrackPointScaling m =
-            { m
-                | trackPointBox =
-                    -- This is a good reason for the bbox to be a Maybe B~
-                    case m.trackPoints of
-                        tp1 :: tps ->
-                            BoundingBox3d.hull
-                                (trackPointAsPoint tp1)
-                                (List.map trackPointAsPoint tps)
+        trackPointBox =
+            -- This is a good reason for the bbox to be a Maybe B~
+            case model.trackPoints of
+                tp1 :: tps ->
+                    BoundingBox3d.hull
+                        (trackPointAsPoint tp1)
+                        (List.map trackPointAsPoint tps)
 
-                        _ ->
-                            BoundingBox3d.singleton Point3d.origin
-            }
+                _ ->
+                    BoundingBox3d.singleton Point3d.origin
 
-        withNodeScaling m =
-            { m
-                | nodeBox =
-                    case m.trackPoints of
-                        node1 :: nodes ->
-                            BoundingBox3d.hull node1.xyz <| List.map .xyz nodes
+        nodeBox =
+            case model.trackPoints of
+                node1 :: nodes ->
+                    BoundingBox3d.hull node1.xyz <| List.map .xyz nodes
 
-                        _ ->
-                            BoundingBox3d.singleton Point3d.origin
-            }
+                _ ->
+                    BoundingBox3d.singleton Point3d.origin
 
-        withRoads m =
-            { m
-                | roads = deriveRoads m.trackPoints
-            }
+        roads =
+            deriveRoads model.trackPoints
 
-        withSummary m =
-            { m | summary = Just <| deriveSummary m.roads }
-
-        withArrays m =
-            { m
-                | nodeArray = Array.fromList m.trackPoints
-                , roadArray = Array.fromList m.roads
-            }
+        summary =
+            Just <| deriveSummary roads
     in
-    model
-        |> withTrackPointScaling
-        |> withNodeScaling
-        |> withRoads
-        |> withSummary
-        |> withArrays
+    { model
+        | trackPointBox = trackPointBox
+        , nodeBox = nodeBox
+        , roads = roads
+        , summary = summary
+        , nodeArray = Array.fromList model.trackPoints
+        , roadArray = Array.fromList model.roads
+    }
 
 
 resetViewSettings : Model -> Model
@@ -3104,7 +3098,7 @@ deriveStaticVisualEntities model =
     let
         graphAsRoads =
             -- This might allow us to repurpose the existing code to work on graphs.
-            model.graph |> Graph.walkTheRoute  |> deriveRoads
+            model.graph |> Graph.walkTheRoute |> deriveRoads
 
         newMapInfo =
             Maybe.map updateMapInfo model.mapInfo
@@ -3137,6 +3131,7 @@ deriveStaticVisualEntities model =
     { model
         | staticVisualEntities = makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
+
         --, mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
     }
@@ -4400,22 +4395,22 @@ viewTrackPointTools model =
             )
     in
     column [ padding 10, spacing 10, centerX ] <|
-        [
-            if Graph.withinSameEdge model.graph model.nodeArray start finish then
+        [ if Graph.withinSameEdge model.graph model.nodeArray start finish then
             row [ spacing 20 ]
-                [
-                insertNodeOptionsBox model.currentNode
+                [ insertNodeOptionsBox model.currentNode
                 , deleteNodeButton ( start, finish )
                 ]
 
-            else
-                E.text "OOh, not same edge the"
+          else
+            E.text "OOh, not same edge the"
         , if Graph.alongSameEdge model.graph model.nodeArray start finish then
-                splitSegmentOptions model.maxSegmentSplitSize
-            else
-                E.text "Can only do one edge at a time, mate!"
+            splitSegmentOptions model.maxSegmentSplitSize
+
+          else
+            E.text "Can only do one edge at a time, mate!"
         , wholeTrackTextHelper model
         ]
+
 
 insertNodeOptionsBox c =
     row [ spacing 10 ]

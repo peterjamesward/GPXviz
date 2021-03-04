@@ -732,34 +732,41 @@ alongSameEdge graph array p1 p2 =
         ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
             e1 == e2
 
-        ( Just (NodePoint n1), Just (NodePoint n2)) ->
+        ( Just (NodePoint n1), Just (NodePoint n2) ) ->
             n1 == n2 || (Dict.size (edgesBetweenNodes graph n1 n2) == 1)
 
-        ( Just (NodePoint n1), Just (EdgePoint e1 _)) ->
+        ( Just (NodePoint n1), Just (EdgePoint e1 _) ) ->
             isEndOfEdge graph e1 n1
 
-        ( Just (EdgePoint e1 _), Just (NodePoint n1)) ->
+        ( Just (EdgePoint e1 _), Just (NodePoint n1) ) ->
             isEndOfEdge graph e1 n1
 
         _ ->
             False
 
+
 edgesBetweenNodes : Graph -> Int -> Int -> Dict Int Edge
 edgesBetweenNodes graph n1 n2 =
-    graph.edges |> Dict.filter
-        (\k v -> (v.startNode == n1 && v.endNode == n2)
-         || (v.startNode == n2 && v.endNode == n1))
+    graph.edges
+        |> Dict.filter
+            (\k v ->
+                (v.startNode == n1 && v.endNode == n2)
+                    || (v.startNode == n2 && v.endNode == n1)
+            )
+
 
 isEndOfEdge : Graph -> Int -> Int -> Bool
 isEndOfEdge graph edgeIdx nodeIdx =
     let
-        edge = Dict.get edgeIdx graph.edges
+        edge =
+            Dict.get edgeIdx graph.edges
     in
     case edge of
         Just e ->
             e.startNode == nodeIdx || e.endNode == nodeIdx
 
-        _ -> False
+        _ ->
+            False
 
 
 showNodeInfo node =
