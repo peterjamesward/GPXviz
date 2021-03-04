@@ -130,8 +130,11 @@ update msg model =
 deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
-        _ = Debug.log "Nodes of the canon " indexedNodes
-        _ = Debug.log "Edges of the canon " indexedEdges
+        _ =
+            Debug.log "Nodes of the canon " indexedNodes
+
+        _ =
+            Debug.log "Edges of the canon " indexedEdges
 
         rawNodes =
             interestingTrackPoints trackPoints
@@ -695,11 +698,10 @@ makeSimpleGraph trackPoints =
             empty
 
 
-onSameEdge : Array TrackPoint -> Int -> Int -> Bool
-onSameEdge array p1 p2 =
+withinSameEdge : Graph -> Array TrackPoint -> Int -> Int -> Bool
+withinSameEdge _ array p1 p2 =
     -- Allows editing tools to make sure user is not trying something that won't work.
     -- And for the editing tools not to make the same mistake.
-    -- SHOULD THEY BE ON THE SAME TRAVERSAL ???
     let
         ( node1, node2 ) =
             ( Array.get p1 array, Array.get p2 array )
@@ -715,26 +717,67 @@ onSameEdge array p1 p2 =
             False
 
 
+alongSameEdge : Graph -> Array TrackPoint -> Int -> Int -> Bool
+alongSameEdge graph array p1 p2 =
+    -- As above but points can also be on the nodes, though this raises
+    -- the possibility of edge ambiguity.
+    let
+        ( node1, node2 ) =
+            ( Array.get p1 array, Array.get p2 array )
+
+        ( info1, info2 ) =
+            ( Maybe.map .info node1, Maybe.map .info node2 )
+    in
+    case ( info1, info2 ) of
+        ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
+            e1 == e2
+
+        ( Just (NodePoint n1), Just (NodePoint n2)) ->
+            n1 == n2 || (Dict.size (edgesBetweenNodes graph n1 n2) == 1)
+
+        ( Just (NodePoint n1), Just (EdgePoint e1 _)) ->
+            isEndOfEdge graph e1 n1
+
+        ( Just (EdgePoint e1 _), Just (NodePoint n1)) ->
+            isEndOfEdge graph e1 n1
+
+        _ ->
+            False
+
+edgesBetweenNodes : Graph -> Int -> Int -> Dict Int Edge
+edgesBetweenNodes graph n1 n2 =
+    graph.edges |> Dict.filter
+        (\k v -> (v.startNode == n1 && v.endNode == n2)
+         || (v.startNode == n2 && v.endNode == n1))
+
+isEndOfEdge : Graph -> Int -> Int -> Bool
+isEndOfEdge graph edgeIdx nodeIdx =
+    let
+        edge = Dict.get edgeIdx graph.edges
+    in
+    case edge of
+        Just e ->
+            e.startNode == nodeIdx || e.endNode == nodeIdx
+
+        _ -> False
+
+
 showNodeInfo node =
-    case node.info of
-        StartPoint n ->
-            E.column [ alignTop ]
+    E.column [ alignTop, spacing 10 ] <|
+        case node.info of
+            StartPoint n ->
                 [ E.text <| "Start: " ++ String.fromInt n ]
 
-        EdgePoint e n ->
-            E.column [ alignTop ]
+            EdgePoint e n ->
                 [ E.text <| "Edge: " ++ String.fromInt e
                 , E.text <| "Offset: " ++ String.fromInt n
                 ]
 
-        EndPoint n ->
-            E.column [ alignTop ]
+            EndPoint n ->
                 [ E.text <| "End: " ++ String.fromInt n ]
 
-        NodePoint n ->
-            E.column [ alignTop ]
+            NodePoint n ->
                 [ E.text <| "Node: " ++ String.fromInt n ]
 
-        _ ->
-            E.column [ alignTop ]
+            _ ->
                 [ E.text "Mystery point" ]

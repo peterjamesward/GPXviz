@@ -14,10 +14,14 @@ module ToDo exposing (..)
 
 -- Why big slopes on "round and round"?
 
---NEXT: Fix Undo messages for Graph operations. Hmm.
+--IDEA: Should ALL trackpoint references be Int (thinking about DrawingRoad here)???
+--IDEA: Get street names for labeling junctions and edges? https://geocode.xyz/51.50354,-0.12768?geoit=json
 
---THEN: Clicking after changing offset sometimes breaks the model.
---THEN: You set pointers on a graph, they really point to the canonical edge(s) always.
+--NOW: Do not have StartPoint and EndPoint -- just NodePoint.
+--NEXT: Fix Undo messages for Graph operations. Hmm. How to do this without breaking the barrier?
+--NOTE: Some edits (e.g. delete) require selection inside edge,
+--      some (e.g. straighten) can use the nodes (provided edge is unique).
+--THEN: You set pointers on a graph, they really refer to the canonical edge(s) always.
 --THEN: Make all editing work on Graph (check Map also). (graph function to check that TP on same edge => editable)
 --THEN: New view that shows nodes and edges.
 --THEN: Compose edges to produce new output. With looping (simple DSL with prompted editing).
@@ -27,7 +31,7 @@ module ToDo exposing (..)
 -- Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
 
---TODO: Guidance text on tabs.
+--TODO: Guidance text on tabs. (partially addressed by graph work.)
 
 --TODO: Debt. More modularisation.
 -- Possible way to do this is to wrap each tab's messages and move functions into

@@ -4399,20 +4399,23 @@ viewTrackPointTools model =
             , max model.currentNode marker
             )
     in
-    if Graph.onSameEdge model.nodeArray start finish then
-        column [ padding 10, spacing 10, centerX ] <|
-            [ row [ spacing 20 ]
-                [ insertNodeOptionsBox model.currentNode
+    column [ padding 10, spacing 10, centerX ] <|
+        [
+            if Graph.withinSameEdge model.graph model.nodeArray start finish then
+            row [ spacing 20 ]
+                [
+                insertNodeOptionsBox model.currentNode
                 , deleteNodeButton ( start, finish )
                 ]
-            , splitSegmentOptions model.maxSegmentSplitSize
-            , wholeTrackTextHelper model
-            ]
-    else
-        row [ padding 10, spacing 10, Background.color warningColor, width fill ]
-            [ html <| FeatherIcons.toHtml [] FeatherIcons.alertOctagon
-            , E.text "Sorry, the markers are not on the same track section."
-            ]
+
+            else
+                E.text "OOh, not same edge the"
+        , if Graph.alongSameEdge model.graph model.nodeArray start finish then
+                splitSegmentOptions model.maxSegmentSplitSize
+            else
+                E.text "Can only do one edge at a time, mate!"
+        , wholeTrackTextHelper model
+        ]
 
 insertNodeOptionsBox c =
     row [ spacing 10 ]

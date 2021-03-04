@@ -32,12 +32,12 @@ writePreamble =
 writeTrackPoint : TrackPoint -> String
 writeTrackPoint tp =
     "<trkpt lat=\""
-        ++ decimals6 tp.lat
+        ++ String.fromFloat tp.lat
         ++ "\" lon=\""
-        ++ decimals6 tp.lon
+        ++ String.fromFloat tp.lon
         ++ "\">"
         ++ "<ele>"
-        ++ decimals6 tp.ele
+        ++ String.fromFloat tp.ele
         ++ "</ele>"
         ++ "</trkpt>\n"
 
