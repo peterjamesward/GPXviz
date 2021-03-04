@@ -1570,7 +1570,6 @@ update msg model =
 
                 replacementTrackPoints =
                     nodesToTrackPoints
-                        (BoundingBox3d.centerPoint model.trackPointBox)
                         replacementNodes
 
                 reassembledTrackPoints =
@@ -1789,10 +1788,9 @@ nodeToTrackPoint node =
 
 
 nodesToTrackPoints :
-    Point3d Length.Meters GPXCoords
-    -> List (Point3d Length.Meters LocalCoords)
+    List (Point3d Length.Meters LocalCoords)
     -> List TrackPoint
-nodesToTrackPoints trackCenter nodes =
+nodesToTrackPoints  nodes =
     List.map nodeToTrackPoint nodes
 
 
@@ -1811,9 +1809,6 @@ updateMapVaryingElements model =
         nudgedTrackPoints =
             List.map .startsAt (List.take 1 model.nudgedNodeRoads)
                 ++ List.map .endsAt model.nudgedNodeRoads
-
-        centre =
-            BoundingBox3d.centerPoint model.trackPointBox
     in
     case ( currentNode, markedNode ) of
         ( Just node1, Just node2 ) ->
@@ -1821,7 +1816,7 @@ updateMapVaryingElements model =
                 ( node1.lon, node1.lat )
                 (Just ( node2.lon, node2.lat ))
                 (Maybe.withDefault [] <|
-                    Maybe.map (.nodes >> nodesToTrackPoints centre) model.smoothedBend
+                    Maybe.map (.nodes >> nodesToTrackPoints ) model.smoothedBend
                 )
                 nudgedTrackPoints
 
@@ -1830,7 +1825,7 @@ updateMapVaryingElements model =
                 ( node1.lon, node1.lat )
                 Nothing
                 (Maybe.withDefault [] <|
-                    Maybe.map (.nodes >> nodesToTrackPoints centre) model.smoothedBend
+                    Maybe.map (.nodes >> nodesToTrackPoints ) model.smoothedBend
                 )
                 nudgedTrackPoints
 
@@ -2759,7 +2754,6 @@ smoothBend model =
 
                 newTrackPoints =
                     nodesToTrackPoints
-                        (BoundingBox3d.centerPoint model.trackPointBox)
                         bend.nodes
 
                 newCurrent =
