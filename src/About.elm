@@ -13,7 +13,7 @@ aboutText =
 
 ## Changes
 
-- 2021-02-23 Second attempt at making Bend & Gradient problems navigate in the Map view.
+- 2021-01-03 Write track points with maximum precision to avoid introducing "wiggles".
 
 ## Donations
 
