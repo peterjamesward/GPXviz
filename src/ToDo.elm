@@ -4,10 +4,11 @@ module ToDo exposing (..)
 
 --TODO: Display currently selected range.
 
---TODO: Dual-view for large monitors.
+--TODO: Dual (triple!) view for large monitors.
+
+--TODO: Not happy with bend smoother transition gradients.
 
 --TODO: John Bytheway suggestion.
--- now using automatic analysis to convert to edges in a graph.
 --NOTE: User must make sure that any crossroads are horizontal, not just same elevation.
 --DONE: Derive edge list from route.
 --THEN: Convert route to new one derived from edge traversals.
