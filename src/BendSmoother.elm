@@ -10,6 +10,7 @@ import Point2d exposing (Point2d)
 import Point3d exposing (Point3d, xCoordinate, yCoordinate, zCoordinate)
 import Polyline2d
 import UbiquitousTypes exposing (LocalCoords)
+import Vector3d
 
 
 type alias SmoothedBend =
@@ -24,12 +25,12 @@ type alias SmoothedBend =
 roadToGeometry : DrawingRoad -> G.Road
 roadToGeometry road =
     { startAt =
-        { x = Length.inMeters <| xCoordinate road.startsAt.xyz
-        , y = Length.inMeters <| yCoordinate road.startsAt.xyz
+        { x = Length.inMeters <| xCoordinate road.startsAt.location
+        , y = Length.inMeters <| yCoordinate road.startsAt.location
         }
     , endsAt =
-        { x = Length.inMeters <| xCoordinate road.endsAt.xyz
-        , y = Length.inMeters <| yCoordinate road.endsAt.xyz
+        { x = Length.inMeters <| xCoordinate road.endsAt.location
+        , y = Length.inMeters <| yCoordinate road.endsAt.location
         }
     }
 
@@ -114,7 +115,14 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
                 * (Length.inMeters <| Arc2d.radius arc)
 
         numberPointsOnArc =
-            truncate <| trueArcLength / trackPointSpacing
+            ceiling <| trueArcLength / trackPointSpacing
+
+        segments =
+            Arc2d.segments (numberPointsOnArc - 1) arc
+                |> Polyline2d.segments
+
+        realArcLength =
+            List.sum <| List.map (inMeters << LineSegment2d.length) segments
 
         ( p1, p2 ) =
             -- The first (last) tangent point is also the first (last) point on the arc
@@ -123,59 +131,57 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             , Arc2d.endPoint arc |> Point2d.toRecord inMeters
             )
 
-        ( distancePaP1, distanceP2Pc ) =
-            ( G.distance (toPoint roadAB.startsAt.xyz) p1
-            , G.distance p2 (toPoint roadCD.startsAt.xyz)
+        ( elevationAtA, elevationAtD ) =
+            ( Length.inMeters <| zCoordinate roadAB.startsAt.location
+            , Length.inMeters <| zCoordinate roadCD.endsAt.location
             )
 
-        ( fractionalDistanceToTang1, fractionalDistanceToTang2 ) =
-            ( distancePaP1 / roadAB.length
-            , distanceP2Pc / roadCD.length
+        ( tang1, tang2 ) =
+            -- Say the arc entry is at same elevation as end points
+            ( Point3d.fromTuple Length.meters ( p1.x, p1.y, elevationAtA )
+            , Point3d.fromTuple Length.meters ( p2.x, p2.y, elevationAtD )
             )
 
-        tang1 =
-            Point3d.interpolateFrom
-                roadAB.startsAt.xyz
-                roadAB.endsAt.xyz
-                fractionalDistanceToTang1
-
-        tang2 =
-            Point3d.interpolateFrom
-                roadCD.startsAt.xyz
-                roadCD.endsAt.xyz
-                fractionalDistanceToTang2
-
-        ( elevationArcStart, elevationArcEnd ) =
-            ( Length.inMeters <| zCoordinate tang1
-            , Length.inMeters <| zCoordinate tang2
+        ( entryStraightLength, exitStraightLength ) =
+            ( Length.inMeters <| Point3d.distanceFrom roadAB.startsAt.location tang1
+            , Length.inMeters <| Point3d.distanceFrom tang2 roadCD.endsAt.location
             )
 
-        segments =
-            Arc2d.segments (numberPointsOnArc - 1) arc
-                |> Polyline2d.segments
+        totalNewLength =
+            -- if we ignore gradient for now
+            entryStraightLength + realArcLength + exitStraightLength
+
+        ( tangent1Elevation, tangent2Elevation ) =
+           ( elevationAtA + (entryStraightLength / totalNewLength) * (elevationAtD - elevationAtA)
+           , elevationAtD + (exitStraightLength / totalNewLength) * (elevationAtA - elevationAtD))
+
+        (newEntryPoint, newExitPoint) =
+            ( Point3d.translateBy
+                (Vector3d.fromMeters { x = 0, y = 0, z = tangent1Elevation - elevationAtA})
+                tang1
+            , Point3d.translateBy
+                (Vector3d.fromMeters { x = 0, y = 0, z = tangent2Elevation - elevationAtD})
+                tang2
+            )
 
         eleIncrement =
-            (elevationArcEnd - elevationArcStart) / toFloat numberPointsOnArc
+            (tangent2Elevation - tangent1Elevation) / (toFloat numberPointsOnArc - 1)
 
         elevate point2d i =
             withElevation
-                (elevationArcStart + toFloat i * eleIncrement)
+                (tangent1Elevation + toFloat i * eleIncrement)
                 point2d
 
         newArcPoints =
             List.map2
                 elevate
-                (List.map LineSegment2d.startPoint (List.take 1 segments))
-                [ 0 ]
-                ++ List.map2
-                    elevate
-                    (List.map LineSegment2d.endPoint segments)
-                    (List.range 1 (numberPointsOnArc + 10))
+                (List.map LineSegment2d.midpoint segments)
+                (List.range 1 numberPointsOnArc)
     in
     { nodes =
-        roadAB.startsAt.xyz
-            :: newArcPoints
-            ++ [ roadCD.endsAt.xyz ]
+        [ roadAB.startsAt.location, newEntryPoint ]
+            ++ newArcPoints
+            ++ [ newExitPoint, roadCD.endsAt.location ]
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index
