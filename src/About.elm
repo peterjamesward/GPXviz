@@ -17,7 +17,7 @@ aboutText =
 
 ## Donations
 
-A few users have asked if I would accept some payment. Thank you kindly, but I do this for fun and challenge; like cycling. If you feel the urge, I have added a Tip Jar for you to contribute towards funding our local hospice. Or you can just give a gift to any cause; it's the spirit that counts.
+A few users have asked if I would accept some payment. Thank you kindly, but I do this for fun and challenge; like cycling. If you feel the urge, I have added a link that allows you to contribute towards a fund that will go to our local hospice. Or you can just give a gift to any cause; it's the spirit that counts.
 
 ## Guidance on use
 

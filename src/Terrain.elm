@@ -8,7 +8,7 @@ import Dict
 import Length exposing (Meters)
 import LineSegment3d
 import List
-import NodesAndRoads exposing (DrawingRoad)
+import NodesAndRoads exposing (DrawingRoad, deriveNodes, deriveRoads)
 import Point3d exposing (Point3d)
 import RenderingContext exposing (RenderingContext)
 import Scene3d exposing (Entity)
@@ -85,7 +85,7 @@ makeTerrain context roadList =
                     LineSegment3d.translateBy
                         (Vector3d.meters 0.0 0.0 -0.3)
                     <|
-                        LineSegment3d.fromEndpoints ( road.startsAt.xyz, road.endsAt.xyz )
+                        LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
 
                 leftKerbVector =
                     Vector3d.meters
