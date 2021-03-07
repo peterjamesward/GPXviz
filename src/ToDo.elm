@@ -4,10 +4,13 @@ module ToDo exposing (..)
 
 --TODO: Display currently selected range.
 
---TODO: Dual-view for large monitors.
+--TODO: Dual (triple) view for large monitors. (Needs proper refactoring of views and cameras.)
 
 --TODO: John Bytheway suggestion.
--- now using automatic analysis to convert to edges in a graph.
+
+-- SHOULD I MERGE INTO MASTER?
+-- (All the Node -> TrackPoint stuff, Offset, good stuff)
+
 --NOTE: User must make sure that any crossroads are horizontal, not just same elevation.
 --DONE: Derive edge list from route.
 --THEN: Convert route to new one derived from edge traversals.
@@ -15,8 +18,6 @@ module ToDo exposing (..)
 --THEN: New view that shows nodes and edges.
 --THEN: Allow editing of Edges (one at a time?)
 --THEN: Compose edges to produce new output. With looping.
-
---TODO: Double click should centre map view on current point. Leave zoom unchanged.
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

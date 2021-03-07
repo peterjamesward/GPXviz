@@ -39,11 +39,13 @@ type alias Graph =
     , route : List Traversal -- this is OK.
     }
 
+
 type PointType
     = StartPoint Int
     | FinishPoint Int
     | JunctionPoint Int
     | OtherPoint Int Int -- Store both the edge number and the unique number (which might be locally unique).
+
 
 type alias PointOnGraph =
     -- This will become our new "enhanced" track point.
@@ -53,6 +55,7 @@ type alias PointOnGraph =
     , idx : Int
     , info : PointType -- we know the point's context and behaviours.
     }
+
 
 empty =
     { nodes = Dict.empty, edges = [], route = [] }
@@ -131,7 +134,6 @@ deriveTrackPointGraph trackPoints =
         --                            Nothing
         --                )
         --                canonicalRoute
-
         nodeIdx latLon =
             case Dict.get latLon rawNodes of
                 Just tp ->
@@ -161,9 +163,13 @@ deriveTrackPointGraph trackPoints =
                 , lon = tp.lon
                 , ele = tp.ele
                 , idx = tp.idx
-                , info = case tp.idx of
-                            0 -> StartPoint 0
-                            _ -> JunctionPoint tp.idx
+                , info =
+                    case tp.idx of
+                        0 ->
+                            StartPoint 0
+
+                        _ ->
+                            JunctionPoint tp.idx
                 }
                 dict
 
@@ -177,9 +183,14 @@ deriveTrackPointGraph trackPoints =
         packageTheEdge : List TrackPoint -> Dict Int Edge -> Dict Int Edge
         packageTheEdge tps dict =
             let
-                edgeStartNode = List.head tps
-                edgeEndNode = List.last tps
-                otherNodes = List.take (List.length tps - 1) tps |> List.drop 1
+                edgeStartNode =
+                    List.head tps
+
+                edgeEndNode =
+                    List.last tps
+
+                otherNodes =
+                    List.take (List.length tps - 1) tps |> List.drop 1
             in
             Dict.empty
 
@@ -403,6 +414,7 @@ useCanonicalEdges :
     -> Dict ( LatLon, LatLon, LatLon ) Traversal
     -> List ( LatLon, LatLon, LatLon )
 useCanonicalEdges edges canonicalEdges =
+    -- Don't do this, really. Just return the Route, then walk the route.
     let
         replaceEdge : List TrackPoint -> Maybe ( LatLon, LatLon, LatLon )
         replaceEdge edge =
