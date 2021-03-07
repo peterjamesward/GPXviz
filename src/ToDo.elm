@@ -10,6 +10,10 @@ module ToDo exposing (..)
 
 -- SHOULD I MERGE INTO MASTER?
 -- (All the Node -> TrackPoint stuff, Offset, good stuff)
+But I think the whole reverse index thing is/was a massive premature optimisation.
+We know how they tend to work out.
+Less complex would be for walkTheRoute to build a Dict Int NodeInfo, not pollute existing structures.
+(Tidying up is maybe a job for GPXmagic 2.0)
 
 --NOTE: User must make sure that any crossroads are horizontal, not just same elevation.
 --DONE: Derive edge list from route.
