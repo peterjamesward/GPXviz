@@ -15,20 +15,12 @@ module Graph exposing (..)
 -- Or are we modal, as so much changes (visuals, editing tools) ??
 --TODO: Check if last TP = first TP => same node (loop). Or that comes out in the wash?
 
-import Angle
-import Array exposing (Array)
-import Axis3d
 import Dict exposing (Dict)
-import Direction3d
-import Element as E exposing (Element, alignTop, padding, spacing)
+import Element as E exposing (Element)
 import Element.Input as I
-import Length
 import List.Extra as List
-import Point3d
 import Set exposing (Set)
-import TrackPoint exposing (TrackPoint, TrackPointType(..), reindexTrackpoints, toGPXcoords)
-import Utils exposing (showDecimal2)
-import Vector3d
+import TrackPoint exposing (TrackPoint)
 import ViewPureStyles exposing (prettyButtonStyles)
 
 
@@ -42,20 +34,35 @@ type alias LatLon =
 
 
 type alias Graph =
-    { nodes : Dict Int TrackPoint
-    , edges : Dict Int Edge
-    , route : List Traversal
-    , centreLineOffset : Float
+    { nodes : Dict LatLon TrackPoint -- I want this to be Dict Int Node
+    , edges : List (List TrackPoint) -- and Dict (Int, Int, LatLon) Edge
+    , route : List Traversal -- this is OK.
+    }
+
+
+type PointType
+    = StartPoint Int
+    | FinishPoint Int
+    | JunctionPoint Int
+    | OtherPoint Int Int -- Store both the edge number and the unique number (which might be locally unique).
+
+
+type alias PointOnGraph =
+    -- This will become our new "enhanced" track point.
+    { lat : Float
+    , lon : Float
+    , ele : Float
+    , idx : Int
+    , info : PointType -- we know the point's context and behaviours.
     }
 
 
 empty =
-    { nodes = Dict.empty, edges = Dict.empty, route = [], centreLineOffset = 0.0 }
+    { nodes = Dict.empty, edges = [], route = [] }
 
 
 type Msg
     = GraphAnalyse
-    | CentreLineOffset Float
 
 
 type alias Node =
@@ -63,15 +70,11 @@ type alias Node =
 
 
 type alias Edge =
-    { startNode : Int
-    , endNode : Int
-    , wayPoint : LatLon
-    , trackPoints : List TrackPoint
-    }
+    List TrackPoint
 
 
 type alias Traversal =
-    { edge : Int
+    { edge : Edge
     , direction : Direction
     }
 
@@ -80,38 +83,12 @@ type alias Route =
     { route : List Traversal }
 
 
-viewGraphControls : Graph -> (Msg -> msg) -> Element msg
-viewGraphControls graph wrapper =
-    E.row [ spacing 10, padding 10 ]
-        [ I.slider
-            []
-            { onChange = wrapper << CentreLineOffset
-            , label =
-                I.labelBelow [] <|
-                    E.text <|
-                        "Offset = "
-                            ++ (showDecimal2 <| abs graph.centreLineOffset)
-                            ++ "m "
-                            ++ (if graph.centreLineOffset < 0.0 then
-                                    "left"
-
-                                else if graph.centreLineOffset > 0.0 then
-                                    "right"
-
-                                else
-                                    ""
-                               )
-            , min = -5.0
-            , max = 5.0
-            , step = Just 1.0
-            , value = graph.centreLineOffset
-            , thumb = I.defaultThumb
-            }
-        , I.button prettyButtonStyles
-            { onPress = Just (wrapper GraphAnalyse)
-            , label = E.text "Analyse"
-            }
-        ]
+viewGraphControls : (Msg -> msg) -> Element msg
+viewGraphControls wrapper =
+    I.button prettyButtonStyles
+        { onPress = Just (wrapper GraphAnalyse)
+        , label = E.text "Analyse"
+        }
 
 
 update msg model =
@@ -119,22 +96,51 @@ update msg model =
         GraphAnalyse ->
             deriveTrackPointGraph model.trackPoints
 
-        CentreLineOffset offset ->
-            let
-                newGraph g =
-                    { g | centreLineOffset = offset }
-            in
-            newGraph model.graph
 
-
-deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
-        _ =
-            Debug.log "Nodes of the canon " indexedNodes
+        --_ =
+        --    Debug.log "Look, nodes!"
+        --        (rawNodes |> Dict.toList |> List.map (\( k, v ) -> v.idx) |> List.sort)
+        --
+        --_ =
+        --    Debug.log "Look, edges!"
+        --        (rawEdges |> List.map (List.map .idx))
+        --
+        --_ =
+        --    Debug.log "Canonical edges"
+        --        (canonicalEdges
+        --            |> Dict.keys
+        --            |> List.map (\( n1, _, n3 ) -> ( nodeIdx n1, nodeIdx n3 ))
+        --        )
+        --
+        --_ =
+        --    Debug.log "Canonical route" <|
+        --        List.filterMap identity <|
+        --            List.map
+        --                (\( n1, n2, n3 ) ->
+        --                    let
+        --                        ( mstart, mfinish ) =
+        --                            ( Dict.get n1 rawNodes, Dict.get n3 rawNodes )
+        --
+        --                        mtraversal =
+        --                            Dict.get ( n1, n2, n3 ) canonicalEdges
+        --                    in
+        --                    case ( mstart, mfinish, mtraversal ) of
+        --                        ( Just start, Just finish, Just traversal ) ->
+        --                            Just ( traversal.direction, start.idx, finish.idx )
+        --
+        --                        _ ->
+        --                            Nothing
+        --                )
+        --                canonicalRoute
+        nodeIdx latLon =
+            case Dict.get latLon rawNodes of
+                Just tp ->
+                    tp.idx
 
-        _ =
-            Debug.log "Edges of the canon " indexedEdges
+                Nothing ->
+                    -1
 
         rawNodes =
             interestingTrackPoints trackPoints
@@ -143,106 +149,56 @@ deriveTrackPointGraph trackPoints =
             findDistinctEdges rawNodes trackPoints
 
         canonicalEdges =
-            findCanonicalEdges rawEdges
+            findCanonicalEdges rawNodes rawEdges
 
-        canonicalRoute : List Traversal
+        canonicalRoute : List ( LatLon, LatLon, LatLon )
         canonicalRoute =
             useCanonicalEdges rawEdges canonicalEdges
-                |> List.map
-                    (\( key, direction ) ->
-                        let
-                            edge =
-                                Dict.get key edgeKeysToIndex
-                        in
-                        case edge of
-                            Just e ->
-                                Just
-                                    { edge = e
-                                    , direction = direction
-                                    }
 
-                            Nothing ->
-                                Nothing
-                    )
-                |> List.filterMap identity
+        reindexNodeDict : LatLon -> TrackPoint -> Dict Int PointOnGraph -> Dict Int PointOnGraph
+        reindexNodeDict latLon tp dict =
+            -- Final pass, in which we normalise our indexing.
+            Dict.insert tp.idx
+                { lat = tp.lat
+                , lon = tp.lon
+                , ele = tp.ele
+                , idx = tp.idx
+                , info =
+                    case tp.idx of
+                        0 ->
+                            StartPoint 0
 
-        nodeCoordinatesToIndex : Dict LatLon Int
-        nodeCoordinatesToIndex =
-            Dict.fromList <|
-                List.map2
-                    (\key idx -> ( key, idx ))
-                    (Dict.keys rawNodes)
-                    (List.range 1 (Dict.size rawNodes))
+                        _ ->
+                            JunctionPoint tp.idx
+                }
+                dict
 
-        edgeKeysToIndex : Dict ( LatLon, LatLon, LatLon ) Int
-        edgeKeysToIndex =
-            Dict.fromList <|
-                List.map2
-                    (\key idx -> ( key, idx ))
-                    (Dict.keys canonicalEdges)
-                    (List.range 1 (Dict.size canonicalEdges))
+        finalNodeDict : Dict LatLon TrackPoint -> Dict Int PointOnGraph
+        finalNodeDict =
+            -- Rebuild the node dict keyed by the original trackpoint ID (because it's convenient).
+            Dict.foldl
+                reindexNodeDict
+                Dict.empty
 
-        indexedNodes : Dict Int TrackPoint
-        indexedNodes =
-            List.map
-                (\( k, v ) -> ( Dict.get k nodeCoordinatesToIndex, v ))
-                (Dict.toList rawNodes)
-                |> List.filterMap
-                    (\( k, tp ) ->
-                        case k of
-                            Just key ->
-                                Just ( key, { tp | info = NodePoint key } )
-
-                            Nothing ->
-                                Nothing
-                    )
-                |> Dict.fromList
-
-        indexedEdges : Dict Int Edge
-        indexedEdges =
-            Dict.toList canonicalEdges
-                |> List.filterMap
-                    (\( key, tps ) ->
-                        case Dict.get key edgeKeysToIndex of
-                            Just idx ->
-                                case makeProperEdge key tps of
-                                    Just edge ->
-                                        Just ( idx, edge )
-
-                                    Nothing ->
-                                        Nothing
-
-                            Nothing ->
-                                Nothing
-                    )
-                |> Dict.fromList
-
-        makeProperEdge : ( LatLon, LatLon, LatLon ) -> List TrackPoint -> Maybe Edge
-        makeProperEdge ( start, waypoint, end ) tps =
+        packageTheEdge : List TrackPoint -> Dict Int Edge -> Dict Int Edge
+        packageTheEdge tps dict =
             let
-                findNodeIndex latlon =
-                    Dict.get latlon nodeCoordinatesToIndex
+                edgeStartNode =
+                    List.head tps
 
-                ( startIdx, endIdx ) =
-                    ( findNodeIndex start, findNodeIndex end )
+                edgeEndNode =
+                    List.last tps
+
+                otherNodes =
+                    List.take (List.length tps - 1) tps |> List.drop 1
             in
-            case ( startIdx, endIdx ) of
-                ( Just startNode, Just endNode ) ->
-                    Just
-                        { startNode = startNode
-                        , endNode = endNode
-                        , wayPoint = waypoint
-                        , trackPoints = List.drop 1 <| List.take (List.length tps - 1) tps
-                        }
+            Dict.empty
 
-                _ ->
-                    Nothing
+        finalEdgeDict : List (List TrackPoint) -> Dict Int Edge
+        finalEdgeDict listOfLostOfTP =
+            List.foldl packageTheEdge Dict.empty listOfLostOfTP
     in
-    { nodes = indexedNodes
-    , edges = indexedEdges
-    , route = canonicalRoute
-    , centreLineOffset = 0.0
-    }
+    { nodes = rawNodes, edges = rawEdges, route = [] }
 
 
 trackPointComparable : TrackPoint -> LatLon
@@ -250,22 +206,20 @@ trackPointComparable tp =
     ( tp.lat, tp.lon )
 
 
-endPoints tps =
-    -- Subtle point: if the start and end coincide we want the start point to "win".
-    List.take 1 (List.reverse tps) ++ List.take 1 tps
-
-
-addPointsFromList listPoints dict =
-    List.foldl
-        (\tp d -> Dict.insert (trackPointComparable tp) tp d)
-        dict
-        listPoints
-
-
 interestingTrackPoints : List TrackPoint -> Dict LatLon TrackPoint
 interestingTrackPoints tps =
     --TODO: this should return PointOnGraph, so the end points are distinctive.
     let
+        endPoints =
+            -- Subtle point: if the start and end co-incide we want the start point to "win".
+            List.take 1 (List.reverse tps) ++ List.take 1 tps
+
+        addPointsFromList listPoints dict =
+            List.foldl
+                (\tp d -> Dict.insert (trackPointComparable tp) tp d)
+                dict
+                listPoints
+
         neighbourMap =
             neighbourMapHelper Dict.empty tps
 
@@ -328,9 +282,8 @@ interestingTrackPoints tps =
                 dict
 
         notTwoNeighbours _ ( _, neighbours ) =
-            -- Three or more is a junction.
-            -- Need to add S/F explicitly
-            Set.size neighbours > 2
+            -- One neighbour is an end; three or more is a junction.
+            Set.size neighbours /= 2
 
         interesting =
             Dict.filter notTwoNeighbours neighbourMap
@@ -338,7 +291,7 @@ interestingTrackPoints tps =
     -- We don't need to return the neighbour list.
     interesting
         |> Dict.map (\k ( tp, _ ) -> tp)
-        |> addPointsFromList (endPoints tps)
+        |> addPointsFromList endPoints
 
 
 findDistinctEdges :
@@ -354,10 +307,10 @@ findDistinctEdges nodes trackPoints =
             Dict.member (trackPointComparable tp) nodes
 
         routeSplitter :
-            TrackPoint -- The start point of an edge == a junction or the route start
-            -> List (List TrackPoint) -- Accumulator for fold.
-            -> List TrackPoint -- The list being folded.
-            -> List (List TrackPoint) -- The result list, in the natural order.
+            TrackPoint
+            -> List (List TrackPoint)
+            -> List TrackPoint
+            -> List (List TrackPoint)
         routeSplitter startNode edges tps =
             -- Not quite what we want as the node to appear on both edges; here it's on the departing edge.
             let
@@ -367,18 +320,12 @@ findDistinctEdges nodes trackPoints =
             in
             case split of
                 Just ( before, after0 :: after ) ->
-                    -- We borrow the first node of the next edge here for our edge, and pass it forwards.
-                    routeSplitter
-                        after0
-                        ((startNode :: before ++ [ after0 ]) :: edges)
-                        after
+                    routeSplitter after0 ((startNode :: before ++ [ after0 ]) :: edges) after
 
                 Just ( before, _ ) ->
-                    -- Last edge, so just prepend the carried forward node.
                     (startNode :: before) :: edges
 
                 Nothing ->
-                    -- Reverse list so it's in the natural order.
                     edges |> List.reverse
 
         edgeList : List (List TrackPoint)
@@ -390,22 +337,22 @@ findDistinctEdges nodes trackPoints =
                 _ ->
                     []
     in
-    -- First edge (as coded) will just contain the start node.
     List.drop 1 edgeList
 
 
 findCanonicalEdges :
-    List (List TrackPoint)
-    -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
-findCanonicalEdges originalEdges =
+    Dict LatLon TrackPoint
+    -> List (List TrackPoint)
+    -> Dict ( LatLon, LatLon, LatLon ) Traversal
+findCanonicalEdges nodes originalEdges =
     -- Note we are keying on three coordinates, so we disambiguate edges between node pairs.
     -- I am now thinking of making two entries, one for each direction.
     -- Marginally larger dict, much easier lookup.
     let
         addCanonical :
             List TrackPoint
-            -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
-            -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
+            -> Dict ( LatLon, LatLon, LatLon ) Traversal
+            -> Dict ( LatLon, LatLon, LatLon ) Traversal
         addCanonical edge dict =
             let
                 startNode =
@@ -439,18 +386,22 @@ findCanonicalEdges originalEdges =
                             trackPointComparable finish
                     in
                     if
-                        -- We may have encountered in either direction.
                         Dict.member ( comp1, comp2, compN ) dict
                             || Dict.member ( compN, compM, comp1 ) dict
                     then
-                        -- Previously encountered.
                         dict
 
                     else
                         -- First encounter for this edge, so this is canonical.
-                        Dict.insert ( comp1, comp2, compN )
-                            edge
-                            dict
+                        dict
+                            |> Dict.insert ( comp1, comp2, compN )
+                                { edge = edge
+                                , direction = Forwards
+                                }
+                            |> Dict.insert ( compN, compM, comp1 )
+                                { edge = edge
+                                , direction = Backwards
+                                }
 
                 _ ->
                     dict
@@ -460,11 +411,12 @@ findCanonicalEdges originalEdges =
 
 useCanonicalEdges :
     List (List TrackPoint)
-    -> Dict ( LatLon, LatLon, LatLon ) (List TrackPoint)
-    -> List ( ( LatLon, LatLon, LatLon ), Direction )
+    -> Dict ( LatLon, LatLon, LatLon ) Traversal
+    -> List ( LatLon, LatLon, LatLon )
 useCanonicalEdges edges canonicalEdges =
+    -- Don't do this, really. Just return the Route, then walk the route.
     let
-        replaceEdge : List TrackPoint -> Maybe ( ( LatLon, LatLon, LatLon ), Direction )
+        replaceEdge : List TrackPoint -> Maybe ( LatLon, LatLon, LatLon )
         replaceEdge edge =
             let
                 startNode =
@@ -498,10 +450,10 @@ useCanonicalEdges edges canonicalEdges =
                             trackPointComparable finish
                     in
                     if Dict.member ( comp1, comp2, compN ) canonicalEdges then
-                        Just ( ( comp1, comp2, compN ), Forwards )
+                        Just ( comp1, comp2, compN )
 
                     else if Dict.member ( compN, compM, comp1 ) canonicalEdges then
-                        Just ( ( compN, compM, comp1 ), Backwards )
+                        Just ( compN, compM, comp1 )
 
                     else
                         Nothing
@@ -510,281 +462,3 @@ useCanonicalEdges edges canonicalEdges =
                     Nothing
     in
     List.map replaceEdge edges |> List.filterMap identity
-
-
-traversalAsTrackPoints : Graph -> Traversal -> List TrackPoint
-traversalAsTrackPoints graph traversal =
-    let
-        getEdge =
-            Dict.get traversal.edge graph.edges
-    in
-    case getEdge of
-        Just edge ->
-            let
-                edgeStart =
-                    Dict.get edge.startNode graph.nodes
-
-                edgeEnd =
-                    Dict.get edge.endNode graph.nodes
-            in
-            case ( edgeStart, edgeEnd, traversal.direction ) of
-                ( Just start, Just end, Forwards ) ->
-                    start
-                        :: List.map2
-                            (\point n -> { point | info = EdgePoint traversal.edge n })
-                            edge.trackPoints
-                            (List.range 1 (List.length edge.trackPoints))
-                        ++ [ end ]
-
-                ( Just start, Just end, Backwards ) ->
-                    end
-                        :: List.map2
-                            (\point n -> { point | info = EdgePoint traversal.edge n })
-                            (List.reverse edge.trackPoints)
-                            (List.range 1 (List.length edge.trackPoints))
-                        ++ [ start ]
-
-                _ ->
-                    []
-
-        Nothing ->
-            []
-
-
-walkTheRoute : Graph -> List TrackPoint
-walkTheRoute graph =
-    -- This will convert the original route into a route made from canonical edges.
-    let
-        addToTrail traversal accumulator =
-            let
-                getEdge =
-                    Dict.get traversal.edge graph.edges
-            in
-            case getEdge of
-                Just edge ->
-                    let
-                        edgeStart =
-                            Dict.get edge.startNode graph.nodes
-
-                        edgeEnd =
-                            Dict.get edge.endNode graph.nodes
-                    in
-                    case ( edgeStart, edgeEnd, traversal.direction ) of
-                        ( Just start, Just end, Forwards ) ->
-                            { accumulator
-                                | points =
-                                    start
-                                        :: addEdgePoints traversal.edge edge.trackPoints
-                                        ++ [ end ]
-                                        ++ List.drop 1 accumulator.points
-                            }
-
-                        ( Just start, Just end, Backwards ) ->
-                            { accumulator
-                                | points =
-                                    end
-                                        :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
-                                        ++ [ start ]
-                                        ++ List.drop 1 accumulator.points
-                            }
-
-                        _ ->
-                            accumulator
-
-                Nothing ->
-                    accumulator
-
-        addEdgePoints : Int -> List TrackPoint -> List TrackPoint
-        addEdgePoints edge edgePoints =
-            List.map2
-                (\point n -> { point | info = EdgePoint edge n })
-                edgePoints
-                (List.range 1 (List.length edgePoints))
-    in
-    List.foldr
-        addToTrail
-        { points = [], nextIdx = 0 }
-        graph.route
-        |> .points
-        |> reindexTrackpoints
-        |> List.map (applyCentreLineOffset graph.centreLineOffset)
-
-
-applyCentreLineOffset : Float -> TrackPoint -> TrackPoint
-applyCentreLineOffset offset trackpoint =
-    let
-        offsetDirection =
-            trackpoint.naturalBearing
-                |> Angle.radians
-                |> Direction3d.yx
-                |> Direction3d.rotateAround Axis3d.z (Angle.degrees -90)
-
-        offsetVector =
-            Vector3d.withLength (Length.meters offset) offsetDirection
-
-        newXYZ =
-            Point3d.translateBy offsetVector trackpoint.xyz
-
-        ( lon, lat, ele ) =
-            toGPXcoords newXYZ
-    in
-    { trackpoint
-        | lat = lat
-        , lon = lon
-        , xyz = newXYZ
-    }
-
-
-makeSimpleGraph : List TrackPoint -> Graph
-makeSimpleGraph trackPoints =
-    -- Use this when file is loaded, so we always have a graph.
-    -- Edge ID = 1, node IDs - 0, 1.
-    let
-        startTP =
-            List.head trackPoints
-
-        endTP =
-            List.last trackPoints
-
-        wayPointTP =
-            List.head <| List.drop 1 trackPoints
-
-        otherTP =
-            List.drop 1 <| List.take (List.length trackPoints - 1) trackPoints
-
-        addNodeInfo info tp =
-            { tp | info = info }
-
-        otherNodes =
-            List.map2
-                (\tp i -> addNodeInfo (EdgePoint 1 i) tp)
-                otherTP
-                (List.range 1 (List.length otherTP))
-    in
-    case ( startTP, wayPointTP, endTP ) of
-        ( Just start, Just end, Just way ) ->
-            let
-                startNode =
-                    addNodeInfo (StartPoint 0) start
-
-                endNode =
-                    addNodeInfo (EndPoint 1) end
-
-                nodeDict =
-                    Dict.empty
-                        |> Dict.insert 0 startNode
-                        |> Dict.insert 1 endNode
-
-                edge =
-                    { startNode = 0
-                    , endNode = 1
-                    , wayPoint = trackPointComparable way
-                    , trackPoints = otherNodes
-                    }
-
-                edgeDict =
-                    Dict.insert 1 edge Dict.empty
-
-                traversal =
-                    { edge = 1, direction = Forwards }
-            in
-            { nodes = nodeDict
-            , edges = edgeDict
-            , route = [ traversal ]
-            , centreLineOffset = 0.0
-            }
-
-        _ ->
-            empty
-
-
-withinSameEdge : Graph -> Array TrackPoint -> Int -> Int -> Bool
-withinSameEdge _ array p1 p2 =
-    -- Allows editing tools to make sure user is not trying something that won't work.
-    -- And for the editing tools not to make the same mistake.
-    let
-        ( node1, node2 ) =
-            ( Array.get p1 array, Array.get p2 array )
-
-        ( info1, info2 ) =
-            ( Maybe.map .info node1, Maybe.map .info node2 )
-    in
-    case ( info1, info2 ) of
-        ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
-            e1 == e2
-
-        _ ->
-            False
-
-
-alongSameEdge : Graph -> Array TrackPoint -> Int -> Int -> Bool
-alongSameEdge graph array p1 p2 =
-    -- As above but points can also be on the nodes, though this raises
-    -- the possibility of edge ambiguity.
-    let
-        ( node1, node2 ) =
-            ( Array.get p1 array, Array.get p2 array )
-
-        ( info1, info2 ) =
-            ( Maybe.map .info node1, Maybe.map .info node2 )
-    in
-    case ( info1, info2 ) of
-        ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
-            e1 == e2
-
-        ( Just (NodePoint n1), Just (NodePoint n2) ) ->
-            n1 == n2 || (Dict.size (edgesBetweenNodes graph n1 n2) == 1)
-
-        ( Just (NodePoint n1), Just (EdgePoint e1 _) ) ->
-            isEndOfEdge graph e1 n1
-
-        ( Just (EdgePoint e1 _), Just (NodePoint n1) ) ->
-            isEndOfEdge graph e1 n1
-
-        _ ->
-            False
-
-
-edgesBetweenNodes : Graph -> Int -> Int -> Dict Int Edge
-edgesBetweenNodes graph n1 n2 =
-    graph.edges
-        |> Dict.filter
-            (\k v ->
-                (v.startNode == n1 && v.endNode == n2)
-                    || (v.startNode == n2 && v.endNode == n1)
-            )
-
-
-isEndOfEdge : Graph -> Int -> Int -> Bool
-isEndOfEdge graph edgeIdx nodeIdx =
-    let
-        edge =
-            Dict.get edgeIdx graph.edges
-    in
-    case edge of
-        Just e ->
-            e.startNode == nodeIdx || e.endNode == nodeIdx
-
-        _ ->
-            False
-
-
-showNodeInfo node =
-    E.column [ alignTop, spacing 10 ] <|
-        case node.info of
-            StartPoint n ->
-                [ E.text <| "Start: " ++ String.fromInt n ]
-
-            EdgePoint e n ->
-                [ E.text <| "Edge: " ++ String.fromInt e
-                , E.text <| "Offset: " ++ String.fromInt n
-                ]
-
-            EndPoint n ->
-                [ E.text <| "End: " ++ String.fromInt n ]
-
-            NodePoint n ->
-                [ E.text <| "Node: " ++ String.fromInt n ]
-
-            _ ->
-                [ E.text "Mystery point" ]

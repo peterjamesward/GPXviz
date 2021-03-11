@@ -342,10 +342,10 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-    , { label = "Euler"
-      , state = Contracted
-      , content = viewGraphControls model.graph wrapGraphMessage
-      }
+    --, { label = "The Lab"
+    --  , state = Contracted
+    --  , content = viewGraphControls wrapGraphMessage
+    --  }
     ]
 
 

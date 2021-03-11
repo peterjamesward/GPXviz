@@ -1,18 +1,13 @@
 module TrackPoint exposing (..)
 
-import Angle exposing (Angle)
-import Area
 import BoundingBox3d
 import Dict
-import Geometry101 exposing (interpolateScalar)
 import Json.Encode as E
 import Length
 import Point3d exposing (Point3d)
 import Regex
 import Set
 import Spherical exposing (metresPerDegree)
-import Triangle3d
-import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (asRegex)
 
 
@@ -29,21 +24,17 @@ type TrackPointType
 
 
 type alias TrackPoint =
-    -- This is the basic info we extract from a GPX file. Lat and Lon in degrees.
-    -- I'm now adding more stuff, with a view to removing need for DrawingNode.
+    -- This is the basic info we extract from a GPX file. Angles in degrees.
     { lat : Float
     , lon : Float
     , ele : Float
     , idx : Int
     , info : TrackPointType
-    , naturalBearing : Float -- average of bearings either side.
-    , xyz : Point3d.Point3d Length.Meters LocalCoords
-    , costMetric : Float -- impact if this node is removed, by some measure.
     }
 
 
 singleton =
-    { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0, info = AnyPoint, naturalBearing = 0 }
+    { lat = 0.0, lon = 0.0, ele = 0.0, idx = 0, info = AnyPoint }
 
 
 singletonPoint =
@@ -76,114 +67,39 @@ interpolateSegment w startTP endTP =
     , ele = z
     , idx = 0
     , info = AnyPoint
-    , naturalBearing = interpolateScalar 0.5 startTP.naturalBearing endTP.naturalBearing
-    , xyz = Point3d.interpolateFrom startTP.xyz endTP.xyz 0.5
-    , costMetric = 0
     }
 
 
 reindexTrackpoints : List TrackPoint -> List TrackPoint
 reindexTrackpoints trackPoints =
     -- Extra info is for indexing into the To-Be graph structure.
-    -- Also going to work out the cost metric and the "natural bearing" here.
     let
-        _ =
-            Debug.log "Reindexing" "Yes"
-
         helper reversed nextIdx points =
-            -- Note the interesting point here is the second one. The first is context.
             case points of
-                [ penultimate, last ] ->
-                    -- We can wrap things up now
+                [ last ] ->
                     helper
-                        ({ last
-                            | idx = nextIdx + 1
-                            , costMetric = 10 ^ 10
-                            , naturalBearing = trackPointBearing penultimate last
-                         }
-                            :: reversed
-                        )
+                        ({ last | idx = nextIdx, info = EndPoint nextIdx } :: reversed)
                         (nextIdx + 1)
-                        [ { last
-                            | idx = nextIdx
-                            , costMetric = 10 ^ 10
-                            , naturalBearing = trackPointBearing penultimate last
-                          }
-                        ]
+                        []
 
-                previous :: point :: next :: rest ->
-                    helper
-                        ({ point
-                            | idx = nextIdx
-                            , naturalBearing =
-                                -- Yes, this means we do all the sums twice :(
-                                meanBearing
-                                    (trackPointBearing previous point)
-                                    (trackPointBearing point next)
-                            , costMetric =
-                                Area.inSquareMeters <|
-                                    Triangle3d.area <|
-                                        Triangle3d.fromVertices
-                                            ( previous.xyz, point.xyz, next.xyz )
-                         }
-                            :: reversed
-                        )
-                        (nextIdx + 1)
-                        (point :: next :: rest)
-
-                _ ->
-                    -- No more work, just flip the accumulation list.
+                [] ->
                     List.reverse reversed
+
+                point :: rest ->
+                    helper
+                        ({ point | idx = nextIdx, info = EdgePoint 0 nextIdx } :: reversed)
+                        (nextIdx + 1)
+                        rest
     in
     case trackPoints of
-        firstPoint :: secondPoint :: morePoints ->
+        firstPoint :: morePoints ->
             helper
-                [ { firstPoint
-                    | idx = 0
-                    , costMetric = 10 ^ 10 -- i.e. do not remove me!
-                    , naturalBearing = trackPointBearing firstPoint secondPoint
-                  }
-                ]
+                [ { firstPoint | idx = 0, info = StartPoint 0 } ]
                 1
-                trackPoints
+                morePoints
 
         _ ->
             []
-
-
-meanBearing : Float -> Float -> Float
-meanBearing b1 b2 =
-    -- Average bearings but cater for the awkward pi/-pi flip.
-    if (b1 < -pi / 2 && b2 > pi / 2) || (b2 < -pi / 2 && b1 > pi / 2) then
-        (b1 + b2) / 2.0 - pi
-
-    else
-        (b1 + b2) / 2.0
-
-
-fromGPXcoords : Float -> Float -> Float -> Point3d Length.Meters LocalCoords
-fromGPXcoords lon lat ele =
-    Point3d.fromTuple
-        Length.meters
-        ( metresPerDegree * lon * cos (degrees lat)
-        , metresPerDegree * lat
-        , ele
-        )
-
-
-toGPXcoords : Point3d Length.Meters LocalCoords -> ( Float, Float, Float )
-toGPXcoords point =
-    let
-        ( x, y, ele ) =
-            Point3d.toTuple Length.inMeters point
-
-        lat =
-            y / metresPerDegree
-
-        lon =
-            x / metresPerDegree / cos (degrees lat)
-    in
-    ( lon, lat, ele )
 
 
 parseTrackPoints : String -> List TrackPoint
@@ -211,9 +127,6 @@ parseTrackPoints xml =
                         , ele = ele
                         , idx = 0
                         , info = AnyPoint
-                        , naturalBearing = 0
-                        , xyz = fromGPXcoords lon lat ele
-                        , costMetric = 0 -- fill in later
                         }
 
                 _ ->
@@ -343,6 +256,15 @@ findTrackPoint lon lat tps =
         List.filter withinTolerance tps
 
 
+meanTrackPoint tp0 tp1 =
+    { lat = (tp0.lat + tp1.lat) / 2.0
+    , lon = (tp0.lon + tp1.lon) / 2.0
+    , ele = (tp0.ele + tp1.ele) / 2.0
+    , idx = tp0.idx
+    , info = tp0.info
+    }
+
+
 filterCloseTrackPoints : List TrackPoint -> List TrackPoint
 filterCloseTrackPoints tps =
     let
@@ -390,3 +312,17 @@ trackPointBearing tp1 tp2 =
     Spherical.findBearingToTarget
         ( tp1.lat, tp1.lon )
         ( tp2.lat, tp2.lon )
+
+
+pointFromTrackpoint : TrackPoint -> Point3d Length.Meters GPXCoords
+pointFromTrackpoint tp =
+    Point3d.fromMeters { x = tp.lon, y = tp.lat, z = tp.ele }
+
+
+pointAsTrackPoint : Point3d Length.Meters GPXCoords -> TrackPoint
+pointAsTrackPoint p =
+    let
+        { x, y, z } =
+            Point3d.toMeters p
+    in
+    { lat = y, lon = x, ele = z, idx = 0, info = AnyPoint }

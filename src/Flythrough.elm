@@ -80,8 +80,8 @@ flythrough newTime flying speed roads =
                             (Vector3d.meters 0.0 0.0 eyeHeight)
                         <|
                             Point3d.interpolateFrom
-                                seg.startsAt.xyz
-                                seg.endsAt.xyz
+                                seg.startsAt.location
+                                seg.endsAt.location
                                 segFraction
 
                     lookingAt =
@@ -90,22 +90,22 @@ flythrough newTime flying speed roads =
                                 let
                                     next3d =
                                         Point3d.interpolateFrom
-                                            next.startsAt.xyz
-                                            next.endsAt.xyz
+                                            next.startsAt.location
+                                            next.endsAt.location
                                             0.5
                                 in
                                 Point3d.translateBy
                                     (Vector3d.meters 0.0 0.0 eyeHeight)
                                 <|
                                     Point3d.interpolateFrom
-                                        seg.endsAt.xyz
+                                        seg.endsAt.location
                                         next3d
                                         headTurnFraction
 
                             Nothing ->
                                 Point3d.translateBy
                                     (Vector3d.meters 0.0 0.0 eyeHeight)
-                                    seg.endsAt.xyz
+                                    seg.endsAt.location
                 in
                 { flying
                     | metresFromRouteStart = newDistance

@@ -13,11 +13,11 @@ aboutText =
 
 ## Changes
 
-- 2021-01-03 Write track points with maximum precision to avoid introducing "wiggles".
+- 2021-01-06 Slight tweak to the good ol' bend smoother.
 
 ## Donations
 
-A few users have asked if I would accept some payment. Thank you kindly, but I do this for fun and challenge; like cycling. If you feel the urge, I have added a Tip Jar for you to contribute towards funding our local hospice. Or you can just give a gift to any cause; it's the spirit that counts.
+A few users have asked if I would accept some payment. Thank you kindly, but I do this for fun and challenge; like cycling. If you feel the urge, I have added a Tip Jar QR that allows you to contribute towards a fund that will go to our local hospice. Or you can just give a gift to any cause; it's the spirit that counts.
 
 ## Guidance on use
 
