@@ -2834,19 +2834,13 @@ parseGPXintoModel content model =
     let
         trackPoints =
             content |> parseTrackPoints |> filterCloseTrackPoints |> reindexTrackpoints
-
-        graph =
-            Graph.makeSimpleGraph trackPoints
-
-        trackPointsFromGraph =
-            Graph.walkTheRoute graph
     in
     { model
         | gpx = Just content
         , trackName = parseTrackName content
-        , trackPoints = trackPointsFromGraph
+        , trackPoints = trackPoints
         , changeCounter = 0
-        , graph = Graph.makeSimpleGraph trackPoints
+        , graph = Graph.empty
     }
 
 
@@ -2887,7 +2881,7 @@ deriveNodesAndRoads model =
         , roads = roads
         , summary = summary
         , nodeArray = Array.fromList model.trackPoints
-        , roadArray = Array.fromList model.roads
+        , roadArray = Array.fromList roads
     }
 
 
@@ -3125,8 +3119,6 @@ deriveStaticVisualEntities model =
     { model
         | staticVisualEntities = makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
-
-        --, mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
     }
 
@@ -3172,6 +3164,10 @@ deriveVaryingVisualEntities model =
     let
         marker =
             Maybe.withDefault model.currentNode model.markedNode
+
+        _ = Debug.log "Context" context.currentNode
+
+        _ = Debug.log "roads" model.roadArray
 
         context =
             { displayOptions = model.displayOptions

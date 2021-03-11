@@ -9,9 +9,7 @@ import LineSegment3d
 import Msg exposing (Msg)
 import Plane3d
 import Point3d exposing (Point3d)
-import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (GPXCoords, TrackPoint, trackPointBearing, trackPointSeparation)
-import Triangle3d
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (bearingToDisplayDegrees, showDecimal2, showDecimal6)
 
@@ -46,17 +44,6 @@ type alias SummaryData =
     , totalClimbing : Float
     , totalDescending : Float
     }
-
-
-
---deriveTrackPointBox : List TrackPoint -> BoundingBox3d Length.Meters LocalCoords
---deriveTrackPointBox tps =
---    Maybe.withDefault
---        (BoundingBox3d.singleton <| Point3d.meters 0.0 0.0 0.0)
---    <|
---        BoundingBox3d.hullN <|
---            List.map (\tp -> Point3d.meters tp.lon tp.lat tp.ele)
---                tps
 
 
 deriveRoads : List TrackPoint -> List DrawingRoad
@@ -214,7 +201,7 @@ summaryData maybeRoad =
                         [ text <| showDecimal2 road.gradient
                         , text <| bearingToDisplayDegrees road.bearing
                         ]
-                    , row [] [Graph.showNodeInfo road.startsAt]
+                    , row [] [ Graph.showNodeInfo road.startsAt ]
                     ]
                 , row [ padding 10, centerX, alignTop, spacing 10 ]
                     [ column [ spacing 10 ]

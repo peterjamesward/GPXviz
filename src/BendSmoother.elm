@@ -25,12 +25,12 @@ type alias SmoothedBend =
 roadToGeometry : DrawingRoad -> G.Road
 roadToGeometry road =
     { startAt =
-        { x = Length.inMeters <| xCoordinate road.startsAt.location
-        , y = Length.inMeters <| yCoordinate road.startsAt.location
+        { x = Length.inMeters <| xCoordinate road.startsAt.xyz
+        , y = Length.inMeters <| yCoordinate road.startsAt.xyz
         }
     , endsAt =
-        { x = Length.inMeters <| xCoordinate road.endsAt.location
-        , y = Length.inMeters <| yCoordinate road.endsAt.location
+        { x = Length.inMeters <| xCoordinate road.endsAt.xyz
+        , y = Length.inMeters <| yCoordinate road.endsAt.xyz
         }
     }
 
@@ -132,8 +132,8 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             )
 
         ( elevationAtA, elevationAtD ) =
-            ( Length.inMeters <| zCoordinate roadAB.startsAt.location
-            , Length.inMeters <| zCoordinate roadCD.endsAt.location
+            ( Length.inMeters <| zCoordinate roadAB.startsAt.xyz
+            , Length.inMeters <| zCoordinate roadCD.endsAt.xyz
             )
 
         ( tang1, tang2 ) =
@@ -143,8 +143,8 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
             )
 
         ( entryStraightLength, exitStraightLength ) =
-            ( Length.inMeters <| Point3d.distanceFrom roadAB.startsAt.location tang1
-            , Length.inMeters <| Point3d.distanceFrom tang2 roadCD.endsAt.location
+            ( Length.inMeters <| Point3d.distanceFrom roadAB.startsAt.xyz tang1
+            , Length.inMeters <| Point3d.distanceFrom tang2 roadCD.endsAt.xyz
             )
 
         totalNewLength =
@@ -175,13 +175,13 @@ makeSmoothBend trackPointSpacing roadAB roadCD arc =
         newArcPoints =
             List.map2
                 elevate
-                (List.map LineSegment2d.midpoint segments)
-                (List.range 1 numberPointsOnArc)
+                (List.map LineSegment2d.startPoint <| List.drop 1 segments)
+                (List.range 1 (numberPointsOnArc - 1))
     in
     { nodes =
-        [ roadAB.startsAt.location, newEntryPoint ]
+        [ roadAB.startsAt.xyz, newEntryPoint ]
             ++ newArcPoints
-            ++ [ newExitPoint, roadCD.endsAt.location ]
+            ++ [ newExitPoint, roadCD.endsAt.xyz ]
     , centre = Arc2d.centerPoint arc
     , radius = inMeters <| Arc2d.radius arc
     , startIndex = roadAB.index
@@ -238,8 +238,6 @@ divergentRoadsArc p r1 r2 =
 
 convergentRoadsArc : Point -> Road -> Road -> Maybe (Arc2d Meters LocalCoords)
 convergentRoadsArc p r1 r2 =
-    --TODO: These arcs don't seem to make tangent contact with the lines.
-    -- PERHAPS we should not work in LocalCoords, not GPXCoords.
     let
         ( ( pa, pb ), ( pc, pd ) ) =
             ( ( r1.startAt, r1.endsAt )
