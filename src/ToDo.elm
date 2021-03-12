@@ -4,17 +4,10 @@ module ToDo exposing (..)
 
 --TODO: Display currently selected range.
 
---TODO: Dual (triple) view for large monitors. (Needs proper refactoring of views and cameras.)
+--TODO: Dual-view for large monitors.
 
 --TODO: John Bytheway suggestion.
-
--- SHOULD I MERGE INTO MASTER?
--- (All the Node -> TrackPoint stuff, Offset, good stuff)
-But I think the whole reverse index thing is/was a massive premature optimisation.
-We know how they tend to work out.
-Less complex would be for walkTheRoute to build a Dict Int NodeInfo, not pollute existing structures.
-(Tidying up is maybe a job for GPXmagic 2.0)
-
+-- now using automatic analysis to convert to edges in a graph.
 --NOTE: User must make sure that any crossroads are horizontal, not just same elevation.
 --DONE: Derive edge list from route.
 --THEN: Convert route to new one derived from edge traversals.
@@ -22,6 +15,8 @@ Less complex would be for walkTheRoute to build a Dict Int NodeInfo, not pollute
 --THEN: New view that shows nodes and edges.
 --THEN: Allow editing of Edges (one at a time?)
 --THEN: Compose edges to produce new output. With looping.
+
+--TODO: Double click should centre map view on current point. Leave zoom unchanged.
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for
