@@ -64,8 +64,10 @@ deriveTrackPointBox tps =
 
 deriveNodes : BoundingBox3d Length.Meters GPXCoords -> List TrackPoint -> List DrawingNode
 deriveNodes box tps =
+    --TODO: WHY do we still need this bounding box adjustment?
+    -- We're getting distortions in N or S hemisphere without it but don't understand.
     let
-        ( midLon, midLat, _ ) =
+        ( midLon, midLat, _ ) = --(0,0,0)
             Point3d.toTuple Length.inMeters <|
                 BoundingBox3d.centerPoint box
 

@@ -212,12 +212,15 @@ makeStatic3DEntities context roadList =
             ]
 
         graphNodeCircles =
+            let
+                _ = Debug.log "NODES" (Graph.nodePointList context.graph)
+            in
             List.map
                 (\node ->
                     cone (Material.color Color.blue) <|
                         Cone3d.startingAt
                             node
-                            positiveZ
+                            negativeZ
                             { radius = meters 5.0
                             , length = meters 5.0
                             }

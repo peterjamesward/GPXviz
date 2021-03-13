@@ -2818,15 +2818,13 @@ parseGPXintoModel content model =
         | gpx = Just content
         , trackName = parseTrackName content
         , trackPoints = trackPoints
-
-        -- Do this on demand, not on loading; it's costly.
-        --, graphNodes = interestingTrackPoints trackPoints
         , changeCounter = 0
     }
 
 
 deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
+    --TODO: Tidy up, but each time I try, I break it.
     let
         trackPointAsPoint tp =
             Point3d.meters tp.lon tp.lat tp.ele

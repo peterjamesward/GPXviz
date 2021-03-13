@@ -84,9 +84,6 @@ reindexTrackpoints trackPoints =
     -- Extra info is for indexing into the To-Be graph structure.
     -- Also going to work out the cost metric and the "natural bearing" here.
     let
-        _ =
-            Debug.log "Reindexing" "Yes"
-
         helper reversed nextIdx points =
             -- Note the interesting point here is the second one. The first is context.
             case points of
@@ -225,11 +222,32 @@ parseTrackPoints xml =
 
                 _ ->
                     Nothing
+
+        parsedPoints =
+            List.filterMap identity <| List.map trackPoint trkpts
+
+        box =
+            --TODO: This will replace the Node calculation from where it's copied.
+            case parsedPoints of
+                tp1 :: tps ->
+                    BoundingBox3d.hull
+                        tp1.xyz
+                        (List.map .xyz tps)
+
+                _ ->
+                    BoundingBox3d.singleton Point3d.origin
+
+        ( midLon, midLat, _ ) =
+            --(0,0,0)
+            Point3d.toTuple Length.inMeters <|
+                BoundingBox3d.centerPoint box
+
+        correctXYZ tp =
+            let (x,y,z) = Point3d.toTuple Length.inMeters tp.xyz
+            in
+            { tp | xyz = Point3d.fromTuple Length.meters ( x - midLon, y - midLat, z ) }
     in
-    List.filterMap identity <|
-        List.map
-            trackPoint
-            trkpts
+    List.map correctXYZ parsedPoints
 
 
 trackToJSON : List TrackPoint -> E.Value

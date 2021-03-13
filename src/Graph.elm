@@ -145,9 +145,6 @@ update msg model =
 deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
-        _ =
-            Debug.log "Canonical route" canonicalRoute
-
         rawNodes =
             interestingTrackPoints trackPoints
 

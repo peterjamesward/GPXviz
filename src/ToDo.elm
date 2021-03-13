@@ -9,9 +9,9 @@ module ToDo exposing (..)
 --TODO: John Bytheway suggestion.
 -- now using automatic analysis to convert to edges in a graph.
 
---NEXT: Put control back for making graph.
---THEN: Use graph to highlight nodes
 --THEN: Walkthrough to make new TP list
+--THEN: Check click and double click OK
+--THEN: Check profile and map views.
 --THEN: Offset working again
 --THEN: Use Graph to check whether edits allowed.
 --THEN: Work through all the editing functions to work on the graph
