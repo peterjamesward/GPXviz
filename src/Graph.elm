@@ -16,7 +16,6 @@ module Graph exposing (..)
 --TODO: Check if last TP = first TP => same node (loop). Or that comes out in the wash?
 
 import Angle
-import Array exposing (Array)
 import Axis3d
 import Dict exposing (Dict)
 import Direction3d
@@ -24,9 +23,10 @@ import Element as E exposing (Element, alignTop, centerX, padding, spacing)
 import Element.Input as I
 import Length
 import List.Extra as List
-import Point3d
+import Point3d exposing (Point3d)
 import Set exposing (Set)
 import TrackPoint exposing (TrackPoint, reindexTrackpoints, toGPXcoords)
+import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (showDecimal2)
 import Vector3d
 import ViewPureStyles exposing (prettyButtonStyles)
@@ -50,7 +50,9 @@ type alias Graph =
     }
 
 
-type PointType
+type
+    PointType
+    -- We shall use this to build an index back from Trackpoint land to Graph land.
     = StartPoint Int
     | FinishPoint Int
     | NodePoint Int
@@ -144,10 +146,7 @@ deriveTrackPointGraph : List TrackPoint -> Graph
 deriveTrackPointGraph trackPoints =
     let
         _ =
-            Debug.log "Nodes of the canon " indexedNodes
-
-        _ =
-            Debug.log "Edges of the canon " indexedEdges
+            Debug.log "Canonical route" canonicalRoute
 
         rawNodes =
             interestingTrackPoints trackPoints
@@ -644,3 +643,7 @@ applyCentreLineOffset offset trackpoint =
         , xyz = newXYZ
     }
 
+
+nodePointList : Graph -> List (Point3d Length.Meters LocalCoords)
+nodePointList graph =
+    graph.nodes |> Dict.values |> List.map .xyz

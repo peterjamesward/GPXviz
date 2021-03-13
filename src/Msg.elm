@@ -4,7 +4,7 @@ import Accordion exposing (AccordionEntry)
 import DisplayOptions exposing (CurtainStyle)
 import Element exposing (Element)
 import File exposing (File)
-import GeoCodeDecoders exposing (IpInfo, IpInfo)
+import GeoCodeDecoders exposing (IpInfo)
 import Graph
 import Html.Events.Extra.Mouse as Mouse
 import Http
@@ -67,7 +67,7 @@ type Msg
     | NudgeNode Float Float -- Horizontal, Vertical
     | SplitRoad
     | AccordionMessage (AccordionEntry Msg)
-    | DeleteTrackPoints (Int, Int)
+    | DeleteTrackPoints ( Int, Int )
     | ChangeLoopStart Int
     | ReverseTrack
     | SetMaxTrackpointSpacing Float
@@ -106,6 +106,7 @@ type Msg
 wrapAuthMessage : OAuthMsg -> Msg
 wrapAuthMessage msg =
     OAuthMessage msg
+
 
 wrapGraphMessage : Graph.Msg -> Msg
 wrapGraphMessage msg =

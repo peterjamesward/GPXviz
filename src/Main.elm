@@ -341,11 +341,10 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
-
-    --, { label = "The Lab"
-    --  , state = Contracted
-    --  , content = viewGraphControls wrapGraphMessage
-    --  }
+    , { label = "The Lab"
+      , state = Contracted
+      , content = viewGraphControls model.graph wrapGraphMessage
+      }
     ]
 
 
@@ -3146,13 +3145,12 @@ deriveStaticVisualEntities model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
-            , graphNodes = []
+            , graph = model.graph
             }
     in
     { model
         | staticVisualEntities = makeStatic3DEntities context model.roads
         , staticProfileEntities = makeStaticProfileEntities context model.roads
-        , mapVisualEntities = makeMapEntities context model.roads
         , mapInfo = newMapInfo
     }
 
@@ -3183,7 +3181,7 @@ deriveTerrain model =
             , nudgedRegionStart = Just model.nudgedRegionStart
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
-            , graphNodes = []
+            , graph = model.graph
             }
     in
     { model
@@ -3218,7 +3216,7 @@ deriveVaryingVisualEntities model =
             , verticalNudge = model.verticalNudgeValue
             , zoomLevel = model.zoomLevelProfile
             , verticalExaggeration = model.verticalExaggeration
-            , graphNodes = []
+            , graph = model.graph
             }
 
         profileContext =
@@ -4835,6 +4833,6 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-        , Time.every 50 Tick
+        --, Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

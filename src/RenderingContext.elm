@@ -2,6 +2,7 @@ module RenderingContext exposing (..)
 
 import BoundingBox3d exposing (BoundingBox3d)
 import DisplayOptions exposing (DisplayOptions)
+import Graph exposing (Graph)
 import Length
 import NodesAndRoads exposing (DrawingNode, DrawingRoad, ScalingInfo)
 import Point3d exposing (Point3d)
@@ -22,5 +23,5 @@ type alias RenderingContext =
     , horizontalNudge : Float
     , zoomLevel : Float
     , verticalExaggeration : Float
-    , graphNodes : List DrawingNode
+    , graph : Graph
     }

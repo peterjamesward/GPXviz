@@ -8,6 +8,7 @@ import Cone3d
 import Cylinder3d
 import Direction3d exposing (negativeZ, positiveZ, xComponent, yComponent)
 import DisplayOptions exposing (CurtainStyle(..), DisplayOptions)
+import Graph
 import Length exposing (meters)
 import LineSegment3d
 import NodesAndRoads exposing (DrawingNode, DrawingRoad)
@@ -35,29 +36,12 @@ optionally test element =
         []
 
 
-makeHitDetectionEntities : List DrawingNode -> List ( Int, Sphere3d Length.Meters LocalCoords )
-makeHitDetectionEntities nodes =
-    let
-        trackpoint node =
-            ( node.trackPoint.idx
-            , Sphere3d.atPoint node.location (Length.meters 10.0)
-            )
-    in
-    List.map trackpoint nodes
-
-
 makeStatic3DEntities :
     RenderingContext
     -> List DrawingRoad
     -> List (Entity LocalCoords)
 makeStatic3DEntities context roadList =
     let
-        ( xDelta, yDelta ) =
-            -- Convenience for making rectangles
-            ( Vector3d.withLength (Length.meters 0.5) Direction3d.x
-            , Vector3d.withLength (Length.meters 0.5) Direction3d.y
-            )
-
         seaLevel =
             let
                 bigger =
@@ -71,7 +55,7 @@ makeStatic3DEntities context roadList =
                         Length.meters 0.0
 
                     else
-                        Length.meters <| (Length.inMeters minZ) + 990.0
+                        Length.meters <| Length.inMeters minZ + 990.0
             in
             Scene3d.quad (Material.color Color.darkGreen)
                 (Point3d.xyz minX minY showPlane)
@@ -229,16 +213,16 @@ makeStatic3DEntities context roadList =
 
         graphNodeCircles =
             List.map
-            (\node ->
-                cone (Material.color Color.blue) <|
-                    Cone3d.startingAt
-                        node.location
-                        positiveZ
-                        { radius = meters <| 5.0
-                        , length = meters <| 5.0
-                        }
-            )
-            context.graphNodes
+                (\node ->
+                    cone (Material.color Color.blue) <|
+                        Cone3d.startingAt
+                            node
+                            positiveZ
+                            { radius = meters 5.0
+                            , length = meters 5.0
+                            }
+                )
+                (Graph.nodePointList context.graph)
     in
     [ seaLevel ]
         ++ optionally context.displayOptions.roadPillars pillars
@@ -247,53 +231,6 @@ makeStatic3DEntities context roadList =
         ++ optionally (context.displayOptions.curtainStyle /= NoCurtain) curtains
         ++ optionally context.displayOptions.centreLine centreLine
         ++ graphNodeCircles
-
-
-makeMapEntities :
-    RenderingContext
-    -> List DrawingRoad
-    -> List (Entity LocalCoords)
-makeMapEntities context roadList =
-    -- This is for the "old" static map, not the Mapbox GL JSv2 map.
-    let
-        roadSurfaces =
-            List.concat <|
-                List.map roadSurface <|
-                    roadList
-
-        roadSurface road =
-            let
-                ( kerbX, kerbY ) =
-                    -- Road is assumed to be 6 m wide.
-                    ( 3.0 * cos road.bearing
-                    , 3.0 * sin road.bearing
-                    )
-
-                roadAsSegment =
-                    LineSegment3d.fromEndpoints ( road.startsAt.location, road.endsAt.location )
-
-                leftKerbVector =
-                    Vector3d.meters
-                        (-1.0 * kerbX)
-                        kerbY
-                        0.0
-
-                rightKerbVector =
-                    Vector3d.reverse leftKerbVector
-
-                ( leftKerb, rightKerb ) =
-                    ( LineSegment3d.translateBy leftKerbVector roadAsSegment
-                    , LineSegment3d.translateBy rightKerbVector roadAsSegment
-                    )
-            in
-            [ Scene3d.quad (Material.matte Color.lightRed)
-                (LineSegment3d.startPoint leftKerb)
-                (LineSegment3d.endPoint leftKerb)
-                (LineSegment3d.endPoint rightKerb)
-                (LineSegment3d.startPoint rightKerb)
-            ]
-    in
-    roadSurfaces
 
 
 exaggerateRoad context road =

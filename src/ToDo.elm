@@ -17,8 +17,6 @@ module ToDo exposing (..)
 --THEN: Work through all the editing functions to work on the graph
 --THEN: Route DSL.
 
---TODO: Double click should centre map view on current point. Leave zoom unchanged.
-
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
