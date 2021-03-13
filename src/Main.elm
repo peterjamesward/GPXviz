@@ -341,6 +341,7 @@ toolsAccordion model =
       , state = Contracted
       , content = viewFilterControls model
       }
+
     --, { label = "The Lab"
     --  , state = Contracted
     --  , content = viewGraphControls wrapGraphMessage
@@ -812,16 +813,17 @@ update msg model =
                         |> deriveVaryingVisualEntities
                         |> centreViewOnCurrentNode
                         |> checkSceneCamera
-
             in
             ( newModel
-            , Cmd.batch [ updateMapVaryingElements newModel
-            , case Array.get idx newModel.nodeArray of
-                Just node ->
-                    MapController.centreMap node.trackPoint.lon node.trackPoint.lat
-                Nothing ->
-                    Cmd.none
-            ]
+            , Cmd.batch
+                [ updateMapVaryingElements newModel
+                , case Array.get idx newModel.nodeArray of
+                    Just node ->
+                        MapController.centreMap node.trackPoint.lon node.trackPoint.lat
+
+                    Nothing ->
+                        Cmd.none
+                ]
             )
 
         SetSmoothingEnd idx ->
@@ -1712,7 +1714,9 @@ centreViewOnCurrentNode model =
             case model.mapInfo of
                 Just info ->
                     Just { info | centreLon = lon, centreLat = lat }
-                Nothing -> Nothing
+
+                Nothing ->
+                    Nothing
     in
     case
         ( Array.get model.currentNode model.nodeArray
@@ -1767,11 +1771,11 @@ nodeToTrackPoint trackCenter node =
         degreesLon =
             centerLon + x / metresPerDegree / cos (degrees degreesLat)
     in
-    { lat = degreesLat
-    , lon = degreesLon
-    , ele = Length.inMeters <| zCoordinate node
-    , idx = 0
-    , info = AnyPoint
+    { singleton
+        | lat = degreesLat
+        , lon = degreesLon
+        , ele = Length.inMeters <| zCoordinate node
+        , idx = 0
     }
 
 
@@ -2219,11 +2223,10 @@ closeTheLoop model =
                     -- The fraction should be valid.
                     -1.0 / segment.length
             in
-            { lat = Length.inMeters <| Point2d.yCoordinate newLatLon
-            , lon = Length.inMeters <| Point2d.xCoordinate newLatLon
-            , ele = segment.startsAt.trackPoint.ele
-            , idx = 0
-            , info = AnyPoint
+            { singleton
+                | lat = Length.inMeters <| Point2d.yCoordinate newLatLon
+                , lon = Length.inMeters <| Point2d.xCoordinate newLatLon
+                , ele = segment.startsAt.trackPoint.ele
             }
 
         newTrack gap segment1 =
@@ -2448,11 +2451,10 @@ straightenStraight model =
                         interpolatedPoint =
                             Point2d.interpolateFrom startPoint endPoint (fraction / affectedLength)
                     in
-                    { lat = Length.inMeters <| Point2d.yCoordinate interpolatedPoint
-                    , lon = Length.inMeters <| Point2d.xCoordinate interpolatedPoint
-                    , ele = original.ele
-                    , idx = 0
-                    , info = AnyPoint
+                    { singleton
+                        | lat = Length.inMeters <| Point2d.yCoordinate interpolatedPoint
+                        , lon = Length.inMeters <| Point2d.xCoordinate interpolatedPoint
+                        , ele = original.ele
                     }
 
                 splicedTPs =
@@ -4833,7 +4835,6 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-
         , Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

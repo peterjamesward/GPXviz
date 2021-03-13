@@ -1,7 +1,7 @@
 module AutoFix exposing (..)
 
 import List.Extra as List
-import TrackPoint exposing (TrackPoint, interpolateSegment, meanTrackPoint, reindexTrackpoints, trackPointSeparation)
+import TrackPoint exposing (TrackPoint, interpolateSegment, reindexTrackpoints, trackPointSeparation)
 
 
 autoFix : List TrackPoint -> List Int -> List TrackPoint
@@ -89,11 +89,11 @@ chamfer tp0 tp1 tp2 =
     in
     if t0t2Length < 2.0 then
         -- no point adding points in a small gap
-        [ tp0, meanTrackPoint tp0 tp2, tp2 ]
+        [ tp0, interpolateSegment 0.5 tp0 tp2, tp2 ]
 
     else if cosineT1 > cos (pi / 2) then
         -- there should be no acute angles.
-        [ tp0, meanTrackPoint tp0 tp2, tp2 ]
+        [ tp0, interpolateSegment 0.5 tp0 tp2, tp2 ]
 
     else
         [ tp0, firstTP, secondTP, tp2 ]

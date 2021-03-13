@@ -1,7 +1,7 @@
 module StravaPasteStreams exposing (..)
 
 import StravaTypes exposing (StravaSegment, StravaSegmentStreams)
-import TrackPoint exposing (TrackPoint, TrackPointType(..), reindexTrackpoints, trackPointFromLatLon)
+import TrackPoint exposing (TrackPoint, reindexTrackpoints, singleton, trackPointFromLatLon)
 
 
 pasteStreams : List TrackPoint -> StravaSegment -> StravaSegmentStreams -> List TrackPoint
@@ -17,7 +17,13 @@ pasteStreams trackPoints segment streams =
 
         trackPointsFromStreams =
             List.map2
-                (\latLon ele -> TrackPoint latLon.lat latLon.lng ele 0 AnyPoint)
+                (\latLon ele ->
+                    { singleton
+                        | lat = latLon.lat
+                        , lon = latLon.lng
+                        , ele = ele
+                    }
+                )
                 streams.latLngs.data
                 streams.altitude.data
 
