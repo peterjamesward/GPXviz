@@ -8,13 +8,14 @@ module ToDo exposing (..)
 
 --TODO: John Bytheway suggestion.
 -- now using automatic analysis to convert to edges in a graph.
---NOTE: User must make sure that any crossroads are horizontal, not just same elevation.
---DONE: Derive edge list from route.
---THEN: Convert route to new one derived from edge traversals.
---THEN: Edges used backwards need to have centre-line offset applied (global value).
---THEN: New view that shows nodes and edges.
---THEN: Allow editing of Edges (one at a time?)
---THEN: Compose edges to produce new output. With looping.
+
+--NEXT: Put control back for making graph.
+--THEN: Use graph to highlight nodes
+--THEN: Walkthrough to make new TP list
+--THEN: Offset working again
+--THEN: Use Graph to check whether edits allowed.
+--THEN: Work through all the editing functions to work on the graph
+--THEN: Route DSL.
 
 --TODO: Double click should centre map view on current point. Leave zoom unchanged.
 
