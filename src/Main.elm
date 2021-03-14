@@ -608,48 +608,6 @@ detectHit model event =
             model
 
 
-
--- placeholder
-{-
-   Here's some handy stuff from 'unsoundscapes' via slack.
-   (decodeMouseRay camera width height MouseDown)
-
-   decodeMouseRay :
-       Camera3d Meters WorldCoordinates
-       -> Quantity Float Pixels
-       -> Quantity Float Pixels
-       -> (Axis3d Meters WorldCoordinates -> msg)
-       -> Decoder msg
-   decodeMouseRay camera3d width height rayToMsg =
-       Json.Decode.map2
-           (\x y ->
-               rayToMsg
-                   (Camera3d.ray
-                       camera3d
-                       (Rectangle2d.with
-                           { x1 = pixels 0
-                           , y1 = height
-                           , x2 = width
-                           , y2 = pixels 0
-                           }
-                       )
-                       (Point2d.pixels x y)
-                   )
-           )
-           (Json.Decode.field "pageX" Json.Decode.float)
-           (Json.Decode.field "pageY" Json.Decode.float)
-
-           ...
-
-           MouseDown mouseRay ->
-               { model
-                   | selection =
-                       World.raycast mouseRay world
-                           |> Maybe.map (\{ body } -> Body.data body)
-               }
--}
-
-
 findBracketedRange : Model -> ( Int, Int )
 findBracketedRange model =
     -- For tools that default to whole track if no range. (Some tools default to single node.)
@@ -701,9 +659,22 @@ update msg model =
             )
 
         GraphMsg graphMsg ->
-            ( { model | graph = Graph.update graphMsg model }
-            , Cmd.none
-            )
+            let
+                ( newGraph, undo ) =
+                    Graph.update graphMsg model
+
+                newModel =
+                    { model | graph = newGraph }
+            in
+            case undo of
+                Just undoMessage ->
+                    newModel
+                        |> addToUndoStack undoMessage
+                        |> (\m -> { m | trackPoints = Graph.walkTheRoute newGraph })
+                        |> trackHasChanged
+
+                Nothing ->
+                    ( newModel, Cmd.none )
 
         NoOpMsg ->
             ( model, Cmd.none )
@@ -4831,6 +4802,6 @@ subscriptions model =
     Sub.batch
         [ messageReceiver MapMessage
         , mapStopped MapRemoved
-        --, Time.every 50 Tick
+        , Time.every 50 Tick
         , randomBytes (\ints -> OAuthMessage (GotRandomBytes ints))
         ]

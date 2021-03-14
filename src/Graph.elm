@@ -71,6 +71,7 @@ empty =
 type Msg
     = GraphAnalyse
     | CentreLineOffset Float
+    | ApplyOffset
 
 
 type alias Node =
@@ -97,8 +98,12 @@ type alias Route =
 
 viewGraphControls : Graph -> (Msg -> msg) -> Element msg
 viewGraphControls graph wrapper =
-    E.row [ spacing 10, padding 10, centerX ]
-        [ I.slider
+    E.column [ spacing 10, padding 10, centerX ]
+        [ I.button prettyButtonStyles
+            { onPress = Just (wrapper GraphAnalyse)
+            , label = E.text "Analyse"
+            }
+        , I.slider
             []
             { onChange = wrapper << CentreLineOffset
             , label =
@@ -123,28 +128,39 @@ viewGraphControls graph wrapper =
             , thumb = I.defaultThumb
             }
         , I.button prettyButtonStyles
-            { onPress = Just (wrapper GraphAnalyse)
-            , label = E.text "Analyse"
+            { onPress = Just (wrapper ApplyOffset)
+            , label = E.text "Apply offset"
             }
         ]
 
 
+update : Msg -> { a | trackPoints : List TrackPoint, graph : Graph } -> ( Graph, Maybe String )
 update msg model =
     case msg of
         GraphAnalyse ->
-            deriveTrackPointGraph model.trackPoints
+            ( deriveTrackPointGraph model.trackPoints
+            , Just "Canonicalised edges"
+            )
 
         CentreLineOffset offset ->
             let
                 newGraph g =
+                    -- This syntax seems necessary.
                     { g | centreLineOffset = offset }
             in
-            newGraph model.graph
+            ( newGraph model.graph, Nothing )
+
+        ApplyOffset ->
+            ( model.graph, Just "Apply offset" )
 
 
 deriveTrackPointGraph : List TrackPoint -> Graph
-deriveTrackPointGraph trackPoints =
+deriveTrackPointGraph unfilteredTrackPoints =
     let
+        trackPoints =
+            -- Might help to avoid false nodes.
+            List.filter (\tp -> tp.costMetric > 0) unfilteredTrackPoints
+
         rawNodes =
             interestingTrackPoints trackPoints
 
@@ -523,40 +539,6 @@ useCanonicalEdges edges canonicalEdges =
                     Nothing
     in
     List.map replaceEdge edges |> List.filterMap identity
-
-
-traversalAsTrackPoints : Graph -> Traversal -> List TrackPoint
-traversalAsTrackPoints graph traversal =
-    --TODO: Populate the index for reverse lookups.
-    let
-        getEdge =
-            Dict.get traversal.edge graph.edges
-    in
-    case getEdge of
-        Just edge ->
-            let
-                edgeStart =
-                    Dict.get edge.startNode graph.nodes
-
-                edgeEnd =
-                    Dict.get edge.endNode graph.nodes
-            in
-            case ( edgeStart, edgeEnd, traversal.direction ) of
-                ( Just start, Just end, Forwards ) ->
-                    start
-                        :: edge.trackPoints
-                        ++ [ end ]
-
-                ( Just start, Just end, Backwards ) ->
-                    end
-                        :: List.reverse edge.trackPoints
-                        ++ [ start ]
-
-                _ ->
-                    []
-
-        Nothing ->
-            []
 
 
 walkTheRoute : Graph -> List TrackPoint

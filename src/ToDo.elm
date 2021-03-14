@@ -7,9 +7,19 @@ module ToDo exposing (..)
 --TODO: Dual-view for large monitors.
 
 --TODO: John Bytheway suggestion.
--- now using automatic analysis to convert to edges in a graph.
 
---THEN: Walkthrough to make new TP list
+--BUG?: Why nodes on Dennis Lane?
+--Looks like Komoot not totally consistent with track points.
+--Not sure what to do about that. (Might have to leave it to the user.)
+-- TRY removing nodes with 0 cost metric.
+
+--DONE: Walk the route to make new TP list.
+--!! Got that image drag moving current node again.
+--Hit test is way off also, possible clue.
+--Might be 'cause timer's off? No.
+--Oh! Seems to be side effect of having JS console open on right!
+
+--DONE: Undo with Graph.
 --THEN: Check click and double click OK
 --THEN: Check profile and map views.
 --THEN: Offset working again

@@ -213,13 +213,15 @@ makeStatic3DEntities context roadList =
 
         graphNodeCircles =
             let
-                _ = Debug.log "NODES" (Graph.nodePointList context.graph)
+                shiftUp =
+                    -- Just 1cm above the road surface
+                    Vector3d.fromMeters { x = 0, y = 0, z = 0.01 }
             in
             List.map
                 (\node ->
                     cone (Material.color Color.blue) <|
                         Cone3d.startingAt
-                            node
+                            (Point3d.translateBy shiftUp node)
                             negativeZ
                             { radius = meters 5.0
                             , length = meters 5.0
