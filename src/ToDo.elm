@@ -8,24 +8,10 @@ module ToDo exposing (..)
 
 --TODO: John Bytheway suggestion.
 
---BUG?: Why nodes on Dennis Lane?
---Looks like Komoot not totally consistent with track points.
---Not sure what to do about that. (Might have to leave it to the user.)
--- TRY removing nodes with 0 cost metric.
-
---DONE: Walk the route to make new TP list.
---!! Got that image drag moving current node again.
---Hit test is way off also, possible clue.
---Might be 'cause timer's off? No.
---Oh! Seems to be side effect of having JS console open on right!
-
---DONE: Undo with Graph.
---THEN: Check click and double click OK
---THEN: Check profile and map views.
---THEN: Offset working again
 --THEN: Use Graph to check whether edits allowed.
---THEN: Work through all the editing functions to work on the graph
+--THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 --THEN: Route DSL.
+--THEN: "Thaw" for final tweaking of individual points.
 
 --TODO: Komoot.
 -- Thinking of adding a new view Tab visible on load (and after) for

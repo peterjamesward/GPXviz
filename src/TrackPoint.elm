@@ -247,7 +247,8 @@ parseTrackPoints xml =
             in
             { tp | xyz = Point3d.fromTuple Length.meters ( x - midLon, y - midLat, z ) }
     in
-    List.map correctXYZ parsedPoints
+    --List.map correctXYZ
+    parsedPoints
 
 
 trackToJSON : List TrackPoint -> E.Value
