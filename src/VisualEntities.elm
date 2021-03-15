@@ -104,6 +104,7 @@ makeStatic3DEntities context roadList =
 
                 makeEndCone road =
                     trackpointmarker road.endsAt.location
+
             in
             List.map makeStartCone (List.take 1 roadList)
                 ++ List.map makeEndCone roadList
@@ -214,8 +215,8 @@ makeStatic3DEntities context roadList =
         graphNodeCircles =
             let
                 shiftUp =
-                    -- Just 1cm above the road surface
-                    Vector3d.fromMeters { x = 0, y = 0, z = 0.01 }
+                    -- Just 1mm above the road surface
+                    Vector3d.fromMeters { x = 0, y = 0, z = 0.001 }
             in
             List.map
                 (\node ->

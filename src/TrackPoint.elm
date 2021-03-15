@@ -205,7 +205,7 @@ parseTrackPoints xml =
                         , ele = ele
                         , idx = 0
                         , naturalBearing = 0
-                        , xyz = fromGPXcoords lon lat ele
+                        , xyz = fromGPXcoords lon lat ele -- Pending bounding box adjustment
                         , costMetric = 0 -- fill in later
                         }
 

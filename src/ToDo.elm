@@ -4,10 +4,11 @@ module ToDo exposing (..)
 
 --TODO: Display currently selected range.
 
---TODO: Dual-view for large monitors.
+--TODO: Dual (or triple) view for large monitors. Each view needs own camera.
 
 --TODO: John Bytheway suggestion.
 
+--TODO: Remove false nodes by checking the direction of neighbours, not just the count.
 --THEN: Use Graph to check whether edits allowed.
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 --THEN: Route DSL.

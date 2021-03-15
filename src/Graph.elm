@@ -17,6 +17,7 @@ module Graph exposing (..)
 
 import Angle
 import Axis3d
+import BoundingBox3d exposing (BoundingBox3d)
 import Dict exposing (Dict)
 import Direction3d
 import Element as E exposing (Element, alignTop, centerX, padding, spacing)
@@ -25,7 +26,7 @@ import Length
 import List.Extra as List
 import Point3d exposing (Point3d)
 import Set exposing (Set)
-import TrackPoint exposing (TrackPoint, reindexTrackpoints, toGPXcoords)
+import TrackPoint exposing (GPXCoords, TrackPoint, fromGPXcoords, reindexTrackpoints, toGPXcoords)
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (showDecimal2)
 import Vector3d
@@ -47,6 +48,7 @@ type alias Graph =
     , route : List Traversal
     , centreLineOffset : Float
     , index : Dict Int PointType
+    , boundingBox : BoundingBox3d Length.Meters GPXCoords -- ugly
     }
 
 
@@ -65,6 +67,7 @@ empty =
     , route = []
     , centreLineOffset = 0.0
     , index = Dict.empty
+    , boundingBox = BoundingBox3d.singleton Point3d.origin
     }
 
 
@@ -134,11 +137,14 @@ viewGraphControls graph wrapper =
         ]
 
 
-update : Msg -> { a | trackPoints : List TrackPoint, graph : Graph } -> ( Graph, Maybe String )
+update :
+    Msg
+    -> { a | trackPoints : List TrackPoint, graph : Graph, trackPointBox : BoundingBox3d Length.Meters GPXCoords }
+    -> ( Graph, Maybe String )
 update msg model =
     case msg of
         GraphAnalyse ->
-            ( deriveTrackPointGraph model.trackPoints
+            ( deriveTrackPointGraph model.trackPoints model.trackPointBox
             , Just "Canonicalised edges"
             )
 
@@ -154,8 +160,11 @@ update msg model =
             ( model.graph, Just "Apply offset" )
 
 
-deriveTrackPointGraph : List TrackPoint -> Graph
-deriveTrackPointGraph unfilteredTrackPoints =
+deriveTrackPointGraph :
+    List TrackPoint
+    -> BoundingBox3d Length.Meters GPXCoords
+    -> Graph
+deriveTrackPointGraph unfilteredTrackPoints box =
     let
         trackPoints =
             -- Might help to avoid false nodes.
@@ -271,6 +280,7 @@ deriveTrackPointGraph unfilteredTrackPoints =
         | nodes = indexedNodes
         , edges = indexedEdges
         , route = canonicalRoute
+        , boundingBox = box
     }
 
 
@@ -625,4 +635,20 @@ applyCentreLineOffset offset trackpoint =
 
 nodePointList : Graph -> List (Point3d Length.Meters LocalCoords)
 nodePointList graph =
-    graph.nodes |> Dict.values |> List.map .xyz
+    -- Have to shift according to the track point box
+    let
+        ( midLon, midLat, _ ) =
+            Point3d.toTuple Length.inMeters <| BoundingBox3d.centerPoint graph.boundingBox
+
+        midXYZ =
+            fromGPXcoords midLon midLat 0
+
+        shift =
+            Vector3d.from midXYZ Point3d.origin
+
+        whereTheNodesAre =
+            graph.nodes
+                |> Dict.values
+                |> List.map (.xyz >> Point3d.translateBy shift)
+    in
+    whereTheNodesAre
