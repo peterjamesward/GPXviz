@@ -311,14 +311,23 @@ deriveTrackPointGraph unfilteredTrackPoints box =
 
         annoyingTrackPoints =
             singlePointLinearEdges |> Dict.values |> List.concatMap .trackPoints |> List.map .idx
-    in
-    { empty
-        | nodes = indexedNodes
-        , edges = indexedEdges
-        , route = canonicalRoute
-        , boundingBox = box
-    }
 
+        removeAnnoyingPoints =
+            List.filterNot
+                (\tp -> List.member tp.idx annoyingTrackPoints)
+                trackPoints
+    in
+    case annoyingTrackPoints of
+        [] ->
+            { empty
+                | nodes = indexedNodes
+                , edges = indexedEdges
+                , route = canonicalRoute
+                , boundingBox = box
+            }
+
+        _ ->
+            deriveTrackPointGraph removeAnnoyingPoints box
 
 trackPointComparable : TrackPoint -> LatLon
 trackPointComparable tp =
