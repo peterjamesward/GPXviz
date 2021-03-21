@@ -8,12 +8,6 @@ module ToDo exposing (..)
 
 --WIP: John Bytheway suggestion.
 
---TODO: Detect spurious nodes by looking for degenerate triangles of edges.
-These are where there is an edge with no waypoints and a colinear edge with one waypoint.
-Simpler but effectively the same is to look for edges with only one waypoint, where
-the waypoint is (nearly) colinear with the ends. Delete such waypoints and re-analyse.
-In anomalous cases, without the way point, the adjacent points may not be nodal.
-
 --THEN: Use Graph to check whether edits allowed.
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 --THEN: Route DSL.
