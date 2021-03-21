@@ -6,29 +6,25 @@ module ToDo exposing (..)
 
 --TODO: Dual (or triple) view for large monitors. Each view needs own camera.
 
---TODO: John Bytheway suggestion.
+--WIP: John Bytheway suggestion.
 
---TODO: Avoid false nodes by checking the direction of neighbours, not just the count.
-This is a fairly big change, albeit limited to within Graph.
-Changes the definition of interestingTrackPoint to one that has neighbours in more than two directions.
-Changes the definition of edge to one that goes from one node to another, leaving in a direction.
-
-Rewrite neighbour counting.
-Can't use Dict because of possible small errors in bearings.
-Hence, build list of bearings to each neighbour.
-Ignore small errors (say, 1 degree).
-Track point is node if more than two directions in final list.
-
-Canonical edge detection essentially the same (first passage is taken as canonical).
-Edge lookup also cannot use Dict because of minor bearing inaccuracies.
-Two A-B edges are distinguished by the outgoing bearing at A, and these live in an association list.
+--TODO: Detect spurious nodes by looking for degenerate triangles of edges.
+These are where there is an edge with no waypoints and a colinear edge with one waypoint.
+Simpler but effectively the same is to look for edges with only one waypoint, where
+the waypoint is (nearly) colinear with the ends. Delete such waypoints and re-analyse.
+In anomalous cases, without the way point, the adjacent points may not be nodal.
 
 --THEN: Use Graph to check whether edits allowed.
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 --THEN: Route DSL.
 --THEN: "Thaw" for final tweaking of individual points.
 
---TODO: Komoot.
+--PARK: Avoid false nodes by checking the direction of neighbours, not just the count.
+--This is a fairly big change, albeit limited to within Graph. Too big for now.
+--Changes the definition of interestingTrackPoint to one that has neighbours in more than two directions.
+--Changes the definition of edge to one that goes from one node to another, leaving in a direction.
+
+--TODO: Komoot. (Would not auth last time.)
 -- Thinking of adding a new view Tab visible on load (and after) for
 -- route loading. This would give plenty of space for local, Strava and Komoot loads.
 

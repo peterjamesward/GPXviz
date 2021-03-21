@@ -26,7 +26,7 @@ import Length
 import List.Extra as List
 import Point3d exposing (Point3d)
 import Set exposing (Set)
-import TrackPoint exposing (GPXCoords, TrackPoint, fromGPXcoords, reindexTrackpoints, toGPXcoords)
+import TrackPoint exposing (GPXCoords, TrackPoint, fromGPXcoords, reindexTrackpoints, toGPXcoords, trackPointSeparation)
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (showDecimal2)
 import Vector3d
@@ -275,6 +275,42 @@ deriveTrackPointGraph unfilteredTrackPoints box =
 
                 _ ->
                     Nothing
+
+        isPointColinear : Int -> Int -> TrackPoint -> Bool
+        isPointColinear startNode endNode tp =
+            case ( Dict.get startNode indexedNodes, Dict.get endNode indexedNodes ) of
+                ( Just start, Just end ) ->
+                    trackPointSeparation start tp
+                        + trackPointSeparation tp end
+                        - trackPointSeparation start end
+                        < 2.0
+
+                _ ->
+                    False
+
+        singlePointLinearEdges : Dict Int Edge
+        singlePointLinearEdges =
+            -- Edges with one waypoint sometimes result from manually placed track points
+            -- during the route planning. Removing these can result in avoiding the formation
+            -- of spurious nodes either side (the extra point fools the neighbour count).
+            indexedEdges
+                |> Dict.filter
+                    (\n e ->
+                        case e.trackPoints of
+                            [ tp ] ->
+                                -- Exactly one point. Is it colinear with ends?
+                                isPointColinear e.startNode e.endNode tp
+
+                            _ ->
+                                -- Any number other than one is of no interest
+                                False
+                    )
+
+        _ =
+            Debug.log "Spurious points" annoyingTrackPoints
+
+        annoyingTrackPoints =
+            singlePointLinearEdges |> Dict.values |> List.concatMap .trackPoints |> List.map .idx
     in
     { empty
         | nodes = indexedNodes
