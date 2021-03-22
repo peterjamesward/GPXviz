@@ -9,14 +9,24 @@ module ToDo exposing (..)
 --WIP: John Bytheway suggestion.
 
 --THEN: Use Graph to check whether edits allowed.
+Need inverse index TP -> Edge for this.
+Which means changing the return from walkTheRoute.
+Need to separate the creation of the route from its access.
+
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
+Delete
+Smooth Bend
+Smooth Gradient
+Nudge
+Centroid Filter (might allow this over the whole route; mapped over edges)
+Bezier
+Insert points
+Close loop
+Straighten
+Reverse
+
 --THEN: Route DSL.
 --THEN: "Thaw" for final tweaking of individual points.
-
---PARK: Avoid false nodes by checking the direction of neighbours, not just the count.
---This is a fairly big change, albeit limited to within Graph. Too big for now.
---Changes the definition of interestingTrackPoint to one that has neighbours in more than two directions.
---Changes the definition of edge to one that goes from one node to another, leaving in a direction.
 
 --TODO: Komoot. (Would not auth last time.)
 -- Thinking of adding a new view Tab visible on load (and after) for

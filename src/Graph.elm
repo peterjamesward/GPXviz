@@ -49,6 +49,7 @@ type alias Graph =
     , centreLineOffset : Float
     , index : Dict Int PointType
     , boundingBox : BoundingBox3d Length.Meters GPXCoords -- ugly
+    , trackPoints : List TrackPoint
     }
 
 
@@ -68,6 +69,7 @@ empty =
     , centreLineOffset = 0.0
     , index = Dict.empty
     , boundingBox = BoundingBox3d.singleton Point3d.origin
+    , trackPoints = []
     }
 
 
@@ -316,6 +318,62 @@ deriveTrackPointGraph unfilteredTrackPoints box =
             List.filterNot
                 (\tp -> List.member tp.idx annoyingTrackPoints)
                 trackPoints
+
+        walkTheRouteInternal : List TrackPoint
+        walkTheRouteInternal =
+            -- This will convert the original route into a route made from canonical edges.
+            -- TODO: Move this into the main graph generator and create the reverse index at same time.
+            let
+                addToTrail traversal accumulator =
+                    let
+                        getEdge =
+                            Dict.get traversal.edge indexedEdges
+                    in
+                    case getEdge of
+                        Just edge ->
+                            let
+                                edgeStart =
+                                    Dict.get edge.startNode indexedNodes
+
+                                edgeEnd =
+                                    Dict.get edge.endNode indexedNodes
+                            in
+                            case ( edgeStart, edgeEnd, traversal.direction ) of
+                                ( Just start, Just end, Forwards ) ->
+                                    { accumulator
+                                        | points =
+                                            start
+                                                :: addEdgePoints traversal.edge edge.trackPoints
+                                                ++ [ end ]
+                                                ++ List.drop 1 accumulator.points
+                                    }
+
+                                ( Just start, Just end, Backwards ) ->
+                                    { accumulator
+                                        | points =
+                                            end
+                                                :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
+                                                ++ [ start ]
+                                                ++ List.drop 1 accumulator.points
+                                    }
+
+                                _ ->
+                                    accumulator
+
+                        Nothing ->
+                            accumulator
+
+                addEdgePoints : Int -> List TrackPoint -> List TrackPoint
+                addEdgePoints edge edgePoints =
+                    -- Note we're not building a reverse index ATM.
+                    edgePoints
+            in
+            List.foldr
+                addToTrail
+                { points = [], nextIdx = 0 }
+                canonicalRoute
+                |> .points
+                |> reindexTrackpoints
     in
     case annoyingTrackPoints of
         [] ->
@@ -324,10 +382,12 @@ deriveTrackPointGraph unfilteredTrackPoints box =
                 , edges = indexedEdges
                 , route = canonicalRoute
                 , boundingBox = box
+                , trackPoints = walkTheRouteInternal
             }
 
         _ ->
             deriveTrackPointGraph removeAnnoyingPoints box
+
 
 trackPointComparable : TrackPoint -> LatLon
 trackPointComparable tp =
@@ -598,58 +658,7 @@ useCanonicalEdges edges canonicalEdges =
 
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
-    -- This will convert the original route into a route made from canonical edges.
-    let
-        addToTrail traversal accumulator =
-            let
-                getEdge =
-                    Dict.get traversal.edge graph.edges
-            in
-            case getEdge of
-                Just edge ->
-                    let
-                        edgeStart =
-                            Dict.get edge.startNode graph.nodes
-
-                        edgeEnd =
-                            Dict.get edge.endNode graph.nodes
-                    in
-                    case ( edgeStart, edgeEnd, traversal.direction ) of
-                        ( Just start, Just end, Forwards ) ->
-                            { accumulator
-                                | points =
-                                    start
-                                        :: addEdgePoints traversal.edge edge.trackPoints
-                                        ++ [ end ]
-                                        ++ List.drop 1 accumulator.points
-                            }
-
-                        ( Just start, Just end, Backwards ) ->
-                            { accumulator
-                                | points =
-                                    end
-                                        :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
-                                        ++ [ start ]
-                                        ++ List.drop 1 accumulator.points
-                            }
-
-                        _ ->
-                            accumulator
-
-                Nothing ->
-                    accumulator
-
-        addEdgePoints : Int -> List TrackPoint -> List TrackPoint
-        addEdgePoints edge edgePoints =
-            -- Note we're not building a reverse index ATM.
-            edgePoints
-    in
-    List.foldr
-        addToTrail
-        { points = [], nextIdx = 0 }
-        graph.route
-        |> .points
-        |> reindexTrackpoints
+    graph.trackPoints
         |> List.map (applyCentreLineOffset graph.centreLineOffset)
 
 
@@ -697,3 +706,9 @@ nodePointList graph =
                 |> List.map (.xyz >> Point3d.translateBy shift)
     in
     whereTheNodesAre
+
+
+withinSameEdge : Graph -> TrackPoint -> TrackPoint -> Bool
+withinSameEdge graph n1 n2 =
+    -- Is editing possible -- are these trackpoints on same edge?
+    False

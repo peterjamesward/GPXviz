@@ -39,7 +39,6 @@ type Msg
     | SetCurtainStyle CurtainStyle
     | SetGradientChangeThreshold Float
     | SetBearingChangeThreshold Float
-    | DeleteZeroLengthSegments
     | OutputGPX
     | Tick Time.Posix
     | AdjustTimeZone Time.Zone

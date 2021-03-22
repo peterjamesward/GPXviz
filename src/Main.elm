@@ -774,6 +774,7 @@ update msg model =
             )
 
         LocateProblem idx ->
+            -- User clicks on button in Gradient or Bend problem tabs.
             -- Almost identical to UserMovedNodeSlider.
             let
                 newModel =
@@ -1171,10 +1172,6 @@ update msg model =
                 |> checkSceneCamera
             , Cmd.none
             )
-
-        DeleteZeroLengthSegments ->
-            deleteZeroLengthSegments model
-                |> trackHasChanged
 
         OutputGPX ->
             ( { model | changeCounter = 0 }
@@ -2547,6 +2544,18 @@ tryBendSmoother model =
             ( min model.currentNode marker
             , max model.currentNode marker
             )
+
+        ( start, end ) =
+            ( Array.get n1 model.nodeArray, Array.get n2 model.nodeArray )
+
+        graphCompatible =
+            case ( start, end ) of
+                ( Just startTP, Just endTP ) ->
+                    Graph.withinSameEdge model.graph startTP.trackPoint endTP.trackPoint
+
+                _ ->
+                    -- Probably won't happen.
+                    False
 
         entrySegment =
             Array.get n1 model.roadArray
