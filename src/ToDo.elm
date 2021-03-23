@@ -9,21 +9,22 @@ module ToDo exposing (..)
 --WIP: John Bytheway suggestion.
 
 --THEN: Use Graph to check whether edits allowed.
-Need inverse index TP -> Edge for this.
-Which means changing the return from walkTheRoute.
-Need to separate the creation of the route from its access.
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
-Delete
-Smooth Bend
-Smooth Gradient
-Nudge
-Centroid Filter (might allow this over the whole route; mapped over edges)
-Bezier
-Insert points
-Close loop
-Straighten
-Reverse
+Delete          (not Nodes)
+Smooth Bend     (not Nodes, lest edge not unique)
+Smooth Gradient (not Nodes, probably)
+Nudge           (possibly allowed over Nodes)
+Centroid Filter (initially not Nodes; might allow this over the whole route (mapped over edges))
+Bezier          (not Nodes)
+Insert points   (not Nodes; though maybe later given unique edges)
+Close loop      (OK)
+Straighten      (not Nodes, initially)
+Reverse         (inappropriate so not at all, superseded by DSL)
+
+-> It seems we will only allow ranges that lay on a common edge, excluding nodes.
+-> We can allow vertical nudge of a Node (and drag on map).
+-. We can allow loop to be closed, as it's very spefici'
 
 --THEN: Route DSL.
 --THEN: "Thaw" for final tweaking of individual points.

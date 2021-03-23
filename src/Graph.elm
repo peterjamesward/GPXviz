@@ -325,15 +325,14 @@ deriveTrackPointGraph unfilteredTrackPoints box =
 
         reverseIndex =
             List.map2
-                (\n (_, info) -> (n, info))
+                (\n ( _, info ) -> ( n, info ))
                 (List.range 0 (List.length walkedRoute))
                 walkTheRouteInternal
                 |> Dict.fromList
 
-        walkTheRouteInternal : List (TrackPoint, PointType)
+        walkTheRouteInternal : List ( TrackPoint, PointType )
         walkTheRouteInternal =
             -- This will convert the original route into a route made from canonical edges.
-            -- TODO: Move this into the main graph generator and create the reverse index at same time.
             let
                 addToTrail traversal accumulator =
                     let
@@ -353,18 +352,18 @@ deriveTrackPointGraph unfilteredTrackPoints box =
                                 ( Just start, Just end, Forwards ) ->
                                     { accumulator
                                         | points =
-                                            (start, NodePoint edge.startNode)
+                                            ( start, NodePoint edge.startNode )
                                                 :: addEdgePoints traversal.edge edge.trackPoints
-                                                ++ [ (end, NodePoint edge.endNode) ]
+                                                ++ [ ( end, NodePoint edge.endNode ) ]
                                                 ++ List.drop 1 accumulator.points
                                     }
 
                                 ( Just start, Just end, Backwards ) ->
                                     { accumulator
                                         | points =
-                                            (end, NodePoint edge.endNode)
+                                            ( end, NodePoint edge.endNode )
                                                 :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
-                                                ++ [ (start, NodePoint edge.startNode) ]
+                                                ++ [ ( start, NodePoint edge.startNode ) ]
                                                 ++ List.drop 1 accumulator.points
                                     }
 
@@ -374,11 +373,10 @@ deriveTrackPointGraph unfilteredTrackPoints box =
                         Nothing ->
                             accumulator
 
-                addEdgePoints : Int -> List TrackPoint -> List (TrackPoint, PointType)
+                addEdgePoints : Int -> List TrackPoint -> List ( TrackPoint, PointType )
                 addEdgePoints edge edgePoints =
-                    -- Note we're not building a reverse index ATM.
                     List.map2
-                        (\pt n -> (pt, EdgePoint edge n ))
+                        (\pt n -> ( pt, EdgePoint edge n ))
                         edgePoints
                         (List.range 1 (List.length edgePoints))
             in
