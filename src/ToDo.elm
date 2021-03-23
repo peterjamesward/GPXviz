@@ -11,23 +11,30 @@ module ToDo exposing (..)
 --THEN: Use Graph to check whether edits allowed.
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
-Delete          (not Nodes)
-Smooth Bend     (not Nodes, lest edge not unique)
-Smooth Gradient (not Nodes, probably)
-Nudge           (possibly allowed over Nodes)
-Centroid Filter (initially not Nodes; might allow this over the whole route (mapped over edges))
-Bezier          (not Nodes)
-Insert points   (not Nodes; though maybe later given unique edges)
-Close loop      (OK)
-Straighten      (not Nodes, initially)
+
+OPERATIONS THAT MOVE TRACKPOINTS
+Nudge           (excluding Nodes, maybe later if unique edge)
+Straighten      (excluding Nodes, maybe later if unique edge)
+Smooth Gradient (excluding Nodes, maybe later if unique edge)
+Centroid Filter (excluding Nodes; might later allow this over the whole route (mapped over edges))
+
+OPERATIONS THAT MODIFY THE TRACKPOINT LIST
+Delete          (excluding Nodes)
+Smooth Bend     (excluding Nodes, maybe later if unique edge)
+Insert points   (excluding Nodes, maybe later if unique edge)
+Bezier          (excluding Nodes, maybe later if unique edge)
+
+UNUSUAL OPERATIONS
+Close loop      (OK, but not important as can be done befor analysis)
 Reverse         (inappropriate so not at all, superseded by DSL)
 
--> It seems we will only allow ranges that lay on a common edge, excluding nodes.
+** It seems we should only allow ranges that lay on a common edge, excluding nodes. **
 -> We can allow vertical nudge of a Node (and drag on map).
--. We can allow loop to be closed, as it's very spefici'
+-> We can allow loop to be closed, as it's very specific.
+-> Offset should be 0 whilst editing.
 
---THEN: Route DSL.
 --THEN: "Thaw" for final tweaking of individual points.
+--THEN: Route DSL (LATER!)
 
 --TODO: Komoot. (Would not auth last time.)
 -- Thinking of adding a new view Tab visible on load (and after) for
