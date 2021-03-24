@@ -4133,6 +4133,9 @@ viewBendFixerPane model =
                         "Smooth between markers\nRadius "
                             ++ showDecimal2 smooth.radius
                 }
+
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ case model.smoothedBend of
@@ -4143,10 +4146,15 @@ viewBendFixerPane model =
                     ]
 
             Nothing ->
-                column [ spacing 10, padding 10, alignTop, centerX ]
-                    [ E.text "Sorry, failed to find a nice bend."
-                    , E.text "Try re-positioning the current pointer or marker."
-                    ]
+                if Graph.withinSameEdge model.graph model.currentNode marker then
+                    column [ spacing 10, padding 10, alignTop, centerX ]
+                        [ E.text "Sorry, failed to find a nice bend."
+                        , E.text "Try re-positioning the current pointer or marker."
+                        ]
+                else
+                    column [ spacing 10, padding 10, alignTop, centerX ]
+                        [ E.text "Sorry, both pointers must be within the same edge."
+                        ]
         ]
 
 
