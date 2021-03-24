@@ -720,7 +720,19 @@ nodePointList graph =
     whereTheNodesAre
 
 
-withinSameEdge : Graph -> TrackPoint -> TrackPoint -> Bool
-withinSameEdge graph n1 n2 =
+withinSameEdge : Graph -> Int -> Int -> Bool
+withinSameEdge graph tp1 tp2 =
     -- Is editing possible -- are these trackpoints on same edge?
-    False
+    if graph == empty then
+        True
+    else
+        let
+            ( point1, point2 ) =
+                ( Dict.get tp1 graph.index, Dict.get tp2 graph.index )
+        in
+        case ( point1, point2 ) of
+            ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
+                e1 == e2
+
+            _ ->
+                False

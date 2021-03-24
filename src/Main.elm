@@ -2549,13 +2549,7 @@ tryBendSmoother model =
             ( Array.get n1 model.nodeArray, Array.get n2 model.nodeArray )
 
         graphCompatible =
-            case ( start, end ) of
-                ( Just startTP, Just endTP ) ->
-                    Graph.withinSameEdge model.graph startTP.trackPoint endTP.trackPoint
-
-                _ ->
-                    -- Probably won't happen.
-                    False
+            Graph.withinSameEdge model.graph n1 n2
 
         entrySegment =
             Array.get n1 model.roadArray
@@ -2563,7 +2557,7 @@ tryBendSmoother model =
         exitSegment =
             Array.get (n2 - 1) model.roadArray
     in
-    if n2 >= n1 + 2 then
+    if n2 >= n1 + 2 && graphCompatible then
         case ( entrySegment, exitSegment ) of
             ( Just road1, Just road2 ) ->
                 let

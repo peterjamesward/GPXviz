@@ -12,26 +12,35 @@ module ToDo exposing (..)
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
-OPERATIONS THAT MOVE TRACKPOINTS
-Nudge           (excluding Nodes, maybe later if unique edge)
-Straighten      (excluding Nodes, maybe later if unique edge)
-Smooth Gradient (excluding Nodes, maybe later if unique edge)
-Centroid Filter (excluding Nodes; might later allow this over the whole route (mapped over edges))
+OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS
+Nudge
+Straighten
+Smooth Gradient
+Centroid Filter
 
 OPERATIONS THAT MODIFY THE TRACKPOINT LIST
-Delete          (excluding Nodes)
-Smooth Bend     (excluding Nodes, maybe later if unique edge)
-Insert points   (excluding Nodes, maybe later if unique edge)
-Bezier          (excluding Nodes, maybe later if unique edge)
+Delete
+Smooth Bend
+Insert points
+Split point
+Bezier
+Strava segment
+Simplify
 
-UNUSUAL OPERATIONS
+UNUSUAL OPERATIONS (we need not provide these in Graph mode)
 Close loop      (OK, but not important as can be done befor analysis)
 Reverse         (inappropriate so not at all, superseded by DSL)
 
+OPERATIONS THAT CAN WORK ON A SINGLE NODE
+Nudge vertically
+Drag on map
+
 ** It seems we should only allow ranges that lay on a common edge, excluding nodes. **
--> We can allow vertical nudge of a Node (and drag on map).
--> We can allow loop to be closed, as it's very specific.
--> Offset should be 0 whilst editing.
+-- Could also allow operations where one node is selected and other marker on an edge --
+-- Offset should be 0 whilst editing.
+
+Should now be fairly easy to send the new TP list to Graph, where we use the reverse index
+to identify affected edge. We replace ALL TP on that edge, then walk the route again.
 
 --THEN: "Thaw" for final tweaking of individual points.
 --THEN: Route DSL (LATER!)
