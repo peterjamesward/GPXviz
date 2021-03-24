@@ -2540,47 +2540,53 @@ tryBendSmoother model =
         marker =
             Maybe.withDefault model.currentNode model.markedNode
 
-        ( n1, n2 ) =
+        ( marker1, marker2 ) =
             ( min model.currentNode marker
             , max model.currentNode marker
             )
 
-        ( start, end ) =
-            ( Array.get n1 model.nodeArray, Array.get n2 model.nodeArray )
-
         graphCompatible =
-            Graph.withinSameEdge model.graph n1 n2
+            Graph.withinSameEdge model.graph (marker1, marker2)
 
         entrySegment =
-            Array.get n1 model.roadArray
+            Array.get marker1 model.roadArray
 
         exitSegment =
-            Array.get (n2 - 1) model.roadArray
-    in
-    if n2 >= n1 + 2 && graphCompatible then
-        case ( entrySegment, exitSegment ) of
-            ( Just road1, Just road2 ) ->
-                let
-                    newBend =
-                        lookForSmoothBendOption model.bendTrackPointSpacing road1 road2
-                in
-                case newBend of
-                    Just bend ->
-                        { model
-                            | smoothedBend = Just bend
-                            , nudgedNodeRoads = []
-                            , nudgeValue = 0.0
-                            , verticalNudgeValue = 0.0
-                        }
+            Array.get (marker2 - 1) model.roadArray
 
-                    Nothing ->
+        tryWithNodes n1 n2 =
+            if n2 >= n1 + 2 then
+                case ( entrySegment, exitSegment ) of
+                    ( Just road1, Just road2 ) ->
+                        let
+                            newBend =
+                                lookForSmoothBendOption model.bendTrackPointSpacing road1 road2
+                        in
+                        case newBend of
+                            Just bend ->
+                                { model
+                                    | smoothedBend = Just bend
+                                    , nudgedNodeRoads = []
+                                    , nudgeValue = 0.0
+                                    , verticalNudgeValue = 0.0
+                                }
+
+                            Nothing ->
+                                failed
+
+                    _ ->
                         failed
 
-            _ ->
+            else
                 failed
+    in
+    case graphCompatible of
+        Just (canon1, canon2) ->
+            tryWithNodes canon1 canon2
 
-    else
-        failed
+        Nothing ->
+            failed
+
 
 
 smoothGradient : Model -> Float -> Model
@@ -4146,7 +4152,7 @@ viewBendFixerPane model =
                     ]
 
             Nothing ->
-                if Graph.withinSameEdge model.graph model.currentNode marker then
+                if Graph.withinSameEdge model.graph (model.currentNode, marker) /= Nothing then
                     column [ spacing 10, padding 10, alignTop, centerX ]
                         [ E.text "Sorry, failed to find a nice bend."
                         , E.text "Try re-positioning the current pointer or marker."

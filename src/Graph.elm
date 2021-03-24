@@ -308,9 +308,6 @@ deriveTrackPointGraph unfilteredTrackPoints box =
                                 False
                     )
 
-        _ =
-            Debug.log "Spurious points" annoyingTrackPoints
-
         annoyingTrackPoints =
             singlePointLinearEdges |> Dict.values |> List.concatMap .trackPoints |> List.map .idx
 
@@ -375,10 +372,10 @@ deriveTrackPointGraph unfilteredTrackPoints box =
 
                 addEdgePoints : Int -> List TrackPoint -> List ( TrackPoint, PointType )
                 addEdgePoints edge edgePoints =
-                    List.map2
-                        (\pt n -> ( pt, EdgePoint edge n ))
+                    List.map
+                        (\pt -> ( pt, EdgePoint edge pt.idx ))
+                        -- Note: canonical track point index stored here.
                         edgePoints
-                        (List.range 1 (List.length edgePoints))
             in
             List.foldr
                 addToTrail
@@ -720,19 +717,25 @@ nodePointList graph =
     whereTheNodesAre
 
 
-withinSameEdge : Graph -> Int -> Int -> Bool
-withinSameEdge graph tp1 tp2 =
+withinSameEdge : Graph -> ( Int, Int ) -> Maybe ( Int, Int )
+withinSameEdge graph ( tp1, tp2 ) =
     -- Is editing possible -- are these trackpoints on same edge?
+    -- Iff they are, return their canonical equivalents.
     if graph == empty then
-        True
+        Just ( tp1, tp2 )
+
     else
         let
             ( point1, point2 ) =
                 ( Dict.get tp1 graph.index, Dict.get tp2 graph.index )
         in
         case ( point1, point2 ) of
-            ( Just (EdgePoint e1 _), Just (EdgePoint e2 _) ) ->
-                e1 == e2
+            ( Just (EdgePoint e1 canon1), Just (EdgePoint e2 canon2) ) ->
+                if e1 == e2 then
+                    Just ( canon1, canon2 )
+
+                else
+                    Nothing
 
             _ ->
-                False
+                Nothing

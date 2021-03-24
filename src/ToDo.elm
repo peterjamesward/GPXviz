@@ -1,14 +1,13 @@
 module ToDo exposing (..)
 
---TODO: Deployment script !!!!!
-
 --TODO: Display currently selected range.
-
 --TODO: Dual (or triple) view for large monitors. Each view needs own camera.
 
 --WIP: John Bytheway suggestion.
 
 --THEN: Use Graph to check whether edits allowed.
+Must change point selection so we are always on the canonical TP, not some faint echo!
+The check same edge logic could return the appropriate pair as Maybe (Int, Int) -- I like that.
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
@@ -37,7 +36,7 @@ Drag on map
 
 ** It seems we should only allow ranges that lay on a common edge, excluding nodes. **
 -- Could also allow operations where one node is selected and other marker on an edge --
--- Offset should be 0 whilst editing.
+-- Offset should be 0 whilst editing. Advisory only.
 
 Should now be fairly easy to send the new TP list to Graph, where we use the reverse index
 to identify affected edge. We replace ALL TP on that edge, then walk the route again.
