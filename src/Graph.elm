@@ -101,8 +101,8 @@ type alias Route =
     { route : List Traversal }
 
 
-viewGraphControls : Graph -> (Int, Int) -> (Msg -> msg) -> Element msg
-viewGraphControls graph (current, marker) wrapper =
+viewGraphControls : Graph -> ( Int, Int ) -> (Msg -> msg) -> Element msg
+viewGraphControls graph ( current, marker ) wrapper =
     let
         analyseButton =
             I.button prettyButtonStyles
@@ -145,7 +145,7 @@ viewGraphControls graph (current, marker) wrapper =
         markerInfo =
             let
                 canonicalPoints =
-                    withinSameEdge graph (current, marker)
+                    withinSameEdge graph ( current, marker )
             in
             E.column []
                 [ E.text <| "Track index " ++ String.fromInt current
@@ -188,6 +188,7 @@ update msg model =
             ( newGraph model.graph, Nothing )
 
         ApplyOffset ->
+            -- The route is pre-computed; it's the Undo message that puts it into effect.
             ( model.graph, Just "Apply offset" )
 
 
@@ -697,13 +698,10 @@ useCanonicalEdges edges canonicalEdges =
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
     let
-        _ =
-            Debug.log "Route " <| List.map .idx route
-
         route =
             graph.trackPoints
+                |> reindexTrackpoints -- To get the right "naturalBearing"
                 |> List.map (applyCentreLineOffset graph.centreLineOffset)
-                |> reindexTrackpoints
     in
     route
 
@@ -776,3 +774,18 @@ withinSameEdge graph ( tp1, tp2 ) =
 
             _ ->
                 Nothing
+
+
+updateCanonicalEdge : Graph -> ( Int, Int ) -> List TrackPoint -> Graph
+updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
+    --TODO: Logic is something like:
+    -- We have the start and end points of the edit
+    -- This gives the Edge.
+    -- This gives the Nodes.
+    -- The Node may appear more than once before the start of the edit.
+    -- We find the last occurence of Start Node preceding the edit, and discard track points to (including) this point.
+    -- We find the first occureance of End Node after the edit, discard it and all remaining points.
+    -- What remains is the new canonical edge; we enter this in the canon.
+    -- We rewalk the graph.
+    -- The caller must fetch the new track point list for the route.
+    graph

@@ -29,7 +29,7 @@ import Filters exposing (applyWeightedAverageFilter, bezierSplines)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
-import Graph exposing (Graph, viewGraphControls)
+import Graph exposing (Graph, updateCanonicalEdge, viewGraphControls)
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
@@ -2766,6 +2766,11 @@ smoothBend model =
                         , smoothedBend = Nothing
                         , currentNode = newCurrent
                         , markedNode = Just newMark
+                        , graph =
+                            updateCanonicalEdge
+                                model.graph
+                                ( bend.startIndex, bend.endIndex )
+                                allNewTrack
                     }
             in
             model |> addToUndoStack (undoMessage bend) |> makeItSo
