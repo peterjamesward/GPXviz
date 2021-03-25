@@ -2760,17 +2760,24 @@ smoothBend model =
                             ++ newTrackPoints
                             ++ List.drop (bend.endIndex + 1) model.trackPoints
 
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( bend.startIndex, bend.endIndex )
+                        allNewTrack
+
                 makeItSo m =
                     { m
-                        | trackPoints = allNewTrack
+                        | trackPoints =
+                            if model.graph == newGraph then
+                                allNewTrack
+
+                            else
+                                Graph.walkTheRoute newGraph
                         , smoothedBend = Nothing
                         , currentNode = newCurrent
                         , markedNode = Just newMark
-                        , graph =
-                            updateCanonicalEdge
-                                model.graph
-                                ( bend.startIndex, bend.endIndex )
-                                allNewTrack
+                        , graph = newGraph
                     }
             in
             model |> addToUndoStack (undoMessage bend) |> makeItSo

@@ -47,7 +47,7 @@ type alias Graph =
     , edges : Dict Int Edge
     , route : List Traversal
     , centreLineOffset : Float
-    , index : Dict Int PointType
+    , trackPointToCanonical : Dict Int PointType
     , boundingBox : BoundingBox3d Length.Meters GPXCoords -- ugly
     , trackPoints : List TrackPoint
     }
@@ -67,7 +67,7 @@ empty =
     , edges = Dict.empty
     , route = []
     , centreLineOffset = 0.0
-    , index = Dict.empty
+    , trackPointToCanonical = Dict.empty
     , boundingBox = BoundingBox3d.singleton Point3d.origin
     , trackPoints = []
     }
@@ -346,86 +346,91 @@ deriveTrackPointGraph trackPoints box =
                 trackPoints
                 |> reindexTrackpoints
 
-        walkedRoute =
-            -- Should not re-index; they should be fine.
-            List.map Tuple.first walkTheRouteInternal
-
-        reverseIndex =
-            List.map2
-                (\n ( _, info ) -> ( n, info ))
-                (List.range 0 (List.length walkedRoute))
-                walkTheRouteInternal
-                |> Dict.fromList
-
-        walkTheRouteInternal : List ( TrackPoint, PointType )
-        walkTheRouteInternal =
-            -- This will convert the original route into a route made from canonical edges.
-            let
-                addToTrail traversal accumulator =
-                    let
-                        getEdge =
-                            Dict.get traversal.edge indexedEdges
-                    in
-                    case getEdge of
-                        Just edge ->
-                            let
-                                edgeStart =
-                                    Dict.get edge.startNode indexedNodes
-
-                                edgeEnd =
-                                    Dict.get edge.endNode indexedNodes
-                            in
-                            case ( edgeStart, edgeEnd, traversal.direction ) of
-                                ( Just start, Just end, Forwards ) ->
-                                    { accumulator
-                                        | points =
-                                            ( start, NodePoint edge.startNode )
-                                                :: addEdgePoints traversal.edge edge.trackPoints
-                                                ++ [ ( end, NodePoint edge.endNode ) ]
-                                                ++ List.drop 1 accumulator.points
-                                    }
-
-                                ( Just start, Just end, Backwards ) ->
-                                    { accumulator
-                                        | points =
-                                            ( end, NodePoint edge.endNode )
-                                                :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
-                                                ++ [ ( start, NodePoint edge.startNode ) ]
-                                                ++ List.drop 1 accumulator.points
-                                    }
-
-                                _ ->
-                                    accumulator
-
-                        Nothing ->
-                            accumulator
-
-                addEdgePoints : Int -> List TrackPoint -> List ( TrackPoint, PointType )
-                addEdgePoints edge edgePoints =
-                    List.map
-                        (\pt -> ( pt, EdgePoint edge pt.idx ))
-                        -- Note: canonical track point index stored here.
-                        edgePoints
-            in
-            List.foldr
-                addToTrail
-                { points = [], nextIdx = 0 }
-                canonicalRoute
-                |> .points
-    in
-    case annoyingTrackPoints of
-        [] ->
+        almostReadyGraph =
             { empty
                 | nodes = indexedNodes
                 , edges = indexedEdges
                 , route = canonicalRoute
                 , boundingBox = box
-                , trackPoints = walkedRoute
-                , index = reverseIndex
+            }
+
+        walkedRoute =
+            -- Should not re-index; they should be fine.
+            walkTheRouteInternal almostReadyGraph
+
+        reverseIndex =
+            List.map2
+                (\n ( _, info ) -> ( n, info ))
+                (List.range 0 (List.length walkedRoute))
+                walkedRoute
+                |> Dict.fromList
+    in
+    case annoyingTrackPoints of
+        [] ->
+            { almostReadyGraph
+                | trackPoints = List.map Tuple.first <| walkedRoute
+                , trackPointToCanonical = reverseIndex
             }
 
         _ ->
             deriveTrackPointGraph removeAnnoyingPoints box
+
+
+walkTheRouteInternal : Graph -> List ( TrackPoint, PointType )
+walkTheRouteInternal graph =
+    -- This will convert the original route into a route made from canonical edges.
+    let
+        addToTrail traversal accumulator =
+            let
+                getEdge =
+                    Dict.get traversal.edge graph.edges
+            in
+            case getEdge of
+                Just edge ->
+                    let
+                        edgeStart =
+                            Dict.get edge.startNode graph.nodes
+
+                        edgeEnd =
+                            Dict.get edge.endNode graph.nodes
+                    in
+                    case ( edgeStart, edgeEnd, traversal.direction ) of
+                        ( Just start, Just end, Forwards ) ->
+                            { accumulator
+                                | points =
+                                    ( start, NodePoint edge.startNode )
+                                        :: addEdgePoints traversal.edge edge.trackPoints
+                                        ++ [ ( end, NodePoint edge.endNode ) ]
+                                        ++ List.drop 1 accumulator.points
+                            }
+
+                        ( Just start, Just end, Backwards ) ->
+                            { accumulator
+                                | points =
+                                    ( end, NodePoint edge.endNode )
+                                        :: (List.reverse <| addEdgePoints traversal.edge edge.trackPoints)
+                                        ++ [ ( start, NodePoint edge.startNode ) ]
+                                        ++ List.drop 1 accumulator.points
+                            }
+
+                        _ ->
+                            accumulator
+
+                Nothing ->
+                    accumulator
+
+        addEdgePoints : Int -> List TrackPoint -> List ( TrackPoint, PointType )
+        addEdgePoints edge edgePoints =
+            List.map
+                (\pt -> ( pt, EdgePoint edge pt.idx ))
+                -- Note: canonical track point index stored here.
+                edgePoints
+    in
+    List.foldr
+        addToTrail
+        { points = [], nextIdx = 0 }
+        graph.route
+        |> .points
 
 
 trackPointComparable : TrackPoint -> LatLon
@@ -700,7 +705,8 @@ walkTheRoute graph =
     let
         route =
             graph.trackPoints
-                |> reindexTrackpoints -- To get the right "naturalBearing"
+                |> reindexTrackpoints
+                -- To get the right "naturalBearing"
                 |> List.map (applyCentreLineOffset graph.centreLineOffset)
     in
     route
@@ -762,7 +768,7 @@ withinSameEdge graph ( tp1, tp2 ) =
     else
         let
             ( point1, point2 ) =
-                ( Dict.get tp1 graph.index, Dict.get tp2 graph.index )
+                ( Dict.get tp1 graph.trackPointToCanonical, Dict.get tp2 graph.trackPointToCanonical )
         in
         case ( point1, point2 ) of
             ( Just (EdgePoint e1 canon1), Just (EdgePoint e2 canon2) ) ->
@@ -788,4 +794,82 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
     -- What remains is the new canonical edge; we enter this in the canon.
     -- We rewalk the graph.
     -- The caller must fetch the new track point list for the route.
-    graph
+    let
+        edgeEntry =
+            Dict.get startIndex graph.trackPointToCanonical
+
+        ( pointsBeforeEdit, remainder ) =
+            List.splitAt startIndex allNewTrack
+
+        ( editedPoints, pointsAfterEdit ) =
+            List.splitAt (endIndex - startIndex) remainder
+
+        notMatchingLocation location point =
+            trackPointComparable point == location
+    in
+    case edgeEntry of
+        Just (EdgePoint edgeIdx _) ->
+            let
+                edgeInfo =
+                    Dict.get edgeIdx graph.edges
+            in
+            case edgeInfo of
+                Just { startNode, endNode, wayPoint, trackPoints } ->
+                    case ( Dict.get startNode graph.nodes, Dict.get endNode graph.nodes ) of
+                        ( Just start, Just end ) ->
+                            let
+                                ( startLocation, endLocation ) =
+                                    ( trackPointComparable start, trackPointComparable end )
+
+                                uneditedPointsBefore =
+                                    List.takeWhile
+                                        (notMatchingLocation startLocation)
+                                        (List.reverse pointsBeforeEdit)
+                                        |> List.reverse
+
+                                uneditedPointsAfter =
+                                    List.takeWhile
+                                        (notMatchingLocation endLocation)
+                                        pointsAfterEdit
+
+                                newEdgePoints =
+                                    uneditedPointsBefore ++ editedPoints ++ uneditedPointsAfter
+
+                                newWayPoint =
+                                    case newEdgePoints of
+                                        p1 :: _ ->
+                                            trackPointComparable p1
+
+                                        [] ->
+                                            trackPointComparable end
+
+                                newEdge =
+                                    { startNode = startNode
+                                    , endNode = endNode
+                                    , wayPoint = newWayPoint
+                                    , trackPoints = newEdgePoints
+                                    }
+
+                                updatedEdges =
+                                    Dict.insert edgeIdx newEdge graph.edges
+
+                                updatedRoute = walkTheRouteInternal { graph | edges = updatedEdges }
+                            in
+                            { graph
+                                | edges = updatedEdges
+                                , trackPoints = List.map Tuple.first updatedRoute
+                                , trackPointToCanonical =
+                                    List.map2
+                                        (\n ( _, info ) -> ( n, info ))
+                                        (List.range 0 (List.length updatedRoute))
+                                        updatedRoute
+                                        |> Dict.fromList}
+
+                        _ ->
+                            graph
+
+                _ ->
+                    graph
+
+        _ ->
+            graph
