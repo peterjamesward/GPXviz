@@ -30,7 +30,7 @@ import TrackPoint exposing (GPXCoords, TrackPoint, fromGPXcoords, reindexTrackpo
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (showDecimal2)
 import Vector3d
-import ViewPureStyles exposing (prettyButtonStyles)
+import ViewPureStyles exposing (commonShortHorizontalSliderStyles, prettyButtonStyles)
 
 
 type Direction
@@ -109,7 +109,7 @@ viewGraphControls graph wrapper =
             , label = E.text "Analyse"
             }
         , I.slider
-            []
+            commonShortHorizontalSliderStyles
             { onChange = wrapper << CentreLineOffset
             , label =
                 I.labelBelow [] <|

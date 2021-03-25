@@ -70,7 +70,7 @@ import Url.Builder as Builder
 import Utils exposing (..)
 import Vector3d
 import ViewElements exposing (..)
-import ViewPureStyles exposing (prettyButtonStyles)
+import ViewPureStyles exposing (commonShortHorizontalSliderStyles, prettyButtonStyles)
 import ViewTypes exposing (..)
 import Viewpoint3d
 import VisualEntities exposing (..)
@@ -1731,8 +1731,6 @@ nodeToTrackPoint trackCenter node =
 
         degreesLon =
             centerLon + x / metresPerDegree / cos (degrees degreesLat)
-
-        _ = Debug.log "(Centre, Node)" (trackCenter, node)
     in
     { singleton
         | lat = degreesLat

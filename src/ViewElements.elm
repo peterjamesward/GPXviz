@@ -14,7 +14,7 @@ import Html.Events.Extra.Wheel as Wheel
 import Json.Decode as D
 import Msg exposing (Msg(..))
 import Utils exposing (scrollbarThickness, showDecimal2)
-import ViewPureStyles exposing (prettyButtonStyles)
+import ViewPureStyles exposing (commonShortHorizontalSliderStyles, commonShortVerticalSliderStyles, prettyButtonStyles)
 
 
 withMouseCapture =
@@ -161,42 +161,6 @@ checkboxIcon isChecked =
         <|
             none
 
-
-commonShortHorizontalSliderStyles =
-    [ height <| px 20
-    , width <| px 150
-    , centerY, centerX
-    , behindContent <|
-        -- Slider track
-        el
-            [ width <| px 150
-            , height <| px 20
-            , centerY
-            , centerX
-            , Background.color scrollbarBackground
-            , Border.rounded 6
-            ]
-            Element.none
-    ]
-
-
-commonShortVerticalSliderStyles =
-    [ height <| px 150
-    , width <| px 20
-    , centerY
-    , centerX
-    , behindContent <|
-        -- Slider track
-        el
-            [ width <| px 20
-            , height <| px 150
-            , centerY
-            , centerX
-            , Background.color scrollbarBackground
-            , Border.rounded 6
-            ]
-            Element.none
-    ]
 
 
 straightenButton : Element Msg
