@@ -29,7 +29,7 @@ import Filters exposing (applyWeightedAverageFilter, bezierSplines)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
-import Graph exposing (viewGraphControls)
+import Graph exposing (Graph, viewGraphControls)
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
@@ -107,6 +107,7 @@ type alias UndoEntry =
     , trackPoints : List TrackPoint
     , currentNode : Int
     , markedNode : Maybe Int
+    , graph : Graph
     }
 
 
@@ -343,7 +344,11 @@ toolsAccordion model =
       }
     , { label = "The Lab"
       , state = Contracted
-      , content = viewGraphControls model.graph wrapGraphMessage
+      , content =
+            viewGraphControls
+                model.graph
+                ( model.currentNode, Maybe.withDefault model.currentNode model.markedNode )
+                wrapGraphMessage
       }
     ]
 
@@ -392,6 +397,7 @@ addToUndoStack label model =
             , trackPoints = model.trackPoints
             , currentNode = model.currentNode
             , markedNode = model.markedNode
+            , graph = model.graph
             }
                 :: List.take 9 model.undoStack
         , redoStack = []
@@ -431,6 +437,7 @@ clearTheModel model =
         , flythrough = Nothing
         , loopiness = NotALoop 0.0
         , nudgedNodeRoads = []
+        , graph = Graph.empty
     }
 
 
@@ -668,9 +675,14 @@ update msg model =
             in
             case undo of
                 Just undoMessage ->
-                    newModel
+                    model
                         |> addToUndoStack undoMessage
-                        |> (\m -> { m | trackPoints = Graph.walkTheRoute newGraph })
+                        |> (\m ->
+                                { m
+                                    | graph = newGraph
+                                    , trackPoints = Graph.walkTheRoute newGraph
+                                }
+                           )
                         |> trackHasChanged
 
                 Nothing ->
@@ -1212,8 +1224,14 @@ update msg model =
                 action :: undos ->
                     { model
                         | trackPoints = action.trackPoints
+                        , graph = action.graph
                         , undoStack = undos
-                        , redoStack = { action | trackPoints = model.trackPoints } :: model.redoStack
+                        , redoStack =
+                            { action
+                                | trackPoints = model.trackPoints
+                                , graph = model.graph
+                            }
+                                :: model.redoStack
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                         , changeCounter = model.changeCounter - 1
@@ -1228,8 +1246,14 @@ update msg model =
                 action :: redos ->
                     { model
                         | trackPoints = action.trackPoints
+                        , graph = action.graph
                         , redoStack = redos
-                        , undoStack = { action | trackPoints = model.trackPoints } :: model.undoStack
+                        , undoStack =
+                            { action
+                                | trackPoints = model.trackPoints
+                                , graph = model.graph
+                            }
+                                :: model.undoStack
                         , currentNode = action.currentNode
                         , markedNode = action.markedNode
                         , changeCounter = model.changeCounter + 1
@@ -1722,9 +1746,11 @@ nodeToTrackPoint trackCenter node =
     --projectedY lon lat =
     --    lat * metresPerDegree
     let
-        ( centerLon, centerLat, _ ) = Point3d.toTuple inMeters trackCenter
+        ( centerLon, centerLat, _ ) =
+            Point3d.toTuple inMeters trackCenter
 
-        ( x, y, z ) = Point3d.toTuple inMeters node
+        ( x, y, z ) =
+            Point3d.toTuple inMeters node
 
         degreesLat =
             centerLat + y / metresPerDegree
@@ -2728,13 +2754,15 @@ smoothBend model =
                     else
                         marker
 
+                allNewTrack =
+                    reindexTrackpoints <|
+                        List.take bend.startIndex model.trackPoints
+                            ++ newTrackPoints
+                            ++ List.drop (bend.endIndex + 1) model.trackPoints
+
                 makeItSo m =
                     { m
-                        | trackPoints =
-                            reindexTrackpoints <|
-                                List.take bend.startIndex m.trackPoints
-                                    ++ newTrackPoints
-                                    ++ List.drop (bend.endIndex + 1) m.trackPoints
+                        | trackPoints = allNewTrack
                         , smoothedBend = Nothing
                         , currentNode = newCurrent
                         , markedNode = Just newMark

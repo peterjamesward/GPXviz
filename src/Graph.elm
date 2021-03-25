@@ -101,41 +101,70 @@ type alias Route =
     { route : List Traversal }
 
 
-viewGraphControls : Graph -> (Msg -> msg) -> Element msg
-viewGraphControls graph wrapper =
-    E.column [ spacing 10, padding 10, centerX ]
-        [ I.button prettyButtonStyles
-            { onPress = Just (wrapper GraphAnalyse)
-            , label = E.text "Analyse"
-            }
-        , I.slider
-            commonShortHorizontalSliderStyles
-            { onChange = wrapper << CentreLineOffset
-            , label =
-                I.labelBelow [] <|
-                    E.text <|
-                        "Offset = "
-                            ++ (showDecimal2 <| abs graph.centreLineOffset)
-                            ++ "m "
-                            ++ (if graph.centreLineOffset < 0.0 then
-                                    "left"
+viewGraphControls : Graph -> (Int, Int) -> (Msg -> msg) -> Element msg
+viewGraphControls graph (current, marker) wrapper =
+    let
+        analyseButton =
+            I.button prettyButtonStyles
+                { onPress = Just (wrapper GraphAnalyse)
+                , label = E.text "Analyse"
+                }
 
-                                else if graph.centreLineOffset > 0.0 then
-                                    "right"
+        offsetSlider =
+            I.slider
+                commonShortHorizontalSliderStyles
+                { onChange = wrapper << CentreLineOffset
+                , label =
+                    I.labelBelow [] <|
+                        E.text <|
+                            "Offset = "
+                                ++ (showDecimal2 <| abs graph.centreLineOffset)
+                                ++ "m "
+                                ++ (if graph.centreLineOffset < 0.0 then
+                                        "left"
 
-                                else
-                                    ""
-                               )
-            , min = -5.0
-            , max = 5.0
-            , step = Just 1.0
-            , value = graph.centreLineOffset
-            , thumb = I.defaultThumb
-            }
-        , I.button prettyButtonStyles
-            { onPress = Just (wrapper ApplyOffset)
-            , label = E.text "Apply offset"
-            }
+                                    else if graph.centreLineOffset > 0.0 then
+                                        "right"
+
+                                    else
+                                        ""
+                                   )
+                , min = -5.0
+                , max = 5.0
+                , step = Just 1.0
+                , value = graph.centreLineOffset
+                , thumb = I.defaultThumb
+                }
+
+        applyOffsetButton =
+            I.button prettyButtonStyles
+                { onPress = Just (wrapper ApplyOffset)
+                , label = E.text "Apply offset"
+                }
+
+        markerInfo =
+            let
+                canonicalPoints =
+                    withinSameEdge graph (current, marker)
+            in
+            E.column []
+                [ E.text <| "Track index " ++ String.fromInt current
+                , E.text <| "Marker cone " ++ String.fromInt marker
+                , case canonicalPoints of
+                    Just ( n1, n2 ) ->
+                        E.text <| "Canonical " ++ String.fromInt n1 ++ ", " ++ String.fromInt n2
+
+                    _ ->
+                        E.text "No entry in canon"
+                ]
+    in
+    E.row []
+        [ E.column [ spacing 10, padding 10, centerX ]
+            [ analyseButton
+            , offsetSlider
+            , applyOffsetButton
+            ]
+        , markerInfo
         ]
 
 
@@ -171,7 +200,6 @@ deriveTrackPointGraph trackPoints box =
         --trackPoints =
         --    -- Might help to avoid false nodes.
         --    List.filter (\tp -> tp.costMetric > 0) unfilteredTrackPoints
-
         rawNodes =
             interestingTrackPoints trackPoints
 
@@ -669,13 +697,16 @@ useCanonicalEdges edges canonicalEdges =
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
     let
-        _ = Debug.log "Route " <| List.map .idx route
+        _ =
+            Debug.log "Route " <| List.map .idx route
+
         route =
             graph.trackPoints
                 |> List.map (applyCentreLineOffset graph.centreLineOffset)
                 |> reindexTrackpoints
     in
     route
+
 
 applyCentreLineOffset : Float -> TrackPoint -> TrackPoint
 applyCentreLineOffset offset trackpoint =
