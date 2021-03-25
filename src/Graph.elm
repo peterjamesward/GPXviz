@@ -166,11 +166,11 @@ deriveTrackPointGraph :
     List TrackPoint
     -> BoundingBox3d Length.Meters GPXCoords
     -> Graph
-deriveTrackPointGraph unfilteredTrackPoints box =
+deriveTrackPointGraph trackPoints box =
     let
-        trackPoints =
-            -- Might help to avoid false nodes.
-            List.filter (\tp -> tp.costMetric > 0) unfilteredTrackPoints
+        --trackPoints =
+        --    -- Might help to avoid false nodes.
+        --    List.filter (\tp -> tp.costMetric > 0) unfilteredTrackPoints
 
         rawNodes =
             interestingTrackPoints trackPoints
@@ -315,10 +315,11 @@ deriveTrackPointGraph unfilteredTrackPoints box =
             List.filterNot
                 (\tp -> List.member tp.idx annoyingTrackPoints)
                 trackPoints
+                |> reindexTrackpoints
 
         walkedRoute =
+            -- Should not re-index; they should be fine.
             List.map Tuple.first walkTheRouteInternal
-                |> reindexTrackpoints
 
         reverseIndex =
             List.map2
@@ -667,9 +668,14 @@ useCanonicalEdges edges canonicalEdges =
 
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
-    graph.trackPoints
-        |> List.map (applyCentreLineOffset graph.centreLineOffset)
-
+    let
+        _ = Debug.log "Route " <| List.map .idx route
+        route =
+            graph.trackPoints
+                |> List.map (applyCentreLineOffset graph.centreLineOffset)
+                |> reindexTrackpoints
+    in
+    route
 
 applyCentreLineOffset : Float -> TrackPoint -> TrackPoint
 applyCentreLineOffset offset trackpoint =
@@ -732,7 +738,7 @@ withinSameEdge graph ( tp1, tp2 ) =
         case ( point1, point2 ) of
             ( Just (EdgePoint e1 canon1), Just (EdgePoint e2 canon2) ) ->
                 if e1 == e2 then
-                    Just ( canon1, canon2 )
+                    Just ( min canon1 canon2, max canon1 canon2 )
 
                 else
                     Nothing

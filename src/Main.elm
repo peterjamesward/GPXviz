@@ -1722,26 +1722,23 @@ nodeToTrackPoint trackCenter node =
     --projectedY lon lat =
     --    lat * metresPerDegree
     let
-        ( centerLon, centerLat ) =
-            ( Length.inMeters <| xCoordinate trackCenter
-            , Length.inMeters <| yCoordinate trackCenter
-            )
+        ( centerLon, centerLat, _ ) = Point3d.toTuple inMeters trackCenter
 
-        ( x, y ) =
-            ( Length.inMeters <| xCoordinate node
-            , Length.inMeters <| yCoordinate node
-            )
+        ( x, y, z ) = Point3d.toTuple inMeters node
 
         degreesLat =
             centerLat + y / metresPerDegree
 
         degreesLon =
             centerLon + x / metresPerDegree / cos (degrees degreesLat)
+
+        _ = Debug.log "(Centre, Node)" (trackCenter, node)
     in
     { singleton
         | lat = degreesLat
         , lon = degreesLon
-        , ele = Length.inMeters <| zCoordinate node
+        , ele = z
+        , xyz = fromGPXcoords degreesLon degreesLat z
         , idx = 0
     }
 
@@ -2525,6 +2522,25 @@ resetFlythrough model =
             model
 
 
+locateMarkers : Model -> Maybe ( Int, Int )
+locateMarkers model =
+    -- This may be the long awaiting canonical track point selection finder
+    -- that works for graphs and not graphs.
+    let
+        marker =
+            Maybe.withDefault model.currentNode model.markedNode
+
+        ( marker1, marker2 ) =
+            ( min model.currentNode marker
+            , max model.currentNode marker
+            )
+
+        graphCompatible =
+            Graph.withinSameEdge model.graph ( marker1, marker2 )
+    in
+    graphCompatible
+
+
 tryBendSmoother : Model -> Model
 tryBendSmoother model =
     -- Note we work here in node/road space and must convert back to lat/lon.
@@ -2537,25 +2553,15 @@ tryBendSmoother model =
                 , verticalNudgeValue = 0.0
             }
 
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
-
-        ( marker1, marker2 ) =
-            ( min model.currentNode marker
-            , max model.currentNode marker
-            )
-
-        graphCompatible =
-            Graph.withinSameEdge model.graph (marker1, marker2)
-
-        entrySegment =
-            Array.get marker1 model.roadArray
-
-        exitSegment =
-            Array.get (marker2 - 1) model.roadArray
-
         tryWithNodes n1 n2 =
             if n2 >= n1 + 2 then
+                let
+                    entrySegment =
+                        Array.get n1 model.roadArray
+
+                    exitSegment =
+                        Array.get (n2 - 1) model.roadArray
+                in
                 case ( entrySegment, exitSegment ) of
                     ( Just road1, Just road2 ) ->
                         let
@@ -2580,13 +2586,12 @@ tryBendSmoother model =
             else
                 failed
     in
-    case graphCompatible of
-        Just (canon1, canon2) ->
+    case locateMarkers model of
+        Just ( canon1, canon2 ) ->
             tryWithNodes canon1 canon2
 
         Nothing ->
             failed
-
 
 
 smoothGradient : Model -> Float -> Model
@@ -2702,10 +2707,6 @@ smoothBend model =
             let
                 numCurrentPoints =
                     abs (model.currentNode - marker) - 1
-
-                pointsOnArc =
-                    -- NOTE bend smoother return includes points A and D
-                    List.drop 1 <| List.take (List.length bend.nodes - 1) bend.nodes
 
                 numNewPoints =
                     List.length bend.nodes - 2
@@ -4152,11 +4153,12 @@ viewBendFixerPane model =
                     ]
 
             Nothing ->
-                if Graph.withinSameEdge model.graph (model.currentNode, marker) /= Nothing then
+                if Graph.withinSameEdge model.graph ( model.currentNode, marker ) /= Nothing then
                     column [ spacing 10, padding 10, alignTop, centerX ]
                         [ E.text "Sorry, failed to find a nice bend."
                         , E.text "Try re-positioning the current pointer or marker."
                         ]
+
                 else
                     column [ spacing 10, padding 10, alignTop, centerX ]
                         [ E.text "Sorry, both pointers must be within the same edge."
