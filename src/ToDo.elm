@@ -6,8 +6,10 @@ module ToDo exposing (..)
 --WIP: John Bytheway suggestion.
 
 --THEN: Use Graph to check whether edits allowed.
-The check same edge logic could return the appropriate pair as Maybe (Int, Int) -- I like that; it nearly works.
-Might be helpful to display graph data for current node. ++++
+Done for Bend Smoother.
+
+--PROBLEM: The nodes are not quite in line with the track points.
+Why? This is bad. Has to be coordinate conversion. (Hate it.)
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 

@@ -798,14 +798,22 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
         edgeEntry =
             Dict.get startIndex graph.trackPointToCanonical
 
+        _ =
+            Debug.log "Edge" edgeEntry
+
         ( pointsBeforeEdit, remainder ) =
             List.splitAt startIndex allNewTrack
 
         ( editedPoints, pointsAfterEdit ) =
             List.splitAt (endIndex - startIndex) remainder
 
-        notMatchingLocation location point =
-            trackPointComparable point == location
+        notMatchingNodeLocation location1 location2 point =
+            case Dict.get point.idx graph.trackPointToCanonical of
+                Just (EdgePoint _ _) ->
+                    True
+
+                _ ->
+                    False
     in
     case edgeEntry of
         Just (EdgePoint edgeIdx _) ->
@@ -822,14 +830,16 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                                     ( trackPointComparable start, trackPointComparable end )
 
                                 uneditedPointsBefore =
+                                    -- Change to use reverse index, stopping on Node
                                     List.takeWhile
-                                        (notMatchingLocation startLocation)
+                                        (notMatchingNodeLocation startLocation endLocation)
                                         (List.reverse pointsBeforeEdit)
                                         |> List.reverse
 
                                 uneditedPointsAfter =
+                                    -- Change to use reverse index, stopping on Node
                                     List.takeWhile
-                                        (notMatchingLocation endLocation)
+                                        (notMatchingNodeLocation startLocation endLocation)
                                         pointsAfterEdit
 
                                 newEdgePoints =
@@ -853,17 +863,27 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                                 updatedEdges =
                                     Dict.insert edgeIdx newEdge graph.edges
 
-                                updatedRoute = walkTheRouteInternal { graph | edges = updatedEdges }
-                            in
-                            { graph
-                                | edges = updatedEdges
-                                , trackPoints = List.map Tuple.first updatedRoute
-                                , trackPointToCanonical =
+                                updatedRoute =
+                                    walkTheRouteInternal { graph | edges = updatedEdges }
+
+                                updatedReverseIndex =
                                     List.map2
                                         (\n ( _, info ) -> ( n, info ))
                                         (List.range 0 (List.length updatedRoute))
                                         updatedRoute
-                                        |> Dict.fromList}
+                                        |> Dict.fromList
+
+                                _ =
+                                    Debug.log "Old index" graph.trackPointToCanonical
+
+                                _ =
+                                    Debug.log "New index" updatedReverseIndex
+                            in
+                            { graph
+                                | edges = updatedEdges
+                                , trackPoints = List.map Tuple.first updatedRoute
+                                , trackPointToCanonical = updatedReverseIndex
+                            }
 
                         _ ->
                             graph
