@@ -26,6 +26,7 @@ import Length
 import List.Extra as List
 import Point3d exposing (Point3d)
 import Set exposing (Set)
+import Spherical exposing (metresPerDegree)
 import TrackPoint exposing (GPXCoords, TrackPoint, fromGPXcoords, reindexTrackpoints, toGPXcoords, trackPointSeparation)
 import UbiquitousTypes exposing (LocalCoords)
 import Utils exposing (showDecimal2)
@@ -56,10 +57,10 @@ type alias Graph =
 type
     PointType
     -- We shall use this to build an index back from Trackpoint land to Graph land.
-    = StartPoint Int
-    | FinishPoint Int
-    | NodePoint Int
-    | EdgePoint Int Int -- Store both the edge number and the unique number (which might be locally unique).
+    = StartPoint Int -- Canonical index of node
+    | FinishPoint Int -- Canonical index of node
+    | NodePoint Int -- Canonical index of node
+    | EdgePoint Int Int -- Canonical index of edge, canonical index of node
 
 
 empty =
@@ -84,15 +85,15 @@ type alias Node =
 
 
 type alias Edge =
-    { startNode : Int
-    , endNode : Int
+    { startNode : Int -- Canonical index of node
+    , endNode : Int -- Canonical index of node
     , wayPoint : LatLon
     , trackPoints : List TrackPoint
     }
 
 
 type alias Traversal =
-    { edge : Int
+    { edge : Int -- Canonical index of edge
     , direction : Direction
     }
 
@@ -739,21 +740,29 @@ applyCentreLineOffset offset trackpoint =
 
 nodePointList : Graph -> List (Point3d Length.Meters LocalCoords)
 nodePointList graph =
-    -- Have to shift according to the track point box
+    -- TODO: Factor out same code in NodesAndRoads|deriveNodes.
     let
         ( midLon, midLat, _ ) =
-            Point3d.toTuple Length.inMeters <| BoundingBox3d.centerPoint graph.boundingBox
+            Point3d.toTuple Length.inMeters <|
+                BoundingBox3d.centerPoint graph.boundingBox
 
-        midXYZ =
-            fromGPXcoords midLon midLat 0
+        location tp =
+            let
+                y =
+                    metresPerDegree * (tp.lat - midLat)
 
-        shift =
-            Vector3d.from midXYZ Point3d.origin
+                x =
+                    metresPerDegree * (tp.lon - midLon) * cos (degrees tp.lat)
+
+                z =
+                    tp.ele
+            in
+            Point3d.fromTuple Length.meters ( x, y, z )
 
         whereTheNodesAre =
             graph.nodes
                 |> Dict.values
-                |> List.map (.xyz >> Point3d.translateBy shift)
+                |> List.map location
     in
     whereTheNodesAre
 
@@ -784,36 +793,15 @@ withinSameEdge graph ( tp1, tp2 ) =
 
 updateCanonicalEdge : Graph -> ( Int, Int ) -> List TrackPoint -> Graph
 updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
-    --TODO: Logic is something like:
-    -- We have the start and end points of the edit
-    -- This gives the Edge.
-    -- This gives the Nodes.
-    -- The Node may appear more than once before the start of the edit.
-    -- We find the last occurence of Start Node preceding the edit, and discard track points to (including) this point.
-    -- We find the first occureance of End Node after the edit, discard it and all remaining points.
-    -- What remains is the new canonical edge; we enter this in the canon.
-    -- We rewalk the graph.
+    -- From startIndex, we look up the canonical edge and node of the edited region.
+    -- From canonical edge, we find the canonical bounding nodes.
+    -- Search the new track point list for the nodes either side of the edit.
+    -- This is the new canonical edge; we enter this in the canon.
+    -- We rewalk the graph. We rebuild the reverse index.
     -- The caller must fetch the new track point list for the route.
     let
         edgeEntry =
             Dict.get startIndex graph.trackPointToCanonical
-
-        _ =
-            Debug.log "Edge" edgeEntry
-
-        ( pointsBeforeEdit, remainder ) =
-            List.splitAt startIndex allNewTrack
-
-        ( editedPoints, pointsAfterEdit ) =
-            List.splitAt (endIndex - startIndex) remainder
-
-        notMatchingNodeLocation location1 location2 point =
-            case Dict.get point.idx graph.trackPointToCanonical of
-                Just (EdgePoint _ _) ->
-                    True
-
-                _ ->
-                    False
     in
     case edgeEntry of
         Just (EdgePoint edgeIdx _) ->
@@ -823,27 +811,34 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
             in
             case edgeInfo of
                 Just { startNode, endNode, wayPoint, trackPoints } ->
+                    let
+                        ( pointsBeforeEdit, pointsAfterEdit ) =
+                            List.splitAt startIndex allNewTrack
+                    in
                     case ( Dict.get startNode graph.nodes, Dict.get endNode graph.nodes ) of
                         ( Just start, Just end ) ->
                             let
-                                ( startLocation, endLocation ) =
-                                    ( trackPointComparable start, trackPointComparable end )
+                                notAtNode point =
+                                    -- Only reliable way to find end of new edge is to test for coincidence with nodes.
+                                    -- 'cept it's not reliable.
+                                    not
+                                        (trackPointComparable point
+                                            == trackPointComparable start
+                                            || trackPointComparable point
+                                            == trackPointComparable end
+                                        )
 
-                                uneditedPointsBefore =
-                                    -- Change to use reverse index, stopping on Node
-                                    List.takeWhile
-                                        (notMatchingNodeLocation startLocation endLocation)
-                                        (List.reverse pointsBeforeEdit)
+                                edgePointsBeforeEdit =
+                                    pointsBeforeEdit
+                                        |> List.reverse
+                                        |> List.takeWhile notAtNode
                                         |> List.reverse
 
-                                uneditedPointsAfter =
-                                    -- Change to use reverse index, stopping on Node
-                                    List.takeWhile
-                                        (notMatchingNodeLocation startLocation endLocation)
-                                        pointsAfterEdit
+                                edgePointsAfterEditStart =
+                                    List.takeWhile notAtNode pointsAfterEdit
 
                                 newEdgePoints =
-                                    uneditedPointsBefore ++ editedPoints ++ uneditedPointsAfter
+                                    edgePointsBeforeEdit ++ edgePointsAfterEditStart
 
                                 newWayPoint =
                                     case newEdgePoints of
@@ -867,17 +862,12 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                                     walkTheRouteInternal { graph | edges = updatedEdges }
 
                                 updatedReverseIndex =
+                                    -- TODO: Factor this out.
                                     List.map2
                                         (\n ( _, info ) -> ( n, info ))
                                         (List.range 0 (List.length updatedRoute))
                                         updatedRoute
                                         |> Dict.fromList
-
-                                _ =
-                                    Debug.log "Old index" graph.trackPointToCanonical
-
-                                _ =
-                                    Debug.log "New index" updatedReverseIndex
                             in
                             { graph
                                 | edges = updatedEdges
