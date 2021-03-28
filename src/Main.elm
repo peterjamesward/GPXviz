@@ -2725,6 +2725,7 @@ smoothBend model =
 
         marker =
             Maybe.withDefault model.currentNode model.markedNode
+
     in
     case model.smoothedBend of
         Just bend ->
@@ -2755,7 +2756,6 @@ smoothBend model =
                         marker
 
                 allNewTrack =
-                    reindexTrackpoints <|
                         List.take bend.startIndex model.trackPoints
                             ++ newTrackPoints
                             ++ List.drop (bend.endIndex + 1) model.trackPoints

@@ -18,7 +18,7 @@ Centroid Filter
 
 OPERATIONS THAT MODIFY THE TRACKPOINT LIST
 Delete
-Smooth Bend <WIP>
+Smooth Bend <done>
 Insert points
 Split point
 Bezier

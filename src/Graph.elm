@@ -704,6 +704,12 @@ useCanonicalEdges edges canonicalEdges =
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
     let
+        lookupReverseIndex tp =
+            Dict.get tp.idx graph.trackPointToCanonical
+
+        --_ = Debug.log "ROUTE" <|
+        --    List.map lookupReverseIndex route
+
         route =
             graph.trackPoints
                 |> reindexTrackpoints
@@ -802,6 +808,8 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
     let
         edgeEntry =
             Dict.get startIndex graph.trackPointToCanonical
+
+        _ = Debug.log "Region" (startIndex, endIndex)
     in
     case edgeEntry of
         Just (EdgePoint edgeIdx _) ->
@@ -818,15 +826,15 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                     case ( Dict.get startNode graph.nodes, Dict.get endNode graph.nodes ) of
                         ( Just start, Just end ) ->
                             let
+                                _ = Debug.log "Nodes" (start, end)
+
                                 notAtNode point =
-                                    -- Only reliable way to find end of new edge is to test for coincidence with nodes.
-                                    -- 'cept it's not reliable.
-                                    not
-                                        (trackPointComparable point
-                                            == trackPointComparable start
-                                            || trackPointComparable point
-                                            == trackPointComparable end
-                                        )
+                                    -- After much experimentation, this spell seems to work.
+                                    let
+                                        lookupReverse = Dict.get point.idx graph.trackPointToCanonical
+                                    in
+                                     (lookupReverse /= Just (NodePoint startNode))
+                                     && (lookupReverse /= Just (NodePoint endNode))
 
                                 edgePointsBeforeEdit =
                                     pointsBeforeEdit
