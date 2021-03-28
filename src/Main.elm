@@ -2770,6 +2770,7 @@ smoothBend model =
                     { m
                         | trackPoints =
                             if model.graph == newGraph then
+                                -- Not in graph mode, this means.
                                 allNewTrack
 
                             else

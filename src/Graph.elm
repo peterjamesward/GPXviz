@@ -709,7 +709,6 @@ walkTheRoute graph =
 
         --_ = Debug.log "ROUTE" <|
         --    List.map lookupReverseIndex route
-
         route =
             graph.trackPoints
                 |> reindexTrackpoints
@@ -809,7 +808,8 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
         edgeEntry =
             Dict.get startIndex graph.trackPointToCanonical
 
-        _ = Debug.log "Region" (startIndex, endIndex)
+        _ =
+            Debug.log "Region" ( startIndex, endIndex )
     in
     case edgeEntry of
         Just (EdgePoint edgeIdx _) ->
@@ -826,15 +826,17 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                     case ( Dict.get startNode graph.nodes, Dict.get endNode graph.nodes ) of
                         ( Just start, Just end ) ->
                             let
-                                _ = Debug.log "Nodes" (start, end)
+                                _ =
+                                    Debug.log "Nodes" ( start, end )
 
                                 notAtNode point =
                                     -- After much experimentation, this spell seems to work.
                                     let
-                                        lookupReverse = Dict.get point.idx graph.trackPointToCanonical
+                                        lookupReverse =
+                                            Dict.get point.idx graph.trackPointToCanonical
                                     in
-                                     (lookupReverse /= Just (NodePoint startNode))
-                                     && (lookupReverse /= Just (NodePoint endNode))
+                                    (lookupReverse /= Just (NodePoint startNode))
+                                        && (lookupReverse /= Just (NodePoint endNode))
 
                                 edgePointsBeforeEdit =
                                     pointsBeforeEdit
@@ -867,21 +869,15 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                                     Dict.insert edgeIdx newEdge graph.edges
 
                                 updatedRoute =
-                                    walkTheRouteInternal { graph | edges = updatedEdges }
+                                    reindexTrackpoints <|
+                                        List.map Tuple.first <|
+                                            walkTheRouteInternal { graph | edges = updatedEdges }
 
-                                updatedReverseIndex =
-                                    -- TODO: Factor this out.
-                                    List.map2
-                                        (\n ( _, info ) -> ( n, info ))
-                                        (List.range 0 (List.length updatedRoute))
-                                        updatedRoute
-                                        |> Dict.fromList
+                                completelyNewGraph =
+                                    -- Absurdly expensive but logically sound & simpler to re-analyse here??
+                                    deriveTrackPointGraph updatedRoute graph.boundingBox
                             in
-                            { graph
-                                | edges = updatedEdges
-                                , trackPoints = List.map Tuple.first updatedRoute
-                                , trackPointToCanonical = updatedReverseIndex
-                            }
+                            completelyNewGraph
 
                         _ ->
                             graph
