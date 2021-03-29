@@ -7,6 +7,8 @@ module ToDo exposing (..)
 
 --THEN: Use Graph to check whether edits allowed.
 DONE
+    OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
+    Strava segment
     Bend Smoother.
     Delete.
     Split point
@@ -23,8 +25,6 @@ Straighten
 Smooth Gradient
 Centroid Filter
 
-OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
-Strava segment
 
 UNUSUAL OPERATIONS (we need not provide these in Graph mode)
 Close loop      (OK, but not important as can be done befor analysis)

@@ -1,5 +1,6 @@
 module StravaPasteStreams exposing (..)
 
+import NodesAndRoads exposing (deriveNodes, deriveTrackPointBox)
 import StravaTypes exposing (StravaSegment, StravaSegmentStreams)
 import TrackPoint exposing (TrackPoint, reindexTrackpoints, singleton, trackPointFromLatLon)
 
@@ -15,17 +16,6 @@ pasteStreams trackPoints segment streams =
             -- Our last track point will be replaced with the last stream point
             trackPointFromLatLon segment.end_latitude segment.end_longitude trackPoints
 
-        trackPointsFromStreams =
-            List.map2
-                (\latLon ele ->
-                    { singleton
-                        | lat = latLon.lat
-                        , lon = latLon.lng
-                        , ele = ele
-                    }
-                )
-                streams.latLngs.data
-                streams.altitude.data
 
         newRoute =
             case ( pStartingTrackPoint, pEndingTrackPoint ) of
@@ -36,6 +26,20 @@ pasteStreams trackPoints segment streams =
 
                         finish =
                             endingTrackPoint.idx
+
+                        trackPointsFromStreams =
+                            List.map2
+                                (\latLon ele ->
+                                    { singleton
+                                        | lat = latLon.lat
+                                        , lon = latLon.lng
+                                        , ele = ele
+                                        , xyz = TrackPoint.fromGPXcoords latLon.lng latLon.lat ele
+                                        , idx = start
+                                    }
+                                )
+                                streams.latLngs.data
+                                streams.altitude.data
 
                         orientedSegment =
                             if start == finish then
@@ -60,4 +64,4 @@ pasteStreams trackPoints segment streams =
                 _ ->
                     trackPoints
     in
-    reindexTrackpoints newRoute
+    newRoute

@@ -1508,9 +1508,41 @@ update msg model =
         HandleSegmentStreams response ->
             case ( response, model.externalSegment ) of
                 ( Ok streams, SegmentOk segment ) ->
+                    -- We paste the segment in without regard tp graph edges.
+                    let
+                        newTrack =
+                            pasteStreams model.trackPoints segment streams
+
+                        trackPointNearStart =
+                            trackPointFromLatLon
+                                segment.start_latitude
+                                segment.start_longitude
+                                model.trackPoints
+                                |> Maybe.map .idx
+                                |> Maybe.withDefault 0
+
+                        newGraph =
+                            updateCanonicalEdge
+                                model.graph
+                                ( trackPointNearStart, trackPointNearStart )
+                                newTrack
+
+                        makeItSo m =
+                            { m
+                                | trackPoints =
+                                    if model.graph == newGraph then
+                                        -- Not in graph mode, this means.
+                                        reindexTrackpoints newTrack
+
+                                    else
+                                        Graph.walkTheRoute newGraph
+                                , smoothedBend = Nothing
+                                , graph = newGraph
+                            }
+                    in
                     model
                         |> addToUndoStack "Paste Strava segment"
-                        |> (\m -> { m | trackPoints = pasteStreams m.trackPoints segment streams })
+                        |> makeItSo
                         |> trackHasChanged
 
                 ( Err err, _ ) ->
@@ -2908,24 +2940,13 @@ deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     --TODO: Tidy up, but each time I try, I break it.
     let
-        trackPointAsPoint tp =
-            Point3d.meters tp.lon tp.lat tp.ele
 
         withNodes m =
             { m | nodes = deriveNodes m.trackPointBox m.trackPoints }
 
         withTrackPointScaling m =
             { m
-                | trackPointBox =
-                    -- This is a good reason for the bbox to be a Maybe B~
-                    case m.trackPoints of
-                        tp1 :: tps ->
-                            BoundingBox3d.hull
-                                (trackPointAsPoint tp1)
-                                (List.map trackPointAsPoint tps)
-
-                        _ ->
-                            BoundingBox3d.singleton Point3d.origin
+                | trackPointBox = TrackPoint.trackPointBoundingBox m.trackPoints
             }
 
         withNodeScaling m =

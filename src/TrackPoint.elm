@@ -185,6 +185,22 @@ toGPXcoords point =
     ( lon, lat, ele )
 
 
+trackPointAsPoint tp =
+    Point3d.meters tp.lon tp.lat tp.ele
+
+
+trackPointBoundingBox points =
+    -- This is a good reason for the bbox to be a Maybe B~
+    case points of
+        tp1 :: tps ->
+            BoundingBox3d.hull
+                (trackPointAsPoint tp1)
+                (List.map trackPointAsPoint tps)
+
+        _ ->
+            BoundingBox3d.singleton Point3d.origin
+
+
 parseTrackPoints : String -> List TrackPoint
 parseTrackPoints xml =
     let
