@@ -2249,58 +2249,81 @@ clearTerrain model =
 
 
 insertTrackPoint : Int -> Model -> Model
-insertTrackPoint n model =
+insertTrackPoint _ model =
     -- Replace the current node with two close nodes that each have half the gradient change.
     -- 'Close' being perhaps the lesser of one metre and half segment length.
     -- Lat and Lon to be linear interpolation.
     let
-        undoMessage =
-            "Insert at " ++ String.fromInt n
-    in
-    case ( Array.get (n - 1) model.roadArray, Array.get n model.roadArray ) of
-        ( Just before, Just after ) ->
+        insertTrackPointInternal n =
             let
-                amountToStealFromFirstSegment =
-                    min 4.0 (before.length / 2.0)
-
-                amountToStealFromSecondSegment =
-                    min 4.0 (after.length / 2.0)
-
-                commonAmountToSteal =
-                    min amountToStealFromFirstSegment amountToStealFromSecondSegment
-
-                firstTP =
-                    interpolateSegment
-                        (commonAmountToSteal / before.length)
-                        before.endsAt.trackPoint
-                        before.startsAt.trackPoint
-
-                secondTP =
-                    interpolateSegment
-                        (commonAmountToSteal / after.length)
-                        after.startsAt.trackPoint
-                        after.endsAt.trackPoint
-
-                precedingTPs =
-                    model.trackPoints |> List.take n
-
-                remainingTPs =
-                    model.trackPoints |> List.drop (n + 1)
-
-                newTPs =
-                    precedingTPs
-                        ++ [ firstTP, secondTP ]
-                        ++ remainingTPs
-
-                updateModel m =
-                    { m
-                        | trackPoints = reindexTrackpoints newTPs
-                        , currentNode = model.currentNode + 1
-                    }
+                undoMessage =
+                    "Insert at " ++ String.fromInt n
             in
-            model
-                |> addToUndoStack undoMessage
-                |> updateModel
+            case ( Array.get (n - 1) model.roadArray, Array.get n model.roadArray ) of
+                ( Just before, Just after ) ->
+                    let
+                        amountToStealFromFirstSegment =
+                            min 4.0 (before.length / 2.0)
+
+                        amountToStealFromSecondSegment =
+                            min 4.0 (after.length / 2.0)
+
+                        commonAmountToSteal =
+                            min amountToStealFromFirstSegment amountToStealFromSecondSegment
+
+                        firstTP =
+                            interpolateSegment
+                                (commonAmountToSteal / before.length)
+                                before.endsAt.trackPoint
+                                before.startsAt.trackPoint
+
+                        secondTP =
+                            interpolateSegment
+                                (commonAmountToSteal / after.length)
+                                after.startsAt.trackPoint
+                                after.endsAt.trackPoint
+
+                        precedingTPs =
+                            model.trackPoints |> List.take n
+
+                        remainingTPs =
+                            model.trackPoints |> List.drop (n + 1)
+
+                        newTPs =
+                            precedingTPs
+                                ++ [ firstTP, secondTP ]
+                                ++ remainingTPs
+
+                        newGraph =
+                            updateCanonicalEdge
+                                model.graph
+                                ( n, n )
+                                newTPs
+
+                        updateModel m =
+                            { m
+                                | trackPoints =
+                                    if model.graph == newGraph then
+                                        -- Not in graph mode, this means.
+                                        reindexTrackpoints newTPs
+
+                                    else
+                                        Graph.walkTheRoute newGraph
+                                , smoothedBend = Nothing
+                                , currentNode = model.currentNode + 1
+                                , graph = newGraph
+                            }
+                    in
+                    model
+                        |> addToUndoStack undoMessage
+                        |> updateModel
+
+                _ ->
+                    model
+    in
+    case locateMarkers model of
+        Just ( canon1, _ ) ->
+            insertTrackPointInternal canon1
 
         _ ->
             model
@@ -2309,7 +2332,7 @@ insertTrackPoint n model =
 deleteTrackPoints : ( Int, Int ) -> Model -> Model
 deleteTrackPoints ( _, _ ) model =
     let
-        deleteTrackPointsInternal (start, finish) =
+        deleteTrackPointsInternal ( start, finish ) =
             let
                 undoMessage =
                     "Delete track points " ++ String.fromInt start ++ "-" ++ String.fromInt finish
@@ -2334,7 +2357,7 @@ deleteTrackPoints ( _, _ ) model =
                         | trackPoints =
                             if model.graph == newGraph then
                                 -- Not in graph mode, this means.
-                                newTPs
+                                reindexTrackpoints newTPs
 
                             else
                                 Graph.walkTheRoute newGraph
@@ -2348,8 +2371,10 @@ deleteTrackPoints ( _, _ ) model =
     in
     case locateMarkers model of
         Just ( canon1, canon2 ) ->
-            deleteTrackPointsInternal (canon1, canon2)
-        _ -> model
+            deleteTrackPointsInternal ( canon1, canon2 )
+
+        _ ->
+            model
 
 
 changeLoopStart : Int -> Model -> Model

@@ -9,6 +9,7 @@ module ToDo exposing (..)
 DONE
     Bend Smoother.
     Delete.
+    Split point
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
@@ -21,7 +22,6 @@ Centroid Filter
 
 OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
 Insert points
-Split point
 Bezier
 Strava segment
 Simplify
