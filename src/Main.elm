@@ -1882,23 +1882,6 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
         targetNodes =
             List.drop node1 <| List.take (nodeN + 1) model.nodes
 
-        precedingNodes =
-            List.drop (node1 - 1) <| model.nodes
-
-        followingNodes =
-            List.drop (node1 + 1) <| model.nodes
-
-        effectiveBearings =
-            List.map3
-                getBearingForNode
-                targetNodes
-                precedingNodes
-                followingNodes
-
-        getBearingForNode : DrawingNode -> DrawingNode -> DrawingNode -> Float
-        getBearingForNode thisNode beforeNode nextNode =
-            trackPointBearing beforeNode.trackPoint nextNode.trackPoint
-
         unmovedEndPoint =
             -- Only if we are not at the end of the track.
             case Array.get (nodeN + 1) model.nodeArray of
@@ -1912,16 +1895,14 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
             Array.get (node1 - 1) model.nodeArray
 
         nudgedStartPoints =
-            List.map2
-                (\node bearing ->
+            List.map
+                (\node ->
                     nudgeTrackPoint
                         node.trackPoint
-                        bearing
                         horizontal
                         vertical
                 )
                 targetNodes
-                effectiveBearings
 
         nudgedListForVisuals =
             (case prevNode of
@@ -1947,16 +1928,12 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
 
 nudgeNode : Model -> Float -> Float -> Model
 nudgeNode model horizontal vertical =
-    let
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
+    case locateMarkers model of
+        Just ( start, end ) ->
+            nudgeNodeRange model start end horizontal vertical
 
-        ( firstNudgeNode, lastNudgeNode ) =
-            ( min model.currentNode marker
-            , max model.currentNode marker
-            )
-    in
-    nudgeNodeRange model firstNudgeNode lastNudgeNode horizontal vertical
+        _ ->
+            model
 
 
 nudgeNodeRange : Model -> Int -> Int -> Float -> Float -> Model
@@ -1971,69 +1948,44 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
             else
                 "Nudge node " ++ String.fromInt node1
 
-        targetNodes =
-            List.drop node1 <| List.take (nodeN + 1) model.nodes
+        targetTPs =
+            List.drop node1 <| List.take (nodeN + 1) model.trackPoints
 
-        getBearingForNode : DrawingNode -> Float
-        getBearingForNode node =
-            -- We need roads only to get the bearing that we use to nudge sideways.
-            if node.trackPoint.idx < Array.length model.roadArray then
-                Array.get node.trackPoint.idx model.roadArray
-                    |> Maybe.map .bearing
-                    |> Maybe.withDefault 0.0
-
-            else
-                Array.get (Array.length model.roadArray - 1) model.roadArray
-                    |> Maybe.map .bearing
-                    |> Maybe.withDefault 0.0
-
-        unmovedEndPoint =
-            -- Only if we are not at the end of the track.
-            case Array.get (nodeN + 1) model.nodeArray of
-                Just endNode ->
-                    [ endNode.trackPoint ]
-
-                Nothing ->
-                    []
-
-        prevNode =
-            Array.get (node1 - 1) model.nodeArray
-
-        nudgedStartPoints =
+        nudgedPoints =
             List.map
-                (\node ->
-                    nudgeTrackPoint
-                        node.trackPoint
-                        (getBearingForNode node)
+                (\tp ->
+                    nudgeTrackPoint tp
                         horizontal
                         vertical
                 )
-                targetNodes
+                targetTPs
 
-        nudgedListForVisuals =
-            (case prevNode of
-                Nothing ->
-                    []
+        newTrackPoints =
+            List.take node1 model.trackPoints
+                ++ nudgedPoints
+                ++ List.drop (nodeN + 1) model.trackPoints
 
-                Just prev ->
-                    [ prev.trackPoint ]
-            )
-                ++ nudgedStartPoints
-                ++ unmovedEndPoint
+        newGraph =
+            updateCanonicalEdge
+                model.graph
+                ( node1, nodeN )
+                newTrackPoints
+
+        makeItSo mdl =
+            { mdl
+                | trackPoints =
+                    if model.graph == newGraph then
+                        -- Not in graph mode, this means.
+                        reindexTrackpoints newTrackPoints
+
+                    else
+                        Graph.walkTheRoute newGraph
+                , graph = newGraph
+            }
     in
-    addToUndoStack undoMessage model
-        |> (\m ->
-                { m
-                    | trackPoints =
-                        List.take node1 model.trackPoints
-                            ++ nudgedStartPoints
-                            ++ List.drop (nodeN + 1) model.trackPoints
-                    , nudgedNodeRoads = []
-                    , nudgedRegionStart = 0
-                    , nudgeValue = 0.0
-                    , verticalNudgeValue = 0.0
-                }
-           )
+    model
+     |> addToUndoStack undoMessage
+        |> makeItSo
 
 
 splitRoad : Model -> Model
@@ -2713,9 +2665,9 @@ applyBezierSplines model =
                         replacementNodes
 
                 reassembledTrackPoints =
-                        trackPointsBeforeStart
-                            ++ replacementTrackPoints
-                            ++ trackPointsAfterEnd
+                    trackPointsBeforeStart
+                        ++ replacementTrackPoints
+                        ++ trackPointsAfterEnd
 
                 newGraph =
                     updateCanonicalEdge
@@ -2825,6 +2777,7 @@ smoothBend model =
         _ ->
             model
 
+
 simplifyTrack model =
     let
         simplifyTrackInternal rangeStart rangeEnd =
@@ -2875,10 +2828,11 @@ simplifyTrack model =
             trackHasChanged newModel
     in
     case locateMarkers model of
-        Just (rangeStart, rangeEnd) ->
+        Just ( rangeStart, rangeEnd ) ->
             simplifyTrackInternal rangeStart rangeEnd
 
-        _ -> (model, Cmd.none)
+        _ ->
+            ( model, Cmd.none )
 
 
 outputGPX : Model -> Cmd Msg
@@ -2940,7 +2894,6 @@ deriveNodesAndRoads : Model -> Model
 deriveNodesAndRoads model =
     --TODO: Tidy up, but each time I try, I break it.
     let
-
         withNodes m =
             { m | nodes = deriveNodes m.trackPointBox m.trackPoints }
 
@@ -4262,9 +4215,6 @@ viewBendFixerPane model =
                         "Smooth between markers\nRadius "
                             ++ showDecimal2 smooth.radius
                 }
-
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
     in
     column [ spacing 10, padding 10, alignTop, centerX ]
         [ case model.smoothedBend of
@@ -4275,7 +4225,7 @@ viewBendFixerPane model =
                     ]
 
             Nothing ->
-                if Graph.withinSameEdge model.graph ( model.currentNode, marker ) /= Nothing then
+                if locateMarkers model /= Nothing then
                     column [ spacing 10, padding 10, alignTop, centerX ]
                         [ E.text "Sorry, failed to find a nice bend."
                         , E.text "Try re-positioning the current pointer or marker."
@@ -4321,16 +4271,21 @@ viewStraightenTools model =
 
 viewNudgeTools : Model -> Element Msg
 viewNudgeTools model =
-    --2020-12-08 Adding tools to Nudge node, split straight, straighten straight.
-    column [ padding 5, spacing 10, centerX ]
-        [ row [ spacing 10, centerX ]
-            [ verticalNudgeSlider model.verticalNudgeValue
-            , column [ spacing 10, centerX, centerY ]
-                [ horizontalNudgeSlider model.nudgeValue
-                , nudgeButton model.nudgeValue model.verticalNudgeValue
+    if locateMarkers model /= Nothing then
+        column [ padding 5, spacing 10, centerX ]
+            [ row [ spacing 10, centerX ]
+                [ verticalNudgeSlider model.verticalNudgeValue
+                , column [ spacing 10, centerX, centerY ]
+                    [ horizontalNudgeSlider model.nudgeValue
+                    , nudgeButton model.nudgeValue model.verticalNudgeValue
+                    ]
                 ]
             ]
-        ]
+
+    else
+        column [ spacing 10, padding 10, alignTop, centerX ]
+            [ E.text "Sorry, both pointers must be within the same edge."
+            ]
 
 
 markerButton model =

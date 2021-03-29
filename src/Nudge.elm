@@ -8,13 +8,13 @@ import TrackPoint exposing (TrackPoint)
 import Vector2d
 
 
-nudgeTrackPoint : TrackPoint -> Float -> Float -> Float -> TrackPoint
-nudgeTrackPoint baseTP roadBearing horizontal vertical =
+nudgeTrackPoint : TrackPoint -> Float -> Float -> TrackPoint
+nudgeTrackPoint baseTP horizontal vertical =
     let
         roadVector =
             -- The negation because, no idea.
             Vector2d.rTheta (Length.meters 1.0)
-                (Angle.radians <| -1.0 * roadBearing)
+                (Angle.radians <| -1.0 * baseTP.naturalBearing)
                 |> Vector2d.rotateClockwise
 
         nudgeVector =

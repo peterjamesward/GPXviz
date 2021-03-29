@@ -6,6 +6,8 @@ module ToDo exposing (..)
 --WIP: Nodes and Edges. (John Bytheway.)
 
 --THEN: Use Graph to check whether edits allowed.
+--THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
+
 DONE
     OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
     Strava segment
@@ -16,23 +18,22 @@ DONE
     Bezier (but beware adding Offset when track points are close)
     Simplify
 
---THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
+    Nudge
 
 OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS BUT DO NOT CHANGE THE GRAPH
-(and could traverse nodes and multiple edges, just walking the track point list)
-Nudge
+( and could traverse nodes and multiple edges, just walking the track point list )
+( but we shall restrict to single edge for consistency and simplicity )
 Straighten
 Smooth Gradient
 Centroid Filter
 
+OPERATIONS THAT CAN WORK ON A SINGLE NODE AND SHOULD BE SUPPORTED
+Nudge vertically
+Drag on map
 
 UNUSUAL OPERATIONS (we need not provide these in Graph mode)
 Close loop      (OK, but not important as can be done befor analysis)
 Reverse         (inappropriate so not at all, superseded by DSL)
-
-OPERATIONS THAT CAN WORK ON A SINGLE NODE AND SHOULD BE SUPPORTED
-Nudge vertically
-Drag on map
 
 --THEN: "Thaw" for final tweaking of individual points.
 --THEN: Route DSL (LATER!)
@@ -50,5 +51,6 @@ Drag on map
 --TODO: Still worth checking if we can trap any navigate-away actions.
 --TODO: Smooth sideways scroll on profile. (Not worth the effort unless they complain.)
 
+--TODO: V2 - better data types, more efficient, less crap.
 
 %% this stops auto format
