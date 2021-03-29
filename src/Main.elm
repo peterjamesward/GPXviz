@@ -606,7 +606,7 @@ detectHit model event =
             in
             case List.head inDistanceOrder of
                 Just ( idx, _ ) ->
-                    { model | currentNode = idx }
+                    { model | currentNode = min idx (List.length nodeList - 1) }
 
                 Nothing ->
                     model
