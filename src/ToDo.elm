@@ -10,6 +10,7 @@ DONE
     Bend Smoother.
     Delete.
     Split point
+    Insert points
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
@@ -21,7 +22,6 @@ Smooth Gradient
 Centroid Filter
 
 OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
-Insert points
 Bezier
 Strava segment
 Simplify

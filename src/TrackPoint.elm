@@ -57,24 +57,29 @@ interpolateSegment w startTP endTP =
     -- We work in TrackPoints so that everything has a lat, lon and ele.
     -- Everything else derives from those three coordinates.
     let
-        ( x1, y1, z1 ) =
-            ( startTP.lon, startTP.lat, startTP.ele )
+        startPoint =
+            Point3d.fromTuple Length.meters
+                ( startTP.lon, startTP.lat, startTP.ele )
 
-        ( x2, y2, z2 ) =
-            ( endTP.lon, endTP.lat, endTP.ele )
+        endPoint =
+            Point3d.fromTuple Length.meters
+                ( endTP.lon, endTP.lat, endTP.ele )
+
+        newPoint =
+            Point3d.interpolateFrom startPoint endPoint w
+
+        interpolatedLocalCoords =
+            Point3d.interpolateFrom startTP.xyz endTP.xyz w
 
         ( x, y, z ) =
-            ( w * x2 + (1.0 - w) * x1
-            , w * y2 + (1.0 - w) * y1
-            , w * z2 + (1.0 - w) * z1
-            )
+            Point3d.toTuple Length.inMeters newPoint
     in
     { lat = y
     , lon = x
     , ele = z
-    , idx = 0
+    , idx = startTP.idx
     , naturalBearing = interpolateScalar 0.5 startTP.naturalBearing endTP.naturalBearing
-    , xyz = Point3d.interpolateFrom startTP.xyz endTP.xyz 0.5
+    , xyz = interpolatedLocalCoords
     , costMetric = 0
     }
 
@@ -243,7 +248,9 @@ parseTrackPoints xml =
                 BoundingBox3d.centerPoint box
 
         correctXYZ tp =
-            let (x,y,z) = Point3d.toTuple Length.inMeters tp.xyz
+            let
+                ( x, y, z ) =
+                    Point3d.toTuple Length.inMeters tp.xyz
             in
             { tp | xyz = Point3d.fromTuple Length.meters ( x - midLon, y - midLat, z ) }
     in

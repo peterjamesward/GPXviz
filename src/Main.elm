@@ -2120,74 +2120,80 @@ splitRoad : Model -> Model
 splitRoad model =
     -- Introduce additional trackpoints in all segments **between** markers.
     let
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
-
-        ( startNode, endNode ) =
-            if model.currentNode == marker then
-                -- Apply to whole track
-                ( 0, Array.length model.nodeArray - 1 )
-
-            else
-                ( min model.currentNode marker
-                , max model.currentNode marker
-                )
-
-        undoMessage =
-            "Split between " ++ String.fromInt startNode ++ " and " ++ String.fromInt endNode
-
-        newPointsIn segment =
+        splitRoadInternal startNode endNode =
+            -- Inner function allows graph editing support.
             let
-                trackPointsNeeded =
-                    -- Including the final one.
-                    -- Replacing this should make it easier for the multiple segment case.
-                    ceiling <| segment.length / model.maxSegmentSplitSize
+                undoMessage =
+                    "Split between " ++ String.fromInt startNode ++ " and " ++ String.fromInt endNode
+
+                newPointsIn segment =
+                    let
+                        trackPointsNeeded =
+                            -- Including the final one.
+                            -- Replacing this should make it easier for the multiple segment case.
+                            ceiling <| segment.length / model.maxSegmentSplitSize
+                    in
+                    List.map
+                        (\i ->
+                            interpolateSegment
+                                (toFloat i / toFloat trackPointsNeeded)
+                                segment.startsAt.trackPoint
+                                segment.endsAt.trackPoint
+                        )
+                        (List.range 1 trackPointsNeeded)
+
+                totalTrackPointsBefore =
+                    List.length model.trackPoints
+
+                segmentsToInterpolate =
+                    model.roads |> List.take endNode |> List.drop startNode
+
+                allNewTrackPoints =
+                    List.concatMap
+                        newPointsIn
+                        segmentsToInterpolate
+
+                precedingTrackPoints =
+                    List.take (startNode + 1) model.trackPoints
+
+                subsequentTrackPoints =
+                    List.drop (endNode + 1) model.trackPoints
+
+                newTrackPointList =
+                    precedingTrackPoints ++ allNewTrackPoints ++ subsequentTrackPoints
+
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( startNode, endNode )
+                        newTrackPointList
+
+                makeItSo mdl =
+                    { mdl
+                        | trackPoints =
+                            if model.graph == newGraph then
+                                -- Not in graph mode, this means.
+                                reindexTrackpoints newTrackPointList
+
+                            else
+                                Graph.walkTheRoute newGraph
+                        , smoothedBend = Nothing
+                        , currentNode = model.currentNode + 1
+                        , markedNode =
+                            Maybe.map
+                                (\v -> v + List.length newTrackPointList - totalTrackPointsBefore)
+                                model.markedNode
+                        , graph = newGraph
+                    }
             in
-            List.map
-                (\i ->
-                    interpolateSegment
-                        (toFloat i / toFloat trackPointsNeeded)
-                        segment.startsAt.trackPoint
-                        segment.endsAt.trackPoint
-                )
-                (List.range 1 trackPointsNeeded)
-
-        totalTrackPointsBefore =
-            List.length model.trackPoints
-
-        segmentsToInterpolate =
-            model.roads |> List.take endNode |> List.drop startNode
-
-        allNewTrackPoints =
-            List.concatMap
-                newPointsIn
-                segmentsToInterpolate
-
-        precedingTrackPoints =
-            List.take (startNode + 1) model.trackPoints
-
-        subsequentTrackPoints =
-            List.drop (endNode + 1) model.trackPoints
-
-        newTrackPointList =
-            precedingTrackPoints ++ allNewTrackPoints ++ subsequentTrackPoints
-
-        makeItSo mdl =
-            { mdl
-                | trackPoints = reindexTrackpoints newTrackPointList
-                , currentNode =
-                    if mdl.currentNode == endNode then
-                        mdl.currentNode + List.length newTrackPointList - totalTrackPointsBefore
-
-                    else
-                        mdl.currentNode
-                , markedNode =
-                    Maybe.map
-                        (\v -> v + List.length newTrackPointList - totalTrackPointsBefore)
-                        model.markedNode
-            }
+            model |> addToUndoStack undoMessage |> makeItSo
     in
-    model |> addToUndoStack undoMessage |> makeItSo
+    case locateMarkers model of
+        Just ( startNode, endNode ) ->
+            splitRoadInternal  startNode endNode
+
+        _ ->
+            model
 
 
 closeTheLoop : Model -> Model
