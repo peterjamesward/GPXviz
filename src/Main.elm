@@ -1437,40 +1437,7 @@ update msg model =
             )
 
         SimplifyTrack ->
-            let
-                ( rangeStart, rangeEnd ) =
-                    findBracketedRange model
-
-                undoMessage =
-                    "Remove "
-                        ++ String.fromInt (List.length nodesToRemove)
-                        ++ " track points"
-
-                nodesToRemove =
-                    List.filter
-                        (\n -> n >= rangeStart && n <= rangeEnd)
-                        model.metricFilteredNodes
-
-                replaceTrackPoints old =
-                    { old
-                        | trackPoints =
-                            reindexTrackpoints <|
-                                removeByNodeNumbers nodesToRemove model.trackPoints
-                    }
-
-                newModel =
-                    addToUndoStack undoMessage model
-                        |> replaceTrackPoints
-                        |> deriveNodesAndRoads
-                        |> (case Array.get model.currentNode model.nodeArray of
-                                Just node ->
-                                    makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
-
-                                Nothing ->
-                                    identity
-                           )
-            in
-            trackHasChanged newModel
+            simplifyTrack model
 
         SetFilterBias setting ->
             ( { model | filterBias = setting / 100.0 }
@@ -2825,6 +2792,61 @@ smoothBend model =
 
         _ ->
             model
+
+simplifyTrack model =
+    let
+        simplifyTrackInternal rangeStart rangeEnd =
+            let
+                undoMessage =
+                    "Remove "
+                        ++ String.fromInt (List.length nodesToRemove)
+                        ++ " track points"
+
+                nodesToRemove =
+                    List.filter
+                        (\n -> n >= rangeStart && n <= rangeEnd)
+                        model.metricFilteredNodes
+
+                newTrackPoints =
+                    removeByNodeNumbers nodesToRemove model.trackPoints
+
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( rangeStart, rangeEnd )
+                        newTrackPoints
+
+                replaceTrackPoints old =
+                    { old
+                        | trackPoints =
+                            if model.graph == newGraph then
+                                -- Not in graph mode, this means.
+                                newTrackPoints
+
+                            else
+                                Graph.walkTheRoute newGraph
+                        , graph = newGraph
+                    }
+
+                newModel =
+                    addToUndoStack undoMessage model
+                        |> replaceTrackPoints
+                        |> deriveNodesAndRoads
+                        |> (case Array.get model.currentNode model.nodeArray of
+                                Just node ->
+                                    makeNearestNodeCurrent node.trackPoint.lon node.trackPoint.lat
+
+                                Nothing ->
+                                    identity
+                           )
+            in
+            trackHasChanged newModel
+    in
+    case locateMarkers model of
+        Just (rangeStart, rangeEnd) ->
+            simplifyTrackInternal rangeStart rangeEnd
+
+        _ -> (model, Cmd.none)
 
 
 outputGPX : Model -> Cmd Msg

@@ -12,6 +12,7 @@ DONE
     Split point
     Insert points
     Bezier (but beware adding Offset when track points are close)
+    Simplify
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
@@ -24,22 +25,14 @@ Centroid Filter
 
 OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
 Strava segment
-Simplify
 
 UNUSUAL OPERATIONS (we need not provide these in Graph mode)
 Close loop      (OK, but not important as can be done befor analysis)
 Reverse         (inappropriate so not at all, superseded by DSL)
 
-OPERATIONS THAT CAN WORK ON A SINGLE NODE
+OPERATIONS THAT CAN WORK ON A SINGLE NODE AND SHOULD BE SUPPORTED
 Nudge vertically
 Drag on map
-
-** It seems we should only allow ranges that lay on a common edge, excluding nodes. **
--- Could also allow operations where one node is selected and other marker on an edge --
--- Offset should be 0 whilst editing. Advisory only.
-
-Should now be fairly easy to send the new TP list to Graph, where we use the reverse index
-to identify affected edge. We replace ALL TP on that edge, then walk the route again.
 
 --THEN: "Thaw" for final tweaking of individual points.
 --THEN: Route DSL (LATER!)
