@@ -1509,86 +1509,7 @@ update msg model =
             ( { model | bezierTolerance = tolerance }, Cmd.none )
 
         BezierSplines ->
-            let
-                ( rangeStart, rangeEnd ) =
-                    --TODO: Apply over bracket.
-                    findBracketedRange model
-
-                actualPointerPosition =
-                    Maybe.map .trackPoint (Array.get model.currentNode model.nodeArray)
-
-                actualMarkerPosition =
-                    case model.markedNode of
-                        Just mark ->
-                            Maybe.map .trackPoint (Array.get mark model.nodeArray)
-
-                        Nothing ->
-                            Nothing
-
-                treatAsLoop =
-                    model.markedNode == Nothing && model.loopiness == IsALoop
-
-                ( trackPointsBeforeEnd, trackPointsAfterEnd ) =
-                    -- We will eventually reassemble trackpoints
-                    List.Extra.splitAt rangeEnd model.trackPoints
-
-                ( trackPointsBeforeStart, trackPointsToProcess ) =
-                    List.Extra.splitAt rangeStart trackPointsBeforeEnd
-
-                ( nodesBeforeEnd, _ ) =
-                    -- But I want to work in LocalCoords, hence on Node locations
-                    List.Extra.splitAt rangeEnd model.nodes
-
-                ( _, nodesToProcess ) =
-                    List.Extra.splitAt rangeStart nodesBeforeEnd
-
-                replacementNodes =
-                    bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
-                        List.map .location nodesToProcess
-
-                replacementTrackPoints =
-                    nodesToTrackPoints
-                        (BoundingBox3d.centerPoint model.trackPointBox)
-                        replacementNodes
-
-                reassembledTrackPoints =
-                    reindexTrackpoints <|
-                        trackPointsBeforeStart
-                            ++ replacementTrackPoints
-                            ++ trackPointsAfterEnd
-
-                newPointerPosition =
-                    case actualPointerPosition of
-                        Just pointer ->
-                            Maybe.withDefault 0 <|
-                                Maybe.map .idx <|
-                                    trackPointFromLatLon pointer.lat pointer.lon reassembledTrackPoints
-
-                        Nothing ->
-                            0
-
-                newMarkerPosition =
-                    case actualMarkerPosition of
-                        Just marker ->
-                            Just <|
-                                Maybe.withDefault 0 <|
-                                    Maybe.map .idx <|
-                                        trackPointFromLatLon marker.lat marker.lon reassembledTrackPoints
-
-                        Nothing ->
-                            Nothing
-
-                replaceTrackPoints m =
-                    { m
-                        | trackPoints = reassembledTrackPoints
-                        , currentNode = newPointerPosition
-                        , markedNode = newMarkerPosition
-                    }
-            in
-            model
-                |> addToUndoStack "Bezier splines"
-                |> replaceTrackPoints
-                |> trackHasChanged
+            applyBezierSplines model
 
         LoadExternalSegment ->
             case getStravaToken model.stravaAuthentication of
@@ -2190,7 +2111,7 @@ splitRoad model =
     in
     case locateMarkers model of
         Just ( startNode, endNode ) ->
-            splitRoadInternal  startNode endNode
+            splitRoadInternal startNode endNode
 
         _ ->
             model
@@ -2758,6 +2679,75 @@ smoothGradient model gradient =
         Nothing ->
             -- shouldn't happen
             model
+
+
+applyBezierSplines model =
+    let
+        range =
+            locateMarkers model
+
+        applyBezierInternal rangeStart rangeEnd =
+            let
+                treatAsLoop =
+                    model.markedNode == Nothing && model.loopiness == IsALoop
+
+                ( trackPointsBeforeEnd, trackPointsAfterEnd ) =
+                    List.Extra.splitAt rangeEnd model.trackPoints
+
+                ( trackPointsBeforeStart, trackPointsToProcess ) =
+                    List.Extra.splitAt rangeStart trackPointsBeforeEnd
+
+                ( nodesBeforeEnd, _ ) =
+                    -- But I want to work in LocalCoords, hence on Node locations
+                    List.Extra.splitAt rangeEnd model.nodes
+
+                ( _, nodesToProcess ) =
+                    List.Extra.splitAt rangeStart nodesBeforeEnd
+
+                replacementNodes =
+                    bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
+                        List.map .location nodesToProcess
+
+                replacementTrackPoints =
+                    nodesToTrackPoints
+                        (BoundingBox3d.centerPoint model.trackPointBox)
+                        replacementNodes
+
+                reassembledTrackPoints =
+                        trackPointsBeforeStart
+                            ++ replacementTrackPoints
+                            ++ trackPointsAfterEnd
+
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( rangeStart, rangeEnd )
+                        reassembledTrackPoints
+
+                replaceTrackPoints m =
+                    { m
+                        | trackPoints =
+                            if model.graph == newGraph then
+                                -- Not in graph mode, this means.
+                                reindexTrackpoints reassembledTrackPoints
+
+                            else
+                                Graph.walkTheRoute newGraph
+                        , smoothedBend = Nothing
+                        , graph = newGraph
+                    }
+            in
+            model
+                |> addToUndoStack "Bezier splines"
+                |> replaceTrackPoints
+                |> trackHasChanged
+    in
+    case range of
+        Just ( rangeStart, rangeEnd ) ->
+            applyBezierInternal rangeStart rangeEnd
+
+        _ ->
+            ( model, Cmd.none )
 
 
 smoothBend : Model -> Model
@@ -4905,7 +4895,16 @@ viewFilterControls model =
         , row
             [ width fill, spacing 20, centerX ]
             [ column [ width <| fillPortion 1, spacing 10, centerX ] centroidFilterControls
-            , column [ width <| fillPortion 1, spacing 10, centerX ] bezierControls
+            , if locateMarkers model /= Nothing then
+                column [ width <| fillPortion 1, spacing 10, centerX ] bezierControls
+
+              else
+                column [ spacing 10, padding 10, alignTop, centerX ]
+                    [ E.text "Sorry, pointers"
+                    , E.text "must be within"
+                    , E.text "the same edge for"
+                    , E.text "Bezier splines."
+                    ]
             ]
         , wholeTrackTextHelper model
         ]

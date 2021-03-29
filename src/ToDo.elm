@@ -11,6 +11,7 @@ DONE
     Delete.
     Split point
     Insert points
+    Bezier (but beware adding Offset when track points are close)
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
@@ -22,7 +23,6 @@ Smooth Gradient
 Centroid Filter
 
 OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
-Bezier
 Strava segment
 Simplify
 
