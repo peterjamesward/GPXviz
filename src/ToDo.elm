@@ -6,19 +6,20 @@ module ToDo exposing (..)
 --WIP: Nodes and Edges. (John Bytheway.)
 
 --THEN: Use Graph to check whether edits allowed.
-Done for Bend Smoother.
+DONE
+    Bend Smoother.
+    Delete.
 
 --THEN: Work through all the editing functions to work on the graph ("Frozen" mode).
 
-OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS
+OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS BUT DO NOT CHANGE THE GRAPH
+(and could traverse nodes and multiple edges, just walking the track point list)
 Nudge
 Straighten
 Smooth Gradient
 Centroid Filter
 
-OPERATIONS THAT MODIFY THE TRACKPOINT LIST
-Delete
-Smooth Bend <done>
+OPERATIONS THAT MODIFY THE TRACKPOINT LIST AND THUS GRAPH EDGES
 Insert points
 Split point
 Bezier

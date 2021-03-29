@@ -2307,29 +2307,49 @@ insertTrackPoint n model =
 
 
 deleteTrackPoints : ( Int, Int ) -> Model -> Model
-deleteTrackPoints ( start, finish ) model =
+deleteTrackPoints ( _, _ ) model =
     let
-        undoMessage =
-            "Delete track points " ++ String.fromInt start ++ "-" ++ String.fromInt finish
+        deleteTrackPointsInternal (start, finish) =
+            let
+                undoMessage =
+                    "Delete track points " ++ String.fromInt start ++ "-" ++ String.fromInt finish
+
+                precedingTPs =
+                    List.take start model.trackPoints
+
+                remainingTPs =
+                    List.drop (finish + 1) model.trackPoints
+
+                newTPs =
+                    precedingTPs ++ remainingTPs
+
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( start, finish )
+                        newTPs
+
+                makeItSo m =
+                    { m
+                        | trackPoints =
+                            if model.graph == newGraph then
+                                -- Not in graph mode, this means.
+                                newTPs
+
+                            else
+                                Graph.walkTheRoute newGraph
+                        , smoothedBend = Nothing
+                        , currentNode = min start (List.length newTPs - 1)
+                        , markedNode = Nothing
+                        , graph = newGraph
+                    }
+            in
+            model |> addToUndoStack undoMessage |> makeItSo
     in
-    let
-        precedingTPs =
-            List.take start model.trackPoints
-
-        remainingTPs =
-            List.drop (finish + 1) model.trackPoints
-
-        newTPs =
-            precedingTPs ++ remainingTPs
-
-        makeItSo m =
-            { m
-                | trackPoints = reindexTrackpoints newTPs
-                , currentNode = min start (List.length newTPs - 1)
-                , markedNode = Nothing
-            }
-    in
-    model |> addToUndoStack undoMessage |> makeItSo
+    case locateMarkers model of
+        Just ( canon1, canon2 ) ->
+            deleteTrackPointsInternal (canon1, canon2)
+        _ -> model
 
 
 changeLoopStart : Int -> Model -> Model
@@ -2725,7 +2745,6 @@ smoothBend model =
 
         marker =
             Maybe.withDefault model.currentNode model.markedNode
-
     in
     case model.smoothedBend of
         Just bend ->
@@ -2756,9 +2775,9 @@ smoothBend model =
                         marker
 
                 allNewTrack =
-                        List.take bend.startIndex model.trackPoints
-                            ++ newTrackPoints
-                            ++ List.drop (bend.endIndex + 1) model.trackPoints
+                    List.take bend.startIndex model.trackPoints
+                        ++ newTrackPoints
+                        ++ List.drop (bend.endIndex + 1) model.trackPoints
 
                 newGraph =
                     updateCanonicalEdge
@@ -4439,14 +4458,20 @@ viewTrackPointTools model =
             , max model.currentNode marker
             )
     in
-    column [ padding 10, spacing 10, centerX ] <|
-        [ row [ spacing 20 ]
-            [ insertNodeOptionsBox model.currentNode
-            , deleteNodeButton ( start, finish )
+    if Graph.withinSameEdge model.graph ( model.currentNode, marker ) /= Nothing then
+        column [ padding 10, spacing 10, centerX ] <|
+            [ row [ spacing 20 ]
+                [ insertNodeOptionsBox model.currentNode
+                , deleteNodeButton ( start, finish )
+                ]
+            , splitSegmentOptions model.maxSegmentSplitSize
+            , wholeTrackTextHelper model
             ]
-        , splitSegmentOptions model.maxSegmentSplitSize
-        , wholeTrackTextHelper model
-        ]
+
+    else
+        column [ spacing 10, padding 10, alignTop, centerX ]
+            [ E.text "Sorry, both pointers must be within the same edge."
+            ]
 
 
 insertNodeOptionsBox c =
