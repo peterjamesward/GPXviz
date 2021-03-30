@@ -2569,37 +2569,32 @@ smoothGradient model gradient =
     -- which we then splice into the model.
     -- It's a fold because we must keep track of the current elevation
     -- which will increase with each segment.
-    let
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
-
-        ( start, finish ) =
-            ( min model.currentNode marker
-            , max model.currentNode marker
-            )
-
-        segments =
-            model.roads |> List.take (finish - 1) |> List.drop start
-
-        startNode =
-            Array.get start model.nodeArray
-
-        undoMessage =
-            "gradient smoothing\nfrom "
-                ++ String.fromInt start
-                ++ " to "
-                ++ String.fromInt finish
-                ++ ", \nbumpiness "
-                ++ showDecimal2 model.bumpinessFactor
-                ++ "."
-    in
-    case startNode of
-        Just n ->
+    case locateMarkers model of
+        Just (start, finish) ->
             let
+                segments =
+                    model.roads |> List.take (finish - 1) |> List.drop start
+
+                startNode =
+                    Array.get start model.nodeArray
+
+                startElevation =
+                    -- Not pretty. Teach you to use arrays.
+                    startNode |> Maybe.map (.trackPoint >> .ele) |> Maybe.withDefault 0.0
+
+                undoMessage =
+                    "gradient smoothing\nfrom "
+                        ++ String.fromInt start
+                        ++ " to "
+                        ++ String.fromInt finish
+                        ++ ", \nbumpiness "
+                        ++ showDecimal2 model.bumpinessFactor
+                        ++ "."
+
                 ( _, adjustedTrackPoints ) =
                     List.foldl
                         adjustTrackPoint
-                        ( n.trackPoint.ele, [] )
+                        ( startElevation, [] )
                         segments
 
                 adjustTrackPoint road ( startEle, newTPs ) =
@@ -2637,17 +2632,34 @@ smoothGradient model gradient =
                                 + (1.0 - model.bumpinessFactor)
                                 * newTP.ele
                     }
+
+                reassembledTrackPoints =
+                    List.take (start + 1) model.trackPoints
+                        ++ bumpyTrackPoints
+                        ++ List.drop finish model.trackPoints
+
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( start, finish )
+                        reassembledTrackPoints
+
+                replaceTrackPoints m =
+                    { m
+                        | trackPoints =
+                            if model.graph == newGraph then
+                                -- Not in graph mode, this means.
+                                reindexTrackpoints reassembledTrackPoints
+
+                            else
+                                Graph.walkTheRoute newGraph
+                        , smoothedBend = Nothing
+                        , graph = newGraph
+                    }
             in
-            addToUndoStack undoMessage model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                reindexTrackpoints <|
-                                    List.take (start + 1) m.trackPoints
-                                        ++ bumpyTrackPoints
-                                        ++ List.drop finish m.trackPoints
-                        }
-                   )
+            model
+            |> addToUndoStack undoMessage
+            |> replaceTrackPoints
 
         Nothing ->
             -- shouldn't happen
@@ -3542,7 +3554,7 @@ viewInputError model =
         ]
 
 
-averageGradient : Model -> Int -> Int -> Maybe Float
+averageGradient : Model -> Int -> Int -> Float
 averageGradient model s f =
     let
         segments =
@@ -3561,13 +3573,13 @@ averageGradient model s f =
                     overallLength =
                         List.sum <| List.map .length segments
                 in
-                Just <| (endElevation - startElevation) / overallLength * 100.0
+                (endElevation - startElevation) / overallLength * 100.0
 
             _ ->
-                Nothing
+                0.0
 
     else
-        Nothing
+        0.0
 
 
 viewGradientChanges : Model -> Element Msg
@@ -4414,29 +4426,19 @@ undoButton model =
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
     let
-        markedNode =
-            Maybe.withDefault model.currentNode model.markedNode
-
-        start =
-            min model.currentNode markedNode
-
-        finish =
-            max model.currentNode markedNode
-
-        avg =
-            averageGradient model start finish
+        range = locateMarkers model
 
         gradientSmoothControls =
-            case avg of
-                Just gradient ->
+            case range of
+                Just (start, finish) ->
                     row [ spacing 5, padding 5 ]
                         [ button
                             prettyButtonStyles
-                            { onPress = Just <| SmoothGradient gradient
+                            { onPress = Just <| SmoothGradient (averageGradient model start finish)
                             , label =
                                 E.text <|
                                     "Smooth between markers\nAverage gradient "
-                                        ++ showDecimal2 gradient
+                                        ++ showDecimal2 (averageGradient model start finish)
                             }
                         , smoothnessSlider model
                         ]
@@ -4444,6 +4446,7 @@ viewGradientFixerPane model =
                 _ ->
                     column [ spacing 10, padding 10, alignTop, centerX ]
                         [ E.text "Gradient smoothing works over a range of track segments."
+                        , E.text "In Graph mode, this only works on a single Edge."
                         , E.text "Try re-positioning the current pointer or marker."
                         ]
     in
