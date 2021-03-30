@@ -703,19 +703,10 @@ useCanonicalEdges edges canonicalEdges =
 
 walkTheRoute : Graph -> List TrackPoint
 walkTheRoute graph =
-    let
-        lookupReverseIndex tp =
-            Dict.get tp.idx graph.trackPointToCanonical
-
-        --_ = Debug.log "ROUTE" <|
-        --    List.map lookupReverseIndex route
-        route =
-            graph.trackPoints
-                |> reindexTrackpoints
-                -- To get the right "naturalBearing"
-                |> List.map (applyCentreLineOffset graph.centreLineOffset)
-    in
-    route
+    graph.trackPoints
+        |> reindexTrackpoints
+        -- To get the right "naturalBearing"
+        |> List.map (applyCentreLineOffset graph.centreLineOffset)
 
 
 applyCentreLineOffset : Float -> TrackPoint -> TrackPoint
@@ -782,7 +773,8 @@ withinSameEdge graph ( tp1, tp2 ) =
     else
         let
             ( point1, point2 ) =
-                ( Dict.get tp1 graph.trackPointToCanonical, Dict.get tp2 graph.trackPointToCanonical )
+                ( Dict.get tp1 graph.trackPointToCanonical
+                , Dict.get tp2 graph.trackPointToCanonical )
         in
         case ( point1, point2 ) of
             ( Just (EdgePoint e1 canon1), Just (EdgePoint e2 canon2) ) ->
@@ -807,9 +799,6 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
     let
         edgeEntry =
             Dict.get startIndex graph.trackPointToCanonical
-
-        _ =
-            Debug.log "Region" ( startIndex, endIndex )
     in
     case edgeEntry of
         Just (EdgePoint edgeIdx _) ->
@@ -826,9 +815,6 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
                     case ( Dict.get startNode graph.nodes, Dict.get endNode graph.nodes ) of
                         ( Just start, Just end ) ->
                             let
-                                _ =
-                                    Debug.log "Nodes" ( start, end )
-
                                 notAtNode point =
                                     -- After much experimentation, this spell seems to work.
                                     let

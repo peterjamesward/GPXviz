@@ -17,13 +17,12 @@ DONE
     Insert points
     Bezier (but beware adding Offset when track points are close)
     Simplify
-
     Nudge
+    Straighten
 
 OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS BUT DO NOT CHANGE THE GRAPH
 ( and could traverse nodes and multiple edges, just walking the track point list )
 ( but we shall restrict to single edge for consistency and simplicity )
-Straighten
 Smooth Gradient
 Centroid Filter
 
@@ -35,8 +34,10 @@ UNUSUAL OPERATIONS (we need not provide these in Graph mode)
 Close loop      (OK, but not important as can be done befor analysis)
 Reverse         (inappropriate so not at all, superseded by DSL)
 
+--THEN: Offset nodes somewhat, according to direction of travel.
 --THEN: "Thaw" for final tweaking of individual points.
 --THEN: Route DSL (LATER!)
+--THEN: Option to permanently apply Offset (become separate Edges).
 
 --TODO: Komoot. (Would not auth last time.)
 -- Thinking of adding a new view Tab visible on load (and after) for

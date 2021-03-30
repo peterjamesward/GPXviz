@@ -36,7 +36,7 @@ import Http
 import Json.Decode as E exposing (..)
 import Length exposing (inMeters, meters)
 import List exposing (drop, take)
-import List.Extra
+import List.Extra as List
 import Loop exposing (..)
 import MapController exposing (MapInfo, MapState(..), mapPort, mapStopped, messageReceiver, msgDecoder)
 import MapboxStuff exposing (metresPerPixel, zoomLevelFromBoundingBox)
@@ -1984,7 +1984,7 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
             }
     in
     model
-     |> addToUndoStack undoMessage
+        |> addToUndoStack undoMessage
         |> makeItSo
 
 
@@ -2302,45 +2302,50 @@ reverseTrack model =
 straightenStraight : Model -> Model
 straightenStraight model =
     let
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
+        markers =
+            locateMarkers model
 
-        ( n1, n2 ) =
-            ( min model.currentNode marker
-            , max model.currentNode marker
-            )
+        endPoints =
+            case markers of
+                Just ( n1, n2 ) ->
+                    ( Array.get n1 model.nodeArray, Array.get n2 model.nodeArray )
 
-        ( firstSeg, lastSeg ) =
-            ( Array.get n1 model.roadArray
-            , Array.get n2 model.roadArray
-            )
-
-        undoMessage =
-            "straighten from "
-                ++ String.fromInt n1
-                ++ " to "
-                ++ String.fromInt n2
-                ++ "."
+                Nothing ->
+                    ( Nothing, Nothing )
     in
-    case ( firstSeg, lastSeg ) of
-        ( Just firstRoad, Just lastRoad ) ->
+    case endPoints of
+        ( Just node1, Just node2 ) ->
             let
+                ( n1, n2 ) =
+                    ( node1.trackPoint.idx, node2.trackPoint.idx )
+
+                undoMessage =
+                    "straighten from "
+                        ++ String.fromInt n1
+                        ++ " to "
+                        ++ String.fromInt n2
+                        ++ "."
+
                 startPoint =
                     Point2d.meters
-                        firstRoad.startsAt.trackPoint.lon
-                        firstRoad.startsAt.trackPoint.lat
+                        node1.trackPoint.lon
+                        node1.trackPoint.lat
 
                 endPoint =
                     Point2d.meters
-                        lastRoad.startsAt.trackPoint.lon
-                        lastRoad.startsAt.trackPoint.lat
+                        node2.trackPoint.lon
+                        node2.trackPoint.lat
 
-                trackPointsToMove =
-                    -- Note, include startTP and it will move by zero,
-                    model.trackPoints |> List.take n2 |> List.drop n1
+                ( tpBeforeEnd, tpAfterEnd ) =
+                    List.splitAt n2 model.trackPoints
+
+                ( tpBeforeStart, trackPointsToMove ) =
+                    List.splitAt n1 tpBeforeEnd
 
                 affectedRoads =
-                    model.roads |> List.take n2 |> List.drop n1
+                    model.roads
+                        |> List.take n2
+                        |> List.drop n1
 
                 affectedLength =
                     List.sum <| List.map .length affectedRoads
@@ -2360,23 +2365,40 @@ straightenStraight model =
                 interpolateTrackPoint original fraction =
                     let
                         interpolatedPoint =
-                            Point2d.interpolateFrom startPoint endPoint (fraction / affectedLength)
-                    in
-                    { singleton
-                        | lat = Length.inMeters <| Point2d.yCoordinate interpolatedPoint
-                        , lon = Length.inMeters <| Point2d.xCoordinate interpolatedPoint
-                        , ele = original.ele
-                    }
+                            interpolateSegment (fraction / affectedLength)
+                            node1.trackPoint
+                            node2.trackPoint
 
-                splicedTPs =
-                    List.take n1 model.trackPoints
-                        ++ newTPs
-                        ++ List.drop n2 model.trackPoints
+                        interpolatedWithOriginalElevation =
+                            { interpolatedPoint | ele = original.ele, idx = original.idx }
+                    in
+                    interpolatedWithOriginalElevation
+
+                allNewTrack =
+                    tpBeforeStart ++ newTPs ++ tpAfterEnd
+
+                newGraph =
+                    updateCanonicalEdge
+                        model.graph
+                        ( n1, n2 )
+                        allNewTrack
+
+                makeItSo m =
+                    { m
+                        | trackPoints =
+                            if m.graph == newGraph then
+                                -- Not in graph mode, this means.
+                                reindexTrackpoints allNewTrack
+
+                            else
+                                Graph.walkTheRoute newGraph
+                        , smoothedBend = Nothing
+                        , graph = newGraph
+                    }
             in
-            addToUndoStack undoMessage model
-                |> (\mdl ->
-                        { mdl | trackPoints = reindexTrackpoints splicedTPs }
-                   )
+            model
+                |> addToUndoStack undoMessage
+                |> makeItSo
 
         _ ->
             model
@@ -2643,17 +2665,17 @@ applyBezierSplines model =
                     model.markedNode == Nothing && model.loopiness == IsALoop
 
                 ( trackPointsBeforeEnd, trackPointsAfterEnd ) =
-                    List.Extra.splitAt rangeEnd model.trackPoints
+                    List.splitAt rangeEnd model.trackPoints
 
                 ( trackPointsBeforeStart, trackPointsToProcess ) =
-                    List.Extra.splitAt rangeStart trackPointsBeforeEnd
+                    List.splitAt rangeStart trackPointsBeforeEnd
 
                 ( nodesBeforeEnd, _ ) =
                     -- But I want to work in LocalCoords, hence on Node locations
-                    List.Extra.splitAt rangeEnd model.nodes
+                    List.splitAt rangeEnd model.nodes
 
                 ( _, nodesToProcess ) =
-                    List.Extra.splitAt rangeStart nodesBeforeEnd
+                    List.splitAt rangeStart nodesBeforeEnd
 
                 replacementNodes =
                     bezierSplines treatAsLoop model.bezierTension model.bezierTolerance <|
@@ -4241,8 +4263,8 @@ viewBendFixerPane model =
 viewStraightenTools : Model -> Element Msg
 viewStraightenTools model =
     let
-        marker =
-            Maybe.withDefault model.currentNode model.markedNode
+        range =
+            locateMarkers model
 
         simplifyButton =
             button
@@ -4255,18 +4277,24 @@ viewStraightenTools model =
                             ++ " track points\nto simplify the route."
                 }
     in
-    column [ spacing 10, padding 10, alignTop, centerX ]
-        [ if model.currentNode /= marker then
-            straightenButton
-
-          else
+    case range of
+        Just ( start, end ) ->
             column [ spacing 10, padding 10, alignTop, centerX ]
-                [ E.text "The straighten tool requires a range."
-                , E.text "Drop the marker and move it away from the current pointer."
+                [ if start /= end then
+                    straightenButton
+
+                  else
+                    column [ spacing 10, padding 10, alignTop, centerX ]
+                        [ E.text "The straighten tool requires a range."
+                        , E.text "Drop the marker and move it away from the current pointer."
+                        ]
+                , simplifyButton
+                , E.text "Simplify works across a range if available,\notherwise the whole track."
                 ]
-        , simplifyButton
-        , E.text "Simplify works across a range if available,\notherwise the whole track."
-        ]
+
+        _ ->
+            column [ spacing 10, padding 10, alignTop, centerX ]
+                [ E.text "Can't straighten cross a node" ]
 
 
 viewNudgeTools : Model -> Element Msg
