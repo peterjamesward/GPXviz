@@ -1445,29 +1445,46 @@ update msg model =
             )
 
         FilterWeightedAverage ->
-            let
-                ( rangeStart, rangeEnd ) =
-                    findBracketedRange model
+            case locateMarkers model of
+                Just ( rangeStart, rangeEnd ) ->
+                    let
+                        undoMessage =
+                            "Centroid filter"
 
-                undoMessage =
-                    "Centroid filter"
-
-                replaceTrackPoints old =
-                    { old
-                        | trackPoints =
+                        newTrack =
                             applyWeightedAverageFilter
-                                ( rangeStart, rangeEnd )
-                                model.filterBias
-                                model.loopiness
-                                model.trackPoints
-                    }
+                                        ( rangeStart, rangeEnd )
+                                        model.filterBias
+                                        model.loopiness
+                                        model.trackPoints
 
-                newModel =
+
+                        newGraph =
+                            updateCanonicalEdge
+                                model.graph
+                                ( rangeStart, rangeEnd )
+                                newTrack
+
+                        updateModel m =
+                            { m
+                                | trackPoints =
+                                    if model.graph == newGraph then
+                                        -- Not in graph mode, this means.
+                                        reindexTrackpoints newTrack
+
+                                    else
+                                        Graph.walkTheRoute newGraph
+                                , smoothedBend = Nothing
+                                , graph = newGraph
+                            }
+                    in
                     model
                         |> addToUndoStack undoMessage
-                        |> replaceTrackPoints
-            in
-            trackHasChanged newModel
+                        |> updateModel
+                        |> trackHasChanged
+
+                _ ->
+                    ( model, Cmd.none )
 
         SetBezierTension tension ->
             ( { model | bezierTension = tension }, Cmd.none )
@@ -2366,8 +2383,8 @@ straightenStraight model =
                     let
                         interpolatedPoint =
                             interpolateSegment (fraction / affectedLength)
-                            node1.trackPoint
-                            node2.trackPoint
+                                node1.trackPoint
+                                node2.trackPoint
 
                         interpolatedWithOriginalElevation =
                             { interpolatedPoint | ele = original.ele, idx = original.idx }
@@ -2570,7 +2587,7 @@ smoothGradient model gradient =
     -- It's a fold because we must keep track of the current elevation
     -- which will increase with each segment.
     case locateMarkers model of
-        Just (start, finish) ->
+        Just ( start, finish ) ->
             let
                 segments =
                     model.roads |> List.take (finish - 1) |> List.drop start
@@ -2658,8 +2675,8 @@ smoothGradient model gradient =
                     }
             in
             model
-            |> addToUndoStack undoMessage
-            |> replaceTrackPoints
+                |> addToUndoStack undoMessage
+                |> replaceTrackPoints
 
         Nothing ->
             -- shouldn't happen
@@ -4426,11 +4443,12 @@ undoButton model =
 viewGradientFixerPane : Model -> Element Msg
 viewGradientFixerPane model =
     let
-        range = locateMarkers model
+        range =
+            locateMarkers model
 
         gradientSmoothControls =
             case range of
-                Just (start, finish) ->
+                Just ( start, finish ) ->
                     row [ spacing 5, padding 5 ]
                         [ button
                             prettyButtonStyles
@@ -4918,25 +4936,22 @@ viewFilterControls model =
                 }
             ]
     in
-    column [ spacing 10, padding 10, centerX, width fill ]
-        [ E.text "Centroid averaging reduces local deviations."
-        , E.text "Splines create new points to smooth between existing points."
-        , row
-            [ width fill, spacing 20, centerX ]
-            [ column [ width <| fillPortion 1, spacing 10, centerX ] centroidFilterControls
-            , if locateMarkers model /= Nothing then
-                column [ width <| fillPortion 1, spacing 10, centerX ] bezierControls
-
-              else
-                column [ spacing 10, padding 10, alignTop, centerX ]
-                    [ E.text "Sorry, pointers"
-                    , E.text "must be within"
-                    , E.text "the same edge for"
-                    , E.text "Bezier splines."
-                    ]
+    if locateMarkers model /= Nothing then
+        column [ spacing 10, padding 10, centerX, width fill ]
+            [ E.text "Centroid averaging reduces local deviations."
+            , E.text "Splines create new points to smooth between existing points."
+            , row
+                [ width fill, spacing 20, centerX ]
+                [ column [ width <| fillPortion 1, spacing 10, centerX ] centroidFilterControls
+                , column [ width <| fillPortion 1, spacing 10, centerX ] bezierControls
+                ]
+            , wholeTrackTextHelper model
             ]
-        , wholeTrackTextHelper model
-        ]
+
+    else
+        column [ spacing 10, padding 10, alignTop, centerX ]
+            [ E.text "Sorry, pointers must be within the same Edge."
+            ]
 
 
 subscriptions : Model -> Sub Msg

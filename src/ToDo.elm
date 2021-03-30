@@ -17,14 +17,11 @@ DONE
     Insert points
     Bezier (caveat adding Offset wto tight bends)
     Simplify
+    OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS BUT DO NOT CHANGE THE GRAPH
     Nudge
     Straighten
     Smooth Gradient
-
-OPERATIONS THAT APPLY UPDATES TO TRACKPOINTS BUT DO NOT CHANGE THE GRAPH
-( and could traverse nodes and multiple edges, just walking the track point list )
-( but we shall restrict to single edge for consistency and simplicity )
-Centroid Filter
+    Centroid Filter
 
 OPERATIONS THAT CAN WORK ON A SINGLE NODE AND SHOULD BE SUPPORTED
 Nudge vertically
