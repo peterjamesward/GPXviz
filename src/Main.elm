@@ -1453,11 +1453,10 @@ update msg model =
 
                         newTrack =
                             applyWeightedAverageFilter
-                                        ( rangeStart, rangeEnd )
-                                        model.filterBias
-                                        model.loopiness
-                                        model.trackPoints
-
+                                ( rangeStart, rangeEnd )
+                                model.filterBias
+                                model.loopiness
+                                model.trackPoints
 
                         newGraph =
                             updateCanonicalEdge
@@ -1965,8 +1964,11 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
             else
                 "Nudge node " ++ String.fromInt node1
 
-        targetTPs =
-            List.drop node1 <| List.take (nodeN + 1) model.trackPoints
+        ( beforeLastPoint, afterLastPoint ) =
+            List.splitAt (nodeN + 1) model.trackPoints
+
+        ( beforeFirstPoint, targetTPs ) =
+            List.splitAt node1 beforeLastPoint
 
         nudgedPoints =
             List.map
@@ -1978,9 +1980,7 @@ nudgeNodeRange model node1 nodeN horizontal vertical =
                 targetTPs
 
         newTrackPoints =
-            List.take node1 model.trackPoints
-                ++ nudgedPoints
-                ++ List.drop (nodeN + 1) model.trackPoints
+            beforeFirstPoint ++ nudgedPoints ++ afterLastPoint
 
         newGraph =
             updateCanonicalEdge

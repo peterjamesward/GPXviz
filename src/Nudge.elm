@@ -4,7 +4,7 @@ import Angle
 import Length
 import Point2d
 import Spherical exposing (metresPerDegree)
-import TrackPoint exposing (TrackPoint)
+import TrackPoint exposing (TrackPoint, fromGPXcoords)
 import Vector2d
 
 
@@ -26,9 +26,13 @@ nudgeTrackPoint baseTP horizontal vertical =
 
         nudgedTrackPoint2d =
             Point2d.translateBy nudgeVector trackPoint2d
+
+        ( lon, lat ) =
+            Point2d.toTuple Length.inMeters nudgedTrackPoint2d
     in
     { baseTP
-        | lat = Length.inMeters <| Point2d.yCoordinate nudgedTrackPoint2d
-        , lon = Length.inMeters <| Point2d.xCoordinate nudgedTrackPoint2d
+        | lat = lat
+        , lon = lon
         , ele = baseTP.ele + vertical
+        , xyz = fromGPXcoords lon lat (baseTP.ele + vertical)
     }
