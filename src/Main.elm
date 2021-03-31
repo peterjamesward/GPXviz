@@ -29,7 +29,7 @@ import Filters exposing (applyWeightedAverageFilter, bezierSplines)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
-import Graph exposing (Graph, updateCanonicalEdge, viewGraphControls)
+import Graph exposing (Graph, isNode, updateCanonicalEdge, viewGraphControls)
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
@@ -1944,12 +1944,25 @@ simulateNodeRangeNudge model node1 nodeN horizontal vertical =
 
 nudgeNode : Model -> Float -> Float -> Model
 nudgeNode model horizontal vertical =
-    case locateMarkers model of
-        Just ( start, end ) ->
-            nudgeNodeRange model start end horizontal vertical
+    if isNode model.graph model.currentNode && model.markedNode == Nothing then
+        verticalNudgeGraphNode model vertical
 
-        _ ->
-            model
+    else
+        case locateMarkers model of
+            Just ( start, end ) ->
+                nudgeNodeRange model start end horizontal vertical
+
+            _ ->
+                model
+
+
+verticalNudgeGraphNode : Model -> Float -> Model
+verticalNudgeGraphNode model vertical =
+    let
+        newGraph =
+            Graph.verticalNudgeNode model.graph model.currentNode vertical
+    in
+    { model | graph = newGraph, trackPoints = Graph.walkTheRoute newGraph }
 
 
 nudgeNodeRange : Model -> Int -> Int -> Float -> Float -> Model
@@ -4334,6 +4347,21 @@ viewNudgeTools model =
                 [ verticalNudgeSlider model.verticalNudgeValue
                 , column [ spacing 10, centerX, centerY ]
                     [ horizontalNudgeSlider model.nudgeValue
+                    , nudgeButton model.nudgeValue model.verticalNudgeValue
+                    ]
+                ]
+            ]
+
+    else if
+        isNode model.graph model.currentNode
+            && model.markedNode
+            == Nothing
+    then
+        column [ padding 5, spacing 10, centerX ]
+            [ row [ spacing 10, centerX ]
+                [ verticalNudgeSlider model.verticalNudgeValue
+                , column [ spacing 10, centerX, centerY ]
+                    [ E.text "No Horizontal nudge"
                     , nudgeButton model.nudgeValue model.verticalNudgeValue
                     ]
                 ]

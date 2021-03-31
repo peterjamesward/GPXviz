@@ -23,10 +23,10 @@ DONE
     Straighten
     Smooth Gradient
     Centroid Filter
+    Nudge vertically
 
 OPERATIONS THAT CAN WORK ON A SINGLE NODE AND SHOULD BE SUPPORTED
-Nudge vertically
-Drag on map
+Drag on map (any point) ( => Offset == 0 )
 
 UNUSUAL OPERATIONS (we need not provide these in Graph mode)
 Close loop      (OK, but not important as can be done before analysis)

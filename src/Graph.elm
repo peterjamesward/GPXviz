@@ -774,7 +774,8 @@ withinSameEdge graph ( tp1, tp2 ) =
         let
             ( point1, point2 ) =
                 ( Dict.get tp1 graph.trackPointToCanonical
-                , Dict.get tp2 graph.trackPointToCanonical )
+                , Dict.get tp2 graph.trackPointToCanonical
+                )
         in
         case ( point1, point2 ) of
             ( Just (EdgePoint e1 canon1), Just (EdgePoint e2 canon2) ) ->
@@ -786,6 +787,22 @@ withinSameEdge graph ( tp1, tp2 ) =
 
             _ ->
                 Nothing
+
+
+isNode : Graph -> Int -> Bool
+isNode graph t1 =
+    case Dict.get t1 graph.trackPointToCanonical of
+        Just (NodePoint _) ->
+            True
+
+        Just (StartPoint _) ->
+            True
+
+        Just (FinishPoint _) ->
+            True
+
+        _ ->
+            False
 
 
 updateCanonicalEdge : Graph -> ( Int, Int ) -> List TrackPoint -> Graph
@@ -867,6 +884,48 @@ updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
 
                         _ ->
                             graph
+
+                _ ->
+                    graph
+
+        _ ->
+            graph
+
+
+verticalNudgeNode : Graph -> Int -> Float -> Graph
+verticalNudgeNode graph nodeIdx vertical =
+    let
+        canonicalInfo =
+            Dict.get nodeIdx graph.trackPointToCanonical
+    in
+    case canonicalInfo of
+        Just (NodePoint canonicalIdx) ->
+            let
+                nodeEntry =
+                    Dict.get canonicalIdx graph.nodes
+            in
+            case nodeEntry of
+                Just node ->
+                    let
+                        nudgedNode =
+                            { node
+                                | ele = node.ele + vertical
+                                , xyz = fromGPXcoords node.lon node.lat (node.ele + vertical)
+                            }
+
+                        updatedNodes =
+                            Dict.insert canonicalIdx nudgedNode graph.nodes
+
+                        updatedRoute =
+                            reindexTrackpoints <|
+                                List.map Tuple.first <|
+                                    walkTheRouteInternal { graph | nodes = updatedNodes }
+
+                        completelyNewGraph =
+                            -- Absurdly expensive but logically sound & simpler to re-analyse here??
+                            deriveTrackPointGraph updatedRoute graph.boundingBox
+                    in
+                    completelyNewGraph
 
                 _ ->
                     graph
