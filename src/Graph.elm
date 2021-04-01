@@ -232,14 +232,13 @@ deriveTrackPointGraph trackPoints box =
                     )
                 |> List.filterMap identity
 
-        nodeCoordinatesToIndex : Dict LatLon Int
-        nodeCoordinatesToIndex =
-            -- Assign nodes sequential index numbers and allow conversion from position.
-            Dict.fromList <|
-                List.map2
-                    (\key idx -> ( key, idx ))
-                    (Dict.keys rawNodes)
-                    (List.range 1 (Dict.size rawNodes))
+        --nodeCoordinatesToIndex : Dict LatLon Int
+        --nodeCoordinatesToIndex =
+        --    -- Assign nodes index numbers (original IDX) and allow conversion from position.
+        --    rawNodes
+        --    |> Dict.toList
+        --    |>    List.map (\key tp -> ( key, tp.idx ))
+        --    |> Dict.fromList
 
         edgeKeysToIndex : Dict ( LatLon, LatLon, LatLon ) Int
         edgeKeysToIndex =
@@ -253,18 +252,9 @@ deriveTrackPointGraph trackPoints box =
         indexedNodes : Dict Int TrackPoint
         indexedNodes =
             -- Convert from a Dict keyed on position to one keyed by Int.
-            List.map
-                (\( k, v ) -> ( Dict.get k nodeCoordinatesToIndex, v ))
-                (Dict.toList rawNodes)
-                |> List.filterMap
-                    (\( k, tp ) ->
-                        case k of
-                            Just key ->
-                                Just ( key, tp )
-
-                            Nothing ->
-                                Nothing
-                    )
+            rawNodes
+                |> Dict.toList
+                |> List.map (\( k, v ) -> ( v.idx, v ))
                 |> Dict.fromList
 
         indexedEdges : Dict Int Edge
@@ -290,17 +280,17 @@ deriveTrackPointGraph trackPoints box =
         makeProperEdge : ( LatLon, LatLon, LatLon ) -> List TrackPoint -> Maybe Edge
         makeProperEdge ( start, waypoint, end ) tps =
             let
-                findNodeIndex latlon =
-                    Dict.get latlon nodeCoordinatesToIndex
+                findvertex latlon =
+                    Dict.get latlon rawNodes
 
-                ( startIdx, endIdx ) =
-                    ( findNodeIndex start, findNodeIndex end )
+                ( startVertex, endVertex ) =
+                    ( findvertex start, findvertex end )
             in
-            case ( startIdx, endIdx ) of
-                ( Just startNode, Just endNode ) ->
+            case ( startVertex, endVertex ) of
+                ( Just startTP, Just endTP ) ->
                     Just
-                        { startNode = startNode
-                        , endNode = endNode
+                        { startNode = startTP.idx
+                        , endNode = endTP.idx
                         , wayPoint = waypoint
                         , trackPoints = List.drop 1 <| List.take (List.length tps - 1) tps
                         }
@@ -912,23 +902,90 @@ verticalNudgeNode graph nodeIdx vertical =
                                 | ele = node.ele + vertical
                                 , xyz = fromGPXcoords node.lon node.lat (node.ele + vertical)
                             }
-
-                        updatedNodes =
-                            Dict.insert canonicalIdx nudgedNode graph.nodes
-
-                        updatedRoute =
-                            reindexTrackpoints <|
-                                List.map Tuple.first <|
-                                    walkTheRouteInternal { graph | nodes = updatedNodes }
-
-                        completelyNewGraph =
-                            -- Absurdly expensive but logically sound & simpler to re-analyse here??
-                            deriveTrackPointGraph updatedRoute graph.boundingBox
                     in
-                    completelyNewGraph
+                    updateVertex graph canonicalIdx nudgedNode
 
                 _ ->
                     graph
 
         _ ->
             graph
+
+
+updateVertex : Graph -> Int -> TrackPoint -> Graph
+updateVertex graph index point =
+    let
+        nodeEntry =
+            Dict.get index graph.nodes
+    in
+    case nodeEntry of
+        Just _ ->
+            let
+                updatedNodes =
+                    Dict.insert index point graph.nodes
+
+                updatedRoute =
+                    reindexTrackpoints <|
+                        List.map Tuple.first <|
+                            walkTheRouteInternal { graph | nodes = updatedNodes }
+
+                completelyNewGraph =
+                    -- Absurdly expensive but logically sound & simpler to re-analyse here??
+                    deriveTrackPointGraph updatedRoute graph.boundingBox
+            in
+            completelyNewGraph
+
+        _ ->
+            graph
+
+
+canonicalIndex : Graph -> Int -> Int
+canonicalIndex graph index =
+    if graph == empty then
+        index
+
+    else
+        case Dict.get index graph.trackPointToCanonical of
+            Just (NodePoint n1) ->
+                n1
+
+            Just (StartPoint n1) ->
+                n1
+
+            Just (FinishPoint n1) ->
+                n1
+
+            Just (EdgePoint _ n1) ->
+                n1
+
+            _ ->
+                index
+
+
+updateTrackPoint : Graph -> Int -> TrackPoint -> List TrackPoint -> Graph
+updateTrackPoint graph tpIndex changed newTrack =
+    let
+        _ =
+            Debug.log "Updating point" changed
+    in
+    -- Assume index is canonical.
+    -- Could be a Vertex, could be on an Edge.
+    if graph == empty then
+        empty
+
+    else
+        case Dict.get tpIndex graph.trackPointToCanonical of
+            Just (NodePoint n1) ->
+                updateVertex graph n1 changed
+
+            Just (StartPoint n1) ->
+                updateVertex graph n1 changed
+
+            Just (FinishPoint n1) ->
+                updateVertex graph n1 changed
+
+            Just (EdgePoint _ n1) ->
+                updateCanonicalEdge graph ( tpIndex, tpIndex ) newTrack
+
+            _ ->
+                graph

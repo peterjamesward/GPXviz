@@ -29,7 +29,7 @@ import Filters exposing (applyWeightedAverageFilter, bezierSplines)
 import Flythrough exposing (Flythrough, eyeHeight, flythrough)
 import GeoCodeDecoders exposing (IpInfo)
 import Geometry101
-import Graph exposing (Graph, isNode, updateCanonicalEdge, viewGraphControls)
+import Graph exposing (Graph, canonicalIndex, isNode, updateCanonicalEdge, viewGraphControls)
 import Html.Attributes exposing (id)
 import Html.Events.Extra.Mouse as Mouse exposing (Button(..), Event)
 import Http
@@ -499,23 +499,49 @@ draggedOnMap json model =
         lat2 =
             E.decodeValue (at [ "end", "lat" ] float) json
 
+        updateModel tp endLon endLat m =
+            let
+                tpIndex =
+                    canonicalIndex m.graph tp.idx
+
+                _ = Debug.log "Canonical index" tpIndex
+
+                draggedPoint =
+                    { tp | lon = endLon, lat = endLat
+                    , xyz = fromGPXcoords endLon endLat tp.ele
+                    , idx = tpIndex }
+
+                newTrackPoints =
+                    List.take tpIndex model.trackPoints
+                        ++ [ draggedPoint ]
+                        ++ List.drop (tpIndex + 1) model.trackPoints
+
+                newGraph =
+                    Graph.updateTrackPoint model.graph tpIndex draggedPoint newTrackPoints
+            in
+            { m
+                | trackPoints =
+                    if newGraph == m.graph then
+                        reindexTrackpoints <| newTrackPoints
+
+                    else
+                        Graph.walkTheRoute newGraph
+                , currentNode = tp.idx
+                , graph = newGraph
+            }
+
         newModel tp endLon endLat =
-            addToUndoStack "Drag track point" model
-                |> (\m ->
-                        { m
-                            | trackPoints =
-                                List.take tp.idx model.trackPoints
-                                    ++ [ { tp | lon = endLon, lat = endLat } ]
-                                    ++ List.drop (tp.idx + 1) model.trackPoints
-                            , currentNode = tp.idx
-                        }
-                   )
+            model
+                |> addToUndoStack "Drag track point"
+                |> updateModel tp endLon endLat
     in
     case ( ( lon1, lat1 ), ( lon2, lat2 ) ) of
         ( ( Ok startLon, Ok startLat ), ( Ok endLon, Ok endLat ) ) ->
             let
                 maybetp =
                     findTrackPoint startLon startLat model.trackPoints
+
+                _ = Debug.log "nearest seems to be" maybetp
             in
             case maybetp of
                 Just tp ->

@@ -368,8 +368,7 @@ removeByNodeNumbers idxsToRemove trackPoints =
 
 findTrackPoint : Float -> Float -> List TrackPoint -> Maybe TrackPoint
 findTrackPoint lon lat tps =
-    -- Originally for when a map point is dragged, so the lon & lat are accurate.
-    -- (It's not a nearest search but may need second pass if tolerance is too big.)
+    -- Filter on proximity then sort to get nearest.
     let
         withinTolerance tp =
             abs (tp.lon - lon)
@@ -377,8 +376,9 @@ findTrackPoint lon lat tps =
                 && abs (tp.lat - lat)
                 < (2.0 / metresPerDegree)
     in
-    List.head <|
-        List.filter withinTolerance tps
+    tps
+        |> List.filter withinTolerance
+        |> trackPointFromLatLon lat lon
 
 
 filterCloseTrackPoints : List TrackPoint -> List TrackPoint
