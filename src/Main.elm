@@ -504,12 +504,16 @@ draggedOnMap json model =
                 tpIndex =
                     canonicalIndex m.graph tp.idx
 
-                _ = Debug.log "Canonical index" tpIndex
+                _ =
+                    Debug.log "Canonical index" tpIndex
 
                 draggedPoint =
-                    { tp | lon = endLon, lat = endLat
-                    , xyz = fromGPXcoords endLon endLat tp.ele
-                    , idx = tpIndex }
+                    { tp
+                        | lon = endLon
+                        , lat = endLat
+                        , xyz = fromGPXcoords endLon endLat tp.ele
+                        , idx = tpIndex
+                    }
 
                 newTrackPoints =
                     List.take tpIndex model.trackPoints
@@ -541,7 +545,8 @@ draggedOnMap json model =
                 maybetp =
                     findTrackPoint startLon startLat model.trackPoints
 
-                _ = Debug.log "nearest seems to be" maybetp
+                _ =
+                    Debug.log "nearest seems to be" maybetp
             in
             case maybetp of
                 Just tp ->
@@ -696,23 +701,31 @@ update msg model =
                 ( newGraph, undo ) =
                     Graph.update graphMsg model
 
-                newModel =
-                    { model | graph = newGraph }
+                newModel : Model -> Model
+                newModel m =
+                    { m | graph = newGraph, trackPoints = model.trackPoints }
+
+                useNewGraph : Model -> Model
+                useNewGraph m =
+                    { m
+                        | graph = newGraph
+                        , trackPoints = Graph.walkTheRoute newGraph
+                    }
             in
             case undo of
                 Just undoMessage ->
                     model
                         |> addToUndoStack undoMessage
-                        |> (\m ->
-                                { m
-                                    | graph = newGraph
-                                    , trackPoints = Graph.walkTheRoute newGraph
-                                }
+                        |> (if newGraph == Graph.empty then
+                                newModel
+
+                            else
+                                useNewGraph
                            )
                         |> trackHasChanged
 
-                Nothing ->
-                    ( newModel, Cmd.none )
+                _ ->
+                    ( newModel model, Cmd.none )
 
         NoOpMsg ->
             ( model, Cmd.none )

@@ -78,6 +78,7 @@ type Msg
     = GraphAnalyse
     | CentreLineOffset Float
     | ApplyOffset
+    | ConvertFromGraph
 
 
 type alias Node =
@@ -108,7 +109,13 @@ viewGraphControls graph ( current, marker ) wrapper =
         analyseButton =
             I.button prettyButtonStyles
                 { onPress = Just (wrapper GraphAnalyse)
-                , label = E.text "Analyse"
+                , label = E.text "Convert to Graph"
+                }
+
+        finishButton =
+            I.button prettyButtonStyles
+                { onPress = Just (wrapper ConvertFromGraph)
+                , label = E.text "Convert from Graph"
                 }
 
         offsetSlider =
@@ -164,6 +171,7 @@ viewGraphControls graph ( current, marker ) wrapper =
             [ analyseButton
             , offsetSlider
             , applyOffsetButton
+            , finishButton
             ]
         , markerInfo
         ]
@@ -191,6 +199,9 @@ update msg model =
         ApplyOffset ->
             -- The route is pre-computed; it's the Undo message that puts it into effect.
             ( model.graph, Just "Apply offset" )
+
+        ConvertFromGraph ->
+            ( empty, Just "I'm done with the Graph" )
 
 
 deriveTrackPointGraph :
