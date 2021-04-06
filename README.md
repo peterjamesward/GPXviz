@@ -1,5 +1,12 @@
 # GPXviz
 
+## This project is in sunset mode
+
+I've gone as far as I can with the original base but the weight of earlier decisions is now
+stressing me. I'm starting up a new project for GPXmagic v2.0.
+
+## Background
+
 Someone on the RGT Group asked if there was a quick and simple way to check out a GPX file before committing to a Magic Road.
 
 "Sounds like an interesting little project", I thought.
