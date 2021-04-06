@@ -57,9 +57,7 @@ type alias Graph =
 type
     PointType
     -- We shall use this to build an index back from Trackpoint land to Graph land.
-    = StartPoint Int -- Canonical index of node
-    | FinishPoint Int -- Canonical index of node
-    | NodePoint Int -- Canonical index of node
+    = NodePoint Int -- Canonical index of node
     | EdgePoint Int Int -- Canonical index of edge, canonical index of node
 
 
@@ -242,14 +240,6 @@ deriveTrackPointGraph trackPoints box =
                                 Nothing
                     )
                 |> List.filterMap identity
-
-        --nodeCoordinatesToIndex : Dict LatLon Int
-        --nodeCoordinatesToIndex =
-        --    -- Assign nodes index numbers (original IDX) and allow conversion from position.
-        --    rawNodes
-        --    |> Dict.toList
-        --    |>    List.map (\key tp -> ( key, tp.idx ))
-        --    |> Dict.fromList
 
         edgeKeysToIndex : Dict ( LatLon, LatLon, LatLon ) Int
         edgeKeysToIndex =
@@ -796,101 +786,8 @@ isNode graph t1 =
         Just (NodePoint _) ->
             True
 
-        Just (StartPoint _) ->
-            True
-
-        Just (FinishPoint _) ->
-            True
-
         _ ->
             False
-
-
-updateCanonicalEdge : Graph -> ( Int, Int ) -> List TrackPoint -> Graph
-updateCanonicalEdge graph ( startIndex, endIndex ) allNewTrack =
-    -- From startIndex, we look up the canonical edge and node of the edited region.
-    -- From canonical edge, we find the canonical bounding nodes.
-    -- Search the new track point list for the nodes either side of the edit.
-    -- This is the new canonical edge; we enter this in the canon.
-    -- We rewalk the graph. We rebuild the reverse index.
-    -- The caller must fetch the new track point list for the route.
-    let
-        edgeEntry =
-            Dict.get startIndex graph.trackPointToCanonical
-    in
-    case edgeEntry of
-        Just (EdgePoint edgeIdx _) ->
-            let
-                edgeInfo =
-                    Dict.get edgeIdx graph.edges
-            in
-            case edgeInfo of
-                Just { startNode, endNode, wayPoint, trackPoints } ->
-                    let
-                        ( pointsBeforeEdit, pointsAfterEdit ) =
-                            List.splitAt startIndex allNewTrack
-                    in
-                    case ( Dict.get startNode graph.nodes, Dict.get endNode graph.nodes ) of
-                        ( Just start, Just end ) ->
-                            let
-                                notAtNode point =
-                                    -- After much experimentation, this spell seems to work.
-                                    let
-                                        lookupReverse =
-                                            Dict.get point.idx graph.trackPointToCanonical
-                                    in
-                                    (lookupReverse /= Just (NodePoint startNode))
-                                        && (lookupReverse /= Just (NodePoint endNode))
-
-                                edgePointsBeforeEdit =
-                                    pointsBeforeEdit
-                                        |> List.reverse
-                                        |> List.takeWhile notAtNode
-                                        |> List.reverse
-
-                                edgePointsAfterEditStart =
-                                    List.takeWhile notAtNode pointsAfterEdit
-
-                                newEdgePoints =
-                                    edgePointsBeforeEdit ++ edgePointsAfterEditStart
-
-                                newWayPoint =
-                                    case newEdgePoints of
-                                        p1 :: _ ->
-                                            trackPointComparable p1
-
-                                        [] ->
-                                            trackPointComparable end
-
-                                newEdge =
-                                    { startNode = startNode
-                                    , endNode = endNode
-                                    , wayPoint = newWayPoint
-                                    , trackPoints = newEdgePoints
-                                    }
-
-                                updatedEdges =
-                                    Dict.insert edgeIdx newEdge graph.edges
-
-                                updatedRoute =
-                                    reindexTrackpoints <|
-                                        List.map Tuple.first <|
-                                            walkTheRouteInternal { graph | edges = updatedEdges }
-
-                                completelyNewGraph =
-                                    -- Absurdly expensive but logically sound & simpler to re-analyse here??
-                                    deriveTrackPointGraph updatedRoute graph.boundingBox
-                            in
-                            completelyNewGraph
-
-                        _ ->
-                            graph
-
-                _ ->
-                    graph
-
-        _ ->
-            graph
 
 
 verticalNudgeNode : Graph -> Int -> Float -> Graph
@@ -934,17 +831,8 @@ updateVertex graph index point =
             let
                 updatedNodes =
                     Dict.insert index point graph.nodes
-
-                updatedRoute =
-                    reindexTrackpoints <|
-                        List.map Tuple.first <|
-                            walkTheRouteInternal { graph | nodes = updatedNodes }
-
-                completelyNewGraph =
-                    -- Absurdly expensive but logically sound & simpler to re-analyse here??
-                    deriveTrackPointGraph updatedRoute graph.boundingBox
             in
-            completelyNewGraph
+            { graph | nodes = updatedNodes }
 
         _ ->
             graph
@@ -960,12 +848,6 @@ canonicalIndex graph index =
             Just (NodePoint n1) ->
                 n1
 
-            Just (StartPoint n1) ->
-                n1
-
-            Just (FinishPoint n1) ->
-                n1
-
             Just (EdgePoint _ n1) ->
                 n1
 
@@ -973,30 +855,46 @@ canonicalIndex graph index =
                 index
 
 
-updateTrackPoint : Graph -> Int -> TrackPoint -> List TrackPoint -> Graph
-updateTrackPoint graph tpIndex changed newTrack =
+indexPreservingEdit : Graph -> ( Int, Int ) -> List TrackPoint -> Graph
+indexPreservingEdit graph ( start, end ) track =
+    -- The locations only of a range of trackpoint has been changed.
+    -- We must return a new graph in which:
+    -- Updated nodes reflect their new positions
+    -- Updated edges reflect their new positions
+    -- The route reflects the canon in all traversals
+    -- (The reverse index is unchanged because no track points are added or removed.)
     let
-        _ =
-            Debug.log "Updating point" changed
+        partialRoute =
+            -- This actually tells me what edges need to be updated.
+            -- And should help to isolate the sections of the new track.
+            findRouteSection graph ( start, end )
     in
-    -- Assume index is canonical.
-    -- Could be a Vertex, could be on an Edge.
-    if graph == empty then
-        empty
+    { graph
+        | nodes = updatedNodes
+        , edges = updatedEdges
+        , trackPoints = updatedTrackPoints
+    }
 
-    else
-        case Dict.get tpIndex graph.trackPointToCanonical of
-            Just (NodePoint n1) ->
-                updateVertex graph n1 changed
 
-            Just (StartPoint n1) ->
-                updateVertex graph n1 changed
+nodeIndicesFromRoute : Graph -> List { edge : Int, idx : Int }
+nodeIndicesFromRoute graph =
+    let
+        traversalEndIndex traversal ( lastStart, starts ) =
+            let
+                edgeInfo =
+                    Dict.get traversal.edge graph.edges
+            in
+            case edgeInfo of
+                Just { startNode, endNode, wayPoint, trackPoints } ->
+                    let
+                        nextStart =
+                            lastStart + 1 + List.length trackPoints
+                    in
+                    ( nextStart, { edge = traversal.edge, idx = nextStart } :: starts )
 
-            Just (FinishPoint n1) ->
-                updateVertex graph n1 changed
-
-            Just (EdgePoint _ n1) ->
-                updateCanonicalEdge graph ( tpIndex, tpIndex ) newTrack
-
-            _ ->
-                graph
+                Nothing ->
+                    ( lastStart, starts )
+    in
+    List.foldl traversalEndIndex ( 0, [ { edge = 0, idx = 0 } ] ) graph.route
+        |> Tuple.second
+        |> List.reverse
